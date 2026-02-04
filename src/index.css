@@ -1,0 +1,170 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fantastic Four Retro-Modern Design System
+   Warm cream backgrounds with soft blue sidebar
+   Classic poster feel - comfortable and warm
+*/
+
+@layer base {
+  :root {
+    /* Warm Vintage Cream Background */
+    --background: 42 38% 95%;
+    --foreground: 215 35% 18%;
+
+    /* Card - soft cream white */
+    --card: 45 42% 97%;
+    --card-foreground: 215 35% 18%;
+
+    /* Popover */
+    --popover: 45 42% 98%;
+    --popover-foreground: 215 35% 18%;
+
+    /* Primary - Classic Fantastic Four Blue */
+    --primary: 207 60% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Soft cream */
+    --secondary: 40 32% 91%;
+    --secondary-foreground: 215 30% 22%;
+
+    /* Muted - Warm tan */
+    --muted: 38 28% 87%;
+    --muted-foreground: 215 18% 45%;
+
+    /* Accent - Flame Orange */
+    --accent: 24 92% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Destructive */
+    --destructive: 0 68% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders */
+    --border: 40 28% 84%;
+    --input: 40 28% 86%;
+    --ring: 207 60% 45%;
+
+    --radius: 0.5rem;
+
+    /* Sidebar - Soft Light Blue Tint */
+    --sidebar-background: 210 35% 98%;
+    --sidebar-foreground: 215 30% 30%;
+    --sidebar-primary: 207 60% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 207 55% 94%;
+    --sidebar-accent-foreground: 207 60% 35%;
+    --sidebar-border: 210 25% 92%;
+    --sidebar-ring: 207 60% 45%;
+
+    /* Status Colors */
+    --success: 152 48% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 88% 52%;
+    --warning-foreground: 38 92% 15%;
+    --info: 200 68% 50%;
+    --info-foreground: 0 0% 100%;
+
+    /* Chart Colors */
+    --chart-1: 207 60% 45%;
+    --chart-2: 24 92% 55%;
+    --chart-3: 152 48% 40%;
+    --chart-4: 275 45% 52%;
+    --chart-5: 345 58% 52%;
+  }
+
+  .dark {
+    /* Deep Navy Background */
+    --background: 215 38% 10%;
+    --foreground: 42 32% 92%;
+
+    /* Card */
+    --card: 215 36% 14%;
+    --card-foreground: 42 32% 92%;
+
+    /* Popover */
+    --popover: 215 36% 16%;
+    --popover-foreground: 42 32% 92%;
+
+    /* Primary - Brighter blue */
+    --primary: 207 65% 55%;
+    --primary-foreground: 215 38% 10%;
+
+    /* Secondary */
+    --secondary: 215 28% 20%;
+    --secondary-foreground: 42 28% 88%;
+
+    /* Muted */
+    --muted: 215 26% 18%;
+    --muted-foreground: 42 18% 58%;
+
+    /* Accent */
+    --accent: 24 88% 52%;
+    --accent-foreground: 215 38% 10%;
+
+    /* Destructive */
+    --destructive: 0 58% 44%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders */
+    --border: 215 28% 22%;
+    --input: 215 28% 20%;
+    --ring: 207 65% 55%;
+
+    /* Sidebar - Dark Blue Tint */
+    --sidebar-background: 210 35% 12%;
+    --sidebar-foreground: 42 25% 85%;
+    --sidebar-primary: 207 65% 55%;
+    --sidebar-primary-foreground: 215 38% 10%;
+    --sidebar-accent: 207 50% 22%;
+    --sidebar-accent-foreground: 207 60% 70%;
+    --sidebar-border: 210 28% 20%;
+    --sidebar-ring: 207 65% 55%;
+
+    /* Status Colors */
+    --success: 152 48% 46%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 85% 54%;
+    --warning-foreground: 38 92% 12%;
+    --info: 200 65% 54%;
+    --info-foreground: 0 0% 100%;
+
+    /* Chart Colors */
+    --chart-1: 207 65% 55%;
+    --chart-2: 24 88% 55%;
+    --chart-3: 152 48% 46%;
+    --chart-4: 275 45% 58%;
+    --chart-5: 345 58% 58%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  .shadow-soft {
+    box-shadow: 
+      0 2px 8px -2px hsl(var(--foreground) / 0.06),
+      0 4px 16px -4px hsl(var(--foreground) / 0.08);
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 20px -4px hsl(var(--primary) / 0.3);
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 24px -4px hsl(var(--accent) / 0.35);
+  }
+}

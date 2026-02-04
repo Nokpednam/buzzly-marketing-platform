@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  buzzly_db:
+    image: postgres:15-alpine
+    container_name: buzzly_db
+    restart: always
+    environment:
+      POSTGRES_USER: eiei
+      POSTGRES_PASSWORD: eiei1234
+      POSTGRES_DB: buzzly_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - buzzly_pg_data:/var/lib/postgresql/data
+
+volumes:
+  buzzly_pg_data:

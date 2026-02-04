@@ -1,0 +1,181 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+export interface MRRMetrics {
+  currentMrr: number;
+  previousMrr: number;
+  mrrGrowth: number;
+  monthlyData: { month: string; mrr: number; growth: number }[];
+}
+
+export interface ChurnMetrics {
+  churnRate: number;
+  churnedCustomers: number;
+  recoveredCustomers: number;
+  lostRevenue: number;
+  trendData: { month: string; churnRate: number }[];
+}
+
+export interface CohortData {
+  cohort: string;
+  cohortSize: number;
+  retentionData: number[];
+}
+
+export interface FeedbackMetrics {
+  avgRating: number;
+  npsScore: number;
+  totalReviews: number;
+  openIssues: number;
+  sentimentBreakdown: { sentiment: string; count: number; percentage: number }[];
+}
+
+export function useSubscriptionMetrics() {
+  return useQuery({
+    queryKey: ["owner-subscription-metrics"],
+    queryFn: async () => {
+      const { data: subscriptions, error } = await supabase
+        .from("subscriptions")
+        .select(`
+          id,
+          status,
+          current_period_start,
+          current_period_end,
+          subscription_plans:subscription_plan_id (
+            name,
+            price_monthly,
+            price_yearly
+          )
+        `)
+        .eq("status", "active");
+
+      if (error) throw error;
+
+      // Calculate MRR
+      const mrr = subscriptions?.reduce((sum, sub: any) => {
+        return sum + Number(sub.subscription_plans?.price_monthly || 0);
+      }, 0) || 0;
+
+      return {
+        currentMrr: mrr,
+        activeSubscriptions: subscriptions?.length || 0,
+        arr: mrr * 12,
+      };
+    },
+  });
+}
+
+export function useCohortAnalysis() {
+  return useQuery({
+    queryKey: ["owner-cohort-analysis"],
+    queryFn: async (): Promise<CohortData[]> => {
+      const { data, error } = await supabase
+        .from("cohort_analysis")
+        .select("*")
+        .order("cohort_date", { ascending: false })
+        .limit(12);
+
+      if (error) throw error;
+
+      return (data || []).map((cohort) => ({
+        cohort: cohort.cohort_date,
+        cohortSize: cohort.cohort_size || 0,
+        retentionData: cohort.retention_data as number[] || [],
+      }));
+    },
+  });
+}
+
+export function useFeedbackMetrics() {
+  return useQuery({
+    queryKey: ["owner-feedback-metrics"],
+    queryFn: async (): Promise<FeedbackMetrics> => {
+      const { data: feedback, error } = await supabase
+        .from("feedback")
+        .select(`
+          id,
+          comment,
+          rating:rating_id (
+            score
+          )
+        `)
+        .limit(500);
+
+      if (error) throw error;
+
+      // Calculate metrics
+      const ratings = feedback?.map((f: any) => f.rating?.score || 0).filter(Boolean) || [];
+      const avgRating = ratings.length
+        ? ratings.reduce((a, b) => a + b, 0) / ratings.length
+        : 0;
+
+      // Simulate NPS calculation (promoters - detractors)
+      const promoters = ratings.filter((r) => r >= 9).length;
+      const detractors = ratings.filter((r) => r <= 6).length;
+      const npsScore = ratings.length
+        ? Math.round(((promoters - detractors) / ratings.length) * 100)
+        : 0;
+
+      // Basic sentiment analysis based on rating
+      const positive = ratings.filter((r) => r >= 4).length;
+      const neutral = ratings.filter((r) => r === 3).length;
+      const negative = ratings.filter((r) => r <= 2).length;
+      const total = ratings.length || 1;
+
+      return {
+        avgRating: Math.round(avgRating * 10) / 10,
+        npsScore,
+        totalReviews: feedback?.length || 0,
+        openIssues: negative,
+        sentimentBreakdown: [
+          { sentiment: "Positive", count: positive, percentage: Math.round((positive / total) * 100) },
+          { sentiment: "Neutral", count: neutral, percentage: Math.round((neutral / total) * 100) },
+          { sentiment: "Negative", count: negative, percentage: Math.round((negative / total) * 100) },
+        ],
+      };
+    },
+  });
+}
+
+export function useProductUsageMetrics() {
+  return useQuery({
+    queryKey: ["owner-product-usage"],
+    queryFn: async () => {
+      // Get user counts from profiles
+      const { count: totalUsers, error: usersError } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true });
+
+      if (usersError) throw usersError;
+
+      // Get customer activities for engagement metrics
+      const { data: activities, error: activitiesError } = await supabase
+        .from("customer_activities")
+        .select("event_type_id, created_at")
+        .order("created_at", { ascending: false })
+        .limit(1000);
+
+      if (activitiesError) throw activitiesError;
+
+      // Calculate DAU/MAU
+      const now = new Date();
+      const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const last30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      const dau = activities?.filter(
+        (a) => a.created_at && new Date(a.created_at) > last24h
+      ).length || 0;
+
+      const mau = activities?.filter(
+        (a) => a.created_at && new Date(a.created_at) > last30d
+      ).length || 0;
+
+      return {
+        totalUsers: totalUsers || 0,
+        dau,
+        mau,
+        dauMauRatio: mau > 0 ? Math.round((dau / mau) * 100) : 0,
+      };
+    },
+  });
+}
