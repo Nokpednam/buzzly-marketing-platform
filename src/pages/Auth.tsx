@@ -62,7 +62,8 @@ export default function Auth() {
       .maybeSingle();
 
     if (employeeData && employeeData.status === 'active' && employeeData.approval_status === 'approved') {
-      const roleName = (employeeData.role_employees as any)?.role_name;
+      const roleEmployee = employeeData.role_employees as any;
+      const roleName = roleEmployee?.role_name;
 
       if (roleName === "owner") {
         navigate("/owner/product-usage");
@@ -147,7 +148,10 @@ export default function Auth() {
         let userRole = "";
 
         if (employeeData && employeeData.status === 'active' && employeeData.approval_status === 'approved') {
-          const roleName = (employeeData.role_employees as any)?.role_name;
+          // Safely access role_name, handling potentially deep nesting or nulls
+          const roleEmployee = employeeData.role_employees as any;
+          const roleName = roleEmployee?.role_name;
+
           if (["owner", "admin", "support", "developer"].includes(roleName)) {
             isAdmin = true;
             userRole = roleName;
@@ -157,6 +161,7 @@ export default function Auth() {
               description: `You have successfully signed in as ${userRole}.`,
             });
 
+            // Explicitly handle owner redirect
             if (roleName === "owner") {
               navigate("/owner/product-usage");
               return;
