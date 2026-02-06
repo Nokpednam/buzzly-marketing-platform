@@ -38,7 +38,7 @@ export default function AdminSignUp() {
         });
         return;
       }
-      
+
       if (formData.password.length < 8) {
         toast({
           title: "รหัสผ่านไม่ถูกต้อง",
@@ -82,7 +82,7 @@ export default function AdminSignUp() {
     try {
       const redirectUrl = `${window.location.origin}/admin/login`;
 
-      // 1. Create auth user
+      // 1. Try to Sign Up (for new users)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -92,63 +92,100 @@ export default function AdminSignUp() {
             full_name: `${formData.firstName} ${formData.lastName}`,
             first_name: formData.firstName,
             last_name: formData.lastName,
+            // Employee specific metadata
+            is_employee_signup: true,
+            aptitude: formData.aptitude,
+            birthday: formData.birthday,
           },
         },
       });
 
       if (authError) {
-        if (authError.message.includes("already registered")) {
-          throw new Error("อีเมลนี้ถูกใช้ลงทะเบียนแล้ว กรุณาเข้าสู่ระบบ");
+        // 2. Handle Existing Users
+        if (authError.message.includes("already registered") || authError.message.includes("User already registered")) {
+          // Attempt to Sign In to verify ownership
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: formData.email,
+            password: formData.password,
+          });
+
+          if (signInError) {
+            throw new Error("อีเมลนี้มีอยู่ในระบบแล้ว แต่รหัสผ่านไม่ถูกต้อง หรือเกิดข้อผิดพลาดในการเข้าสู่ระบบ");
+          }
+
+          if (signInData.user) {
+            // Check if already has an employee record
+            const { data: existingEmployee } = await supabase
+              .from('employees')
+              .select('id, approval_status')
+              .eq('user_id', signInData.user.id)
+              .maybeSingle();
+
+            if (existingEmployee) {
+              toast({
+                title: "ลงทะเบียนแล้ว",
+                description: `สถานะบัญชีของคุณคือ: ${existingEmployee.approval_status || 'ไม่ระบุ'}`,
+              });
+              await supabase.auth.signOut();
+              navigate("/admin/login");
+              return;
+            }
+
+            // create employee record manually (RLS policy allows this for authenticated user)
+            const { data: newEmployee, error: insertError } = await supabase
+              .from('employees')
+              .insert({
+                user_id: signInData.user.id,
+                email: formData.email,
+                status: 'active',
+                approval_status: 'pending',
+              })
+              .select()
+              .single(); // Use .single() to get the inserted row
+
+            if (insertError) throw insertError;
+
+            if (newEmployee) {
+              // Create profile
+              const { error: profileError } = await supabase
+                .from('employees_profile')
+                .insert({
+                  employees_id: newEmployee.id,
+                  first_name: formData.firstName,
+                  last_name: formData.lastName,
+                  aptitude: formData.aptitude,
+                  birthday_at: formData.birthday ? formData.birthday : null,
+                });
+
+              if (profileError) {
+                console.error("Error creating profile:", profileError);
+                // continue mostly success
+              }
+            }
+
+            toast({
+              title: "ลงทะเบียนสำเร็จ!",
+              description: "ส่งคำขอเป็นพนักงานเรียบร้อยแล้ว รอการอนุมัติจาก Admin",
+            });
+
+            await supabase.auth.signOut();
+            setTimeout(() => {
+              navigate("/admin/login", { replace: true });
+            }, 1000);
+            return;
+          }
         }
-        throw authError;
+
+        throw authError; // Throw other errors
       }
 
+      // 3. Success for New User (Trigger handles logic)
       if (authData.user) {
-        // 2. Get session (user might be auto-signed in)
-        const { data: sessionData } = await supabase.auth.getSession();
-        
-        if (sessionData.session) {
-          // 3. Create employee record (pending approval)
-          const { data: employeeData, error: employeeError } = await supabase
-            .from("employees")
-            .insert([{
-              user_id: authData.user.id,
-              email: formData.email,
-              status: "active",
-              approval_status: "pending", // Requires admin approval
-            }])
-            .select()
-            .single();
-
-          if (employeeError) {
-            console.error("Error creating employee:", employeeError);
-            throw new Error("ไม่สามารถสร้างบัญชีพนักงานได้");
-          }
-
-          // 4. Create employee profile
-          if (employeeData) {
-            const { error: profileError } = await supabase
-              .from("employees_profile")
-              .insert([{
-                employees_id: employeeData.id,
-                first_name: formData.firstName,
-                last_name: formData.lastName,
-                aptitude: formData.aptitude || null,
-                birthday_at: formData.birthday || null,
-              }]);
-
-            if (profileError) {
-              console.error("Error creating employee profile:", profileError);
-            }
-          }
-        }
-
         toast({
           title: "ลงทะเบียนสำเร็จ!",
           description: "บัญชีของคุณอยู่ระหว่างรอการอนุมัติจาก Admin กรุณารอการยืนยัน",
         });
 
-        // Sign out and redirect to login
         await supabase.auth.signOut();
 
         setTimeout(() => {
