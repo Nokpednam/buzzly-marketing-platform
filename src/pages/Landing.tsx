@@ -2,13 +2,13 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { 
-  BarChart3, 
-  Users, 
-  GitCompareArrows, 
-  Share2, 
-  TrendingUp, 
-  LogIn, 
+import {
+  BarChart3,
+  Users,
+  GitCompareArrows,
+  Share2,
+  TrendingUp,
+  LogIn,
   UserPlus,
   Route,
   ChevronDown,
@@ -44,6 +44,34 @@ export default function Landing() {
   }, []);
 
   const checkRoleAndRedirect = async (userId: string) => {
+    // Check employees table first (for owner/admin/support/developer)
+    const { data: employeeData } = await supabase
+      .from("employees")
+      .select(`
+        *,
+        role_employees (
+          role_name
+        )
+      `)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (employeeData && employeeData.status === 'active' && employeeData.approval_status === 'approved') {
+      const roleEmployee = employeeData.role_employees as any;
+      const roleName = roleEmployee?.role_name;
+
+      if (roleName === "owner") {
+        navigate("/owner/product-usage", { replace: true });
+        return;
+      }
+
+      if (["admin", "support", "developer"].includes(roleName)) {
+        navigate("/admin/dashboard", { replace: true });
+        return;
+      }
+    }
+
+    // Fallback to legacy user_roles check
     const { data: rolesData } = await supabase
       .from("user_roles")
       .select("role")
@@ -52,12 +80,12 @@ export default function Landing() {
     if (rolesData && rolesData.length > 0) {
       const hasOwnerRole = rolesData.some((r) => r.role === "owner");
       const hasAdminRole = rolesData.some((r) => r.role === "admin");
-      
+
       if (hasOwnerRole) {
         navigate("/owner/product-usage", { replace: true });
         return;
       }
-      
+
       if (hasAdminRole) {
         navigate("/admin/dashboard", { replace: true });
         return;
@@ -132,7 +160,7 @@ export default function Landing() {
       {/* Hero Section - Full Width with Background Image */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background Image - Blurred at top */}
-        <div 
+        <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
             backgroundImage: `url(${authBackground})`,
@@ -140,9 +168,9 @@ export default function Landing() {
             transform: 'scale(1.02)',
           }}
         />
-        
+
         {/* Gradient Overlay - Fades from light blue to cream */}
-        <div 
+        <div
           className="absolute inset-0"
           style={{
             background: `linear-gradient(
@@ -155,17 +183,17 @@ export default function Landing() {
             )`,
           }}
         />
-        
+
         <div className="relative z-10 container mx-auto px-6 text-center pt-20">
           {/* Main Heading */}
           <h1 className="text-6xl md:text-7xl lg:text-8xl font-bold italic text-foreground mb-6 tracking-tight">
             Welcome
           </h1>
-          
+
           <p className="text-xl md:text-2xl text-muted-foreground mb-4 max-w-2xl mx-auto">
             Marketing Platform ที่ทันสมัยสำหรับธุรกิจยุคใหม่
           </p>
-          
+
           <p className="text-lg text-muted-foreground/80 mb-10 max-w-xl mx-auto">
             วิเคราะห์ จัดการ และเติบโตไปพร้อมกับ Buzzly
           </p>
@@ -194,7 +222,7 @@ export default function Landing() {
           )}
 
           {/* Scroll Indicator */}
-          <button 
+          <button
             onClick={scrollToFeatures}
             className="animate-bounce text-muted-foreground hover:text-primary transition-colors"
           >
@@ -303,7 +331,7 @@ export default function Landing() {
             <p className="text-lg text-muted-foreground mb-8">
               เข้าร่วมกับธุรกิจนับพันที่ไว้วางใจ Buzzly ในการขับเคลื่อนการตลาด
             </p>
-            
+
             {!user && (
               <Button
                 size="lg"
@@ -328,7 +356,7 @@ export default function Landing() {
               </div>
               <span className="text-lg font-semibold text-foreground">Buzzly</span>
             </div>
-            
+
             <p className="text-sm text-muted-foreground">
               © 2024 Buzzly Platform. All rights reserved.
             </p>

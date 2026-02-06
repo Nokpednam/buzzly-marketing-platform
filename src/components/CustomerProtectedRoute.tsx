@@ -19,7 +19,7 @@ export function CustomerProtectedRoute({ children }: { children: React.ReactNode
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
           setChecked(false);
           checkCustomerAccess();
@@ -33,7 +33,7 @@ export function CustomerProtectedRoute({ children }: { children: React.ReactNode
   const checkCustomerAccess = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session?.user) {
         setIsCustomer(false);
         setLoading(false);
@@ -44,18 +44,41 @@ export function CustomerProtectedRoute({ children }: { children: React.ReactNode
       setSession(session);
       setUser(session.user);
 
-      // Check all user roles
+      // Check employees table first (primary source of truth for employees)
+      const { data: employeeData } = await supabase
+        .from("employees")
+        .select(`
+          status,
+          approval_status,
+          role_employees (
+            role_name
+          )
+        `)
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      let isEmployeeRole = false;
+
+      if (employeeData && employeeData.status === 'active' && employeeData.approval_status === 'approved') {
+        const roleEmployee = employeeData.role_employees as any;
+        const roleName = roleEmployee?.role_name;
+
+        if (["owner", "admin", "support", "developer"].includes(roleName)) {
+          isEmployeeRole = true;
+        }
+      }
+
+      // Fallback check to legacy user_roles
       const { data: fetchedRolesData } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", session.user.id);
 
-      // Check if admin/owner role
-      const hasAdminRole = fetchedRolesData && fetchedRolesData.length > 0 && fetchedRolesData.some(
+      const hasLegacyAdminRole = fetchedRolesData && fetchedRolesData.length > 0 && fetchedRolesData.some(
         (r) => r.role === "admin" || r.role === "owner"
       );
 
-      if (hasAdminRole) {
+      if (isEmployeeRole || hasLegacyAdminRole) {
         // Admin/owner should not access customer pages
         setIsCustomer(false);
       } else {
