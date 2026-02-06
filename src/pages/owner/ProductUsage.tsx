@@ -1,9 +1,14 @@
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Users,
   UserCheck,
@@ -15,15 +20,29 @@ import {
   ArrowRight,
   Loader2,
   Database,
+  Plus,
+  Trash2
 } from "lucide-react";
 import { useProductUsageMetrics, useUserSegments } from "@/hooks/useOwnerMetrics";
 import { useFunnelData } from "@/hooks/useFunnelData";
+import { usePersonas } from "@/hooks/usePersonas";
+import { toast } from "sonner";
 
 export default function ProductUsage() {
   const navigate = useNavigate();
   const { data: usageMetrics, isLoading: usageLoading } = useProductUsageMetrics();
   const { funnelStages, aarrrCategories, isLoading: funnelLoading } = useFunnelData();
   const { data: userSegments, isLoading: segmentsLoading } = useUserSegments();
+  const { personas, createPersona, deletePersona } = usePersonas();
+
+  // Form State
+  const [open, setOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    characteristics: "",
+    behaviors: ""
+  });
 
   const isLoading = usageLoading || funnelLoading || segmentsLoading;
   const hasData = (usageMetrics?.totalUsers || 0) > 0 || aarrrCategories.length > 0;
@@ -48,6 +67,34 @@ export default function ProductUsage() {
         : 0,
     }))
     : [];
+
+  const handleCreatePersona = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createPersona.mutateAsync({
+        name: formData.name,
+        description: formData.description,
+        characteristics: { list: formData.characteristics.split('\n').filter(Boolean) },
+        behaviors: { list: formData.behaviors.split('\n').filter(Boolean) }
+      });
+      toast.success("Persona added successfully");
+      setOpen(false);
+      setFormData({ name: "", description: "", characteristics: "", behaviors: "" });
+    } catch (error) {
+      toast.error("Failed to add persona");
+    }
+  };
+
+  const handleDeletePersona = async (id: string) => {
+    if (confirm("Are you sure you want to delete this persona?")) {
+      try {
+        await deletePersona.mutateAsync(id);
+        toast.success("Persona deleted");
+      } catch (error) {
+        toast.error("Failed to delete persona");
+      }
+    }
+  }
 
   // Loading state
   if (isLoading) {
@@ -249,28 +296,109 @@ export default function ProductUsage() {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Persona Insights</CardTitle>
-                <CardDescription>Key characteristics by segment</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Persona Insights</CardTitle>
+                  <CardDescription>Key characteristics by segment</CardDescription>
+                </div>
+                <Dialog open={open} onOpenChange={setOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline" className="gap-1">
+                      <Plus className="h-4 w-4" /> Add Persona
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Persona</DialogTitle>
+                      <DialogDescription>Define a new user persona based on your insights.</DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleCreatePersona} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name">Persona Name</Label>
+                        <Input
+                          id="name"
+                          placeholder="e.g. Growth Marketer"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="description">Description</Label>
+                        <Input
+                          id="description"
+                          placeholder="Brief description..."
+                          value={formData.description}
+                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="characteristics">Key Characteristics (one per line)</Label>
+                        <Textarea
+                          id="characteristics"
+                          placeholder="- Tech savvy&#10;- Budget conscious"
+                          value={formData.characteristics}
+                          onChange={(e) => setFormData({ ...formData, characteristics: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="behaviors">Key Behaviors (one per line)</Label>
+                        <Textarea
+                          id="behaviors"
+                          placeholder="- Monthly purchases&#10;- High engagement"
+                          value={formData.behaviors}
+                          onChange={(e) => setFormData({ ...formData, behaviors: e.target.value })}
+                        />
+                      </div>
+                      <DialogFooter>
+                        <Button type="submit" disabled={createPersona.isPending}>
+                          {createPersona.isPending ? "Adding..." : "Add Persona"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="rounded-lg border p-4">
-                    <h4 className="font-semibold text-primary">Small Business</h4>
-                    <ul className="mt-2 text-sm text-muted-foreground space-y-1">
-                      <li>• Avg. 2-5 campaigns per month</li>
-                      <li>• Prefer email marketing</li>
-                      <li>• High engagement with templates</li>
-                    </ul>
-                  </div>
-                  <div className="rounded-lg border p-4">
-                    <h4 className="font-semibold text-primary">Agency</h4>
-                    <ul className="mt-2 text-sm text-muted-foreground space-y-1">
-                      <li>• Avg. 15-20 campaigns per month</li>
-                      <li>• Heavy API usage</li>
-                      <li>• Multi-client management</li>
-                    </ul>
-                  </div>
+                  {personas.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No personas defined yet.
+                    </div>
+                  ) : (
+                    personas.map((p) => (
+                      <div key={p.id} className="rounded-lg border p-4 group relative">
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="icon" onClick={() => handleDeletePersona(p.id)} className="h-6 w-6 text-muted-foreground hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <h4 className="font-semibold text-primary">{p.name}</h4>
+                        <p className="text-xs text-muted-foreground mb-2">{p.description}</p>
+
+                        {(p.characteristics as any)?.list && (
+                          <div className="mt-2">
+                            <p className="text-xs font-medium">Characteristics:</p>
+                            <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
+                              {(p.characteristics as any).list.map((c: string, i: number) => (
+                                <li key={i}>{c}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {(p.behaviors as any)?.list && (
+                          <div className="mt-2">
+                            <p className="text-xs font-medium">Behaviors:</p>
+                            <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
+                              {(p.behaviors as any).list.map((c: string, i: number) => (
+                                <li key={i}>{c}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
