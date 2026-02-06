@@ -16,65 +16,37 @@ import {
   Loader2,
   Database,
 } from "lucide-react";
-import { useProductUsageMetrics } from "@/hooks/useOwnerMetrics";
+import { useProductUsageMetrics, useUserSegments } from "@/hooks/useOwnerMetrics";
 import { useFunnelData } from "@/hooks/useFunnelData";
 
 export default function ProductUsage() {
   const navigate = useNavigate();
   const { data: usageMetrics, isLoading: usageLoading } = useProductUsageMetrics();
   const { funnelStages, aarrrCategories, isLoading: funnelLoading } = useFunnelData();
+  const { data: userSegments, isLoading: segmentsLoading } = useUserSegments();
 
-  const isLoading = usageLoading || funnelLoading;
+  const isLoading = usageLoading || funnelLoading || segmentsLoading;
   const hasData = (usageMetrics?.totalUsers || 0) > 0 || aarrrCategories.length > 0;
 
-  // Construct AARRR funnel from real data
-  const aarrFunnelData = [
-    { 
-      stage: "Acquisition", 
-      icon: Users, 
-      value: usageMetrics?.totalUsers || 0, 
-      percentage: 100, 
-      change: 12.5 
-    },
-    { 
-      stage: "Activation", 
-      icon: UserCheck, 
-      value: usageMetrics?.mau || 0, 
-      percentage: usageMetrics?.totalUsers ? Math.round((usageMetrics.mau / usageMetrics.totalUsers) * 100) : 0, 
-      change: 8.2 
-    },
-    { 
-      stage: "Retention", 
-      icon: Repeat, 
-      value: usageMetrics?.dau || 0, 
-      percentage: usageMetrics?.mau ? Math.round((usageMetrics.dau / usageMetrics.mau) * 100) : 0, 
-      change: -2.1 
-    },
-    { 
-      stage: "Referral", 
-      icon: Share2, 
-      value: Math.round((usageMetrics?.mau || 0) * 0.18), 
-      percentage: 18, 
-      change: 15.3 
-    },
-    { 
-      stage: "Revenue", 
-      icon: DollarSign, 
-      value: Math.round((usageMetrics?.mau || 0) * 0.12), 
-      percentage: 12, 
-      change: 22.1 
-    },
-  ];
+  // Construct AARRR funnel from real data (mapped from useFunnelData)
+  // We utilize the calculated values from useFunnelData directly or map them here
+  const aarrFunnelData = aarrrCategories.map((stage: any, index: number) => ({
+    stage: stage.name,
+    icon: [Users, UserCheck, Repeat, Share2, DollarSign][index] || Users, // Fallback icons based on index
+    value: stage.value,
+    percentage: stage.percentage,
+    change: 0 // We don't have historical data for change yet
+  }));
 
   // User journey steps from funnel data
-  const userJourneySteps = funnelStages?.length > 0 
+  const userJourneySteps = funnelStages?.length > 0
     ? funnelStages.map((stage, index) => ({
-        step: stage.name || "Step",
-        users: stage.value || 0,
-        dropoff: index > 0 && funnelStages[index - 1].value 
-          ? Math.round((1 - (stage.value || 0) / funnelStages[index - 1].value) * 100) 
-          : 0,
-      }))
+      step: stage.name || "Step",
+      users: stage.value || 0,
+      dropoff: index > 0 && funnelStages[index - 1].value
+        ? Math.round((1 - (stage.value || 0) / funnelStages[index - 1].value) * 100)
+        : 0,
+    }))
     : [];
 
   // Loading state
@@ -224,9 +196,9 @@ export default function ProductUsage() {
                             {step.users.toLocaleString()} users
                           </span>
                         </div>
-                        <Progress 
-                          value={(step.users / (userJourneySteps[0]?.users || 1)) * 100} 
-                          className="h-2" 
+                        <Progress
+                          value={(step.users / (userJourneySteps[0]?.users || 1)) * 100}
+                          className="h-2"
                         />
                       </div>
                       {step.dropoff > 0 && (
@@ -251,28 +223,28 @@ export default function ProductUsage() {
                 <CardDescription>Distribution by business type</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {[
-                  { type: "Small Business", percentage: 42, color: "bg-primary" },
-                  { type: "Agency", percentage: 28, color: "bg-accent" },
-                  { type: "Enterprise", percentage: 15, color: "bg-secondary" },
-                  { type: "Freelancer", percentage: 10, color: "bg-muted" },
-                  { type: "Other", percentage: 5, color: "bg-border" },
-                ].map((persona) => (
-                  <div key={persona.type} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{persona.type}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {Math.round((usageMetrics?.totalUsers || 0) * persona.percentage / 100).toLocaleString()} ({persona.percentage}%)
-                      </span>
-                    </div>
-                    <div className="h-2 rounded-full bg-secondary">
-                      <div
-                        className={`h-full rounded-full ${persona.color}`}
-                        style={{ width: `${persona.percentage}%` }}
-                      />
-                    </div>
+                {userSegments?.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    ยังไม่มีข้อมูล User Segments
                   </div>
-                ))}
+                ) : (
+                  userSegments?.map((persona) => (
+                    <div key={persona.type} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{persona.type}</span>
+                        <span className="text-sm text-muted-foreground">
+                          {persona.count.toLocaleString()} ({persona.percentage}%)
+                        </span>
+                      </div>
+                      <div className="h-2 rounded-full bg-secondary">
+                        <div
+                          className={`h-full rounded-full ${persona.color}`}
+                          style={{ width: `${persona.percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
 

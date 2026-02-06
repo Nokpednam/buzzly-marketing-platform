@@ -190,3 +190,52 @@ export function useProductUsageMetrics() {
     },
   });
 }
+
+export function useUserSegments() {
+  return useQuery({
+    queryKey: ["owner-user-segments"],
+    queryFn: async () => {
+      // Fetch workspaces with their business types
+      const { data: workspaces, error } = await supabase
+        .from("workspaces")
+        .select(`
+          id,
+          business_types (
+            name,
+            color_code
+          )
+        `);
+
+      if (error) throw error;
+
+      // Group by business type
+      const segments: Record<string, number> = {};
+      let total = 0;
+
+      workspaces?.forEach((ws: any) => {
+        const typeName = ws.business_types?.name || "Other";
+        segments[typeName] = (segments[typeName] || 0) + 1;
+        total++;
+      });
+
+      // Convert to array format for UI
+      // Define colors map if color_code is missing
+      const defaultColors: Record<string, string> = {
+        "Small Business": "bg-primary",
+        "Agency": "bg-accent",
+        "Enterprise": "bg-secondary",
+        "Freelancer": "bg-muted",
+        "Other": "bg-border"
+      };
+
+      return Object.entries(segments)
+        .map(([type, count]) => ({
+          type,
+          percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+          color: defaultColors[type] || "bg-primary/50", // Fallback color
+          count
+        }))
+        .sort((a, b) => b.percentage - a.percentage); // Sort by percentage desc
+    },
+  });
+}
