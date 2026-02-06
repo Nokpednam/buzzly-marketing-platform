@@ -59,7 +59,7 @@ const App = () => (
                 <Route path="/" element={<Landing />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/signup" element={<SignUp />} />
-                
+
                 {/* Customer Routes */}
                 <Route element={<CustomerProtectedRoute><MainLayout /></CustomerProtectedRoute>}>
                   <Route path="/dashboard" element={<Dashboard />} />
@@ -67,23 +67,24 @@ const App = () => (
                   <Route path="/campaigns" element={<Campaigns />} />
                   <Route path="/campaigns/:id" element={<CampaignDetail />} />
                   <Route path="/social-analytics" element={<SocialAnalytics />} />
-                  
+
                   <Route path="/customer-journey" element={<CustomerJourney />} />
                   <Route path="/aarrr-funnel" element={<AARRRFunnel />} />
                   <Route path="/api-keys" element={<APIKeys />} />
-                  
+
                   <Route path="/analytics" element={<Analytics />} />
                   <Route path="/reports" element={<Reports />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/team" element={<TeamManagement />} />
                 </Route>
-                
+
                 {/* Employee Auth Routes */}
                 <Route path="/admin/login" element={<AdminLogin />} />
                 <Route path="/admin/signup" element={<AdminSignUp />} />
-                
+
                 {/* Admin Employee Routes (admin, support, developer) */}
                 <Route element={<EmployeeProtectedRoute allowedRoles={["admin", "support", "developer"]}><AdminLayout /></EmployeeProtectedRoute>}>
+                  <Route path="/admin" element={<Navigate to="/admin/monitor" replace />} />
                   <Route path="/admin/dashboard" element={<Navigate to="/admin/monitor" replace />} />
                   <Route path="/admin/monitor" element={<MonitorDashboard />} />
                   <Route path="/admin/audit-logs" element={<AuditLogs />} />
@@ -92,7 +93,7 @@ const App = () => (
                   <Route path="/admin/support" element={<AdminSupport />} />
                   <Route path="/admin/tier-management" element={<TierManagement />} />
                 </Route>
-                
+
                 {/* Owner Employee Routes */}
                 <Route element={<EmployeeProtectedRoute allowedRoles={["owner"]}><OwnerLayout /></EmployeeProtectedRoute>}>
                   <Route path="/owner" element={<Navigate to="/owner/product-usage" replace />} />
@@ -102,7 +103,7 @@ const App = () => (
                   <Route path="/owner/executive-report" element={<ExecutiveReport />} />
                   <Route path="/owner/customer-tiers" element={<CustomerTiers />} />
                 </Route>
-                
+
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>

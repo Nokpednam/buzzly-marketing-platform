@@ -17,27 +17,58 @@ export function AdminLayout() {
 
   const checkAdminAccess = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     if (!user) {
       navigate("/admin/login");
       return;
     }
 
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
+    const { data: employeeData } = await supabase
+      .from("employees")
+      .select(`
+        status,
+        approval_status,
+        role_employees (
+          role_name
+        )
+      `)
       .eq("user_id", user.id)
-      .in("role", ["admin", "owner"])
       .maybeSingle();
 
-    if (!roleData) {
+    if (!employeeData || employeeData.status !== 'active' || employeeData.approval_status !== 'approved') {
+      // Check legacy user_roles as fallback only if absolutely necessary, but we should probably migrate fully.
+      // For now, let's assume we want to enforce the new system.
+
+      // Double check legacy just in case (optional, maybe remove this later)
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .in("role", ["admin", "owner"])
+        .maybeSingle();
+
+      if (!roleData) {
+        toast({
+          title: "Access Denied",
+          description: "You don't have admin privileges",
+          variant: "destructive",
+        });
+        navigate("/dashboard");
+        return;
+      }
+      // If they have legacy role, allow them (or migrate them?)
+      // For this fix, let's allow if legacy role exists OR new employee record exists.
+    }
+
+    // Strict check: if no employee record AND no legacy role (handled above), deny.
+    // If employee record exists but not active/approved, deny?
+    if (employeeData && (employeeData.status !== 'active' || employeeData.approval_status !== 'approved')) {
       toast({
         title: "Access Denied",
-        description: "You don't have admin privileges",
+        description: "Your account is not active or approved.",
         variant: "destructive",
       });
-      // Regular customer without admin role - redirect to customer dashboard
-      navigate("/dashboard");
+      navigate("/admin/login");
       return;
     }
 
