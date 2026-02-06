@@ -49,6 +49,33 @@ export default function Auth() {
   }, [navigate]);
 
   const checkRoleAndRedirect = async (userId: string) => {
+    // Check employees table first (for owner/admin/support/developer)
+    const { data: employeeData } = await supabase
+      .from("employees")
+      .select(`
+        *,
+        role_employees (
+          role_name
+        )
+      `)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (employeeData && employeeData.status === 'active' && employeeData.approval_status === 'approved') {
+      const roleName = (employeeData.role_employees as any)?.role_name;
+
+      if (roleName === "owner") {
+        navigate("/owner/product-usage");
+        return;
+      }
+
+      if (["admin", "support", "developer"].includes(roleName)) {
+        navigate("/admin/dashboard");
+        return;
+      }
+    }
+
+    // Fallback to legacy user_roles check
     const { data: rolesData } = await supabase
       .from("user_roles")
       .select("role")
@@ -57,12 +84,12 @@ export default function Auth() {
     if (rolesData && rolesData.length > 0) {
       const hasOwnerRole = rolesData.some((r) => r.role === "owner");
       const hasAdminRole = rolesData.some((r) => r.role === "admin");
-      
+
       if (hasOwnerRole) {
         navigate("/owner/product-usage");
         return;
       }
-      
+
       if (hasAdminRole) {
         navigate("/admin/dashboard");
         return;
@@ -104,18 +131,52 @@ export default function Auth() {
       }
 
       if (data.user) {
+        // Check employees table first
+        const { data: employeeData } = await supabase
+          .from("employees")
+          .select(`
+            *,
+            role_employees (
+              role_name
+            )
+          `)
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+
+        let isAdmin = false;
+        let userRole = "";
+
+        if (employeeData && employeeData.status === 'active' && employeeData.approval_status === 'approved') {
+          const roleName = (employeeData.role_employees as any)?.role_name;
+          if (["owner", "admin", "support", "developer"].includes(roleName)) {
+            isAdmin = true;
+            userRole = roleName;
+
+            toast({
+              title: "Welcome back!",
+              description: `You have successfully signed in as ${userRole}.`,
+            });
+
+            if (roleName === "owner") {
+              navigate("/owner/product-usage");
+              return;
+            } else {
+              navigate("/admin/dashboard");
+              return;
+            }
+          }
+        }
+
+        // Fallback to legacy check
         const { data: rolesData } = await supabase
           .from("user_roles")
           .select("role")
           .eq("user_id", data.user.id);
 
-        let isAdmin = false;
-        let userRole = "";
-
         if (rolesData && rolesData.length > 0) {
           const hasOwnerRole = rolesData.some((r) => r.role === "owner");
           const hasAdminRole = rolesData.some((r) => r.role === "admin");
-          
+
           if (hasOwnerRole) {
             isAdmin = true;
             userRole = "owner";
@@ -124,7 +185,7 @@ export default function Auth() {
             userRole = "admin";
           }
         }
-        
+
         toast({
           title: "Welcome back!",
           description: `You have successfully signed in${isAdmin ? " as " + userRole : ""}.`,
@@ -150,7 +211,7 @@ export default function Auth() {
   };
 
   return (
-    <div 
+    <div
       className="min-h-screen w-full flex"
       style={{
         backgroundImage: `url(${authBackground})`,
@@ -166,7 +227,7 @@ export default function Auth() {
             Welcome<br />Back
           </h1>
           <p className="text-muted-foreground text-base leading-relaxed mb-6">
-            Buzzly is your all-in-one marketing analytics platform. 
+            Buzzly is your all-in-one marketing analytics platform.
             Track your campaigns, analyze your audience, and grow your business with powerful insights.
           </p>
           <div className="flex gap-4">
@@ -238,7 +299,7 @@ export default function Auth() {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center justify-between text-sm">
                     <label className="flex items-center gap-2 text-muted-foreground">
                       <input type="checkbox" className="rounded border-input" />
@@ -273,7 +334,7 @@ export default function Auth() {
                   <p className="text-muted-foreground">
                     Create a new account to get started with Buzzly
                   </p>
-                  <Button 
+                  <Button
                     onClick={() => navigate("/signup", { state: { selectedPlan } })}
                     className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
                   >
