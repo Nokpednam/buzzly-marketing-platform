@@ -3,7 +3,10 @@ DROP POLICY IF EXISTS "Admins can view all prospects" ON public.prospects;
 DROP POLICY IF EXISTS "Admins can insert prospects" ON public.prospects;
 DROP POLICY IF EXISTS "Admins can update prospects" ON public.prospects;
 DROP POLICY IF EXISTS "Admins can delete prospects" ON public.prospects;
-
+DROP POLICY IF EXISTS "Users can view their own prospects" ON public.prospects;
+DROP POLICY IF EXISTS "Users can insert their own prospects" ON public.prospects;
+DROP POLICY IF EXISTS "Users can update their own prospects" ON public.prospects;
+DROP POLICY IF EXISTS "Users can delete their own prospects" ON public.prospects;
 -- Create new RLS policies for prospects table to allow customers to manage their own prospects
 CREATE POLICY "Users can view their own prospects"
 ON public.prospects

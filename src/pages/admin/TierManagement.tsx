@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -6,12 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@/components/ui/select";
 import {
   Dialog,
@@ -51,6 +52,21 @@ import { tierColors, tierIcons } from "@/hooks/useLoyaltyTier";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 
+// Fallback constants in case of import failure
+const defaultTierColors: Record<string, { bg: string; text: string; border: string }> = {
+  Bronze: { bg: "bg-amber-700/20", text: "text-amber-700", border: "border-amber-700" },
+  Silver: { bg: "bg-slate-400/20", text: "text-slate-500", border: "border-slate-400" },
+  Gold: { bg: "bg-yellow-500/20", text: "text-yellow-600", border: "border-yellow-500" },
+  Platinum: { bg: "bg-slate-300/20", text: "text-slate-600", border: "border-slate-400" },
+};
+
+const defaultTierIcons: Record<string, string> = {
+  Bronze: "🥉",
+  Silver: "🥈",
+  Gold: "🥇",
+  Platinum: "💎",
+};
+
 // Mock data
 const mockTierHistory = [
   { id: 1, userId: "u1", userName: "คุณสมชาย ใจดี", previousTier: "Gold", newTier: "Platinum", reason: "Points threshold reached", changedBy: "System", isManual: false, createdAt: new Date(2026, 0, 15) },
@@ -68,9 +84,9 @@ const mockPointsTransactions = [
 ];
 
 const mockSuspiciousActivities = [
-  { id: 1, userId: "u5", userName: "คุณผิดปกติ", type: "rapid_points_gain", severity: "high", description: "ได้รับ 10,000 points ใน 1 ชั่วโมง", isResolved: false, createdAt: new Date(2026, 0, 15, 18, 0) },
-  { id: 2, userId: "u6", userName: "คุณน่าสงสัย", type: "multiple_redemptions", severity: "medium", description: "แลก voucher 5 ครั้งใน 10 นาที", isResolved: false, createdAt: new Date(2026, 0, 15, 12, 30) },
-  { id: 3, userId: "u3", userName: "คุณธนา รวยดี", type: "account_sharing", severity: "critical", description: "เข้าใช้งานจาก 3 IP พร้อมกัน", isResolved: true, resolvedAt: new Date(2026, 0, 13, 17, 0) },
+  { id: 1, userId: "u5", userName: "คุณศราวุธ มีพิรุธ", type: "rapid_points_gain", severity: "high", description: "ได้รับ 10,000 points ใน 1 ชั่วโมง", isResolved: false, createdAt: new Date(2026, 0, 15, 18, 0) },
+  { id: 2, userId: "u6", userName: "คุณนารี ขยันแลก", type: "multiple_redemptions", severity: "medium", description: "แลก voucher 5 ครั้งใน 10 นาที", isResolved: false, createdAt: new Date(2026, 0, 15, 12, 30) },
+  { id: 3, userId: "u3", userName: "คุณธนา รวยดี", type: "account_sharing", severity: "critical", description: "เข้าใช้งานจาก 3 IP พร้อมกัน", isResolved: true, createdAt: new Date(2026, 0, 13, 16, 0), resolvedAt: new Date(2026, 0, 13, 17, 0) },
 ];
 
 const mockCustomerSearch = [
@@ -79,6 +95,7 @@ const mockCustomerSearch = [
 ];
 
 export default function TierManagement() {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<typeof mockCustomerSearch[0] | null>(null);
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
@@ -94,6 +111,21 @@ export default function TierManagement() {
     }
   };
 
+  const handleInspect = (activityId: number) => {
+    toast({
+      title: "ตรวจสอบกิจกรรม",
+      description: `กำลังเปิดรายละเอียดกิจกรรม ID: ${activityId}`,
+    });
+  };
+
+  const handleSuspend = (activityId: number) => {
+    toast({
+      title: "ระงับบัญชีผู้ใช้",
+      description: `ได้ทำการระงับบัญชีสำหรับกิจกรรม ID: ${activityId} เรียบร้อยแล้ว`,
+      variant: "destructive",
+    });
+  };
+
   const getTransactionTypeColor = (type: string) => {
     switch (type) {
       case "earn": return "text-green-600";
@@ -104,6 +136,11 @@ export default function TierManagement() {
       default: return "text-foreground";
     }
   };
+
+  // Robustly handle missing imports by falling back to local defaults
+  const safeTierIcons = tierIcons || defaultTierIcons;
+  const safeTierColors = tierColors || defaultTierColors;
+  const safeLocale = th || undefined;
 
   return (
     <div className="space-y-6 p-6">
@@ -135,21 +172,25 @@ export default function TierManagement() {
 
           {searchQuery && (
             <div className="mt-4 space-y-2">
-              {mockCustomerSearch.map((customer) => (
+              {mockCustomerSearch.filter(customer =>
+                customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                customer.id.toLowerCase().includes(searchQuery.toLowerCase())
+              ).map((customer) => (
                 <div
                   key={customer.id}
                   className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
                   onClick={() => setSelectedCustomer(customer)}
                 >
                   <div className="flex items-center gap-4">
-                    <div className="text-2xl">{tierIcons[customer.tier]}</div>
+                    <div className="text-2xl">{safeTierIcons[customer.tier]}</div>
                     <div>
                       <p className="font-medium">{customer.name}</p>
                       <p className="text-sm text-muted-foreground">{customer.email}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <Badge className={tierColors[customer.tier]?.bg}>
+                    <Badge className={safeTierColors[customer.tier]?.bg}>
                       {customer.tier}
                     </Badge>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -169,7 +210,7 @@ export default function TierManagement() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                {tierIcons[selectedCustomer.tier]} {selectedCustomer.name}
+                {safeTierIcons[selectedCustomer.tier]} {selectedCustomer.name}
               </CardTitle>
               <CardDescription>{selectedCustomer.email}</CardDescription>
             </div>
@@ -191,8 +232,8 @@ export default function TierManagement() {
                   <div className="space-y-2">
                     <Label>Current Tier</Label>
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">{tierIcons[selectedCustomer.tier]}</span>
-                      <Badge className={tierColors[selectedCustomer.tier]?.bg}>
+                      <span className="text-xl">{safeTierIcons[selectedCustomer.tier]}</span>
+                      <Badge className={safeTierColors[selectedCustomer.tier]?.bg}>
                         {selectedCustomer.tier}
                       </Badge>
                     </div>
@@ -248,7 +289,7 @@ export default function TierManagement() {
                 <p className="text-sm text-muted-foreground">Member Duration</p>
               </div>
               <div className="text-center p-4 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold">{tierIcons[selectedCustomer.tier]}</p>
+                <p className="text-2xl font-bold">{safeTierIcons[selectedCustomer.tier]}</p>
                 <p className="text-sm text-muted-foreground">{selectedCustomer.tier}</p>
               </div>
             </div>
@@ -256,7 +297,7 @@ export default function TierManagement() {
         </Card>
       )}
 
-      {/* Tabs for different views */}
+      {/* Tabs for different views - Partially restored for testing */}
       <Tabs defaultValue="history" className="space-y-4">
         <TabsList>
           <TabsTrigger value="history" className="flex items-center gap-2">
@@ -273,12 +314,10 @@ export default function TierManagement() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Tier History Tab */}
         <TabsContent value="history">
           <Card>
             <CardHeader>
               <CardTitle>ประวัติการเปลี่ยน Tier</CardTitle>
-              <CardDescription>Timeline การอัป/ดาวน์เกรด Tier พร้อมเหตุผล</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
@@ -286,8 +325,8 @@ export default function TierManagement() {
                   <TableRow>
                     <TableHead>วันที่</TableHead>
                     <TableHead>ลูกค้า</TableHead>
-                    <TableHead>เปลี่ยนจาก</TableHead>
-                    <TableHead>เป็น</TableHead>
+                    <TableHead>Tier เดิม</TableHead>
+                    <TableHead>Tier ใหม่</TableHead>
                     <TableHead>เหตุผล</TableHead>
                     <TableHead>โดย</TableHead>
                   </TableRow>
@@ -296,13 +335,13 @@ export default function TierManagement() {
                   {mockTierHistory.map((history) => (
                     <TableRow key={history.id}>
                       <TableCell className="text-sm">
-                        {format(history.createdAt, "d MMM yyyy", { locale: th })}
+                        {format(history.createdAt, "d MMM yyyy", { locale: safeLocale })}
                       </TableCell>
                       <TableCell className="font-medium">{history.userName}</TableCell>
                       <TableCell>
-                        <span className="flex items-center gap-1">
-                          {tierIcons[history.previousTier]} {history.previousTier}
-                        </span>
+                        <Badge className={safeTierColors[history.previousTier]?.bg}>
+                          {safeTierIcons[history.previousTier] || "?"} {history.previousTier}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <span className="flex items-center gap-1">
@@ -311,7 +350,9 @@ export default function TierManagement() {
                           ) : (
                             <TrendingDown className="h-4 w-4 text-destructive" />
                           )}
-                          {tierIcons[history.newTier]} {history.newTier}
+                          <Badge className={safeTierColors[history.newTier]?.bg}>
+                            {safeTierIcons[history.newTier] || "?"} {history.newTier}
+                          </Badge>
                         </span>
                       </TableCell>
                       <TableCell className="max-w-[200px] truncate">{history.reason}</TableCell>
@@ -351,7 +392,7 @@ export default function TierManagement() {
                   {mockPointsTransactions.map((tx) => (
                     <TableRow key={tx.id}>
                       <TableCell className="text-sm">
-                        {format(tx.createdAt, "d MMM yyyy HH:mm", { locale: th })}
+                        {format(tx.createdAt, "d MMM yyyy HH:mm", { locale: safeLocale })}
                       </TableCell>
                       <TableCell className="font-medium">{tx.userName}</TableCell>
                       <TableCell>
@@ -378,7 +419,7 @@ export default function TierManagement() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-orange-500" />
-                Suspicious Activities
+                Suspicious Activities ({mockSuspiciousActivities.length})
               </CardTitle>
               <CardDescription>กิจกรรมที่น่าสงสัยและต้องตรวจสอบ</CardDescription>
             </CardHeader>
@@ -393,6 +434,7 @@ export default function TierManagement() {
                     )}
                   >
                     <div className="flex items-center gap-4">
+
                       <div className={cn(
                         "flex h-10 w-10 items-center justify-center rounded-full",
                         activity.isResolved ? "bg-green-500/20" : "bg-destructive/20"
@@ -403,6 +445,7 @@ export default function TierManagement() {
                           <AlertCircle className="h-5 w-5 text-destructive" />
                         )}
                       </div>
+
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-medium">{activity.userName}</p>
@@ -412,19 +455,28 @@ export default function TierManagement() {
                         </div>
                         <p className="text-sm text-muted-foreground">{activity.description}</p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+
                           <Clock className="h-3 w-3" />
-                          {format(activity.createdAt, "d MMM yyyy HH:mm", { locale: th })}
+                          {format(activity.createdAt, "d MMM yyyy HH:mm", { locale: safeLocale })}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       {!activity.isResolved && (
                         <>
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleInspect(activity.id)}
+                          >
                             <Eye className="h-4 w-4 mr-1" />
                             ตรวจสอบ
                           </Button>
-                          <Button variant="destructive" size="sm">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleSuspend(activity.id)}
+                          >
                             <XCircle className="h-4 w-4 mr-1" />
                             ระงับ
                           </Button>
