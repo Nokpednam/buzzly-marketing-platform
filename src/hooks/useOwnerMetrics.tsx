@@ -141,19 +141,20 @@ export function useProductUsageMetrics() {
   return useQuery({
     queryKey: ["owner-product-usage"],
     queryFn: async () => {
-      // Get user counts from profiles
+      // Get user counts from profile_customers
       const { count: totalUsers, error: usersError } = await supabase
-        .from("profiles")
+        .from("profile_customers")
         .select("*", { count: "exact", head: true });
 
       if (usersError) throw usersError;
 
       // Get customer activities for engagement metrics
+      // Increased limit to getting better statistics
       const { data: activities, error: activitiesError } = await supabase
         .from("customer_activities")
-        .select("event_type_id, created_at")
+        .select("profile_customer_id, created_at")
         .order("created_at", { ascending: false })
-        .limit(1000);
+        .limit(5000);
 
       if (activitiesError) throw activitiesError;
 
@@ -162,13 +163,23 @@ export function useProductUsageMetrics() {
       const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       const last30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-      const dau = activities?.filter(
-        (a) => a.created_at && new Date(a.created_at) > last24h
-      ).length || 0;
+      // Unique users for DAU
+      const dauSet = new Set();
+      activities.forEach(a => {
+        if (a.profile_customer_id && a.created_at && new Date(a.created_at) > last24h) {
+          dauSet.add(a.profile_customer_id);
+        }
+      });
+      const dau = dauSet.size;
 
-      const mau = activities?.filter(
-        (a) => a.created_at && new Date(a.created_at) > last30d
-      ).length || 0;
+      // Unique users for MAU
+      const mauSet = new Set();
+      activities.forEach(a => {
+        if (a.profile_customer_id && a.created_at && new Date(a.created_at) > last30d) {
+          mauSet.add(a.profile_customer_id);
+        }
+      });
+      const mau = mauSet.size;
 
       return {
         totalUsers: totalUsers || 0,
