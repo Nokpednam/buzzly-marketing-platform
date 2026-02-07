@@ -69,12 +69,12 @@ const platformStyles: Record<string, string> = {
 
 export default function Campaigns() {
   const navigate = useNavigate();
-  const { 
-    campaigns: dbCampaigns, 
-    isLoading, 
-    createCampaign, 
-    updateCampaign, 
-    deleteCampaign 
+  const {
+    campaigns: dbCampaigns,
+    isLoading,
+    createCampaign,
+    updateCampaign,
+    deleteCampaign
   } = useCampaigns();
 
   const [activeTab, setActiveTab] = useState("all");
@@ -132,18 +132,33 @@ export default function Campaigns() {
   };
 
   const handleDuplicate = async (campaign: CampaignWithInsights) => {
-    await createCampaign.mutateAsync({
-      name: `${campaign.name} (Copy)`,
-      objective: campaign.objective,
-      budget_amount: campaign.budget_amount,
-      start_date: campaign.start_date,
-      end_date: campaign.end_date,
-      status: "draft",
-    });
+    try {
+      await createCampaign.mutateAsync({
+        name: `${campaign.name} (Copy)`,
+        objective: campaign.objective,
+        budget_amount: campaign.budget_amount,
+        start_date: campaign.start_date,
+        end_date: campaign.end_date,
+        status: "draft",
+      });
+    } catch (error) {
+      // Error already handled by mutation
+    }
   };
 
   const handleDelete = async (id: string) => {
-    await deleteCampaign.mutateAsync(id);
+    // Issue #1 Fix: Add confirmation dialog
+    const confirmed = window.confirm(
+      "คุณแน่ใจหรือไม่ที่จะลบ Campaign นี้?\n\nการลบจะไม่สามารถย้อนกลับได้"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await deleteCampaign.mutateAsync(id);
+    } catch (error) {
+      // Error already handled by mutation
+    }
   };
 
   const handleViewDetails = (id: string) => {
@@ -177,34 +192,77 @@ export default function Campaigns() {
   };
 
   const handleSubmit = async () => {
+    // Issue #4 Fix: Comprehensive Form Validation
+
+    // Validate required fields
     if (!formData.name.trim()) {
       toast.error("กรุณาใส่ชื่อ Campaign");
       return;
     }
 
-    if (editingCampaign) {
-      await updateCampaign.mutateAsync({
-        id: editingCampaign.id,
-        updates: {
+    // Validate budget
+    if (formData.budget) {
+      const budgetNum = Number(formData.budget);
+      if (isNaN(budgetNum)) {
+        toast.error("Budget ต้องเป็นตัวเลขเท่านั้น");
+        return;
+      }
+      if (budgetNum <= 0) {
+        toast.error("Budget ต้องมากกว่า 0");
+        return;
+      }
+    }
+
+    // Validate dates
+    if (formData.startDate && formData.endDate) {
+      const startDate = new Date(formData.startDate);
+      const endDate = new Date(formData.endDate);
+
+      if (startDate > endDate) {
+        toast.error("วันที่เริ่มต้นต้องไม่เกินวันที่สิ้นสุด");
+        return;
+      }
+    }
+
+    // Validate end date not in the past (for new campaigns)
+    if (!editingCampaign && formData.endDate) {
+      const endDate = new Date(formData.endDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to start of day
+
+      if (endDate < today) {
+        toast.error("วันที่สิ้นสุดต้องไม่เป็นอดีต");
+        return;
+      }
+    }
+
+    try {
+      if (editingCampaign) {
+        await updateCampaign.mutateAsync({
+          id: editingCampaign.id,
+          updates: {
+            name: formData.name,
+            objective: formData.objective || null,
+            budget_amount: formData.budget ? Number(formData.budget) : null,
+            start_date: formData.startDate || null,
+            end_date: formData.endDate || null,
+          },
+        });
+      } else {
+        await createCampaign.mutateAsync({
           name: formData.name,
           objective: formData.objective || null,
           budget_amount: formData.budget ? Number(formData.budget) : null,
           start_date: formData.startDate || null,
           end_date: formData.endDate || null,
-        },
-      });
-    } else {
-      await createCampaign.mutateAsync({
-        name: formData.name,
-        objective: formData.objective || null,
-        budget_amount: formData.budget ? Number(formData.budget) : null,
-        start_date: formData.startDate || null,
-        end_date: formData.endDate || null,
-        status: "draft",
-      });
-    }
+          status: "draft",
+        });
+      }
 
-    setIsDialogOpen(false);
+      setIsDialogOpen(false);
+    } catch (error) {
+      // Error handled by mutation onError
+    }
   };
 
   if (isLoading) {
@@ -298,8 +356,8 @@ export default function Campaigns() {
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               ยกเลิก
             </Button>
-            <Button 
-              onClick={handleSubmit} 
+            <Button
+              onClick={handleSubmit}
               disabled={createCampaign.isPending || updateCampaign.isPending}
             >
               {(createCampaign.isPending || updateCampaign.isPending) && (
@@ -484,8 +542,13 @@ export default function Campaigns() {
                                 variant="outline"
                                 size="icon"
                                 onClick={() => handleToggleStatus(campaign.id, campaign.status)}
+                                disabled={updateCampaign.isPending}
                               >
-                                <Pause className="h-4 w-4" />
+                                {updateCampaign.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Pause className="h-4 w-4" />
+                                )}
                               </Button>
                             ) : campaign.status === "paused" ||
                               campaign.status === "draft" ||
@@ -494,8 +557,13 @@ export default function Campaigns() {
                                 variant="outline"
                                 size="icon"
                                 onClick={() => handleToggleStatus(campaign.id, campaign.status)}
+                                disabled={updateCampaign.isPending}
                               >
-                                <Play className="h-4 w-4" />
+                                {updateCampaign.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Play className="h-4 w-4" />
+                                )}
                               </Button>
                             ) : null}
                             <DropdownMenu>
@@ -513,8 +581,15 @@ export default function Campaigns() {
                                   <Edit className="h-4 w-4 mr-2" />
                                   Edit
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleDuplicate(campaign)}>
-                                  <Copy className="h-4 w-4 mr-2" />
+                                <DropdownMenuItem
+                                  onClick={() => handleDuplicate(campaign)}
+                                  disabled={createCampaign.isPending}
+                                >
+                                  {createCampaign.isPending ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <Copy className="h-4 w-4 mr-2" />
+                                  )}
                                   Duplicate
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
