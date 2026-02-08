@@ -66,25 +66,27 @@ export function useSubscription() {
 
       if (plansError) throw plansError;
 
-      const formattedPlans: SubscriptionPlan[] = (plansData || []).map((plan) => ({
-        id: plan.id,
-        name: plan.name,
-        slug: plan.slug || plan.name.toLowerCase(),
-        description: plan.description,
-        price_monthly: Number(plan.price_monthly) || 0,
-        price_yearly: Number(plan.price_yearly) || 0,
-        features: Array.isArray(plan.features) 
-          ? (plan.features as unknown[]).map((f) => String(f)) 
-          : [],
-        limits: typeof plan.limits === "object" && plan.limits !== null
-          ? (plan.limits as Record<string, number>) 
-          : {},
-        is_popular: plan.is_popular || false,
-        is_active: plan.is_active ?? true,
-        display_order: plan.display_order || 0,
-        trial_days: plan.trial_days || 0,
-        tier: Number((plan as any).tier ?? 1), // Map tier เข้ามาเพื่อใช้เช็ค Upgrade/Downgrade
-      }));
+      const formattedPlans: SubscriptionPlan[] = (plansData || [])
+        .map((plan) => ({
+          id: plan.id,
+          name: plan.name,
+          slug: plan.slug || plan.name.toLowerCase(),
+          description: plan.description,
+          price_monthly: Number(plan.price_monthly) || 0,
+          price_yearly: Number(plan.price_yearly) || 0,
+          features: Array.isArray(plan.features)
+            ? (plan.features as unknown[]).map((f) => String(f))
+            : [],
+          limits: typeof plan.limits === "object" && plan.limits !== null
+            ? (plan.limits as Record<string, number>)
+            : {},
+          is_popular: plan.is_popular || false,
+          is_active: plan.is_active ?? true,
+          display_order: plan.display_order || 0,
+          trial_days: plan.trial_days || 0,
+          tier: Number((plan as any).tier ?? 1), // Map tier เข้ามาเพื่อใช้เช็ค Upgrade/Downgrade
+        }))
+        .filter((plan) => ["free", "pro", "team"].includes(plan.slug));
 
       setPlans(formattedPlans);
 
@@ -170,14 +172,14 @@ export function useSubscription() {
     if (!userId) {
       return { success: false, error: "กรุณาเข้าสู่ระบบก่อน" };
     }
-  
+
     try {
       // 1. ตรวจสอบ Plan ใหม่
       const newPlan = plans.find((p) => p.id === planId);
       if (!newPlan) {
         return { success: false, error: "ไม่พบแพ็กเกจที่เลือก" };
       }
-  
+
       // 2. ดึงข้อมูล Subscription ปัจจุบัน (เพื่อให้ชัวร์ที่สุดดึงใหม่จาก DB)
       const { data: currentSub } = await supabase
         .from("subscriptions")
@@ -185,52 +187,52 @@ export function useSubscription() {
         .eq("user_id", userId)
         .eq("status", "active")
         .single();
-  
+
       let isUpgrade = false;
       let chargeAmount: number;
       let newCreditBalance = 0;
-  
+
       if (currentSub) {
         // --- กรณีมี Plan เดิม (Upgrade) ---
         const currentPlan = plans.find((p) => p.id === currentSub.plan_id);
         if (!currentPlan) {
           return { success: false, error: "ไม่พบแพ็กเกจปัจจุบัน" };
         }
-  
+
         // กฎ: ห้าม Downgrade
         if (newPlan.tier < currentPlan.tier) {
           return { success: false, error: "ไม่สามารถเปลี่ยนไปแพ็กเกจที่ต่ำกว่าได้" };
         }
-  
+
         isUpgrade = newPlan.tier > currentPlan.tier;
-  
+
         // คำนวณ Proration (ส่วนลดจากวันคงเหลือ)
         const existingCredit = await getUserCreditBalance(userId);
-  
+
         let timeCredit = 0;
         if (currentSub.current_period_start && currentSub.current_period_end) {
           const start = new Date(currentSub.current_period_start);
           const end = new Date(currentSub.current_period_end);
           const now = new Date();
-  
+
           const totalMs = end.getTime() - start.getTime();
           const remainingMs = Math.max(0, end.getTime() - now.getTime());
           const fractionRemaining = totalMs > 0 ? remainingMs / totalMs : 0;
-  
+
           const currentPrice = getPrice(
             currentPlan,
             (currentSub.billing_cycle as BillingCycle) || "monthly"
           );
           timeCredit = Number((currentPrice * fractionRemaining).toFixed(2));
         }
-  
+
         const effectiveCredit = existingCredit + timeCredit;
         const newPrice = getPrice(newPlan, billingCycle);
-  
+
         // ราคาสุทธิที่ต้องจ่าย และ เครดิตที่จะเก็บไว้รอบหน้า
         chargeAmount = Math.max(0, Number((newPrice - effectiveCredit).toFixed(2)));
         newCreditBalance = Math.max(0, Number((effectiveCredit - newPrice).toFixed(2)));
-  
+
         // ปิด Plan เก่าทันที (Upgraded)
         const { error: updateOldSubError } = await supabase
           .from("subscriptions")
@@ -240,7 +242,7 @@ export function useSubscription() {
             cancelled_at: new Date().toISOString(),
           })
           .eq("id", currentSub.id);
-  
+
         if (updateOldSubError) throw updateOldSubError;
 
       } else {
@@ -249,17 +251,17 @@ export function useSubscription() {
         chargeAmount = newPrice;
         newCreditBalance = 0;
       }
-  
+
       // 3. สร้าง Subscription ใหม่ (เริ่มนับ 1 ใหม่ทันทีตามกฎข้อ 3)
       const now = new Date();
       const periodEnd = new Date(now);
-      
+
       if (billingCycle === "yearly") {
         periodEnd.setFullYear(periodEnd.getFullYear() + 1);
       } else {
         periodEnd.setMonth(periodEnd.getMonth() + 1);
       }
-  
+
       const { data: subscription, error: subError } = await supabase
         .from("subscriptions")
         .insert({
@@ -272,16 +274,16 @@ export function useSubscription() {
         })
         .select()
         .single();
-  
+
       if (subError) throw subError;
-  
+
       // 4. บันทึก Transaction (Mock Payment)
       const { data: currency } = await supabase
         .from("currencies")
         .select("id")
         .eq("code", "THB") // สมมติว่าเป็น THB
         .maybeSingle(); // ใช้ maybeSingle เพื่อกัน error ถ้าไม่เจอ
-  
+
       const { error: txnError } = await supabase
         .from("payment_transactions")
         .insert({
@@ -295,9 +297,9 @@ export function useSubscription() {
           payment_gateway: "mock",
           gateway_transaction_id: `mock_${Date.now()}`,
         });
-  
+
       if (txnError) throw txnError;
-  
+
       // 5. อัปเดต Profile (แก้ปัญหา UI เด้งกลับเป็น Free)
       const { error: profileError } = await supabase
         .from("profiles")
@@ -307,15 +309,15 @@ export function useSubscription() {
           updated_at: new Date().toISOString()
         })
         .eq("id", userId);
-  
+
       if (profileError) {
-         // Log ไว้แต่ไม่ throw error เพราะถือว่า subscription สำเร็จแล้ว
-         console.error("Warning: Profile update failed, UI might not reflect changes immediately", profileError);
+        // Log ไว้แต่ไม่ throw error เพราะถือว่า subscription สำเร็จแล้ว
+        console.error("Warning: Profile update failed, UI might not reflect changes immediately", profileError);
       }
-  
+
       // 6. Refresh ข้อมูลหน้าจอใหม่
       await fetchData();
-  
+
       return { success: true, subscriptionId: subscription.id };
 
     } catch (error: any) {
