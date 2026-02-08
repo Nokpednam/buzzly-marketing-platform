@@ -1,1 +1,11 @@
 project_id = "xpmswnktazcjpqumrfsh"
+
+[auth]
+# Enable signup
+enable_signup = true
+
+#  Disable email confirmation for local development
+[auth.email]
+enable_signup = true
+double_confirm_changes = false
+enable_confirmations = false

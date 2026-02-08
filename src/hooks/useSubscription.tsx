@@ -149,7 +149,7 @@ export function useSubscription() {
 
   const getUserCreditBalance = async (userId: string): Promise<number> => {
     const { data, error } = await supabase
-      .from("profiles")
+      .from("customer")
       .select("subscription_credit_balance") // เลือก column โดยตรง
       .eq("id", userId)
       .single();
@@ -302,7 +302,7 @@ export function useSubscription() {
 
       // 5. อัปเดต Profile (แก้ปัญหา UI เด้งกลับเป็น Free)
       const { error: profileError } = await supabase
-        .from("profiles")
+        .from("customer")
         .update({
           plan_type: newPlan.slug, // เช่น 'pro', 'team'
           subscription_credit_balance: newCreditBalance, // เก็บเครดิตไว้

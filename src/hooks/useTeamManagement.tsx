@@ -165,7 +165,7 @@ export function useTeamManagement() {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         setLoading(false);
         return;
@@ -256,12 +256,12 @@ export function useTeamManagement() {
     // Fetch profiles for each member
     const memberIds = data?.map(m => m.user_id) || [];
     const { data: profiles } = await supabase
-      .from("profiles")
+      .from("customer")
       .select("id, email, full_name")
       .in("id", memberIds);
 
     const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-    
+
     const membersWithProfiles: TeamMember[] = (data || []).map(member => ({
       ...member,
       role: member.role as TeamRole,
@@ -290,7 +290,7 @@ export function useTeamManagement() {
     // Fetch inviter profiles
     const inviterIds = [...new Set(data?.map(i => i.invited_by) || [])];
     const { data: profiles } = await supabase
-      .from("profiles")
+      .from("customer")
       .select("id, email, full_name")
       .in("id", inviterIds);
 
@@ -325,7 +325,7 @@ export function useTeamManagement() {
     // Fetch actor profiles
     const actorIds = [...new Set(data?.map(l => l.user_id).filter(Boolean) as string[])];
     const { data: profiles } = await supabase
-      .from("profiles")
+      .from("customer")
       .select("id, email, full_name")
       .in("id", actorIds);
 
@@ -363,7 +363,7 @@ export function useTeamManagement() {
         custom_permissions: customPermissions ? JSON.parse(JSON.stringify(customPermissions)) : null,
         invited_by: currentUserId,
       };
-      
+
       const { error } = await supabase
         .from("team_invitations")
         .insert(insertData);
@@ -403,7 +403,7 @@ export function useTeamManagement() {
 
     try {
       const invitation = invitations.find(i => i.id === invitationId);
-      
+
       const { error } = await supabase
         .from("team_invitations")
         .delete()
@@ -443,7 +443,7 @@ export function useTeamManagement() {
 
     try {
       const member = members.find(m => m.id === memberId);
-      
+
       const { error } = await supabase
         .from("team_members")
         .update({ role: newRole })
@@ -484,9 +484,9 @@ export function useTeamManagement() {
 
     try {
       const member = members.find(m => m.id === memberId);
-      
+
       const updateData = { custom_permissions: JSON.parse(JSON.stringify(permissions)) };
-      
+
       const { error } = await supabase
         .from("team_members")
         .update(updateData)
@@ -526,7 +526,7 @@ export function useTeamManagement() {
 
     try {
       const member = members.find(m => m.id === memberId);
-      
+
       const { error } = await supabase
         .from("team_members")
         .update({ status: "suspended" as MemberStatus })
@@ -566,7 +566,7 @@ export function useTeamManagement() {
 
     try {
       const member = members.find(m => m.id === memberId);
-      
+
       const { error } = await supabase
         .from("team_members")
         .update({ status: "active" as MemberStatus })
@@ -606,7 +606,7 @@ export function useTeamManagement() {
 
     try {
       const member = members.find(m => m.id === memberId);
-      
+
       const { error } = await supabase
         .from("team_members")
         .delete()

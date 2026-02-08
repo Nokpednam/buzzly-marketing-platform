@@ -5,13 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
 import {
   Dialog,
@@ -36,10 +36,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Users, 
-  MoreHorizontal, 
-  Search, 
+import {
+  Users,
+  MoreHorizontal,
+  Search,
   Mail,
   Clock,
   Building2,
@@ -128,19 +128,19 @@ export default function AdminMembers() {
         .order("joined_at", { ascending: false });
 
       if (error) throw error;
-      
+
       // Fetch profiles and teams separately
       const userIds = data.map(m => m.user_id);
       const teamIds = [...new Set(data.map(m => m.team_id))];
-      
+
       const [profilesRes, teamsRes] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, email").in("id", userIds),
+        supabase.from("customer").select("id, full_name, email").in("id", userIds),
         supabase.from("teams").select("id, name").in("id", teamIds)
       ]);
-      
+
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
       const teamMap = new Map((teamsRes.data || []).map(t => [t.id, t]));
-      
+
       return data.map(m => ({
         ...m,
         profile: profileMap.get(m.user_id) || null,
@@ -159,19 +159,19 @@ export default function AdminMembers() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      
+
       // Fetch teams and inviter profiles
       const teamIds = [...new Set(data.map(i => i.team_id))];
       const inviterIds = [...new Set(data.map(i => i.invited_by))];
-      
+
       const [teamsRes, profilesRes] = await Promise.all([
         supabase.from("teams").select("id, name").in("id", teamIds),
-        supabase.from("profiles").select("id, full_name").in("id", inviterIds)
+        supabase.from("customer").select("id, full_name").in("id", inviterIds)
       ]);
-      
+
       const teamMap = new Map((teamsRes.data || []).map(t => [t.id, t]));
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
-      
+
       return data.map(i => ({
         ...i,
         teams: teamMap.get(i.team_id) || null,
@@ -190,19 +190,19 @@ export default function AdminMembers() {
         .order("joined_at", { ascending: false });
 
       if (error) throw error;
-      
+
       // Fetch profiles and workspaces
       const userIds = data.map(m => m.user_id);
       const workspaceIds = [...new Set(data.map(m => m.workspace_id))];
-      
+
       const [profilesRes, teamsRes] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, email").in("id", userIds),
+        supabase.from("customer").select("id, full_name, email").in("id", userIds),
         supabase.from("teams").select("id, name").in("id", workspaceIds)
       ]);
-      
+
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
       const teamMap = new Map((teamsRes.data || []).map(t => [t.id, t]));
-      
+
       return data.map(m => ({
         ...m,
         profile: profileMap.get(m.user_id) || null,
@@ -499,7 +499,7 @@ export default function AdminMembers() {
                                 Edit Member
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 className="text-destructive"
                                 onClick={() => deleteMemberMutation.mutate(member.id)}
                               >
@@ -570,8 +570,8 @@ export default function AdminMembers() {
                           {formatDistanceToNow(new Date(invitation.expires_at), { addSuffix: true })}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="icon"
                             onClick={() => deleteInvitationMutation.mutate(invitation.id)}
                           >
@@ -632,7 +632,7 @@ export default function AdminMembers() {
                         </TableCell>
                         <TableCell>{getStatusBadge(wm.status)}</TableCell>
                         <TableCell className="text-muted-foreground text-sm">
-                          {wm.joined_at 
+                          {wm.joined_at
                             ? format(new Date(wm.joined_at), "MMM d, yyyy")
                             : "-"
                           }
@@ -696,7 +696,7 @@ export default function AdminMembers() {
             <Button variant="outline" onClick={() => setEditingMember(null)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={() => {
                 if (editingMember) {
                   updateMemberMutation.mutate({

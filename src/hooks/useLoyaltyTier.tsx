@@ -64,7 +64,7 @@ export function useLoyaltyTier() {
   const fetchUserLoyalty = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         setUserLoyalty(null);
         setLoading(false);
@@ -73,7 +73,7 @@ export function useLoyaltyTier() {
 
       // Fetch user profile with loyalty info
       const { data: profile, error: profileError } = await supabase
-        .from("profiles")
+        .from("customer")
         .select(`
           loyalty_tier_id,
           loyalty_points_balance,
@@ -109,7 +109,7 @@ export function useLoyaltyTier() {
           tier = bronzeTier;
           // Update user profile with default Bronze tier
           await supabase
-            .from("profiles")
+            .from("customer")
             .update({ loyalty_tier_id: bronzeTier.id })
             .eq("id", user.id);
         }
@@ -142,7 +142,7 @@ export function useLoyaltyTier() {
 
   const getNextTier = useCallback((): LoyaltyTier | null => {
     if (!userLoyalty?.tier || allTiers.length === 0) return null;
-    
+
     const currentLevel = userLoyalty.tier.priority_level || 0;
     const nextTier = allTiers.find(t => (t.priority_level || 0) > currentLevel);
     return nextTier || null;
@@ -157,7 +157,7 @@ export function useLoyaltyTier() {
     const currentTierPoints = userLoyalty.tier.min_points || 0;
 
     if (requiredPoints <= currentTierPoints) return 100;
-    
+
     const progress = ((currentPoints - currentTierPoints) / (requiredPoints - currentTierPoints)) * 100;
     return Math.min(Math.max(progress, 0), 100);
   }, [userLoyalty, getNextTier]);

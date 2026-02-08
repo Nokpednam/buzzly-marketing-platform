@@ -178,7 +178,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const { error } = await supabase
-        .from("profiles")
+        .from("customer")
         .update({ plan_type: newPlan })
         .eq("id", userId);
 

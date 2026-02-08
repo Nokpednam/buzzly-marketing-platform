@@ -1,3 +1,4 @@
+Connecting to db 5432
 export type Json =
   | string
   | number
@@ -7,10 +8,30 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -1093,6 +1114,68 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      customer: {
+        Row: {
+          birthday_at: string | null
+          company_name: string | null
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          last_active: string | null
+          loyalty_points_balance: number | null
+          loyalty_tier_id: string | null
+          member_since: string | null
+          phone_number: string | null
+          plan_type: string | null
+          status: string | null
+          total_spend_amount: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          birthday_at?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          last_active?: string | null
+          loyalty_points_balance?: number | null
+          loyalty_tier_id?: string | null
+          member_since?: string | null
+          phone_number?: string | null
+          plan_type?: string | null
+          status?: string | null
+          total_spend_amount?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          birthday_at?: string | null
+          company_name?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          last_active?: string | null
+          loyalty_points_balance?: number | null
+          loyalty_tier_id?: string | null
+          member_since?: string | null
+          phone_number?: string | null
+          plan_type?: string | null
+          status?: string | null
+          total_spend_amount?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_loyalty_tier_id_fkey"
+            columns: ["loyalty_tier_id"]
+            isOneToOne: false
+            referencedRelation: "loyalty_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customer_activities: {
         Row: {
@@ -2821,7 +2904,6 @@ export type Database = {
           profile_img: string | null
           role_id: string | null
           salary_range: string | null
-          subscription_order_id: string | null
           updated_at: string | null
           user_id: string | null
         }
@@ -2839,7 +2921,6 @@ export type Database = {
           profile_img?: string | null
           role_id?: string | null
           salary_range?: string | null
-          subscription_order_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -2857,7 +2938,6 @@ export type Database = {
           profile_img?: string | null
           role_id?: string | null
           salary_range?: string | null
-          subscription_order_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -2881,75 +2961,6 @@ export type Database = {
             columns: ["loyalty_point_id"]
             isOneToOne: false
             referencedRelation: "loyalty_points"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "profile_customers_subscription_order_id_fkey"
-            columns: ["subscription_order_id"]
-            isOneToOne: false
-            referencedRelation: "subscription_orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      profiles: {
-        Row: {
-          birthday_at: string | null
-          company_name: string | null
-          created_at: string | null
-          email: string | null
-          full_name: string | null
-          id: string
-          last_active: string | null
-          loyalty_points_balance: number | null
-          loyalty_tier_id: string | null
-          member_since: string | null
-          phone_number: string | null
-          plan_type: string | null
-          status: string | null
-          total_spend_amount: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          birthday_at?: string | null
-          company_name?: string | null
-          created_at?: string | null
-          email?: string | null
-          full_name?: string | null
-          id: string
-          last_active?: string | null
-          loyalty_points_balance?: number | null
-          loyalty_tier_id?: string | null
-          member_since?: string | null
-          phone_number?: string | null
-          plan_type?: string | null
-          status?: string | null
-          total_spend_amount?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          birthday_at?: string | null
-          company_name?: string | null
-          created_at?: string | null
-          email?: string | null
-          full_name?: string | null
-          id?: string
-          last_active?: string | null
-          loyalty_points_balance?: number | null
-          loyalty_tier_id?: string | null
-          member_since?: string | null
-          phone_number?: string | null
-          plan_type?: string | null
-          status?: string | null
-          total_spend_amount?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_loyalty_tier_id_fkey"
-            columns: ["loyalty_tier_id"]
-            isOneToOne: false
-            referencedRelation: "loyalty_tiers"
             referencedColumns: ["id"]
           },
         ]
@@ -3576,89 +3587,6 @@ export type Database = {
           },
         ]
       }
-      subscription_orders: {
-        Row: {
-          cancelled_at: string | null
-          created_at: string | null
-          currency_id: string | null
-          discount_code_id: string | null
-          end_date: string | null
-          id: string
-          is_recurring: boolean | null
-          order_number: string
-          payment_method_id: string | null
-          start_date: string | null
-          status: string | null
-          subscription_id: string | null
-          tax_amount: number | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          cancelled_at?: string | null
-          created_at?: string | null
-          currency_id?: string | null
-          discount_code_id?: string | null
-          end_date?: string | null
-          id?: string
-          is_recurring?: boolean | null
-          order_number: string
-          payment_method_id?: string | null
-          start_date?: string | null
-          status?: string | null
-          subscription_id?: string | null
-          tax_amount?: number | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          cancelled_at?: string | null
-          created_at?: string | null
-          currency_id?: string | null
-          discount_code_id?: string | null
-          end_date?: string | null
-          id?: string
-          is_recurring?: boolean | null
-          order_number?: string
-          payment_method_id?: string | null
-          start_date?: string | null
-          status?: string | null
-          subscription_id?: string | null
-          tax_amount?: number | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "subscription_orders_currency_id_fkey"
-            columns: ["currency_id"]
-            isOneToOne: false
-            referencedRelation: "currencies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "subscription_orders_discount_code_id_fkey"
-            columns: ["discount_code_id"]
-            isOneToOne: false
-            referencedRelation: "discounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "subscription_orders_payment_method_id_fkey"
-            columns: ["payment_method_id"]
-            isOneToOne: false
-            referencedRelation: "payment_methods"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "subscription_orders_subscription_id_fkey"
-            columns: ["subscription_id"]
-            isOneToOne: false
-            referencedRelation: "subscription_plans"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       subscription_plans: {
         Row: {
           created_at: string | null
@@ -3676,6 +3604,7 @@ export type Database = {
           price_monthly: number | null
           price_yearly: number | null
           slug: string | null
+          tier: number
           trial_days: number | null
           updated_at: string | null
         }
@@ -3695,6 +3624,7 @@ export type Database = {
           price_monthly?: number | null
           price_yearly?: number | null
           slug?: string | null
+          tier?: number
           trial_days?: number | null
           updated_at?: string | null
         }
@@ -3714,6 +3644,7 @@ export type Database = {
           price_monthly?: number | null
           price_yearly?: number | null
           slug?: string | null
+          tier?: number
           trial_days?: number | null
           updated_at?: string | null
         }
@@ -4269,7 +4200,7 @@ export type Database = {
             foreignKeyName: "user_payment_methods_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "customer"
             referencedColumns: ["id"]
           },
         ]
@@ -4699,6 +4630,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: ["customer", "admin", "owner"],
@@ -4708,3 +4642,4 @@ export const Constants = {
     },
   },
 } as const
+

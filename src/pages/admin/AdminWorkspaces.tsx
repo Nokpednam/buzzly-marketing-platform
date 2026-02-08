@@ -5,13 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
 import {
   Dialog,
@@ -28,11 +28,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Building2, 
-  Users, 
-  MoreHorizontal, 
-  Search, 
+import {
+  Building2,
+  Users,
+  MoreHorizontal,
+  Search,
   Ban,
   CheckCircle,
   Globe,
@@ -93,7 +93,7 @@ export default function AdminWorkspaces() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedWorkspace, setSelectedWorkspace] = useState<Team | null>(null);
   const [viewMode, setViewMode] = useState<"members" | "api" | null>(null);
-  
+
   // Mock suspended state (would need DB column in production)
   const [suspendedWorkspaces, setSuspendedWorkspaces] = useState<Set<string>>(new Set());
 
@@ -120,12 +120,12 @@ export default function AdminWorkspaces() {
     queryKey: ["admin-workspace-stats"],
     queryFn: async () => {
       const stats: Record<string, { members: number; adAccounts: number }> = {};
-      
+
       // Get member counts
       const { data: memberCounts } = await supabase
         .from("team_members")
         .select("team_id");
-      
+
       if (memberCounts) {
         memberCounts.forEach((m) => {
           if (m.team_id) {
@@ -139,7 +139,7 @@ export default function AdminWorkspaces() {
       const { data: adAccountCounts } = await supabase
         .from("ad_accounts")
         .select("team_id");
-      
+
       if (adAccountCounts) {
         adAccountCounts.forEach((a) => {
           if (a.team_id) {
@@ -158,23 +158,23 @@ export default function AdminWorkspaces() {
     queryKey: ["admin-workspace-members", selectedWorkspace?.id],
     queryFn: async () => {
       if (!selectedWorkspace) return [];
-      
+
       const { data, error } = await supabase
         .from("team_members")
         .select("id, user_id, role, status, joined_at")
         .eq("team_id", selectedWorkspace.id);
 
       if (error) throw error;
-      
+
       // Fetch profiles separately
       const userIds = data.map(m => m.user_id);
       const { data: profiles } = await supabase
-        .from("profiles")
+        .from("customer")
         .select("id, full_name, email")
         .in("id", userIds);
-      
+
       const profileMap = new Map((profiles || []).map(p => [p.id, p]));
-      
+
       return data.map(m => ({
         ...m,
         profile: profileMap.get(m.user_id) || null
@@ -188,7 +188,7 @@ export default function AdminWorkspaces() {
     queryKey: ["admin-workspace-ad-accounts", selectedWorkspace?.id],
     queryFn: async () => {
       if (!selectedWorkspace) return [];
-      
+
       const { data, error } = await supabase
         .from("ad_accounts")
         .select(`
@@ -369,15 +369,15 @@ export default function AdminWorkspaces() {
                 {filteredWorkspaces?.map((workspace) => {
                   const stats = workspaceStats?.[workspace.id] || { members: 0, adAccounts: 0 };
                   const isSuspended = suspendedWorkspaces.has(workspace.id);
-                  
+
                   return (
                     <TableRow key={workspace.id} className={isSuspended ? "opacity-60" : ""}>
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                             {workspace.logo_url ? (
-                              <img 
-                                src={workspace.logo_url} 
+                              <img
+                                src={workspace.logo_url}
                                 alt={workspace.name}
                                 className="h-8 w-8 rounded object-cover"
                               />
@@ -435,7 +435,7 @@ export default function AdminWorkspaces() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => {
                                 setSelectedWorkspace(workspace);
                                 setViewMode("members");
@@ -444,7 +444,7 @@ export default function AdminWorkspaces() {
                               <Users className="h-4 w-4 mr-2" />
                               View Members
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => {
                                 setSelectedWorkspace(workspace);
                                 setViewMode("api");
@@ -454,7 +454,7 @@ export default function AdminWorkspaces() {
                               API Connections
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => handleSuspendToggle(workspace.id)}
                               className={isSuspended ? "text-primary" : "text-destructive"}
                             >
@@ -490,8 +490,8 @@ export default function AdminWorkspaces() {
       </Card>
 
       {/* Workspace Detail Dialog */}
-      <Dialog 
-        open={!!selectedWorkspace && !!viewMode} 
+      <Dialog
+        open={!!selectedWorkspace && !!viewMode}
         onOpenChange={(open) => {
           if (!open) {
             setSelectedWorkspace(null);
@@ -503,8 +503,8 @@ export default function AdminWorkspaces() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {selectedWorkspace?.logo_url ? (
-                <img 
-                  src={selectedWorkspace.logo_url} 
+                <img
+                  src={selectedWorkspace.logo_url}
                   alt={selectedWorkspace.name}
                   className="h-8 w-8 rounded object-cover"
                 />
@@ -635,8 +635,8 @@ export default function AdminWorkspaces() {
                             <div className="flex items-center gap-3">
                               <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
                                 {account.platforms?.icon_url ? (
-                                  <img 
-                                    src={account.platforms.icon_url} 
+                                  <img
+                                    src={account.platforms.icon_url}
                                     alt=""
                                     className="h-6 w-6"
                                   />
@@ -647,7 +647,7 @@ export default function AdminWorkspaces() {
                               <div>
                                 <div className="font-medium">{account.account_name}</div>
                                 <div className="text-xs text-muted-foreground">
-                                  {account.platforms?.name || "Unknown Platform"} • 
+                                  {account.platforms?.name || "Unknown Platform"} •
                                   ID: {account.platform_account_id || "N/A"}
                                 </div>
                               </div>
@@ -656,8 +656,8 @@ export default function AdminWorkspaces() {
                               <Badge variant={account.is_active ? "default" : "secondary"}>
                                 {account.is_active ? "Active" : "Inactive"}
                               </Badge>
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="outline"
                                 size="sm"
                                 onClick={() => handleToggleAdAccount(account.id, account.is_active)}
                               >
