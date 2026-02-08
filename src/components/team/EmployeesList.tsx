@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,6 +45,8 @@ import {
   Building2,
   Briefcase,
   Loader2,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { useEmployees, Employee as EmployeeData, EmployeeInsert } from "@/hooks/useEmployees";
 
@@ -54,21 +57,23 @@ interface EmployeesListProps {
 }
 
 export function EmployeesList({ canManage }: EmployeesListProps) {
-  const { 
-    employees, 
+  const {
+    employees,
     roles,
-    isLoading, 
-    createEmployee, 
-    updateEmployee, 
+    isLoading,
+    createEmployee,
+    updateEmployee,
     deleteEmployee,
     suspendEmployee,
     reactivateEmployee,
+    approveEmployee,
+    rejectEmployee,
   } = useEmployees();
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeData | null>(null);
-  
+
   const [formData, setFormData] = useState<EmployeeInsert & { department?: string }>({
     email: "",
     first_name: "",
@@ -88,6 +93,24 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
   };
 
   const handleAddEmployee = async () => {
+    // Bug #L1-4 Fix: Email validation
+    if (!formData.email.trim()) {
+      toast.error("กรุณาใส่อีเมล");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error("รูปแบบอีเมลไม่ถูกต้อง");
+      return;
+    }
+
+    // Bug #L1-5 Fix: Name validation
+    if (!formData.first_name?.trim() && !formData.last_name?.trim()) {
+      toast.error("กรุณาใส่ชื่อหรือนามสกุลอย่างน้อย 1 อย่าง");
+      return;
+    }
+
     await createEmployee.mutateAsync(formData);
     setAddDialogOpen(false);
     resetForm();
@@ -111,6 +134,13 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
   };
 
   const handleSuspend = async (id: string) => {
+    // Bug #L1-2 Fix: Add confirmation
+    const confirmed = window.confirm(
+      "คุณแน่ใจหรือไม่ที่จะระงับพนักงานนี้?\n\nพนักงานจะไม่สามารถเข้าใช้งานระบบได้ชั่วคราว"
+    );
+
+    if (!confirmed) return;
+
     await suspendEmployee.mutateAsync(id);
   };
 
@@ -118,7 +148,32 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
     await reactivateEmployee.mutateAsync(id);
   };
 
+  const handleApprove = async (id: string) => {
+    const confirmed = window.confirm(
+      "คุณแน่ใจหรือไม่ที่จะอนุมัติพนักงานนี้?"
+    );
+    if (!confirmed) return;
+
+    await approveEmployee.mutateAsync(id);
+  };
+
+  const handleReject = async (id: string) => {
+    const confirmed = window.confirm(
+      "คุณแน่ใจหรือไม่ที่จะปฏิเสธพนักงานนี้?\n\nพนักงานจะไม่สามารถเข้าใช้งานได้"
+    );
+    if (!confirmed) return;
+
+    await rejectEmployee.mutateAsync(id);
+  };
+
   const handleRemove = async (id: string) => {
+    // Bug #L1-1 Fix: Add confirmation
+    const confirmed = window.confirm(
+      "คุณแน่ใจหรือไม่ที่จะลบพนักงานนี้?\n\nการลบจะลบข้อมูลทั้งหมดรวมถึงโปรไฟล์"
+    );
+
+    if (!confirmed) return;
+
     await deleteEmployee.mutateAsync(id);
   };
 
@@ -142,6 +197,19 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
         return <Badge variant="destructive">ระงับ</Badge>;
       default:
         return <Badge variant="secondary">ไม่ระบุ</Badge>;
+    }
+  };
+
+  const getApprovalBadge = (status: string | null) => {
+    switch (status) {
+      case "approved":
+        return <Badge className="bg-success">อนุมัติแล้ว</Badge>;
+      case "pending":
+        return <Badge variant="outline" className="border-warning text-warning">รออนุมัติ</Badge>;
+      case "rejected":
+        return <Badge variant="destructive">ปฏิเสธ</Badge>;
+      default:
+        return <Badge variant="secondary">-</Badge>;
     }
   };
 
@@ -180,6 +248,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
               <TableHead>บทบาท</TableHead>
               <TableHead>ตำแหน่ง/ความถนัด</TableHead>
               <TableHead>สถานะ</TableHead>
+              <TableHead>สถานะการอนุมัติ</TableHead>
               <TableHead>เข้าใช้งานล่าสุด</TableHead>
               {canManage && <TableHead className="w-[50px]"></TableHead>}
             </TableRow>
@@ -226,13 +295,14 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                     </div>
                   </TableCell>
                   <TableCell>{getStatusBadge(employee.status)}</TableCell>
+                  <TableCell>{getApprovalBadge(employee.approval_status)}</TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {employee.profile?.last_active
                       ? new Date(employee.profile.last_active).toLocaleDateString("th-TH", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })
                       : "-"}
                   </TableCell>
                   {canManage && (
@@ -248,21 +318,63 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                             <Pencil className="h-4 w-4 mr-2" />
                             แก้ไขข้อมูล
                           </DropdownMenuItem>
+
+                          {/* Approval Actions - Only for pending employees */}
+                          {employee.approval_status === "pending" && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-success"
+                                onClick={() => handleApprove(employee.id)}
+                                disabled={approveEmployee.isPending}
+                              >
+                                {approveEmployee.isPending ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                )}
+                                อนุมัติพนักงาน
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => handleReject(employee.id)}
+                                disabled={rejectEmployee.isPending}
+                              >
+                                {rejectEmployee.isPending ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 mr-2" />
+                                )}
+                                ปฏิเสธพนักงาน
+                              </DropdownMenuItem>
+                            </>
+                          )}
+
                           <DropdownMenuSeparator />
                           {employee.status === "active" ? (
                             <DropdownMenuItem
                               className="text-warning"
                               onClick={() => handleSuspend(employee.id)}
+                              disabled={suspendEmployee.isPending}
                             >
-                              <UserX className="h-4 w-4 mr-2" />
+                              {suspendEmployee.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <UserX className="h-4 w-4 mr-2" />
+                              )}
                               ระงับการใช้งาน
                             </DropdownMenuItem>
                           ) : (
                             <DropdownMenuItem
                               className="text-success"
                               onClick={() => handleReactivate(employee.id)}
+                              disabled={reactivateEmployee.isPending}
                             >
-                              <UserCheck className="h-4 w-4 mr-2" />
+                              {reactivateEmployee.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <UserCheck className="h-4 w-4 mr-2" />
+                              )}
                               เปิดใช้งานอีกครั้ง
                             </DropdownMenuItem>
                           )}
@@ -270,8 +382,13 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                           <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => handleRemove(employee.id)}
+                            disabled={deleteEmployee.isPending}
                           >
-                            <Trash2 className="h-4 w-4 mr-2" />
+                            {deleteEmployee.isPending ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4 mr-2" />
+                            )}
                             ลบพนักงาน
                           </DropdownMenuItem>
                         </DropdownMenuContent>

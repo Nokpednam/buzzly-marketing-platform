@@ -17,6 +17,7 @@ import {
   Users,
   HeadphonesIcon,
   Award,
+  UserCog,
 } from "lucide-react";
 
 const adminNavItems = [
@@ -39,10 +40,10 @@ const adminNavItems = [
     description: "Manage All Workspaces",
   },
   {
-    title: "Members",
-    icon: Users,
-    href: "/admin/members",
-    description: "Members & Invitations",
+    title: "Employee Management",
+    icon: UserCog,
+    href: "/admin/employees",
+    description: "Employee Approval",
   },
   {
     title: "Tier Management",

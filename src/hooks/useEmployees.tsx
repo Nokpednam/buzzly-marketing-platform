@@ -43,6 +43,10 @@ export function useEmployees() {
   const { data: employees = [], isLoading, error } = useQuery({
     queryKey: ["employees"],
     queryFn: async () => {
+      // Bug #L2-4 NOTE: This uses 3 separate queries (N+1 pattern)
+      // Future optimization: Use Supabase joins instead
+      // Example: .select('*, profile:employees_profile(*), role:role_employees(*)')
+
       // Fetch employees
       const { data: employeesData, error: employeesError } = await supabase
         .from("employees")
@@ -101,8 +105,8 @@ export function useEmployees() {
       const { data, error } = await supabase
         .from("role_employees")
         .select("*")
-        .order("name");
-      
+        .order("role_name");  // Bug #L2-1 Fix: Use correct column name
+
       if (error) throw error;
       return data || [];
     },
@@ -135,7 +139,11 @@ export function useEmployees() {
           role_employees_id: newEmployee.role_employees_id,
         });
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        // Bug #L2-3 Fix: Rollback employee creation if profile fails
+        await supabase.from("employees").delete().eq("id", employee.id);
+        throw profileError;
+      }
 
       return employee;
     },
@@ -149,14 +157,14 @@ export function useEmployees() {
   });
 
   const updateEmployee = useMutation({
-    mutationFn: async ({ 
-      id, 
+    mutationFn: async ({
+      id,
       profileId,
-      updates 
-    }: { 
-      id: string; 
+      updates
+    }: {
+      id: string;
       profileId?: string;
-      updates: Partial<EmployeeInsert> & { status?: string; is_locked?: boolean } 
+      updates: Partial<EmployeeInsert> & { status?: string; is_locked?: boolean }
     }) => {
       // Update employee record if needed
       if (updates.role_employees_id || updates.status !== undefined || updates.is_locked !== undefined) {
@@ -172,19 +180,35 @@ export function useEmployees() {
         if (empError) throw empError;
       }
 
-      // Update employee profile if needed
-      if (profileId && (updates.first_name || updates.last_name || updates.aptitude)) {
-        const { error: profileError } = await supabase
-          .from("employees_profile")
-          .update({
-            first_name: updates.first_name,
-            last_name: updates.last_name,
-            aptitude: updates.aptitude,
-            role_employees_id: updates.role_employees_id,
-          })
-          .eq("id", profileId);
+      // Bug #L2-5 Fix: Handle profile updates with NULL check
+      if (updates.first_name || updates.last_name || updates.aptitude) {
+        if (profileId) {
+          // Update existing profile
+          const { error: profileError } = await supabase
+            .from("employees_profile")
+            .update({
+              first_name: updates.first_name,
+              last_name: updates.last_name,
+              aptitude: updates.aptitude,
+              role_employees_id: updates.role_employees_id,
+            })
+            .eq("id", profileId);
 
-        if (profileError) throw profileError;
+          if (profileError) throw profileError;
+        } else {
+          // Create new profile if doesn't exist
+          const { error: profileError } = await supabase
+            .from("employees_profile")
+            .insert({
+              employees_id: id,
+              first_name: updates.first_name,
+              last_name: updates.last_name,
+              aptitude: updates.aptitude,
+              role_employees_id: updates.role_employees_id,
+            });
+
+          if (profileError) throw profileError;
+        }
       }
     },
     onSuccess: () => {
@@ -198,11 +222,16 @@ export function useEmployees() {
 
   const deleteEmployee = useMutation({
     mutationFn: async (id: string) => {
-      // Delete profile first
-      await supabase
+      // Bug #L2-6 Fix: Handle profile delete error
+      const { error: profileError } = await supabase
         .from("employees_profile")
         .delete()
         .eq("employees_id", id);
+
+      if (profileError) {
+        console.warn("Failed to delete profile:", profileError);
+        // Continue anyway since we're deleting employee
+      }
 
       // Delete employee
       const { error } = await supabase
@@ -234,6 +263,10 @@ export function useEmployees() {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       toast.success("ระงับพนักงานสำเร็จ");
     },
+    onError: (error: Error) => {
+      // Bug #L2-2 Fix: Add error handler
+      toast.error(`ไม่สามารถระงับพนักงาน: ${error.message}`);
+    },
   });
 
   const reactivateEmployee = useMutation({
@@ -249,6 +282,45 @@ export function useEmployees() {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       toast.success("เปิดใช้งานพนักงานอีกครั้ง");
     },
+    onError: (error: Error) => {
+      toast.error(`ไม่สามารถเปิดใช้งานพนักงาน: ${error.message}`);
+    },
+  });
+
+  const approveEmployee = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("employees")
+        .update({ approval_status: "approved" })
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      toast.success("อนุมัติพนักงานสำเร็จ");
+    },
+    onError: (error: Error) => {
+      toast.error(`ไม่สามารถอนุมัติ: ${error.message}`);
+    },
+  });
+
+  const rejectEmployee = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("employees")
+        .update({ approval_status: "rejected" })
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      toast.success("ปฏิเสธพนักงานสำเร็จ");
+    },
+    onError: (error: Error) => {
+      toast.error(`ไม่สามารถปฏิเสธ: ${error.message}`);
+    },
   });
 
   return {
@@ -261,5 +333,7 @@ export function useEmployees() {
     deleteEmployee,
     suspendEmployee,
     reactivateEmployee,
+    approveEmployee,
+    rejectEmployee,
   };
 }

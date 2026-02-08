@@ -42,6 +42,7 @@ import ExecutiveReport from "./pages/owner/ExecutiveReport";
 import CustomerTiers from "./pages/owner/CustomerTiers";
 import TeamManagement from "./pages/TeamManagement";
 import TierManagement from "./pages/admin/TierManagement";
+import EmployeeManagement from "./pages/admin/EmployeeManagement";
 
 const queryClient = new QueryClient();
 
@@ -89,7 +90,7 @@ const App = () => (
                   <Route path="/admin/monitor" element={<MonitorDashboard />} />
                   <Route path="/admin/audit-logs" element={<AuditLogs />} />
                   <Route path="/admin/workspaces" element={<AdminWorkspaces />} />
-                  <Route path="/admin/members" element={<AdminMembers />} />
+                  <Route path="/admin/employees" element={<EmployeeManagement />} />
                   <Route path="/admin/support" element={<AdminSupport />} />
                   <Route path="/admin/tier-management" element={<TierManagement />} />
                 </Route>

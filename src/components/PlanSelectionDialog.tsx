@@ -52,11 +52,11 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
   const [isProcessing, setIsProcessing] = useState(false);
 
   const { currentPlan, updatePlan, refetch: refetchPlanAccess } = usePlanAccess();
-  const { 
-    plans, 
-    paymentMethods, 
-    loading, 
-    getMonthlyEquivalent, 
+  const {
+    plans,
+    paymentMethods,
+    loading,
+    getMonthlyEquivalent,
     getSavingsPercent,
     createSubscription,
     refetch: refetchSubscription,
@@ -76,13 +76,13 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
 
   const handleProceedToPayment = () => {
     if (!selectedPlan) return;
-    
+
     // If selecting free plan, just update directly
     if (selectedPlan.slug === "free") {
       handleFreePlanSelect();
       return;
     }
-    
+
     // For paid plans, show payment dialog
     setShowPaymentDialog(true);
   };
@@ -97,6 +97,14 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
       onOpenChange(false);
     }
   };
+
+  const isDowngrade = () => {
+    if (!selectedPlan) return false;
+    const currentPlanData = plans.find((p) => p.slug === currentPlan);
+    if (!currentPlanData) return false;
+    return selectedPlan.tier < currentPlanData.tier;
+  };
+
 
   const handleConfirmPayment = async (paymentMethodId: string, discountCode?: string) => {
     if (!selectedPlan) return;
@@ -113,12 +121,12 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
         // Refresh plan access to update UI
         await refetchPlanAccess();
         await refetchSubscription();
-        
+
         toast({
           title: "ชำระเงินสำเร็จ! 🎉",
           description: `คุณได้อัปเกรดเป็น ${selectedPlan.name} Plan เรียบร้อยแล้ว`,
         });
-        
+
         setShowPaymentDialog(false);
         onOpenChange(false);
       } else {
@@ -127,6 +135,9 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
           description: result.error || "ไม่สามารถดำเนินการได้ กรุณาลองใหม่",
           variant: "destructive",
         });
+        // Reset to plan selection for retry
+        setShowPaymentDialog(false);
+        setSelectedPlan(null);
       }
     } catch (error) {
       toast({
@@ -287,16 +298,16 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
                       isSelected
                         ? "bg-primary hover:bg-primary/90"
                         : plan.is_popular
-                        ? "bg-primary/80 hover:bg-primary"
-                        : "bg-muted-foreground/20 hover:bg-muted-foreground/30 text-foreground"
+                          ? "bg-primary/80 hover:bg-primary"
+                          : "bg-muted-foreground/20 hover:bg-muted-foreground/30 text-foreground"
                     )}
                     variant={isSelected ? "default" : "outline"}
                   >
                     {isSelected
                       ? "เลือกแล้ว ✓"
                       : isCurrentPlan
-                      ? "Plan ปัจจุบัน"
-                      : "เลือก Plan นี้"}
+                        ? "Plan ปัจจุบัน"
+                        : "เลือก Plan นี้"}
                   </Button>
                 </div>
               );
@@ -323,7 +334,7 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
             <Button
               size="lg"
               className="px-8"
-              disabled={!selectedPlan || (selectedPlan.slug === currentPlan)}
+              disabled={!selectedPlan || (selectedPlan.slug === currentPlan) || isDowngrade()}
               onClick={handleProceedToPayment}
             >
               {selectedPlan ? (

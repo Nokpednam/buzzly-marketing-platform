@@ -12,6 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
 import {
   CreditCard,
   QrCode,
@@ -54,6 +55,7 @@ export function PaymentMethodDialog({
   onBack,
   isProcessing,
 }: PaymentMethodDialogProps) {
+  const { toast } = useToast();
   const [selectedMethodId, setSelectedMethodId] = useState<string>("");
   const [discountCode, setDiscountCode] = useState("");
   const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
@@ -67,28 +69,42 @@ export function PaymentMethodDialog({
   const basePrice = billingCycle === "yearly" ? selectedPlan.price_yearly : selectedPlan.price_monthly;
   const discountAmount = appliedDiscount ? (basePrice * appliedDiscount.percent) / 100 : 0;
   const finalPrice = basePrice - discountAmount;
-  const monthlySavings = billingCycle === "yearly" 
-    ? selectedPlan.price_monthly * 12 - selectedPlan.price_yearly 
+  const monthlySavings = billingCycle === "yearly"
+    ? selectedPlan.price_monthly * 12 - selectedPlan.price_yearly
     : 0;
 
   const handleApplyDiscount = async () => {
     if (!discountCode.trim()) return;
-    
+
     setIsApplyingDiscount(true);
     // Mock discount validation - in real app, validate against database
     await new Promise((resolve) => setTimeout(resolve, 500));
-    
+
     // Mock: Accept "SAVE20" for 20% off
     if (discountCode.toUpperCase() === "SAVE20") {
       setAppliedDiscount({ code: discountCode.toUpperCase(), percent: 20 });
     } else if (discountCode.toUpperCase() === "WELCOME10") {
       setAppliedDiscount({ code: discountCode.toUpperCase(), percent: 10 });
+    } else {
+      // Invalid discount code
+      toast({
+        title: "โค้ดส่วนลดไม่ถูกต้อง",
+        description: "กรุณาตรวจสอบและลองใหม่อีกครั้ง",
+        variant: "destructive",
+      });
     }
     setIsApplyingDiscount(false);
   };
 
   const handleConfirm = async () => {
-    if (!selectedMethodId) return;
+    if (!selectedMethodId) {
+      toast({
+        title: "กรุณาเลือกวิธีชำระเงิน",
+        description: "โปรดเลือกวิธีการชำระเงินก่อนดำเนินการต่อ",
+        variant: "destructive",
+      });
+      return;
+    }
     await onConfirmPayment(selectedMethodId, appliedDiscount?.code);
   };
 
@@ -141,7 +157,7 @@ export function PaymentMethodDialog({
               {formatPrice(basePrice)}
             </span>
           </div>
-          
+
           {monthlySavings > 0 && (
             <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
               <span className="text-sm flex items-center gap-1">
