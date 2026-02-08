@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -51,6 +51,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useCampaigns, CampaignWithInsights } from "@/hooks/useCampaigns";
+import { supabase } from "@/integrations/supabase/client";
 
 const statusStyles: Record<string, string> = {
   active: "bg-success/10 text-success border-success/20",
@@ -83,6 +84,11 @@ export default function Campaigns() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<CampaignWithInsights | null>(null);
 
+  // Ad Accounts state
+  const [adAccounts, setAdAccounts] = useState<Array<{ id: string; account_name: string }>>([]);
+  const [selectedAdAccount, setSelectedAdAccount] = useState<string>("");
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
+
   // Form state
   const [formData, setFormData] = useState({
     name: "",
@@ -91,7 +97,37 @@ export default function Campaigns() {
     startDate: "",
     endDate: "",
     status: "draft",
+    adAccountId: "",
   });
+
+  // Fetch ad_accounts on mount
+  useEffect(() => {
+    const fetchAdAccounts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("ad_accounts")
+          .select("id, account_name")
+          .eq("is_active", true)
+          .order("account_name");
+
+        if (error) throw error;
+
+        setAdAccounts(data || []);
+
+        // Auto-select first account if available
+        if (data && data.length > 0) {
+          setSelectedAdAccount(data[0].id);
+        }
+      } catch (error) {
+        console.error("Error fetching ad accounts:", error);
+        toast.error("ไม่สามารถโหลดบัญชีโฆษณา");
+      } finally {
+        setIsLoadingAccounts(false);
+      }
+    };
+
+    fetchAdAccounts();
+  }, []);
 
   // Map DB campaigns to display format
   const campaigns = useMemo(() => {
@@ -174,6 +210,7 @@ export default function Campaigns() {
       startDate: "",
       endDate: "",
       status: "draft",
+      adAccountId: selectedAdAccount || "",
     });
     setIsDialogOpen(true);
   };
@@ -187,6 +224,7 @@ export default function Campaigns() {
       startDate: campaign.start_date?.split("T")[0] || "",
       endDate: campaign.end_date?.split("T")[0] || "",
       status: campaign.status || "draft",
+      adAccountId: campaign.ad_account_id || selectedAdAccount || "",
     });
     setIsDialogOpen(true);
   };
@@ -236,6 +274,13 @@ export default function Campaigns() {
       }
     }
 
+    // Validate ad_account_id (CRITICAL for RLS)
+    const adAccountId = formData.adAccountId || selectedAdAccount;
+    if (!adAccountId) {
+      toast.error("กรุณาเลือกบัญชีโฆษณา");
+      return;
+    }
+
     try {
       if (editingCampaign) {
         await updateCampaign.mutateAsync({
@@ -246,6 +291,7 @@ export default function Campaigns() {
             budget_amount: formData.budget ? Number(formData.budget) : null,
             start_date: formData.startDate || null,
             end_date: formData.endDate || null,
+            ad_account_id: adAccountId,
           },
         });
       } else {
@@ -256,6 +302,7 @@ export default function Campaigns() {
           start_date: formData.startDate || null,
           end_date: formData.endDate || null,
           status: "draft",
+          ad_account_id: adAccountId,
         });
       }
 
@@ -300,8 +347,46 @@ export default function Campaigns() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {/* Ad Account Selector */}
             <div className="grid gap-2">
-              <Label htmlFor="name">ชื่อ Campaign *</Label>
+              <Label htmlFor="adAccount">
+                บัญชีโฆษณา <span className="text-destructive">*</span>
+              </Label>
+              {isLoadingAccounts ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  กำลังโหลด...
+                </div>
+              ) : adAccounts.length === 0 ? (
+                <div className="text-sm text-destructive">
+                  ไม่พบบัญชีโฆษณา กรุณาสร้างบัญชีโฆษณาก่อน
+                </div>
+              ) : (
+                <Select
+                  value={formData.adAccountId || selectedAdAccount}
+                  onValueChange={(value) => {
+                    setFormData((prev) => ({ ...prev, adAccountId: value }));
+                    setSelectedAdAccount(value);
+                  }}
+                >
+                  <SelectTrigger id="adAccount">
+                    <SelectValue placeholder="เลือกบัญชีโฆษณา" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {adAccounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.account_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="name">
+                ชื่อ Campaign <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="name"
                 placeholder="เช่น Summer Sale 2025"
