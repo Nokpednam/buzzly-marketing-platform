@@ -9,21 +9,19 @@
    npm install
    ```
 
-2. **Start Supabase**
+2. **รัน First-Time Setup** (ครั้งแรกเท่านั้น)
    ```bash
-   npx supabase start
-   ```
-   - จะใช้เวลาสักครู่ (ครั้งแรกดาวน์โหลด Docker images)
-   - รอจนเห็น "Started supabase local development setup"
-
-3. **สร้าง Owner Account**  
-   ```bash
-   ./setup-owner.sh
+   ./setup-first-step.sh
    ```
    หรือถ้าไม่ได้ให้รัน:
    ```bash
-   chmod +x setup-owner.sh && ./setup-owner.sh
+   chmod +x setup-first-step.sh && ./setup-first-step.sh
    ```
+   
+   สคริปต์นี้จะ:
+   - ✅ Start Supabase (ถ้ายังไม่ได้เปิด)
+   - ✅ Reset database และรัน migrations ทั้งหมด
+   - ✅ สร้าง Owner Account อัตโนมัติ
 
 4. **Start Dev Server**
    ```bash
@@ -67,22 +65,26 @@ npx supabase start
 ```
 
 ### "Login returns 500 error"
-- เช็คว่ารัน `./setup-owner.sh` แล้วหรือยัง
+- เช็คว่ารัน `./setup-first-step.sh` แล้วหรือยัง
 - ลอง reset database:
   ```bash
-  npx supabase db reset
-  ./setup-owner.sh
+  ./setup-first-step.sh
   ```
 
 ---
 
 ## 📝 สรุป
 
-**คำสั่งทั้งหมดลำดับเดียว:**
+**คำสั่งทั้งหมดลำดับเดียว (ครั้งแรก):**
 ```bash
 npm install
+./setup-first-step.sh
+npm run dev
+```
+
+**คำสั่งสำหรับรันครั้งถัดไป:**
+```bash
 npx supabase start
-./setup-owner.sh
 npm run dev
 ```
 
