@@ -72,3 +72,17 @@ To connect a domain, navigate to Project > Settings > Domains and click Connect 
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
 # BuzzlyDev
+
+## 🚀 Quick Start
+
+**New to this project?** Check out the [Setup Guide](./SETUP.md) for complete installation instructions.
+
+```bash
+npm install
+npx supabase start
+npm run dev
+```
+
+---
+
+# Welcome to your Lovable project

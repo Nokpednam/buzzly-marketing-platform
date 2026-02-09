@@ -25,3 +25,15 @@ dist-ssr
 node_modules/
 dist/
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Supabase
+supabase/.branches
+supabase/.temp
+
+# Test results
+test-results/
+playwright-report/
