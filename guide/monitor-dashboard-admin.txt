@@ -1,5 +1,5 @@
 !!!ดึงข้อมูลจาก Supabase มาแสดงใน Admin Dashboard !!!
-สร้างตารางใน Supabase ตามไฟล์ supabase/migrations/20260210_create_monitor_tables.sql
+สร้างตารางใน Supabase ตามไฟล์ 20260210_create_monitor_tables.sql
 run ไฟล์ sql ใน Supabase SQL Editor ก่อน
 
 Walkthrough - Admin Dashboard Real Data Migration
