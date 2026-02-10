@@ -1,0 +1,32 @@
+Fix 
+admin-mock-data.sql
+ Schema Mismatch
+The 
+admin-mock-data.sql
+ script is outdated and does not match the current database schema. Specifically, it attempts to insert into non-existent tables team_members and team_invitations, and references teams in a way that suggests it should also be creating workspaces.
+
+User Review Required
+IMPORTANT
+
+This plan modifies 
+admin-mock-data.sql
+ to align with the latest schema. It introduces role_customers and workspaces tables which were missing in the script but required by the schema. Note: I will assign fixed UUIDs for the new role_customers and workspaces to ensure reproducibility.
+
+Proposed Changes
+sample-data/admin-mock-data.sql
+Add role_customers inserts: Define standard roles (Owner, Admin, Editor, Viewer) with fixed UUIDs.
+Add workspaces inserts: Create a corresponding workspace for each team inserted.
+Replace team_members, team_invitations, workspace_members inserts:
+Combine all into public.workspace_members.
+Use role_customers UUIDs instead of string roles.
+Map to workspace_id instead of team_id.
+Handle invitations by setting status and invitation_* fields.
+Fix platforms inserts: Ensure compatibility (columns match).
+Remove team_members and team_invitations sections.
+Verification Plan
+Manual Verification
+Run the updated 
+admin-mock-data.sql
+ in the Supabase SQL Editor (or via command line if available).
+Since I cannot run it directly against the production/local DB without user permission/setup, I will verify the syntax and column alignment against the collected schema definitions.
+The user will need to execute the file.

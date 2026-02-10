@@ -1,0 +1,43 @@
+!!!ดึงข้อมูลจาก Supabase มาแสดงใน Admin Dashboard !!!
+สร้างตารางใน Supabase ตามไฟล์ supabase/migrations/20260210_create_monitor_tables.sql
+run ไฟล์ sql ใน Supabase SQL Editor ก่อน
+
+Walkthrough - Admin Dashboard Real Data Migration
+I have successfully updated the Admin Dashboard to fetch real data from Supabase, deprecating the frontend mock data.
+
+Changes
+1. Workspace Members
+File: 
+src/hooks/useWorkspaceMembers.tsx
+Change: Replaced hardcoded mockMembers with Supabase queries to team_members and team_invitations tables.
+Notes: The hook now authenticates the current user, finds their team, and fetches all members and pending invitations for that team. Mutations (invite, suspend, remove) now execute real database operations.
+2. Monitor Dashboard
+File: 
+supabase/migrations/20260210_create_monitor_tables.sql
+Change: Created a new migration file to define server, data_pipeline, and external_api_status tables, which were missing from the schema but used by the dashboard.
+File: 
+src/integrations/supabase/types.ts
+Change: Manually updated TypeScript definitions to include these new tables, ensuring type safety for 
+useAdminMonitor.tsx
+.
+Verification Results
+Automated Build
+npm run build completed successfully, confirming that:
+
+The new 
+types.ts
+ definitions match the usage in 
+useAdminMonitor.tsx
+.
+The updated 
+useWorkspaceMembers.tsx
+ is type-safe and correctly integrated.
+Manual Verification Required
+To see the changes in action, please:
+
+Run the Migration: Execute the SQL from 
+supabase/migrations/20260210_create_monitor_tables.sql
+ in your Supabase SQL Editor. This will create the necessary tables and seed them with initial data.
+Start the App: Run npm run dev and navigate to the Admin Dashboard.
+Members: Verify you see real members (or empty state if none exist). Try inviting a member.
+Monitor: Verify you see Server Health, Data Pipelines, and API Status widgets populated with the seeded data.
