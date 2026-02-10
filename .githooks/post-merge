@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Post-merge hook: รัน migrations อัตโนมัติหลังจาก git pull
+
+echo "🔍 Checking for new migrations..."
+
+# เช็คว่ามี migration files เปลี่ยนแปลงหรือไม่
+changed_files="$(git diff-tree -r --name-only --no-commit-id ORIG_HEAD HEAD)"
+
+if echo "$changed_files" | grep --quiet "supabase/migrations"; then
+    echo "✨ New migrations detected! Running migrations..."
+    
+    # รัน Supabase migrations
+    npx supabase db push
+    
+    if [ $? -eq 0 ]; then
+        echo "✅ Migrations completed successfully!"
+    else
+        echo "❌ Migration failed. Please check the errors above."
+        exit 1
+    fi
+else
+    echo "✓ No new migrations found."
+fi
+
+# เช็คว่า package.json เปลี่ยนแปลงหรือไม่
+if echo "$changed_files" | grep --quiet "package.json"; then
+    echo "📦 package.json changed. Installing dependencies..."
+    npm install
+    echo "✅ Dependencies updated!"
+fi
