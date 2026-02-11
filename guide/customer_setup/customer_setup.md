@@ -17,8 +17,9 @@
 
 PowerShell
 .\setup-dashboard.ps1
-สำหรับ Mac/Linux (Bash):
 
+
+สำหรับ Mac/Linux (Bash):
 Bash
 chmod +x setup-dashboard.sh
 ./setup-dashboard.sh

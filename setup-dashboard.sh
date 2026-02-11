@@ -21,7 +21,9 @@ run_migration() {
     local file=$1
     local description=$2
     echo "→ Running: $description"
-    npx supabase db execute --file "$file"
+    # Using psql for local execution as it's more reliable for single files
+    # Local Supabase default: PGPASSWORD=postgres, Port 54322
+    PGPASSWORD=postgres psql -h localhost -p 54322 -U postgres -d postgres -f "$file"
     if [ $? -eq 0 ]; then
         echo "  ✓ Success"
     else
