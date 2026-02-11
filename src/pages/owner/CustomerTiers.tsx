@@ -116,10 +116,8 @@ export default function CustomerTiers() {
         let platinum = 0;
 
         customers.forEach(c => {
-          // @ts-ignore
           const lp = c.loyalty_points;
           if (lp && lp.status === 'active') {
-            // @ts-ignore
             const tName = lp.loyalty_tiers?.name || 'Bronze'; // Fallback
             tierCounts.set(tName, (tierCounts.get(tName) || 0) + 1);
             totalCust++;
@@ -130,9 +128,9 @@ export default function CustomerTiers() {
         const distChartData = masterTiers.map(t => ({
           name: t.name,
           value: tierCounts.get(t.name) || 0,
-          color: t.badge_color === 'bronze' ? '#CD7F32' :
-            t.badge_color === 'silver' ? '#C0C0C0' :
-              t.badge_color === 'gold' ? '#FFD700' : '#E5E4E2'
+          color: t.name === 'Bronze' ? '#A85823' :
+            t.name === 'Silver' ? '#94A3B8' :
+              t.name === 'Gold' ? '#F59E0B' : '#6366F1'
         }));
 
         setTierDistribution(distChartData);
@@ -156,7 +154,6 @@ export default function CustomerTiers() {
         // We need to map UserId -> Current Tier Name
         const userTierNameMap = new Map<string, string>();
         customers.forEach(c => {
-          // @ts-ignore
           const tName = c.loyalty_points?.loyalty_tiers?.name || 'Bronze';
           userTierNameMap.set(c.user_id, tName);
         });
@@ -187,9 +184,7 @@ export default function CustomerTiers() {
           .map(c => ({
             id: c.user_id,
             name: `${c.first_name} ${c.last_name}`,
-            // @ts-ignore
             tier: c.loyalty_points?.loyalty_tiers?.name || 'Bronze',
-            // @ts-ignore
             points: c.loyalty_points?.total_points_earned || 0,
             totalSpend: userSpendMap.get(c.user_id) || 0
           }))
@@ -270,8 +265,12 @@ export default function CustomerTiers() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Customer Tiers Overview</h1>
-          <p className="text-muted-foreground">ภาพรวมลูกค้าตาม Loyalty Tier (ข้อมูลจริง)</p>
+          <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+            Customer Tiers
+          </h1>
+          <p className="text-slate-500 mt-2 text-lg font-medium">
+            Loyalty Tier Overview & Performance
+          </p>
         </div>
         <Select value={timePeriod} onValueChange={setTimePeriod}>
           <SelectTrigger className="w-[180px]">
@@ -288,58 +287,65 @@ export default function CustomerTiers() {
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
+        <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5 hover:translate-y-[-2px] transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">สมาชิกทั้งหมด</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">สมาชิกทั้งหมด</CardTitle>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
+              <Users className="h-4 w-4" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalCustomers.toLocaleString()}</div>
-            <div className="flex items-center text-xs text-green-600">
+            <div className="text-3xl font-bold tracking-tight">{(totalCustomers || 0).toLocaleString()}</div>
+            <div className="flex items-center text-xs text-emerald-600 mt-1 font-bold">
               <ArrowUpRight className="h-3 w-3 mr-1" />
-              +12% จากเดือนก่อน
+              +12.5%
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5 hover:translate-y-[-2px] transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">รายได้รวม</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">รายได้รวม</CardTitle>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
+              <DollarSign className="h-4 w-4" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">฿{(totalRevenue / 1000000).toFixed(1)}M</div>
-            <div className="flex items-center text-xs text-green-600">
+            <div className="text-3xl font-bold tracking-tight">฿{(totalRevenue / 1000000).toFixed(2)}M</div>
+            <div className="flex items-center text-xs text-emerald-600 mt-1 font-bold">
               <ArrowUpRight className="h-3 w-3 mr-1" />
-              +8% จากเดือนก่อน
+              +8.2%
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5 hover:translate-y-[-2px] transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">ค่าใช้จ่ายเฉลี่ย</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">ค่าใช้จ่ายเฉลี่ย</CardTitle>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/10 text-orange-500">
+              <TrendingUp className="h-4 w-4" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">฿{avgSpendAll.toLocaleString()}</div>
-            <div className="flex items-center text-xs text-green-600">
+            <div className="text-3xl font-bold tracking-tight">฿{avgSpendAll.toLocaleString()}</div>
+            <div className="flex items-center text-xs text-emerald-600 mt-1 font-bold">
               <ArrowUpRight className="h-3 w-3 mr-1" />
-              +5% จากเดือนก่อน
+              +5.4%
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5 hover:translate-y-[-2px] transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Platinum Members</CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Platinum Members</CardTitle>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-500">
+              <Award className="h-4 w-4" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{platinumCount}</div>
-            <div className="flex items-center text-xs text-green-600">
-              <ArrowUpRight className="h-3 w-3 mr-1" />
-              Top Tier
+            <div className="text-3xl font-bold tracking-tight">{platinumCount}</div>
+            <div className="flex items-center text-xs text-indigo-600 mt-1 font-bold italic">
+              Premium Segment
             </div>
           </CardContent>
         </Card>
@@ -348,39 +354,45 @@ export default function CustomerTiers() {
       {/* Charts Row */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Tier Distribution Pie Chart */}
-        <Card>
+        <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5">
           <CardHeader>
-            <CardTitle>สัดส่วนลูกค้าแต่ละ Tier</CardTitle>
-            <CardDescription>Pie Chart แสดงจำนวนและสัดส่วน</CardDescription>
+            <CardTitle className="text-xl font-bold">Customer Distribution</CardTitle>
+            <CardDescription>Members segmented by loyalty tier</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
+            <div className="h-[300px] relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={tierDistribution}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={2}
+                    innerRadius={80}
+                    outerRadius={110}
+                    paddingAngle={5}
                     dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   >
                     {tierDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                      <Cell key={`cell-${index}`} fill={entry.color} strokeWidth={0} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "12px", border: "1px solid hsl(var(--border))", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}
+                    itemStyle={{ fontWeight: "bold" }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-4xl font-bold tracking-tighter">{totalCustomers}</span>
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold font-sans">Total Members</span>
+              </div>
             </div>
-            <div className="mt-4 grid grid-cols-4 gap-2">
+            <div className="mt-6 grid grid-cols-4 gap-4">
               {tierDistribution.map((tier) => (
-                <div key={tier.name} className="text-center">
-                  <div className="text-lg font-bold">{tier.value.toLocaleString()}</div>
-                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                    <span>{tierIcons[tier.name]}</span> {tier.name}
+                <div key={tier.name} className="flex flex-col items-center">
+                  <div className="text-xl font-black" style={{ color: tier.color }}>{tier.value}</div>
+                  <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider flex items-center gap-1">
+                    {tier.name}
                   </div>
                 </div>
               ))}
@@ -389,21 +401,34 @@ export default function CustomerTiers() {
         </Card>
 
         {/* Revenue by Tier */}
-        <Card>
+        <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5">
           <CardHeader>
-            <CardTitle>รายได้ตาม Tier</CardTitle>
-            <CardDescription>รายได้และค่าใช้จ่ายเฉลี่ยต่อลูกค้า</CardDescription>
+            <CardTitle className="text-xl font-bold">Revenue by Tier</CardTitle>
+            <CardDescription>Total revenue and average spend per segment</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={revenueByTier}>
-                  <XAxis dataKey="name" />
-                  <YAxis tickFormatter={(v) => `฿${v / 1000}K`} />
+                <BarChart data={revenueByTier} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 'bold' }} />
+                  <YAxis tickFormatter={(v) => `฿${v / 1000}K`} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
                   <Tooltip
-                    formatter={(value: number) => `฿${value.toLocaleString()}`}
+                    cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }}
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "12px", border: "1px solid hsl(var(--border))", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}
+                    formatter={(value: number) => [`฿${value.toLocaleString()}`, "Revenue"]}
                   />
-                  <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="revenue"
+                    radius={[10, 10, 0, 0]}
+                    barSize={40}
+                  >
+                    {revenueByTier.map((entry, index) => {
+                      const color = entry.name === 'Bronze' ? '#A85823' :
+                        entry.name === 'Silver' ? '#94A3B8' :
+                          entry.name === 'Gold' ? '#F59E0B' : '#6366F1';
+                      return <Cell key={`cell-${index}`} fill={color} />;
+                    })}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -412,34 +437,42 @@ export default function CustomerTiers() {
       </div>
 
       {/* Tier Movement Trends */}
-      <Card>
+      <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5">
         <CardHeader>
-          <CardTitle>แนวโน้มการเปลี่ยน Tier</CardTitle>
-          <CardDescription>จำนวนการอัปเกรดและดาวน์เกรดในแต่ละเดือน (ข้อมูลจากประวัติ transaction)</CardDescription>
+          <CardTitle className="text-xl font-bold italic tracking-tight">Tier Transition Velocity</CardTitle>
+          <CardDescription>Momentum of customer upgrades and downgrades over time</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={tierMovement}>
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
+                <defs>
+                  <linearGradient id="colorUp" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "12px", border: "1px solid hsl(var(--border))" }}
+                />
                 <Area
                   type="monotone"
                   dataKey="upgrades"
-                  name="อัปเกรด"
+                  name="Upgrades"
                   stroke="hsl(var(--primary))"
-                  fill="hsl(var(--primary))"
-                  fillOpacity={0.3}
+                  strokeWidth={3}
+                  fill="url(#colorUp)"
                 />
                 <Area
                   type="monotone"
                   dataKey="downgrades"
-                  name="ดาวน์เกรด"
+                  name="Downgrades"
                   stroke="hsl(var(--destructive))"
-                  fill="hsl(var(--destructive))"
-                  fillOpacity={0.3}
+                  strokeWidth={2}
+                  fill="transparent"
+                  strokeDasharray="5 5"
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -449,33 +482,34 @@ export default function CustomerTiers() {
 
       {/* Top Performers */}
       <div className="grid gap-6 md:grid-cols-1">
-        <Card>
+        <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Award className="h-5 w-5 text-yellow-500" />
+            <CardTitle className="flex items-center gap-2 text-xl font-bold">
+              <Award className="h-6 w-6 text-yellow-500" />
               Top Performers
             </CardTitle>
-            <CardDescription>ลูกค้าที่มียอดใช้จ่ายสูงสุด 5 อันดับแรก</CardDescription>
+            <CardDescription>High-value customers based on lifetime spend</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {topPerformers.map((customer, index) => (
-                <div key={customer.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted font-bold">
-                      {index + 1}
+                <div key={customer.id} className="group flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white font-black text-sm">
+                      #{index + 1}
                     </div>
                     <div>
-                      <p className="font-medium">{customer.name}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span>{tierIcons[customer.tier]}</span>
-                        <span>{customer.tier}</span>
+                      <p className="font-bold text-lg">{customer.name}</p>
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          {tierIcons[customer.tier]} {customer.tier}
+                        </span>
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold">฿{customer.totalSpend.toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">{customer.points.toLocaleString()} pts</p>
+                    <p className="font-black text-xl text-primary">฿{customer.totalSpend.toLocaleString() ?? 0}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{customer.points.toLocaleString() ?? 0} PTS</p>
                   </div>
                 </div>
               ))}
