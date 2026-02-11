@@ -44,7 +44,7 @@ export function CustomerProtectedRoute({ children }: { children: React.ReactNode
       setSession(session);
       setUser(session.user);
 
-      // Check employees table first (primary source of truth for employees)
+      // Check employees table (ONLY source of truth for employees)
       const { data: employeeData } = await supabase
         .from("employees")
         .select(`
@@ -68,21 +68,11 @@ export function CustomerProtectedRoute({ children }: { children: React.ReactNode
         }
       }
 
-      // Fallback check to legacy user_roles
-      const { data: fetchedRolesData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id);
-
-      const hasLegacyAdminRole = fetchedRolesData && fetchedRolesData.length > 0 && fetchedRolesData.some(
-        (r) => r.role === "admin" || r.role === "owner"
-      );
-
-      if (isEmployeeRole || hasLegacyAdminRole) {
-        // Admin/owner should not access customer pages
+      if (isEmployeeRole) {
+        // Employee should not access customer pages
         setIsCustomer(false);
       } else {
-        // Regular customer - allow access (everyone is free plan by default)
+        // Regular customer (everyone else) - allow access
         setIsCustomer(true);
       }
     } catch (error) {

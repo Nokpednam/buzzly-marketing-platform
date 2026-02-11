@@ -76,27 +76,6 @@ export default function Auth() {
       }
     }
 
-    // Fallback to legacy user_roles check
-    const { data: rolesData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-
-    if (rolesData && rolesData.length > 0) {
-      const hasOwnerRole = rolesData.some((r) => r.role === "owner");
-      const hasAdminRole = rolesData.some((r) => r.role === "admin");
-
-      if (hasOwnerRole) {
-        navigate("/owner/product-usage");
-        return;
-      }
-
-      if (hasAdminRole) {
-        navigate("/admin/dashboard");
-        return;
-      }
-    }
-
     // All customers go to dashboard (free plan by default)
     navigate("/dashboard");
   };
@@ -172,34 +151,12 @@ export default function Auth() {
           }
         }
 
-        // Fallback to legacy check
-        const { data: rolesData } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", data.user.id);
-
-        if (rolesData && rolesData.length > 0) {
-          const hasOwnerRole = rolesData.some((r) => r.role === "owner");
-          const hasAdminRole = rolesData.some((r) => r.role === "admin");
-
-          if (hasOwnerRole) {
-            isAdmin = true;
-            userRole = "owner";
-          } else if (hasAdminRole) {
-            isAdmin = true;
-            userRole = "admin";
+        if (isAdmin) {
+          if (userRole === "owner") {
+            navigate("/owner/product-usage");
+          } else {
+            navigate("/admin/dashboard");
           }
-        }
-
-        toast({
-          title: "Welcome back!",
-          description: `You have successfully signed in${isAdmin ? " as " + userRole : ""}.`,
-        });
-
-        if (rolesData?.some((r) => r.role === "owner")) {
-          navigate("/owner/product-usage");
-        } else if (rolesData?.some((r) => r.role === "admin")) {
-          navigate("/admin/dashboard");
         } else {
           navigate("/dashboard");
         }

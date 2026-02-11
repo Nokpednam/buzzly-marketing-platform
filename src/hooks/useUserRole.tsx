@@ -22,7 +22,7 @@ export function useUserRole() {
   const checkUserRole = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         setRole(null);
         setIsAdmin(false);
@@ -30,28 +30,27 @@ export function useUserRole() {
         return;
       }
 
-      const { data: rolesData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
+      // Check employees table
+      const { data: employeeData } = await supabase
+        .from("employees")
+        .select(`
+          status,
+          approval_status,
+          role_employees (
+            role_name
+          )
+        `)
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-      if (rolesData && rolesData.length > 0) {
-        // Check if user has admin or owner role
-        const hasAdminRole = rolesData.some(
-          (r) => r.role === "admin" || r.role === "owner"
-        );
-        
-        if (hasAdminRole) {
-          const adminRole = rolesData.find((r) => r.role === "admin" || r.role === "owner");
-          setRole(adminRole!.role);
-          setIsAdmin(true);
-        } else {
-          // Has other roles but not admin/owner
-          setRole(rolesData[0].role);
-          setIsAdmin(false);
-        }
+      if (employeeData && employeeData.status === 'active' && employeeData.approval_status === 'approved') {
+        const roleEmployee = employeeData.role_employees as any;
+        const roleName = roleEmployee?.role_name as AppRole;
+
+        setRole(roleName);
+        setIsAdmin(["owner", "admin"].includes(roleName));
       } else {
-        // No roles = regular customer
+        // Not an active/approved employee -> Regular customer
         setRole(null);
         setIsAdmin(false);
       }
