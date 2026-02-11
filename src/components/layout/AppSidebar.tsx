@@ -175,17 +175,6 @@ export function AppSidebar() {
           </div>
         ))}
 
-        {/* Upgrade Banner for non-team users */}
-        {!collapsed && currentPlan !== 'team' && (
-          <div className="mt-4 p-4 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/20 relative overflow-hidden group">
-            <Sparkles className="absolute -right-2 -top-2 h-16 w-16 opacity-20 rotate-12 group-hover:scale-110 transition-transform" />
-            <p className="text-xs font-bold mb-1 opacity-90">Scale your team</p>
-            <p className="text-[10px] leading-relaxed opacity-70 mb-3">Unlock collaboration and advanced AARRR analytics.</p>
-            <Button size="sm" variant="secondary" className="w-full h-8 text-[10px] font-bold uppercase tracking-wider group-hover:bg-white transition-colors">
-              Upgrade Now <ArrowUpRight className="h-3 w-3 ml-1" />
-            </Button>
-          </div>
-        )}
       </nav>
 
       {/* 4. FOOTER SECTION */}

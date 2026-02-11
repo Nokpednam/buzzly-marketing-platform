@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Zap, Bell, LogOut, Settings, User, ChevronUp, Gift, TrendingUp, History, ArrowUp, ArrowDown } from "lucide-react";
+import { Zap, Bell, LogOut, Settings, User, ChevronUp, Gift, TrendingUp, History, ArrowUp, ArrowDown, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -218,34 +218,24 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
       <div className="p-3">
         <button
           onClick={() => setPlanDialogOpen(true)}
-          onMouseEnter={() => setUpgradeHovered(true)}
-          onMouseLeave={() => setUpgradeHovered(false)}
           className={cn(
-            "w-full flex items-center justify-between rounded-lg p-3 transition-all duration-200",
-            "bg-sidebar-accent/50 hover:bg-sidebar-accent",
-            upgradeHovered && "bg-sidebar-accent"
+            "w-full flex items-center gap-3 rounded-2xl p-4 transition-all duration-300 relative overflow-hidden group",
+            "bg-gradient-to-br from-violet-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/20",
+            "hover:scale-[1.02] hover:shadow-xl hover:shadow-indigo-500/30 active:scale-[0.98]"
           )}
         >
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-              plan.showUpgrade
-                ? "bg-primary text-primary-foreground"
-                : "bg-accent text-accent-foreground"
-            )}>
-              <Zap className="h-4 w-4" />
-            </div>
-            <div className="text-left">
-              <p className="text-sm font-medium text-foreground">{plan.upgradeText}</p>
-              <p className="text-xs text-muted-foreground">
-                {plan.showUpgrade ? "Unlock more benefits" : "You have full access"}
-              </p>
-            </div>
+          <div className="absolute -right-2 -top-2 h-16 w-16 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-colors" />
+
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md text-white border border-white/30 shadow-sm">
+            <Zap className="h-5 w-5 fill-current" />
           </div>
-          <ChevronUp className={cn(
-            "h-4 w-4 text-muted-foreground transition-transform",
-            upgradeHovered && "transform -translate-y-0.5"
-          )} />
+          <div className="text-left flex-1">
+            <p className="text-sm font-black tracking-tight">{plan.upgradeText}</p>
+            <p className="text-[10px] font-medium opacity-80 leading-tight">
+              {plan.showUpgrade ? "Unlock more benefits" : "You have full access"}
+            </p>
+          </div>
+          <ArrowUpRight className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
         </button>
       </div>
 
