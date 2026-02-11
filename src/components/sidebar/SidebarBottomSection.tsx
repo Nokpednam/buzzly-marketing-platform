@@ -23,6 +23,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
+import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
+import { MessageSquarePlus } from "lucide-react";
 
 interface SidebarBottomSectionProps {
   collapsed?: boolean;
@@ -70,7 +72,7 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
       if (user) {
         setUserEmail(user.email || null);
         setUserName(user.user_metadata?.full_name || null);
-        
+
         // Fetch recent points transactions
         const { data: transactions } = await supabase
           .from('points_transactions')
@@ -78,7 +80,7 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(5);
-        
+
         if (transactions) {
           setRecentTransactions(transactions);
         }
@@ -168,8 +170,8 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
         {/* Tier Badge in middle (collapsed = icon only with popover) */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               className={cn(
                 "w-full h-10 p-0 flex items-center justify-center",
                 "hover:bg-sidebar-accent"
@@ -179,7 +181,7 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
             </Button>
           </PopoverTrigger>
           <PopoverContent side="right" align="center" className="w-72">
-            <TierPopoverContent 
+            <TierPopoverContent
               tierName={tierName}
               tierIcon={tierIcon}
               tierColor={tierColor}
@@ -227,8 +229,8 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
           <div className="flex items-center gap-3">
             <div className={cn(
               "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-              plan.showUpgrade 
-                ? "bg-primary text-primary-foreground" 
+              plan.showUpgrade
+                ? "bg-primary text-primary-foreground"
                 : "bg-accent text-accent-foreground"
             )}>
               <Zap className="h-4 w-4" />
@@ -287,8 +289,8 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
         {/* Tier Badge in Center - Clickable with Popover */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               className={cn(
                 "h-8 px-2 gap-1.5 rounded-full",
                 "hover:bg-sidebar-accent",
@@ -300,7 +302,7 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
             </Button>
           </PopoverTrigger>
           <PopoverContent side="top" align="center" className="w-80">
-            <TierPopoverContent 
+            <TierPopoverContent
               tierName={tierName}
               tierIcon={tierIcon}
               tierColor={tierColor}
@@ -342,14 +344,14 @@ interface TierPopoverContentProps {
   recentTransactions: PointsTransaction[];
 }
 
-function TierPopoverContent({ 
-  tierName, 
-  tierIcon, 
-  tierColor, 
-  tierBenefits, 
-  nextTier, 
-  progress, 
-  recentTransactions 
+function TierPopoverContent({
+  tierName,
+  tierIcon,
+  tierColor,
+  tierBenefits,
+  nextTier,
+  progress,
+  recentTransactions
 }: TierPopoverContentProps) {
   return (
     <div className="space-y-4">
@@ -375,7 +377,7 @@ function TierPopoverContent({
         </div>
         <div className="grid grid-cols-2 gap-2">
           {tierBenefits.map((benefit) => (
-            <div 
+            <div
               key={benefit.label}
               className="flex flex-col p-2 rounded-lg bg-muted/50"
             >
@@ -412,7 +414,7 @@ function TierPopoverContent({
         {recentTransactions.length > 0 ? (
           <div className="space-y-1.5 max-h-32 overflow-y-auto">
             {recentTransactions.map((tx) => (
-              <div 
+              <div
                 key={tx.id}
                 className="flex items-center justify-between text-xs p-2 rounded-lg bg-muted/30"
               >
@@ -473,6 +475,15 @@ function NotificationsContent() {
       <Button variant="ghost" size="sm" className="w-full text-xs">
         View all notifications
       </Button>
+
+      <div className="pt-2 mt-2 border-t border-border">
+        <FeedbackDialog>
+          <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-2">
+            <MessageSquarePlus className="h-3.5 w-3.5" />
+            Share Your Feedback
+          </Button>
+        </FeedbackDialog>
+      </div>
     </div>
   );
 }
