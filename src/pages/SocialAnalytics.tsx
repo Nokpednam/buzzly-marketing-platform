@@ -28,9 +28,11 @@ import {
   Calendar,
   Eye,
   Heart,
-  MessageCircle,
   Share2,
   TrendingUp,
+  Activity,
+  Layers,
+  ArrowUpRight,
 } from "lucide-react";
 import {
   BarChart,
@@ -48,32 +50,23 @@ import { AdsList } from "@/components/social/AdsList";
 import { AdGroupsList } from "@/components/social/AdGroupsList";
 import { AdInsightsSummary } from "@/components/social/AdInsightsSummary";
 
-// Mock comparison data
-const getComparisonData = (selectedIds: string[]) => {
-  const mockPosts = [
-    { id: "sp-1", title: "เปิดตัวคอลเลคชันใหม่", impressions: 45200, reach: 38500, likes: 1250, comments: 89, shares: 234, engagement_rate: 8.5 },
-    { id: "sp-2", title: "Behind the scenes", impressions: 28300, reach: 24100, likes: 2100, comments: 156, shares: 89, engagement_rate: 12.3 },
-    { id: "sp-3", title: "Tutorial: 5 วิธีแต่งตัว", impressions: 125000, reach: 98000, likes: 8900, comments: 456, shares: 1200, engagement_rate: 18.5 },
-    { id: "sp-4", title: "Flash Sale", impressions: 0, reach: 0, likes: 0, comments: 0, shares: 0, engagement_rate: 0 },
-  ];
-  
-  return mockPosts
-    .filter(p => selectedIds.includes(p.id))
-    .map(p => ({
-      name: p.title.length > 15 ? p.title.substring(0, 15) + "..." : p.title,
-      impressions: p.impressions,
-      reach: p.reach,
-      likes: p.likes,
-      engagement: p.engagement_rate,
-    }));
-};
-
-const getPlatformIcon = (platform: Platform) => {
-  if (platform.icon) {
-    const IconComponent = platform.icon;
-    return <IconComponent className="h-4 w-4" />;
-  }
-  return <span className="text-sm">{platform.emoji}</span>;
+// Helper to render platform icons with a "connected" dot
+const getPlatformIcon = (platform: Platform, isActive: boolean) => {
+  return (
+    <div className="relative">
+      {platform.icon ? (
+        <platform.icon className={`h-4 w-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+      ) : (
+        <span className="text-sm">{platform.emoji}</span>
+      )}
+      {isActive && (
+        <span className="absolute -top-1 -right-1 flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+        </span>
+      )}
+    </div>
+  );
 };
 
 export default function SocialAnalytics() {
@@ -92,264 +85,234 @@ export default function SocialAnalytics() {
     { id: "ag-4", name: "Year End Sale" },
   ]);
 
-  const togglePlatform = (platformId: string) => {
-    setActivePlatforms((prev) =>
-      prev.includes(platformId)
-        ? prev.filter((id) => id !== platformId)
-        : [...prev, platformId]
-    );
-  };
-
-  const togglePostSelection = (id: string) => {
-    setSelectedPosts((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
-    );
-  };
-
+  // Derived comparison logic (Mocked for UI demonstration)
   const compareChartData = useMemo(() => {
-    return getComparisonData(selectedPosts);
+    const mockPosts = [
+      { id: "sp-1", title: "เปิดตัวคอลเลคชันใหม่", impressions: 45200, reach: 38500, likes: 1250, engagement_rate: 8.5 },
+      { id: "sp-2", title: "Behind the scenes", impressions: 28300, reach: 24100, likes: 2100, engagement_rate: 12.3 },
+      { id: "sp-3", title: "Tutorial: 5 วิธีแต่งตัว", impressions: 125000, reach: 98000, likes: 8900, engagement_rate: 18.5 },
+    ];
+    return mockPosts.filter(p => selectedPosts.includes(p.id)).map(p => ({
+      name: p.title.substring(0, 12) + "...",
+      impressions: p.impressions,
+      reach: p.reach,
+      likes: p.likes,
+      engagement: p.engagement_rate,
+    }));
   }, [selectedPosts]);
 
   if (connectedPlatforms.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <AlertCircle className="h-16 w-16 text-muted-foreground mb-4" />
-        <h2 className="text-xl font-semibold mb-2">ยังไม่มี Platform ที่เชื่อมต่อ</h2>
-        <p className="text-muted-foreground mb-4">
-          ไปที่ API Keys เพื่อเชื่อมต่อ Platform ของคุณ
+      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center p-6 border-2 border-dashed rounded-2xl mx-4">
+        <div className="bg-muted p-4 rounded-full mb-4">
+          <AlertCircle className="h-10 w-10 text-muted-foreground" />
+        </div>
+        <h2 className="text-2xl font-bold tracking-tight">No Platforms Connected</h2>
+        <p className="text-muted-foreground mb-6 max-w-sm">
+          Connect your social accounts to start tracking post performance and ad spend.
         </p>
-        <Button variant="outline" onClick={() => navigate("/api-keys")}>
-          ไปหน้า API Keys
+        <Button size="lg" onClick={() => navigate("/api-keys")} className="gap-2">
+          Connect API Keys <ArrowUpRight className="h-4 w-4" />
         </Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Social Analytics</h1>
-          <p className="text-muted-foreground">
-            จัดการโพสต์, โฆษณา และวิเคราะห์ประสิทธิภาพ
-          </p>
+    <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
+      
+      {/* 1. TOP HEADER & PERFORMANCE PILLS */}
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-black tracking-tighter">SOCIAL ANALYTICS</h1>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Activity className="h-4 w-4 text-green-500" />
+            <span className="text-sm font-medium uppercase tracking-widest">Real-time Performance</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Date Range Filter */}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1 bg-muted p-1 rounded-xl">
+             <Button variant="ghost" size="sm" className="rounded-lg h-8 px-4">Overview</Button>
+             <Button variant="secondary" size="sm" className="rounded-lg h-8 px-4 shadow-sm">Detailed</Button>
+          </div>
           <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-[130px]">
-              <Calendar className="h-4 w-4 mr-2" />
+            <SelectTrigger className="w-[140px] bg-background border-none shadow-sm ring-1 ring-border">
+              <Calendar className="h-4 w-4 mr-2 text-primary" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7">7 วัน</SelectItem>
-              <SelectItem value="30">30 วัน</SelectItem>
-              <SelectItem value="90">90 วัน</SelectItem>
+              <SelectItem value="7">Last 7 Days</SelectItem>
+              <SelectItem value="30">Last 30 Days</SelectItem>
+              <SelectItem value="90">Last 90 Days</SelectItem>
             </SelectContent>
           </Select>
-
-          {/* Compare Button */}
-          {selectedPosts.length >= 2 && selectedPosts.length <= 5 && (
-            <Button onClick={() => setShowCompare(true)} className="gap-2">
+          {selectedPosts.length >= 2 && (
+            <Button onClick={() => setShowCompare(true)} variant="default" className="gap-2 shadow-lg shadow-primary/20 bg-primary">
               <GitCompare className="h-4 w-4" />
-              เปรียบเทียบ ({selectedPosts.length})
+              Compare ({selectedPosts.length})
             </Button>
           )}
         </div>
       </div>
 
-      {/* Platform Toggles */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="text-sm font-medium text-muted-foreground">Platforms:</span>
-            {connectedPlatforms.map((platform) => (
-              <div key={platform.id} className="flex items-center gap-2">
-                <Switch
-                  checked={activePlatforms.includes(platform.id)}
-                  onCheckedChange={() => togglePlatform(platform.id)}
-                />
-                <Badge variant="outline" className="gap-1">
-                  {getPlatformIcon(platform)}
-                  {platform.name}
-                </Badge>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {activePlatforms.length === 0 ? (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <p className="text-muted-foreground">
-              เปิด Platform อย่างน้อย 1 ตัวเพื่อดูข้อมูล
-            </p>
+      {/* 2. PLATFORM SELECTOR BAR */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="md:col-span-3 border-none bg-muted/30 backdrop-blur-sm">
+          <CardContent className="p-4 flex flex-wrap items-center gap-6">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+              <Layers className="h-3 w-3" /> Data Sources
+            </span>
+            <div className="flex flex-wrap gap-4">
+              {connectedPlatforms.map((platform) => (
+                <div 
+                  key={platform.id} 
+                  className={`flex items-center gap-3 px-3 py-1.5 rounded-full transition-all border ${
+                    activePlatforms.includes(platform.id) 
+                    ? 'bg-background border-primary/20 shadow-sm' 
+                    : 'bg-transparent border-transparent grayscale opacity-50'
+                  }`}
+                >
+                  <Switch
+                    checked={activePlatforms.includes(platform.id)}
+                    onCheckedChange={() => setActivePlatforms(prev => 
+                      prev.includes(platform.id) ? prev.filter(i => i !== platform.id) : [...prev, platform.id]
+                    )}
+                    className="data-[state=checked]:bg-primary"
+                  />
+                  <div className="flex items-center gap-2 pr-1">
+                    {getPlatformIcon(platform, activePlatforms.includes(platform.id))}
+                    <span className="text-sm font-semibold">{platform.name}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
-      ) : (
-        <Tabs defaultValue="posts" className="space-y-4">
-          <TabsList className="flex-wrap h-auto gap-1">
-            <TabsTrigger value="posts" className="gap-2">
-              <FileText className="h-4 w-4" />
-              Social Posts
+        
+        <Card className="bg-primary text-primary-foreground border-none overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+            <TrendingUp className="h-16 w-16" />
+          </div>
+          <CardContent className="p-4 flex flex-col justify-center h-full">
+            <p className="text-xs font-bold uppercase opacity-70 tracking-tighter">Est. Ad Reach</p>
+            <h2 className="text-2xl font-black">2.4M</h2>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 3. MAIN WORKSPACE */}
+      {activePlatforms.length > 0 ? (
+        <Tabs defaultValue="posts" className="space-y-6">
+          <TabsList className="bg-muted/50 p-1 h-12 rounded-2xl gap-2 w-full sm:w-auto overflow-x-auto justify-start">
+            <TabsTrigger value="posts" className="rounded-xl px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <FileText className="h-4 w-4 mr-2" /> Posts
             </TabsTrigger>
-            <TabsTrigger value="ads" className="gap-2">
-              <Megaphone className="h-4 w-4" />
-              Ads
+            <TabsTrigger value="ads" className="rounded-xl px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <Megaphone className="h-4 w-4 mr-2" /> Ads
             </TabsTrigger>
-            <TabsTrigger value="groups" className="gap-2">
-              <FolderOpen className="h-4 w-4" />
-              Ad Groups
+            <TabsTrigger value="groups" className="rounded-xl px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <FolderOpen className="h-4 w-4 mr-2" /> Groups
             </TabsTrigger>
-            <TabsTrigger value="insights" className="gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Insights
+            <TabsTrigger value="insights" className="rounded-xl px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <BarChart3 className="h-4 w-4 mr-2" /> Insights
             </TabsTrigger>
           </TabsList>
 
-          {/* Social Posts Tab */}
-          <TabsContent value="posts">
-            <Card className="border-0 shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Social Posts
-                </CardTitle>
-                <CardDescription>
-                  จัดการโพสต์บน Social Media ทั้ง Organic และ Scheduled
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <SocialPostsList
-                  selectedPosts={selectedPosts}
-                  onSelectPost={togglePostSelection}
-                  dateRange={dateRange}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Ads Tab */}
-          <TabsContent value="ads">
-            <Card className="border-0 shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Megaphone className="h-4 w-4" />
-                  Ads Management
-                </CardTitle>
-                <CardDescription>
-                  สร้างและจัดการโฆษณา พร้อม Headline, Ad Copy และ Call-to-Action
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <AdsList adGroups={adGroups} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Ad Groups Tab */}
-          <TabsContent value="groups">
-            <Card className="border-0 shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FolderOpen className="h-4 w-4" />
-                  Ad Groups
-                </CardTitle>
-                <CardDescription>
-                  จัดกลุ่มโฆษณาเพื่อให้ง่ายต่อการจัดการและวิเคราะห์
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <AdGroupsList onGroupsChange={setAdGroups} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Insights Tab */}
-          <TabsContent value="insights">
-            <Card className="border-0 shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4" />
-                  Ad Insights Summary
-                </CardTitle>
-                <CardDescription>
-                  สรุปประสิทธิภาพโฆษณา: Impressions, Clicks, Spend, ROAS, Conversions
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <AdInsightsSummary dateRange={dateRange} />
-              </CardContent>
-            </Card>
-          </TabsContent>
+          <div className="bg-card border rounded-3xl p-2 shadow-sm min-h-[400px]">
+            <TabsContent value="posts" className="m-0 border-none outline-none">
+              <SocialPostsList
+                selectedPosts={selectedPosts}
+                onSelectPost={(id: string) => {
+                  // Toggle selection logic
+                  setSelectedPosts((prev) =>
+                    prev.includes(id)
+                      ? prev.filter((pid) => pid !== id)
+                      : [...prev, id]
+                  );
+                }}
+                dateRange={dateRange}
+              />
+            </TabsContent>
+            <TabsContent value="ads" className="m-0 border-none outline-none">
+              <AdsList adGroups={adGroups} />
+            </TabsContent>
+            <TabsContent value="groups" className="m-0 border-none outline-none">
+              <AdGroupsList onGroupsChange={setAdGroups} />
+            </TabsContent>
+            <TabsContent value="insights" className="m-0 border-none outline-none">
+              <AdInsightsSummary dateRange={dateRange} />
+            </TabsContent>
+          </div>
         </Tabs>
+      ) : (
+        <Card className="border-2 border-dashed">
+          <CardContent className="h-64 flex flex-col items-center justify-center text-muted-foreground">
+            <Layers className="h-10 w-10 mb-2 opacity-20" />
+            <p className="font-medium">Please enable at least one platform to see analytics</p>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Compare Dialog */}
+      {/* 4. COMPARISON DIALOG */}
       <Dialog open={showCompare} onOpenChange={setShowCompare}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <GitCompare className="h-5 w-5" />
-              เปรียบเทียบโพสต์
-            </DialogTitle>
+        <DialogContent className="max-w-5xl rounded-3xl border-none shadow-2xl p-0 overflow-hidden">
+          <DialogHeader className="p-6 bg-muted/50 border-b">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary rounded-xl text-primary-foreground shadow-lg shadow-primary/20">
+                <GitCompare className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl">Post Performance Comparison</DialogTitle>
+                <CardDescription>Comparing key metrics across {selectedPosts.length} selected assets</CardDescription>
+              </div>
+            </div>
           </DialogHeader>
-          <div className="space-y-6">
-            {/* Comparison Chart */}
-            <div className="h-[350px]">
+          
+          <div className="p-6 space-y-8">
+            <div className="h-[350px] w-full bg-background rounded-2xl p-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={compareChartData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="name" className="text-xs" />
-                  <YAxis className="text-xs" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                    }}
-                  />
-                  <Legend />
-                  <Bar dataKey="impressions" name="Impressions" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="reach" name="Reach" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="likes" name="Likes" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 11, fontWeight: 600}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11}} />
+                  <Tooltip cursor={{fill: 'hsl(var(--muted)/0.4)'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
+                  <Legend iconType="circle" wrapperStyle={{paddingTop: '20px'}} />
+                  <Bar dataKey="impressions" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={32} />
+                  <Bar dataKey="reach" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} barSize={32} />
+                  <Bar dataKey="likes" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} barSize={32} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
 
-            {/* Comparison Cards */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {compareChartData.map((item, index) => (
-                <Card key={index}>
-                  <CardContent className="p-4">
-                    <p className="font-medium text-sm mb-3 truncate">{item.name}</p>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="flex items-center gap-1">
-                        <Eye className="h-3 w-3 text-muted-foreground" />
-                        <span>{(item.impressions / 1000).toFixed(1)}K</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Heart className="h-3 w-3 text-muted-foreground" />
-                        <span>{(item.likes / 1000).toFixed(1)}K</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <TrendingUp className="h-3 w-3 text-muted-foreground" />
-                        <span>{item.engagement}%</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Share2 className="h-3 w-3 text-muted-foreground" />
-                        <span>{(item.reach / 1000).toFixed(1)}K</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {compareChartData.map((item, i) => (
+                <div key={i} className="p-4 rounded-2xl bg-muted/20 border transition-hover hover:border-primary/50 group">
+                  <h4 className="font-bold text-sm mb-4 truncate group-hover:text-primary transition-colors">{item.name}</h4>
+                  <div className="space-y-3">
+                    <MetricRow label="Engagement" value={`${item.engagement}%`} icon={TrendingUp} color="text-green-500" />
+                    <MetricRow label="Impressions" value={`${(item.impressions/1000).toFixed(1)}K`} icon={Eye} />
+                    <MetricRow label="Likes" value={item.likes.toLocaleString()} icon={Heart} color="text-red-500" />
+                  </div>
+                </div>
               ))}
             </div>
           </div>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// Simple internal helper for the comparison cards
+function MetricRow({ label, value, icon: Icon, color }: any) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Icon className={`h-3 w-3 ${color}`} />
+        {label}
+      </div>
+      <span className="text-sm font-bold">{value}</span>
     </div>
   );
 }

@@ -17,6 +17,7 @@ import {
   Lock,
   Sparkles,
   UsersRound,
+  ArrowUpRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -25,36 +26,45 @@ import { Badge } from "@/components/ui/badge";
 import { SidebarBottomSection } from "@/components/sidebar/SidebarBottomSection";
 import { useSidebarState } from "@/hooks/useSidebarState";
 
-const mainNavItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, requiresPlan: null },
-  { title: "Campaigns", url: "/campaigns", icon: Megaphone, requiresPlan: null },
-  { title: "Customer Persona", url: "/prospects", icon: Users, requiresPlan: null },
-  { title: "Social Analytics", url: "/social-analytics", icon: Share2, requiresPlan: null },
-];
-
-const exploreItems = [
-  { title: "AI Insights", url: "/ai-insights", icon: Sparkles, requiresPlan: "pro" as const },
-  { title: "Customer Journey", url: "/customer-journey", icon: Route, requiresPlan: "pro" as const },
-  { title: "AARRR Funnel", url: "/aarrr-funnel", icon: TrendingUp, requiresPlan: "pro" as const },
-  { title: "Analytics", url: "/analytics", icon: BarChart3, requiresPlan: "pro" as const },
-];
-
-const teamItems = [
-  { title: "Team Management", url: "/team", icon: UsersRound, requiresPlan: "team" as const },
-];
-
-const settingsItems = [
-  { title: "Reports", url: "/reports", icon: FileText, requiresPlan: "pro" as const },
-  { title: "API Keys", url: "/api-keys", icon: Key, requiresPlan: null },
-  { title: "Settings", url: "/settings", icon: Settings, requiresPlan: null },
+const navGroups = [
+  {
+    label: "Main",
+    items: [
+      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, requiresPlan: null },
+      { title: "Campaigns", url: "/campaigns", icon: Megaphone, requiresPlan: null },
+      { title: "Customer Persona", url: "/prospects", icon: Users, requiresPlan: null },
+      { title: "Social Analytics", url: "/social-analytics", icon: Share2, requiresPlan: null },
+    ]
+  },
+  {
+    label: "Intelligence",
+    items: [
+      { title: "Customer Journey", url: "/customer-journey", icon: Route, requiresPlan: "pro" as const },
+      { title: "AARRR Funnel", url: "/aarrr-funnel", icon: TrendingUp, requiresPlan: "pro" as const },
+      { title: "Analytics", url: "/analytics", icon: BarChart3, requiresPlan: "pro" as const },
+    ]
+  },
+  {
+    label: "Organization",
+    items: [
+      { title: "Team Management", url: "/team", icon: UsersRound, requiresPlan: "team" as const },
+      { title: "Reports", url: "/reports", icon: FileText, requiresPlan: "pro" as const },
+    ]
+  },
+  {
+    label: "System",
+    items: [
+      { title: "API Keys", url: "/api-keys", icon: Key, requiresPlan: null },
+      { title: "Settings", url: "/settings", icon: Settings, requiresPlan: null },
+    ]
+  }
 ];
 
 export function AppSidebar() {
   const { collapsed, toggle } = useSidebarState();
   const location = useLocation();
-  const { currentPlan, hasFeature } = usePlanAccess();
+  const { currentPlan } = usePlanAccess();
 
-  // Helper to check if a menu item is accessible based on current plan
   const isItemAccessible = (requiresPlan: "pro" | "team" | null) => {
     if (!requiresPlan) return true;
     if (requiresPlan === "pro") return currentPlan === "pro" || currentPlan === "team";
@@ -62,189 +72,127 @@ export function AppSidebar() {
     return true;
   };
 
-  // Helper to check if lock icon should be shown
-  const shouldShowLock = (requiresPlan: "pro" | "team" | null) => {
-    if (!requiresPlan) return false;
-    return !isItemAccessible(requiresPlan);
-  };
-
-  const getPlanDisplayName = () => {
-    switch (currentPlan) {
-      case "team": return "Team Plan";
-      case "pro": return "Pro Plan";
-      default: return "Free Plan";
-    }
-  };
-
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen border-r border-sidebar-border bg-sidebar transition-all duration-300 flex flex-col",
-        collapsed ? "w-16" : "w-64",
+        "fixed left-0 top-0 z-40 h-screen border-r border-sidebar-border bg-sidebar/50 backdrop-blur-xl transition-all duration-300 flex flex-col",
+        collapsed ? "w-20" : "w-72",
       )}
     >
-      {/* Logo */}
-      <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
-        {!collapsed && (
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Zap className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <span className="text-lg font-bold text-foreground">Buzzly</span>
+      {/* 1. BRANDING */}
+      <div className="flex h-20 items-center px-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
+            <Zap className="h-5 w-5 text-primary-foreground fill-current" />
           </div>
-        )}
-        {collapsed && (
-          <div className="mx-auto flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-            <Zap className="h-5 w-5 text-primary-foreground" />
-          </div>
-        )}
+          {!collapsed && (
+            <span className="text-xl font-black tracking-tighter text-foreground">BUZZLY</span>
+          )}
+        </div>
       </div>
 
-      {/* Workspace */}
+      {/* 2. WORKSPACE & PLAN INDICATOR */}
       {!collapsed && (
-        <div className="border-b border-sidebar-border p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent text-accent-foreground font-semibold">
-              M
-            </div>
-            <div>
-              <p className="text-sm font-medium text-foreground">My Workspace</p>
-              <Badge 
-                variant="secondary" 
-                className={cn(
-                  "text-xs",
-                  currentPlan === "team" && "bg-violet-500/20 text-violet-700 dark:text-violet-400",
-                  currentPlan === "pro" && "bg-primary/20 text-primary"
-                )}
-              >
-                {getPlanDisplayName()}
-              </Badge>
+        <div className="px-4 mb-4">
+          <div className="p-3 rounded-2xl bg-muted/40 border border-border/50 transition-all hover:bg-muted/60 group cursor-pointer">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white font-bold shadow-sm">
+                M
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold truncate">Marketing Ops</p>
+                <div className="flex items-center gap-1.5">
+                   <div className={cn("h-1.5 w-1.5 rounded-full", currentPlan === 'free' ? 'bg-slate-400' : 'bg-emerald-500 animate-pulse')} />
+                   <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{currentPlan} Plan</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
-        <div className="mb-2">
-          {!collapsed && (
-            <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Main</p>
-          )}
-          {mainNavItems.map((item) => {
-            const accessible = isItemAccessible(item.requiresPlan);
-            const showLock = shouldShowLock(item.requiresPlan);
-            return (
-              <NavLink
-                key={item.title}
-                to={item.url}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  collapsed && "justify-center px-2",
-                  !accessible && "opacity-60"
-                )}
-                activeClassName="bg-sidebar-accent text-sidebar-primary"
-              >
-                <item.icon className="h-5 w-5 flex-shrink-0" />
-                {!collapsed && <span>{item.title}</span>}
-                {!collapsed && showLock && <Lock className="h-3 w-3 ml-auto text-muted-foreground" />}
-              </NavLink>
-            );
-          })}
-        </div>
+      {/* 3. SCROLLABLE NAVIGATION */}
+      <nav className="flex-1 px-4 space-y-8 overflow-y-auto no-scrollbar py-4">
+        {navGroups.map((group) => (
+          <div key={group.label} className="space-y-1">
+            {!collapsed && (
+              <h4 className="px-3 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 mb-3">
+                {group.label}
+              </h4>
+            )}
+            {group.items.map((item) => {
+              const accessible = isItemAccessible(item.requiresPlan);
+              const isActive = location.pathname === item.url;
+              
+              return (
+                <NavLink
+                  key={item.title}
+                  to={item.url}
+                  className={cn(
+                    "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200",
+                    isActive 
+                      ? "bg-primary/10 text-primary" 
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground hover:translate-x-1",
+                    collapsed && "justify-center px-0 h-11 w-11 mx-auto",
+                    !accessible && "opacity-50 cursor-not-allowed grayscale"
+                  )}
+                >
+                  {/* Active Indicator Bar */}
+                  {isActive && !collapsed && (
+                    <div className="absolute left-0 w-1 h-5 bg-primary rounded-r-full" />
+                  )}
 
-        <div className="pt-4">
-          {!collapsed && (
-            <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Explore</p>
-          )}
-          {exploreItems.map((item) => {
-            const accessible = isItemAccessible(item.requiresPlan);
-            const showLock = shouldShowLock(item.requiresPlan);
-            return (
-              <NavLink
-                key={item.title}
-                to={item.url}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  collapsed && "justify-center px-2",
-                  !accessible && "opacity-60"
-                )}
-                activeClassName="bg-sidebar-accent text-sidebar-primary"
-              >
-                <item.icon className="h-5 w-5 flex-shrink-0" />
-                {!collapsed && <span>{item.title}</span>}
-                {!collapsed && showLock && <Lock className="h-3 w-3 ml-auto text-muted-foreground" />}
-              </NavLink>
-            );
-          })}
-        </div>
+                  <item.icon className={cn(
+                    "h-5 w-5 shrink-0 transition-transform",
+                    isActive ? "text-primary" : "group-hover:scale-110"
+                  )} />
+                  
+                  {!collapsed && <span className="flex-1 truncate">{item.title}</span>}
+                  
+                  {!collapsed && !accessible && (
+                    <div className="bg-muted p-1 rounded-md">
+                      <Lock className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                  )}
 
-        {/* Team section - only for Team plan */}
-        <div className="pt-4">
-          {!collapsed && (
-            <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Team</p>
-          )}
-          {teamItems.map((item) => {
-            const accessible = isItemAccessible(item.requiresPlan);
-            const showLock = shouldShowLock(item.requiresPlan);
-            return (
-              <NavLink
-                key={item.title}
-                to={item.url}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  collapsed && "justify-center px-2",
-                  !accessible && "opacity-60"
-                )}
-                activeClassName="bg-sidebar-accent text-sidebar-primary"
-              >
-                <item.icon className="h-5 w-5 flex-shrink-0" />
-                {!collapsed && <span>{item.title}</span>}
-                {!collapsed && showLock && <Lock className="h-3 w-3 ml-auto text-muted-foreground" />}
-              </NavLink>
-            );
-          })}
-        </div>
+                  {/* Tooltip for collapsed state */}
+                  {collapsed && (
+                    <div className="absolute left-16 scale-0 group-hover:scale-100 transition-all origin-left bg-popover text-popover-foreground text-xs font-bold py-2 px-3 rounded-lg shadow-xl border z-50 whitespace-nowrap">
+                      {item.title} {!accessible && "🔒"}
+                    </div>
+                  )}
+                </NavLink>
+              );
+            })}
+          </div>
+        ))}
 
-        {/* Settings section at bottom */}
-        <div className="pt-4 border-t border-sidebar-border mt-4">
-          {settingsItems.map((item) => {
-            const accessible = isItemAccessible(item.requiresPlan);
-            const showLock = shouldShowLock(item.requiresPlan);
-            return (
-              <NavLink
-                key={item.title}
-                to={item.url}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                  collapsed && "justify-center px-2",
-                  !accessible && "opacity-60"
-                )}
-                activeClassName="bg-sidebar-accent text-sidebar-primary"
-              >
-                <item.icon className="h-5 w-5 flex-shrink-0" />
-                {!collapsed && <span>{item.title}</span>}
-                {!collapsed && showLock && <Lock className="h-3 w-3 ml-auto text-muted-foreground" />}
-              </NavLink>
-            );
-          })}
-        </div>
+        {/* Upgrade Banner for non-team users */}
+        {!collapsed && currentPlan !== 'team' && (
+          <div className="mt-4 p-4 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/20 relative overflow-hidden group">
+            <Sparkles className="absolute -right-2 -top-2 h-16 w-16 opacity-20 rotate-12 group-hover:scale-110 transition-transform" />
+            <p className="text-xs font-bold mb-1 opacity-90">Scale your team</p>
+            <p className="text-[10px] leading-relaxed opacity-70 mb-3">Unlock collaboration and advanced AARRR analytics.</p>
+            <Button size="sm" variant="secondary" className="w-full h-8 text-[10px] font-bold uppercase tracking-wider group-hover:bg-white transition-colors">
+              Upgrade Now <ArrowUpRight className="h-3 w-3 ml-1" />
+            </Button>
+          </div>
+        )}
       </nav>
 
-      {/* Bottom Section - Lovable Style */}
-      <SidebarBottomSection collapsed={collapsed} />
+      {/* 4. FOOTER SECTION */}
+      <div className="mt-auto border-t border-sidebar-border/50 p-4">
+        <SidebarBottomSection collapsed={collapsed} />
+      </div>
 
-      {/* Collapse Toggle */}
+      {/* 5. FLOATING COLLAPSE TOGGLE */}
       <Button
         variant="ghost"
         size="icon"
         onClick={toggle}
-        className="absolute -right-3 top-20 h-6 w-6 rounded-full border border-border bg-background shadow-sm"
+        className="absolute -right-4 top-10 h-8 w-8 rounded-xl border border-border bg-background shadow-xl hover:bg-primary hover:text-white transition-all z-50"
       >
-        {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
+        {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
       </Button>
     </aside>
   );
