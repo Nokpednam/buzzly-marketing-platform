@@ -6,13 +6,13 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { tierColors, tierIcons } from "@/hooks/useLoyaltyTier";
-import { 
-  PieChart, Pie, Cell, ResponsiveContainer, 
+import {
+  PieChart, Pie, Cell, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend,
   LineChart, Line, Area, AreaChart
 } from "recharts";
-import { 
-  Users, TrendingUp, TrendingDown, DollarSign, 
+import {
+  Users, TrendingUp, TrendingDown, DollarSign,
   Award, ArrowUpRight, ArrowDownRight, Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -67,7 +67,7 @@ export default function CustomerTiers() {
   const avgSpendAll = Math.round(totalRevenue / totalCustomers);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 px-6 pb-6 pt-2">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -201,7 +201,7 @@ export default function CustomerTiers() {
                 <BarChart data={mockRevenueByTier}>
                   <XAxis dataKey="name" />
                   <YAxis tickFormatter={(v) => `฿${v / 1000}K`} />
-                  <Tooltip 
+                  <Tooltip
                     formatter={(value: number) => `฿${value.toLocaleString()}`}
                   />
                   <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
@@ -226,20 +226,20 @@ export default function CustomerTiers() {
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Area 
-                  type="monotone" 
-                  dataKey="upgrades" 
-                  name="อัปเกรด" 
-                  stroke="hsl(var(--primary))" 
-                  fill="hsl(var(--primary))" 
+                <Area
+                  type="monotone"
+                  dataKey="upgrades"
+                  name="อัปเกรด"
+                  stroke="hsl(var(--primary))"
+                  fill="hsl(var(--primary))"
                   fillOpacity={0.3}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="downgrades" 
-                  name="ดาวน์เกรด" 
-                  stroke="hsl(var(--destructive))" 
-                  fill="hsl(var(--destructive))" 
+                <Area
+                  type="monotone"
+                  dataKey="downgrades"
+                  name="ดาวน์เกรด"
+                  stroke="hsl(var(--destructive))"
+                  fill="hsl(var(--destructive))"
                   fillOpacity={0.3}
                 />
               </AreaChart>

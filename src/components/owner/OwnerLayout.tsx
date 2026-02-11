@@ -1,14 +1,12 @@
 import { Outlet } from "react-router-dom";
 import { OwnerSidebar } from "./OwnerSidebar";
-import { OwnerHeader } from "./OwnerHeader";
 
 export function OwnerLayout() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground font-sans">
       <OwnerSidebar />
       <div className="pl-64 transition-all duration-300">
-        <OwnerHeader />
-        <main className="p-6">
+        <main className="flex-1 overflow-y-auto bg-background px-8 pt-6 pb-10 container-cinema animate-in fade-in duration-700">
           <Outlet />
         </main>
       </div>

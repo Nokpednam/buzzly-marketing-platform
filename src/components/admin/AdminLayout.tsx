@@ -1,7 +1,6 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AdminSidebar } from "./AdminSidebar";
-import { AdminHeader } from "./AdminHeader";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -83,12 +82,9 @@ export function AdminLayout() {
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
         <AdminSidebar />
-        <div className="flex flex-1 flex-col">
-          <AdminHeader />
-          <main className="flex-1 overflow-y-auto bg-secondary/20 p-6">
-            <Outlet />
-          </main>
-        </div>
+        <main className="flex-1 overflow-y-auto bg-background px-8 pt-6 pb-10">
+          <Outlet />
+        </main>
       </div>
     </SidebarProvider>
   );
