@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 
 export interface CustomerPersona {
+  name: any;
   id: string;
   team_id: string;
   persona_name: string;

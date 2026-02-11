@@ -33,7 +33,7 @@ const mainNavItems = [
 ];
 
 const exploreItems = [
-  { title: "AI Insights", url: "/ai-insights", icon: Sparkles, requiresPlan: "pro" as const },
+  // { title: "AI Insights", url: "/ai-insights", icon: Sparkles, requiresPlan: "pro" as const },
   { title: "Customer Journey", url: "/customer-journey", icon: Route, requiresPlan: "pro" as const },
   { title: "AARRR Funnel", url: "/aarrr-funnel", icon: TrendingUp, requiresPlan: "pro" as const },
   { title: "Analytics", url: "/analytics", icon: BarChart3, requiresPlan: "pro" as const },
