@@ -41,7 +41,7 @@ export function useSubscriptionMetrics() {
           status,
           current_period_start,
           current_period_end,
-          subscription_plans:subscription_plan_id (
+          subscription_plans:plan_id (
             name,
             price_monthly,
             price_yearly

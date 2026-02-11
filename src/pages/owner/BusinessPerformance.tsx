@@ -46,7 +46,8 @@ export default function BusinessPerformance() {
   const currentMrr = subscriptionMetrics?.currentMrr || 0;
   const hasData = currentMrr > 0 || (cohortData && cohortData.length > 0);
 
-  // Generate MRR trend data from current MRR
+  // NOTE: This trend data is currently simulated based on the current MRR.
+  // Real historical trend data would require a more complex query from payment_transactions or a dedicated trends table.
   const mrrData = Array.from({ length: 12 }, (_, i) => {
     const month = new Date();
     month.setMonth(month.getMonth() - (11 - i));
@@ -212,6 +213,7 @@ export default function BusinessPerformance() {
             <Card className="glass-panel">
               <CardHeader><CardTitle>Revenue Breakdown</CardTitle></CardHeader>
               <CardContent className="space-y-6">
+                {/* NOTE: These breakdown percentages are currently hardcoded placeholders */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm"><span>New MRR</span><span className="text-emerald-500 font-bold">+15%</span></div>
                   <Progress value={65} className="h-1.5" />
