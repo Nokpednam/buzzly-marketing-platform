@@ -48,50 +48,41 @@ export default function BusinessPerformance() {
 
   // NOTE: This trend data is currently simulated based on the current MRR.
   // Real historical trend data would require a more complex query from payment_transactions or a dedicated trends table.
-  const mrrData = Array.from({ length: 12 }, (_, i) => {
-    const month = new Date();
-    month.setMonth(month.getMonth() - (11 - i));
-    const monthName = month.toLocaleDateString("en-US", { month: "short" });
-    const multiplier = 0.7 + (i * 0.03);
-    return {
-      month: monthName,
-      mrr: Math.round(currentMrr * multiplier),
-      growth: i > 0 ? Math.round((0.03 / (0.7 + ((i - 1) * 0.03))) * 100 * 10) / 10 : 0,
-    };
-  });
+  const mrrData = subscriptionMetrics?.monthlyData || [];
+  const breakdown = subscriptionMetrics?.breakdown || { newMrr: 0, expansion: 0, churn: 0 };
 
   // KPI data safely mapped
   const kpis = [
     {
       title: "Monthly Recurring Revenue",
-      value: `$${(currentMrr || 0).toLocaleString()}`,
-      change: 7.3,
-      trend: "up" as const,
+      value: `฿${(currentMrr || 0).toLocaleString()}`,
+      change: subscriptionMetrics?.mrrGrowth || 0,
+      trend: (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "up" as const : "down" as const,
       icon: DollarSign,
       color: "text-emerald-500",
     },
     {
       title: "Active Subscriptions",
       value: (subscriptionMetrics?.activeSubscriptions ?? 0).toString(),
-      change: 12.5,
+      change: 0, // Simplified
       trend: "up" as const,
       icon: Users,
       color: "text-blue-500",
     },
     {
       title: "Annual Run Rate",
-      value: `$${(((subscriptionMetrics?.arr ?? 0)) / 1000).toFixed(1)}K`,
-      change: 7.3,
-      trend: "up" as const,
+      value: `฿${(((subscriptionMetrics?.arr ?? 0)) / 1000).toFixed(1)}K`,
+      change: subscriptionMetrics?.mrrGrowth || 0,
+      trend: (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "up" as const : "down" as const,
       icon: Target,
       color: "text-purple-500",
     },
     {
       title: "Avg Revenue/User",
       value: (subscriptionMetrics?.activeSubscriptions && subscriptionMetrics.activeSubscriptions > 0)
-        ? `$${Math.round((currentMrr || 0) / subscriptionMetrics.activeSubscriptions)}`
-        : "$0",
-      change: 3.2,
+        ? `฿${Math.round((currentMrr || 0) / subscriptionMetrics.activeSubscriptions)}`
+        : "฿0",
+      change: 0,
       trend: "up" as const,
       icon: Activity,
       color: "text-cyan-500",
@@ -198,9 +189,9 @@ export default function BusinessPerformance() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" vertical={false} />
                   <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis tickFormatter={(v) => `$${v / 1000}k`} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={(v) => `฿${v / 1000}k`} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} axisLine={false} tickLine={false} />
                   <Tooltip
-                    formatter={(v: number) => [`$${v.toLocaleString()}`, "MRR"]}
+                    formatter={(v: number) => [`฿${v.toLocaleString()}`, "MRR"]}
                     contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
                   />
                   <Area type="monotone" dataKey="mrr" stroke="hsl(var(--primary))" strokeWidth={3} fill="url(#colorMrr)" />
@@ -213,18 +204,26 @@ export default function BusinessPerformance() {
             <Card className="glass-panel">
               <CardHeader><CardTitle>Revenue Breakdown</CardTitle></CardHeader>
               <CardContent className="space-y-6">
-                {/* NOTE: These breakdown percentages are currently hardcoded placeholders */}
                 <div className="space-y-2">
-                  <div className="flex justify-between text-sm"><span>New MRR</span><span className="text-emerald-500 font-bold">+15%</span></div>
-                  <Progress value={65} className="h-1.5" />
+                  <div className="flex justify-between text-sm">
+                    <span>New MRR</span>
+                    <span className="text-emerald-500 font-bold">฿{breakdown.newMrr.toLocaleString()}</span>
+                  </div>
+                  <Progress value={currentMrr > 0 ? (breakdown.newMrr / currentMrr) * 100 : 0} className="h-1.5" />
                 </div>
                 <div className="space-y-2">
-                  <div className="flex justify-between text-sm"><span>Expansion</span><span className="text-blue-500 font-bold">+10%</span></div>
-                  <Progress value={45} className="h-1.5" />
+                  <div className="flex justify-between text-sm">
+                    <span>Expansion</span>
+                    <span className="text-blue-500 font-bold">฿{breakdown.expansion.toLocaleString()}</span>
+                  </div>
+                  <Progress value={currentMrr > 0 ? (breakdown.expansion / currentMrr) * 100 : 0} className="h-1.5" />
                 </div>
                 <div className="space-y-2">
-                  <div className="flex justify-between text-sm"><span>Churn</span><span className="text-red-500 font-bold">-5%</span></div>
-                  <Progress value={25} className="h-1.5" />
+                  <div className="flex justify-between text-sm">
+                    <span>Churn</span>
+                    <span className="text-red-500 font-bold">฿{breakdown.churn.toLocaleString()}</span>
+                  </div>
+                  <Progress value={currentMrr > 0 ? (breakdown.churn / currentMrr) * 100 : 0} className="h-1.5" />
                 </div>
               </CardContent>
             </Card>
@@ -246,9 +245,21 @@ export default function BusinessPerformance() {
         <TabsContent value="growth" className="space-y-6">
           <div className="grid gap-6 md:grid-cols-3">
             {[
-              { icon: TrendingUp, val: "7.3%", label: "MoM Growth", color: "text-emerald-500", bg: "bg-emerald-500/10" },
-              { icon: Users, val: "115%", label: "NRR", color: "text-blue-500", bg: "bg-blue-500/10" },
-              { icon: UserMinus, val: "2.9%", label: "Churn Rate", color: "text-red-500", bg: "bg-red-500/10" }
+              {
+                icon: TrendingUp,
+                val: `${(subscriptionMetrics?.mrrGrowth || 0) >= 0 ? '+' : ''}${subscriptionMetrics?.mrrGrowth || 0}%`,
+                label: "MoM Growth",
+                color: (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "text-emerald-500" : "text-red-500",
+                bg: (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "bg-emerald-500/10" : "bg-red-500/10"
+              },
+              { icon: Users, val: "100%", label: "NRR", color: "text-blue-500", bg: "bg-blue-500/10" },
+              {
+                icon: UserMinus,
+                val: "2.0%",
+                label: "Est. Churn",
+                color: "text-red-500",
+                bg: "bg-red-500/10"
+              }
             ].map((inc, i) => (
               <Card key={i} className="glass-panel p-8 text-center transition-all hover:shadow-md">
                 <div className={cn("mx-auto h-12 w-12 rounded-full flex items-center justify-center mb-4", inc.bg)}>
