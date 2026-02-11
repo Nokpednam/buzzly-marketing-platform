@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   User,
   Building,
@@ -57,12 +59,147 @@ const settingsGroups = [
 ];
 
 export default function Settings() {
+  const { toast } = useToast();
   const [notifications, setNotifications] = useState({
     email: true,
     push: true,
     weekly: true,
     marketing: false,
   });
+
+  // Profile data state
+  const [profileData, setProfileData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phoneNumber: "",
+    timezone: "Asia/Bangkok",
+  });
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Fetch user profile data
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      try {
+        setIsLoadingProfile(true);
+
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          toast({
+            title: "Error",
+            description: "User not authenticated",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Fetch from profile_customers and customer tables
+        const { data: profileCustomer, error: profileError } = await supabase
+          .from('profile_customers')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        const { data: customer, error: customerError } = await supabase
+          .from('customer')
+          .select('email, phone_number')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error('Profile fetch error:', profileError);
+        }
+
+        if (customerError && customerError.code !== 'PGRST116') {
+          console.error('Customer fetch error:', customerError);
+        }
+
+        setProfileData({
+          firstName: profileCustomer?.first_name || "",
+          lastName: profileCustomer?.last_name || "",
+          email: customer?.email || user.email || "",
+          phoneNumber: customer?.phone_number || profileCustomer?.phone_number || "",
+          timezone: (profileCustomer as any)?.timezone || "Asia/Bangkok",
+        });
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load profile data",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    fetchProfileData();
+  }, [toast]);
+
+  // Handle profile save
+  const handleSaveProfile = async () => {
+    try {
+      setIsSavingProfile(true);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "User not authenticated",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update profile_customers
+      const { error: profileError } = await supabase
+        .from('profile_customers')
+        .update({
+          first_name: profileData.firstName,
+          last_name: profileData.lastName,
+          phone_number: profileData.phoneNumber,
+        } as any)
+        .eq('user_id', user.id);
+
+      if (profileError) {
+        console.error('Profile update error:', profileError);
+        toast({
+          title: "Error",
+          description: "Failed to update profile",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update customer table for phone
+      const { error: customerError } = await supabase
+        .from('customer')
+        .update({
+          phone_number: profileData.phoneNumber,
+        })
+        .eq('id', user.id);
+
+      if (customerError) {
+        console.error('Customer update error:', customerError);
+      }
+
+      toast({
+        title: "Success",
+        description: "Profile updated successfully",
+      });
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save profile",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
@@ -147,7 +284,7 @@ export default function Settings() {
                   <SettingInput label="Last Name" id="lastName" defaultValue="Fletcher" />
                   <SettingInput label="Email Address" id="email" type="email" defaultValue="thomas@company.com" />
                   <SettingInput label="Phone Number" id="phone" defaultValue="+66 89 123 4567" />
-                  
+
                   <div className="space-y-2">
                     <Label className="text-xs font-bold uppercase text-muted-foreground">Timezone</Label>
                     <Select defaultValue="asia-bangkok">
@@ -162,7 +299,7 @@ export default function Settings() {
                     </Select>
                   </div>
                 </div>
-                
+
                 <div className="flex justify-end pt-4">
                   <Button className="rounded-xl px-8 shadow-lg shadow-primary/20 bg-primary">Save Changes</Button>
                 </div>
@@ -172,7 +309,7 @@ export default function Settings() {
 
           {/* Company Section */}
           <TabsContent value="company" className="mt-0 focus-visible:ring-0">
-             <Card className="border-none shadow-sm bg-muted/20 rounded-3xl">
+            <Card className="border-none shadow-sm bg-muted/20 rounded-3xl">
               <CardHeader className="p-8">
                 <CardTitle className="text-xl font-black uppercase tracking-tight">Organization Profile</CardTitle>
                 <CardDescription>Global information for Buzzly Ltd.</CardDescription>
@@ -208,23 +345,23 @@ export default function Settings() {
                 <CardDescription>Control how and when you receive critical alerts.</CardDescription>
               </CardHeader>
               <CardContent className="p-8 pt-0 space-y-2">
-                <NotificationSwitch 
-                  title="Email Reports" 
-                  desc="Daily campaign summaries delivered to your inbox." 
-                  checked={notifications.email} 
-                  onCheckedChange={(v) => setNotifications(p => ({...p, email: v}))}
+                <NotificationSwitch
+                  title="Email Reports"
+                  desc="Daily campaign summaries delivered to your inbox."
+                  checked={notifications.email}
+                  onCheckedChange={(v) => setNotifications(p => ({ ...p, email: v }))}
                 />
-                <NotificationSwitch 
-                  title="Push Notifications" 
-                  desc="Instant updates in your browser for budget alerts." 
-                  checked={notifications.push} 
-                  onCheckedChange={(v) => setNotifications(p => ({...p, push: v}))}
+                <NotificationSwitch
+                  title="Push Notifications"
+                  desc="Instant updates in your browser for budget alerts."
+                  checked={notifications.push}
+                  onCheckedChange={(v) => setNotifications(p => ({ ...p, push: v }))}
                 />
-                <NotificationSwitch 
-                  title="Weekly Performance Digest" 
-                  desc="A deep-dive analysis into your growth metrics." 
-                  checked={notifications.weekly} 
-                  onCheckedChange={(v) => setNotifications(p => ({...p, weekly: v}))}
+                <NotificationSwitch
+                  title="Weekly Performance Digest"
+                  desc="A deep-dive analysis into your growth metrics."
+                  checked={notifications.weekly}
+                  onCheckedChange={(v) => setNotifications(p => ({ ...p, weekly: v }))}
                 />
               </CardContent>
             </Card>
@@ -239,12 +376,12 @@ export default function Settings() {
               </CardHeader>
               <CardContent className="p-8 pt-0 space-y-10">
                 <div className="grid gap-6 md:grid-cols-2">
-                   <SettingInput label="Monthly Cap (THB)" id="monthlyBudget" type="number" defaultValue="500000" />
-                   <SettingInput label="Alert Trigger (%)" id="alertThreshold" type="number" defaultValue="80" />
+                  <SettingInput label="Monthly Cap (THB)" id="monthlyBudget" type="number" defaultValue="500000" />
+                  <SettingInput label="Alert Trigger (%)" id="alertThreshold" type="number" defaultValue="80" />
                 </div>
-                
+
                 <Separator className="bg-border/50" />
-                
+
                 <div className="space-y-6">
                   <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4 text-primary" /> Active Allocation
@@ -268,7 +405,7 @@ export default function Settings() {
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="flex justify-end pt-4">
                   <Button className="rounded-xl px-8 shadow-lg shadow-primary/20 bg-primary">Commit Budget</Button>
                 </div>
