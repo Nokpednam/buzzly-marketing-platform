@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
 interface NavLinkCompatProps extends Omit<NavLinkProps, "className"> {
-  className?: string;
+  className?: string | ((props: { isActive: boolean; isPending: boolean }) => string);
   activeClassName?: string;
   pendingClassName?: string;
 }
@@ -14,9 +14,16 @@ const NavLink = forwardRef<HTMLAnchorElement, NavLinkCompatProps>(
       <RouterNavLink
         ref={ref}
         to={to}
-        className={({ isActive, isPending }) =>
-          cn(className, isActive && activeClassName, isPending && pendingClassName)
-        }
+        draggable="false"
+        className={(navProps) => {
+          // Handle both string and function className
+          const computedClass = typeof className === "function" ? className(navProps) : className;
+          return cn(
+            computedClass,
+            navProps.isActive && activeClassName,
+            navProps.isPending && pendingClassName
+          );
+        }}
         {...props}
       />
     );

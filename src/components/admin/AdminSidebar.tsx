@@ -1,4 +1,5 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
   SidebarContent,
@@ -92,7 +93,7 @@ export function AdminSidebar() {
   };
 
   return (
-    <Sidebar className="border-r border-slate-100 bg-white transition-all duration-300">
+    <Sidebar className="border-r border-slate-100 bg-white transition-all duration-300 select-none">
       <SidebarContent className="bg-white">
         {/* Branding Area */}
         <div className="flex items-center gap-3 px-8 py-10 shrink-0">
@@ -118,32 +119,40 @@ export function AdminSidebar() {
           </div>
         </div>
 
-        <SidebarGroup className="px-6">
+        <SidebarGroup className="px-6 py-4">
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-1.5">
+            <SidebarMenu className="space-y-2">
               {adminNavItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     asChild
                     isActive={location.pathname === item.href}
-                    className={cn(
-                      "group flex items-center justify-between px-4 py-7 rounded-2xl transition-all duration-300 border-none outline-none",
-                      location.pathname === item.href
-                        ? "bg-slate-900 text-white shadow-xl shadow-slate-200"
-                        : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                    )}
+                    className="p-0 h-auto bg-transparent hover:bg-transparent"
                   >
-                    <NavLink to={item.href} className="flex items-center justify-between w-full">
-                      <div className="flex items-center gap-4">
-                        <item.icon className={cn(
-                          "h-5 w-5 transition-colors",
-                          location.pathname === item.href ? "text-white" : "text-slate-400 group-hover:text-slate-900"
-                        )} />
-                        <span className="font-bold tracking-tight text-sm">{item.title}</span>
+                    <NavLink
+                      to={item.href}
+                      className={({ isActive }) => cn(
+                        "group flex items-center justify-between px-5 py-4 rounded-[1.25rem] transition-all duration-300 border border-transparent w-full outline-none",
+                        isActive
+                          ? "bg-slate-900 text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)] border-slate-800"
+                          : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-100"
+                      )}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={cn(
+                          "flex h-8 w-8 items-center justify-center rounded-xl transition-all",
+                          location.pathname === item.href ? "bg-white/10" : "bg-slate-100 group-hover:bg-white group-hover:shadow-sm"
+                        )}>
+                          <item.icon className={cn(
+                            "h-4 w-4 transition-colors",
+                            location.pathname === item.href ? "text-white" : "text-slate-400 group-hover:text-slate-900"
+                          )} />
+                        </div>
+                        <span className="font-bold tracking-tight text-sm truncate">{item.title}</span>
                       </div>
                       <ChevronRight className={cn(
                         "h-4 w-4 transition-all duration-300 transform",
-                        location.pathname === item.href ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0"
+                        location.pathname === item.href ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2 group-hover:opacity-60 group-hover:translate-x-0"
                       )} />
                     </NavLink>
                   </SidebarMenuButton>
@@ -193,6 +202,6 @@ export function AdminSidebar() {
           </div>
         </div>
       </SidebarFooter>
-    </Sidebar>
+    </Sidebar >
   );
 }

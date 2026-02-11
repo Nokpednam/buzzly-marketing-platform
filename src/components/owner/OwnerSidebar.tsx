@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink } from "@/components/NavLink";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -85,7 +85,7 @@ export function OwnerSidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-slate-100 bg-white flex flex-col font-sans transition-all duration-300">
+    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-slate-100 bg-white flex flex-col font-sans transition-all duration-300 select-none">
       {/* Brand Section */}
       <div className="flex items-center gap-3 px-8 py-10 shrink-0">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white shadow-xl">
@@ -98,44 +98,56 @@ export function OwnerSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 p-6 overflow-y-auto custom-scrollbar">
-        <p className="px-3 mb-4 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Management</p>
-        {ownerNavItems.map((item) => (
-          <NavLink
-            key={item.href}
-            to={item.href}
-            className={({ isActive }) =>
-              cn(
-                "group flex items-center justify-between rounded-2xl px-4 py-4 transition-all duration-300 outline-none w-full",
-                isActive
-                  ? "bg-slate-900 text-white shadow-[0_10px_20px_rgba(15,23,42,0.15)]"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-              )
-            }
-          >
-            {({ isActive }) => (
-              <>
-                <div className="flex items-center gap-4">
-                  <item.icon
-                    className={cn(
-                      "h-5 w-5 transition-colors",
-                      isActive ? "text-white" : "text-slate-400 group-hover:text-slate-900"
-                    )}
-                  />
-                  <div className="flex flex-col min-w-0">
-                    <span className="font-bold tracking-tight text-sm whitespace-nowrap">
-                      {item.title}
-                    </span>
+      <nav className="flex-1 space-y-1.5 p-6 overflow-y-auto custom-scrollbar">
+        <p className="px-3 mb-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] opacity-60">Operations</p>
+        <div className="space-y-1.5">
+          {ownerNavItems.map((item) => (
+            <NavLink
+              key={item.href}
+              to={item.href}
+              className={({ isActive }) =>
+                cn(
+                  "group flex items-center justify-between rounded-2xl px-4 py-4 transition-all duration-300 outline-none w-full border border-transparent",
+                  isActive
+                    ? "bg-slate-900 text-white shadow-[0_12px_24px_rgba(15,23,42,0.18)] border-slate-800"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-100"
+                )
+              }
+            >
+              {({ isActive }) => (
+                <>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={cn(
+                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-all",
+                      isActive ? "bg-white/10" : "bg-slate-100 group-hover:bg-white group-hover:shadow-sm"
+                    )}>
+                      <item.icon
+                        className={cn(
+                          "h-4 w-4 transition-colors",
+                          isActive ? "text-white" : "text-slate-400 group-hover:text-slate-900"
+                        )}
+                      />
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-bold tracking-tight text-sm truncate">
+                        {item.title}
+                      </span>
+                      {!isActive && (
+                        <span className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
+                          {item.description}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <ChevronRight className={cn(
-                  "h-4 w-4 transition-all duration-300 transform",
-                  isActive ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0"
-                )} />
-              </>
-            )}
-          </NavLink>
-        ))}
+                  <ChevronRight className={cn(
+                    "h-4 w-4 transition-all duration-300 transform",
+                    isActive ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2 group-hover:opacity-60 group-hover:translate-x-0"
+                  )} />
+                </>
+              )}
+            </NavLink>
+          ))}
+        </div>
       </nav>
 
       {/* User Profile Card - Outstaff Style */}
