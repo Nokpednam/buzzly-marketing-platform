@@ -16,63 +16,280 @@ import {
   Award, ArrowUpRight, ArrowDownRight, Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { th } from "date-fns/locale";
 
-// Mock data for demo - would be replaced with real queries
-const mockTierDistribution = [
-  { name: "Bronze", value: 1250, color: "#CD7F32" },
-  { name: "Silver", value: 680, color: "#C0C0C0" },
-  { name: "Gold", value: 320, color: "#FFD700" },
-  { name: "Platinum", value: 85, color: "#E5E4E2" },
-];
+interface TierDistribution {
+  name: string;
+  value: number;
+  color: string;
+}
 
-const mockRevenueByTier = [
-  { name: "Bronze", revenue: 125000, avgSpend: 100 },
-  { name: "Silver", revenue: 340000, avgSpend: 500 },
-  { name: "Gold", revenue: 480000, avgSpend: 1500 },
-  { name: "Platinum", revenue: 850000, avgSpend: 10000 },
-];
+interface RevenueByTier {
+  name: string;
+  revenue: number;
+  avgSpend: number;
+}
 
-const mockTierMovement = [
-  { month: "ม.ค.", upgrades: 45, downgrades: 12 },
-  { month: "ก.พ.", upgrades: 52, downgrades: 8 },
-  { month: "มี.ค.", upgrades: 38, downgrades: 15 },
-  { month: "เม.ย.", upgrades: 61, downgrades: 10 },
-  { month: "พ.ค.", upgrades: 48, downgrades: 7 },
-  { month: "มิ.ย.", upgrades: 55, downgrades: 9 },
-];
+interface TierMovement {
+  month: string;
+  upgrades: number;
+  downgrades: number;
+}
 
-const mockTopPerformers = [
-  { id: 1, name: "คุณสมชาย ใจดี", tier: "Platinum", totalSpend: 250000, points: 12500 },
-  { id: 2, name: "คุณวิภา สุขใจ", tier: "Platinum", totalSpend: 185000, points: 9250 },
-  { id: 3, name: "คุณธนา รวยดี", tier: "Gold", totalSpend: 95000, points: 4750 },
-  { id: 4, name: "คุณมานี มีทรัพย์", tier: "Gold", totalSpend: 78000, points: 3900 },
-  { id: 5, name: "คุณสุนีย์ สดใส", tier: "Silver", totalSpend: 45000, points: 2250 },
-];
-
-const mockBehaviorData = [
-  { feature: "Dashboard", Bronze: 45, Silver: 62, Gold: 78, Platinum: 92 },
-  { feature: "Campaigns", Bronze: 30, Silver: 55, Gold: 85, Platinum: 95 },
-  { feature: "Analytics", Bronze: 15, Silver: 42, Gold: 70, Platinum: 88 },
-  { feature: "Reports", Bronze: 10, Silver: 35, Gold: 65, Platinum: 82 },
-  { feature: "API", Bronze: 5, Silver: 20, Gold: 45, Platinum: 75 },
-];
+interface TopPerformer {
+  id: string;
+  name: string;
+  tier: string;
+  totalSpend: number;
+  points: number;
+}
 
 export default function CustomerTiers() {
   const [timePeriod, setTimePeriod] = useState("30d");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Calculate totals
-  const totalCustomers = mockTierDistribution.reduce((sum, t) => sum + t.value, 0);
-  const totalRevenue = mockRevenueByTier.reduce((sum, t) => sum + t.revenue, 0);
-  const avgSpendAll = Math.round(totalRevenue / totalCustomers);
+  // Data States
+  const [tierDistribution, setTierDistribution] = useState<TierDistribution[]>([]);
+  const [revenueByTier, setRevenueByTier] = useState<RevenueByTier[]>([]);
+  const [tierMovement, setTierMovement] = useState<TierMovement[]>([]);
+  const [topPerformers, setTopPerformers] = useState<TopPerformer[]>([]);
 
+  // Summary Stats
+  const [totalCustomers, setTotalCustomers] = useState(0);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [avgSpendAll, setAvgSpendAll] = useState(0);
+  const [platinumCount, setPlatinumCount] = useState(0);
+
+  useEffect(() => {
+    fetchData();
+  }, [timePeriod]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // 1. Fetch Tiers & Distribution
+      const { data: tiers } = await supabase
+        .from('loyalty_tiers')
+        .select('*')
+        .order('min_points');
+
+      const { data: pointsData } = await supabase
+        .from('loyalty_points')
+        .select('loyalty_tier_id, status');
+
+      if (tiers && pointsData) {
+        // Group points by tier
+        const distMap = new Map<string, number>();
+        let total = 0;
+        let platinum = 0;
+
+        pointsData.forEach(p => {
+          if (p.status === 'active') {
+            const count = distMap.get(p.loyalty_tier_id) || 0;
+            distMap.set(p.loyalty_tier_id, count + 1);
+            total++;
+
+            // Check if platinum (assuming highest tier)
+            const tierName = tiers.find(t => t.id === p.loyalty_tier_id)?.name;
+            if (tierName === 'Platinum') platinum++;
+          }
+        });
+
+        // Format for Pie Chart
+        const chartData = tiers.map(t => ({
+          name: t.name,
+          value: distMap.get(t.id) || 0,
+          color: t.badge_color === 'bronze' ? '#CD7F32' :
+            t.badge_color === 'silver' ? '#C0C0C0' :
+              t.badge_color === 'gold' ? '#FFD700' : '#E5E4E2'
+        }));
+        setTierDistribution(chartData);
+        setTotalCustomers(total);
+        setPlatinumCount(platinum);
+      }
+
+      // 2. Fetch Revenue Data (Subscriptions + Customers)
+      const { data: customers } = await supabase
+        .from('profile_customers')
+        .select(`
+          user_id,
+          loyalty_point_id,
+          loyalty_points(loyalty_tier_id, total_points_earned, point_balance)
+        `);
+
+      const { data: txs } = await supabase
+        .from('payment_transactions')
+        .select('amount, user_id, created_at');
+
+      if (customers && txs && tiers) {
+        // Map user to tier
+        const userTierMap = new Map<string, string>();
+        customers.forEach(c => {
+          // @ts-ignore
+          const tierId = c.loyalty_points?.loyalty_tier_id;
+          if (tierId) userTierMap.set(c.user_id, tierId);
+        });
+
+        // Aggregate revenue by tier
+        const tierRevenueMap = new Map<string, number>();
+        let totalRev = 0;
+
+        txs.forEach(tx => {
+          const tierId = userTierMap.get(tx.user_id);
+          if (tierId) {
+            const current = tierRevenueMap.get(tierId) || 0;
+            tierRevenueMap.set(tierId, current + tx.amount);
+          }
+          totalRev += tx.amount;
+        });
+
+        setTotalRevenue(totalRev);
+        setAvgSpendAll(totalCustomers > 0 ? Math.round(totalRev / totalCustomers) : 0);
+
+        // Format Revenue Chart
+        const revChartData = tiers.map(t => {
+          const rev = tierRevenueMap.get(t.id) || 0;
+          const count = tierDistribution.find(d => d.name === t.name)?.value || 1;
+          return {
+            name: t.name,
+            revenue: rev,
+            avgSpend: Math.round(rev / count)
+          };
+        });
+        setRevenueByTier(revChartData);
+      }
+
+      // 3. Tier History (Calculated from Transactions)
+      // We calculate upgrades by replaying transactions and checking when users cross thresholds
+      const endDate = new Date();
+      const startDate = subMonths(endDate, 6); // Last 6 months
+
+      const { data: allTxs } = await supabase
+        .from('payment_transactions')
+        .select('user_id, amount, created_at')
+        .order('created_at', { ascending: true });
+
+      if (allTxs && tiers) {
+        const trendsMap = new Map<string, { up: number, down: number }>();
+
+        // Initialize last 6 months buckets
+        for (let i = 5; i >= 0; i--) {
+          const d = subMonths(endDate, i);
+          const key = format(d, 'MMM', { locale: th });
+          trendsMap.set(key, { up: 0, down: 0 });
+        }
+
+        // Track user total spend to detect upgrades
+        const userSpendMap = new Map<string, number>();
+        const userTierMap = new Map<string, string>(); // userId -> tierId
+
+        // Sort tiers by min_spend_amount asc
+        const sortedTiers = [...tiers].sort((a, b) => a.min_spend_amount - b.min_spend_amount);
+
+        // Default tier (lowest)
+        const defaultTier = sortedTiers[0];
+
+        allTxs.forEach(tx => {
+          const txDate = new Date(tx.created_at);
+          // Only care about transactions within our graph window for counting, 
+          // but need ALL transactions for accurate cumulative spend.
+
+          const currentSpend = userSpendMap.get(tx.user_id) || 0;
+          const newSpend = currentSpend + tx.amount;
+          userSpendMap.set(tx.user_id, newSpend);
+
+          // Determine current tier based on PREVIOUS spend
+          let oldTier = defaultTier;
+          for (const tier of sortedTiers) {
+            if (currentSpend >= tier.min_spend_amount) {
+              oldTier = tier;
+            }
+          }
+
+          // Determine new tier based on NEW spend
+          let newTier = defaultTier;
+          for (const tier of sortedTiers) {
+            if (newSpend >= tier.min_spend_amount) {
+              newTier = tier;
+            }
+          }
+
+          // Check for upgrade
+          if (newTier.min_spend_amount > oldTier.min_spend_amount) {
+            // If upgrade happened, check if it falls within our 6-month window
+            if (txDate >= startDate) {
+              const key = format(txDate, 'MMM', { locale: th });
+              if (trendsMap.has(key)) {
+                const curr = trendsMap.get(key)!;
+                curr.up++;
+              }
+            }
+          }
+          // Note: Downgrades are harder to calculate from just spend accumulation 
+          // without complex expiry logic, so we'll focus on upgrades for now 
+          // or keep downgrades as 0 unless we have explicit logic.
+        });
+
+        const trendData = Array.from(trendsMap.entries()).map(([month, data]) => ({
+          month,
+          upgrades: data.up,
+          downgrades: data.down
+        }));
+        setTierMovement(trendData);
+      }
+
+      // 4. Top Performers
+      const { data: topList } = await supabase
+        .from('profile_customers')
+        .select(`
+           user_id, first_name, last_name,
+           loyalty_points(point_balance, total_points_earned, loyalty_tiers(name))
+        `);
+
+      if (topList && txs) {
+        // Calculate total spend per user
+        const spendMap = new Map<string, number>();
+        txs.forEach(tx => {
+          const curr = spendMap.get(tx.user_id) || 0;
+          spendMap.set(tx.user_id, curr + tx.amount);
+        });
+
+        const formattedTop = topList
+          .map(c => ({
+            id: c.user_id,
+            name: `${c.first_name} ${c.last_name}`,
+            // @ts-ignore
+            tier: c.loyalty_points?.loyalty_tiers?.name || 'Bronze',
+            // @ts-ignore
+            points: c.loyalty_points?.total_points_earned || 0,
+            totalSpend: spendMap.get(c.user_id) || 0
+          }))
+          .sort((a, b) => b.totalSpend - a.totalSpend)
+          .slice(0, 5);
+
+        setTopPerformers(formattedTop);
+      }
+
+    } catch (error) {
+      console.error("Error fetching tier data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading tier analytics...</div>;
+  }
+
+  // Reuse existing JSX structure but with real data
   return (
     <div className="space-y-6 px-6 pb-6 pt-2">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Customer Tiers Overview</h1>
-          <p className="text-muted-foreground">ภาพรวมลูกค้าตาม Loyalty Tier</p>
+          <p className="text-muted-foreground">ภาพรวมลูกค้าตาม Loyalty Tier (ข้อมูลจริง)</p>
         </div>
         <Select value={timePeriod} onValueChange={setTimePeriod}>
           <SelectTrigger className="w-[180px]">
@@ -137,10 +354,10 @@ export default function CustomerTiers() {
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockTierDistribution[3].value}</div>
+            <div className="text-2xl font-bold">{platinumCount}</div>
             <div className="flex items-center text-xs text-green-600">
               <ArrowUpRight className="h-3 w-3 mr-1" />
-              +3 คนใหม่เดือนนี้
+              Top Tier
             </div>
           </CardContent>
         </Card>
@@ -159,7 +376,7 @@ export default function CustomerTiers() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={mockTierDistribution}
+                    data={tierDistribution}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
@@ -168,7 +385,7 @@ export default function CustomerTiers() {
                     dataKey="value"
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   >
-                    {mockTierDistribution.map((entry, index) => (
+                    {tierDistribution.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
@@ -177,7 +394,7 @@ export default function CustomerTiers() {
               </ResponsiveContainer>
             </div>
             <div className="mt-4 grid grid-cols-4 gap-2">
-              {mockTierDistribution.map((tier) => (
+              {tierDistribution.map((tier) => (
                 <div key={tier.name} className="text-center">
                   <div className="text-lg font-bold">{tier.value.toLocaleString()}</div>
                   <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
@@ -198,7 +415,7 @@ export default function CustomerTiers() {
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockRevenueByTier}>
+                <BarChart data={revenueByTier}>
                   <XAxis dataKey="name" />
                   <YAxis tickFormatter={(v) => `฿${v / 1000}K`} />
                   <Tooltip
@@ -216,12 +433,12 @@ export default function CustomerTiers() {
       <Card>
         <CardHeader>
           <CardTitle>แนวโน้มการเปลี่ยน Tier</CardTitle>
-          <CardDescription>จำนวนการอัปเกรดและดาวน์เกรดในแต่ละเดือน</CardDescription>
+          <CardDescription>จำนวนการอัปเกรดและดาวน์เกรดในแต่ละเดือน (ข้อมูลจากประวัติ transaction)</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={mockTierMovement}>
+              <AreaChart data={tierMovement}>
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Tooltip />
@@ -248,20 +465,19 @@ export default function CustomerTiers() {
         </CardContent>
       </Card>
 
-      {/* Bottom Row */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Top Performers */}
+      {/* Top Performers */}
+      <div className="grid gap-6 md:grid-cols-1">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Award className="h-5 w-5 text-yellow-500" />
               Top Performers
             </CardTitle>
-            <CardDescription>ลูกค้าที่มียอดใช้จ่ายสูงสุด</CardDescription>
+            <CardDescription>ลูกค้าที่มียอดใช้จ่ายสูงสุด 5 อันดับแรก</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockTopPerformers.map((customer, index) => (
+              {topPerformers.map((customer, index) => (
                 <div key={customer.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted font-bold">
@@ -281,30 +497,6 @@ export default function CustomerTiers() {
                   </div>
                 </div>
               ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Feature Usage by Tier */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Behavior ตาม Tier</CardTitle>
-            <CardDescription>% การใช้งานฟีเจอร์แต่ละประเภท</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockBehaviorData} layout="vertical">
-                  <XAxis type="number" domain={[0, 100]} />
-                  <YAxis dataKey="feature" type="category" width={80} />
-                  <Tooltip formatter={(value: number) => `${value}%`} />
-                  <Legend />
-                  <Bar dataKey="Bronze" fill="#CD7F32" stackId="stack" />
-                  <Bar dataKey="Silver" fill="#C0C0C0" stackId="stack" />
-                  <Bar dataKey="Gold" fill="#FFD700" stackId="stack" />
-                  <Bar dataKey="Platinum" fill="#E5E4E2" stackId="stack" />
-                </BarChart>
-              </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
