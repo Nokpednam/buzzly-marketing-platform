@@ -38,7 +38,15 @@ fi
 echo "✅ Supabase is running: $DB_CONTAINER"
 echo ""
 
-# 2. Reset database to ensure clean state
+# 2. Clean up potential conflicting triggers/functions (Requested by User)
+echo "🧹 Cleaning up old triggers/functions..."
+docker exec -i $DB_CONTAINER psql -U postgres -d postgres <<EOF
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP FUNCTION IF EXISTS public.handle_new_user();
+DROP FUNCTION IF EXISTS public.create_user_profile();
+EOF
+
+# 3. Reset database to ensure clean state
 echo "🔄 Resetting database to clean state..."
 npx supabase db reset --local
 
