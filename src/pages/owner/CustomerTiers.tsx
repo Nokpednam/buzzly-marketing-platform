@@ -68,167 +68,181 @@ export default function CustomerTiers() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // 1. Fetch Tiers & Distribution
+      // 1. Fetch Tiers (Master Data)
       const { data: tiers } = await supabase
         .from('loyalty_tiers')
         .select('*')
         .order('min_points');
 
-      const { data: pointsData } = await supabase
-        .from('loyalty_points')
-        .select('loyalty_tier_id, status');
-
-      if (tiers && pointsData) {
-        // Group points by tier
-        const distMap = new Map<string, number>();
-        let total = 0;
-        let platinum = 0;
-
-        pointsData.forEach(p => {
-          if (p.status === 'active') {
-            const count = distMap.get(p.loyalty_tier_id) || 0;
-            distMap.set(p.loyalty_tier_id, count + 1);
-            total++;
-
-            // Check if platinum (assuming highest tier)
-            const tierName = tiers.find(t => t.id === p.loyalty_tier_id)?.name;
-            if (tierName === 'Platinum') platinum++;
-          }
-        });
-
-        // Format for Pie Chart
-        const chartData = tiers.map(t => ({
-          name: t.name,
-          value: distMap.get(t.id) || 0,
-          color: t.badge_color === 'bronze' ? '#CD7F32' :
-            t.badge_color === 'silver' ? '#C0C0C0' :
-              t.badge_color === 'gold' ? '#FFD700' : '#E5E4E2'
-        }));
-        setTierDistribution(chartData);
-        setTotalCustomers(total);
-        setPlatinumCount(platinum);
-      }
-
-      // 2. Fetch Revenue Data (Subscriptions + Customers)
+      // 2. Fetch Customers with Points & Tier Info
       const { data: customers } = await supabase
         .from('profile_customers')
         .select(`
           user_id,
+          first_name,
+          last_name,
           loyalty_point_id,
-          loyalty_points(loyalty_tier_id, total_points_earned, point_balance)
+          loyalty_points(
+            point_balance,
+            total_points_earned,
+            loyalty_tier_id,
+            status,
+            loyalty_tiers(name, badge_color)
+          )
         `);
 
+      // 3. Fetch Transactions
       const { data: txs } = await supabase
         .from('payment_transactions')
-        .select('amount, user_id, created_at');
+        .select('amount, user_id, created_at')
+        .order('created_at', { ascending: true });
 
-      if (customers && txs && tiers) {
-        // Map user to tier
-        const userTierMap = new Map<string, string>();
+      if (tiers && customers && txs) {
+        // --- Process Data ---
+
+        // A. Process Tiers & Distribution (Deduplicate by Name)
+        // Create a map of unique tiers by name to handle duplicate DB entries
+        const uniqueTiers = new Map<string, typeof tiers[0]>();
+        tiers.forEach(t => {
+          if (!uniqueTiers.has(t.name)) {
+            uniqueTiers.set(t.name, t);
+          }
+        });
+        const masterTiers = Array.from(uniqueTiers.values()).sort((a, b) => a.min_points - b.min_points);
+
+        // Count active customers per unique tier name
+        const tierCounts = new Map<string, number>();
+        let totalCust = 0;
+        let platinum = 0;
+
         customers.forEach(c => {
           // @ts-ignore
-          const tierId = c.loyalty_points?.loyalty_tier_id;
-          if (tierId) userTierMap.set(c.user_id, tierId);
+          const lp = c.loyalty_points;
+          if (lp && lp.status === 'active') {
+            // @ts-ignore
+            const tName = lp.loyalty_tiers?.name || 'Bronze'; // Fallback
+            tierCounts.set(tName, (tierCounts.get(tName) || 0) + 1);
+            totalCust++;
+            if (tName === 'Platinum') platinum++;
+          }
         });
 
-        // Aggregate revenue by tier
-        const tierRevenueMap = new Map<string, number>();
+        const distChartData = masterTiers.map(t => ({
+          name: t.name,
+          value: tierCounts.get(t.name) || 0,
+          color: t.badge_color === 'bronze' ? '#CD7F32' :
+            t.badge_color === 'silver' ? '#C0C0C0' :
+              t.badge_color === 'gold' ? '#FFD700' : '#E5E4E2'
+        }));
+
+        setTierDistribution(distChartData);
+        setTotalCustomers(totalCust);
+        setPlatinumCount(platinum);
+
+
+        // B. Process Revenue & Spend (Calculated from Txs)
+        const userSpendMap = new Map<string, number>();
         let totalRev = 0;
 
         txs.forEach(tx => {
-          const tierId = userTierMap.get(tx.user_id);
-          if (tierId) {
-            const current = tierRevenueMap.get(tierId) || 0;
-            tierRevenueMap.set(tierId, current + tx.amount);
-          }
+          userSpendMap.set(tx.user_id, (userSpendMap.get(tx.user_id) || 0) + tx.amount);
           totalRev += tx.amount;
         });
 
         setTotalRevenue(totalRev);
-        setAvgSpendAll(totalCustomers > 0 ? Math.round(totalRev / totalCustomers) : 0);
+        setAvgSpendAll(totalCust > 0 ? Math.round(totalRev / totalCust) : 0);
 
-        // Format Revenue Chart
-        const revChartData = tiers.map(t => {
-          const rev = tierRevenueMap.get(t.id) || 0;
-          const count = tierDistribution.find(d => d.name === t.name)?.value || 1;
+        // Revenue by Tier (Group by Current Tier of User)
+        // We need to map UserId -> Current Tier Name
+        const userTierNameMap = new Map<string, string>();
+        customers.forEach(c => {
+          // @ts-ignore
+          const tName = c.loyalty_points?.loyalty_tiers?.name || 'Bronze';
+          userTierNameMap.set(c.user_id, tName);
+        });
+
+        const tierRevenueMap = new Map<string, number>();
+        userSpendMap.forEach((spend, userId) => {
+          const tName = userTierNameMap.get(userId);
+          if (tName) {
+            tierRevenueMap.set(tName, (tierRevenueMap.get(tName) || 0) + spend);
+          }
+        });
+
+        const revChartData = masterTiers.map(t => {
+          const rev = tierRevenueMap.get(t.name) || 0;
+          const count = tierCounts.get(t.name) || 1; // Avoid divide by zero
           return {
             name: t.name,
             revenue: rev,
-            avgSpend: Math.round(rev / count)
+            avgSpend: Math.round(rev / Math.max(count, 1))
           };
         });
         setRevenueByTier(revChartData);
-      }
 
-      // 3. Tier History (Calculated from Transactions)
-      // We calculate upgrades by replaying transactions and checking when users cross thresholds
-      const endDate = new Date();
-      const startDate = subMonths(endDate, 6); // Last 6 months
 
-      const { data: allTxs } = await supabase
-        .from('payment_transactions')
-        .select('user_id, amount, created_at')
-        .order('created_at', { ascending: true });
+        // C. Process Top Performers
+        // Join customer info with calculated total spend
+        const topListFormatted = customers
+          .map(c => ({
+            id: c.user_id,
+            name: `${c.first_name} ${c.last_name}`,
+            // @ts-ignore
+            tier: c.loyalty_points?.loyalty_tiers?.name || 'Bronze',
+            // @ts-ignore
+            points: c.loyalty_points?.total_points_earned || 0,
+            totalSpend: userSpendMap.get(c.user_id) || 0
+          }))
+          .sort((a, b) => b.totalSpend - a.totalSpend)
+          .slice(0, 5);
 
-      if (allTxs && tiers) {
+        setTopPerformers(topListFormatted);
+
+
+        // D. Tier History (Calculated Upgrades)
         const trendsMap = new Map<string, { up: number, down: number }>();
+        const endDate = new Date();
+        const startDate = subMonths(endDate, 6);
 
-        // Initialize last 6 months buckets
+        // Initialize buckets
         for (let i = 5; i >= 0; i--) {
           const d = subMonths(endDate, i);
           const key = format(d, 'MMM', { locale: th });
           trendsMap.set(key, { up: 0, down: 0 });
         }
 
-        // Track user total spend to detect upgrades
-        const userSpendMap = new Map<string, number>();
-        const userTierMap = new Map<string, string>(); // userId -> tierId
+        // Replay for Upgrades
+        // Use masterTiers (sorted by points/spend) for thresholds
+        // Sort tiers by min_spend_amount for logic
+        const sortedLogicTiers = [...masterTiers].sort((a, b) => a.min_spend_amount - b.min_spend_amount);
+        const defaultLogicTier = sortedLogicTiers[0];
 
-        // Sort tiers by min_spend_amount asc
-        const sortedTiers = [...tiers].sort((a, b) => a.min_spend_amount - b.min_spend_amount);
+        const replayUserSpend = new Map<string, number>();
 
-        // Default tier (lowest)
-        const defaultTier = sortedTiers[0];
-
-        allTxs.forEach(tx => {
+        txs.forEach(tx => {
           const txDate = new Date(tx.created_at);
-          // Only care about transactions within our graph window for counting, 
-          // but need ALL transactions for accurate cumulative spend.
-
-          const currentSpend = userSpendMap.get(tx.user_id) || 0;
+          const currentSpend = replayUserSpend.get(tx.user_id) || 0;
           const newSpend = currentSpend + tx.amount;
-          userSpendMap.set(tx.user_id, newSpend);
+          replayUserSpend.set(tx.user_id, newSpend);
 
-          // Determine current tier based on PREVIOUS spend
-          let oldTier = defaultTier;
-          for (const tier of sortedTiers) {
-            if (currentSpend >= tier.min_spend_amount) {
-              oldTier = tier;
-            }
+          // Detect Tier Change based on Spend Thresholds
+          let oldTier = defaultLogicTier;
+          let newTier = defaultLogicTier;
+
+          for (const t of sortedLogicTiers) {
+            if (currentSpend >= t.min_spend_amount) oldTier = t;
+            if (newSpend >= t.min_spend_amount) newTier = t;
           }
 
-          // Determine new tier based on NEW spend
-          let newTier = defaultTier;
-          for (const tier of sortedTiers) {
-            if (newSpend >= tier.min_spend_amount) {
-              newTier = tier;
-            }
-          }
-
-          // Check for upgrade
           if (newTier.min_spend_amount > oldTier.min_spend_amount) {
-            // If upgrade happened, check if it falls within our 6-month window
+            // Upgrade event
             if (txDate >= startDate) {
               const key = format(txDate, 'MMM', { locale: th });
               if (trendsMap.has(key)) {
-                const curr = trendsMap.get(key)!;
-                curr.up++;
+                trendsMap.get(key)!.up++;
               }
             }
           }
-          // Note: Downgrades are harder to calculate from just spend accumulation 
-          // without complex expiry logic, so we'll focus on upgrades for now 
-          // or keep downgrades as 0 unless we have explicit logic.
         });
 
         const trendData = Array.from(trendsMap.entries()).map(([month, data]) => ({
@@ -237,38 +251,6 @@ export default function CustomerTiers() {
           downgrades: data.down
         }));
         setTierMovement(trendData);
-      }
-
-      // 4. Top Performers
-      const { data: topList } = await supabase
-        .from('profile_customers')
-        .select(`
-           user_id, first_name, last_name,
-           loyalty_points(point_balance, total_points_earned, loyalty_tiers(name))
-        `);
-
-      if (topList && txs) {
-        // Calculate total spend per user
-        const spendMap = new Map<string, number>();
-        txs.forEach(tx => {
-          const curr = spendMap.get(tx.user_id) || 0;
-          spendMap.set(tx.user_id, curr + tx.amount);
-        });
-
-        const formattedTop = topList
-          .map(c => ({
-            id: c.user_id,
-            name: `${c.first_name} ${c.last_name}`,
-            // @ts-ignore
-            tier: c.loyalty_points?.loyalty_tiers?.name || 'Bronze',
-            // @ts-ignore
-            points: c.loyalty_points?.total_points_earned || 0,
-            totalSpend: spendMap.get(c.user_id) || 0
-          }))
-          .sort((a, b) => b.totalSpend - a.totalSpend)
-          .slice(0, 5);
-
-        setTopPerformers(formattedTop);
       }
 
     } catch (error) {
