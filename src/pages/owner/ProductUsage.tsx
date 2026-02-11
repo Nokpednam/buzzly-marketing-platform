@@ -21,12 +21,14 @@ import {
   Loader2,
   Database,
   Plus,
-  Trash2
+  Trash2,
+  Activity
 } from "lucide-react";
 import { useProductUsageMetrics, useUserSegments } from "@/hooks/useOwnerMetrics";
 import { useFunnelData } from "@/hooks/useFunnelData";
 import { usePersonas } from "@/hooks/usePersonas";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export default function ProductUsage() {
   const navigate = useNavigate();
@@ -47,17 +49,16 @@ export default function ProductUsage() {
   const isLoading = usageLoading || funnelLoading || segmentsLoading;
   const hasData = (usageMetrics?.totalUsers || 0) > 0 || aarrrCategories.length > 0;
 
-  // Construct AARRR funnel from real data (mapped from useFunnelData)
-  // We utilize the calculated values from useFunnelData directly or map them here
+  // Construct AARRR funnel from real data
   const aarrFunnelData = aarrrCategories.map((stage: any, index: number) => ({
     stage: stage.name,
-    icon: [Users, UserCheck, Repeat, Share2, DollarSign][index] || Users, // Fallback icons based on index
+    icon: [Users, UserCheck, Repeat, Share2, DollarSign][index] || Users,
     value: stage.value,
     percentage: stage.percentage,
-    change: 0 // We don't have historical data for change yet
+    change: 0
   }));
 
-  // User journey steps from funnel data
+  // User journey steps
   const userJourneySteps = funnelStages?.length > 0
     ? funnelStages.map((stage, index) => ({
       step: stage.name || "Step",
@@ -100,8 +101,11 @@ export default function ProductUsage() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-12 w-12 animate-spin text-muted-foreground mb-4" />
-        <p className="text-muted-foreground">กำลังโหลดข้อมูล Product Usage...</p>
+        <div className="relative">
+          <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
+          <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
+        </div>
+        <p className="text-muted-foreground mt-4 font-mono text-sm tracking-wider animate-pulse">Initializing Analytics Core...</p>
       </div>
     );
   }
@@ -110,104 +114,119 @@ export default function ProductUsage() {
   if (!hasData) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <Database className="h-16 w-16 text-muted-foreground mb-4" />
-        <h2 className="text-xl font-semibold mb-2">ยังไม่มีข้อมูล Product Usage</h2>
-        <p className="text-muted-foreground mb-4 max-w-md">
-          กรุณารัน sample-data.sql ใน Supabase SQL Editor เพื่อเพิ่มข้อมูล profiles, activities และ funnel stages
+        <div className="h-24 w-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 ring-1 ring-primary/20 shadow-lg shadow-primary/5">
+          <Database className="h-12 w-12 text-primary" />
+        </div>
+        <h2 className="text-2xl font-bold mb-2 tracking-tight">No Usage Data Detected</h2>
+        <p className="text-muted-foreground mb-8 max-w-md">
+          The analytics engine requires initial data seeding. Please execute <code className="bg-muted px-1 py-0.5 rounded text-foreground font-mono text-xs">sample-data.sql</code> in the Supabase SQL Editor.
         </p>
-        <Button variant="default" onClick={() => window.open("https://supabase.com/dashboard", "_blank")}>
-          เปิด Supabase
+        <Button variant="default" size="lg" onClick={() => window.open("https://supabase.com/dashboard", "_blank")} className="shadow-lg shadow-primary/25">
+          Open Database Console
         </Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Product Usage Analytics</h1>
-        <p className="text-muted-foreground">
-          Analyze user behavior and product engagement across Buzzly
-        </p>
+    <div className="space-y-8 animate-in fade-in duration-700">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+            Product Usage
+          </h1>
+          <p className="text-muted-foreground mt-2 text-lg">
+            Real-time user behavior analytics and engagement tracking.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="px-3 py-1 border-primary/20 bg-primary/5 text-primary">
+            <Activity className="w-3 h-3 mr-2 animate-pulse" />
+            Live Data
+          </Badge>
+        </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-3xl font-bold">{usageMetrics?.totalUsers?.toLocaleString() || 0}</p>
-              <p className="text-sm text-muted-foreground">Total Users</p>
+      {/* Quick Stats - Tech Panels */}
+      <div className="grid gap-6 md:grid-cols-4">
+        {[
+          { label: "Total Users", value: usageMetrics?.totalUsers?.toLocaleString() || 0, icon: Users, color: "text-blue-500" },
+          { label: "Monthly Active", value: usageMetrics?.mau?.toLocaleString() || 0, icon: UserCheck, color: "text-indigo-500" },
+          { label: "Daily Active", value: usageMetrics?.dau?.toLocaleString() || 0, icon: Activity, color: "text-cyan-500" },
+          { label: "DAU/MAU Ratio", value: `${usageMetrics?.dauMauRatio || 0}%`, icon: Repeat, color: "text-violet-500" }
+        ].map((stat, i) => (
+          <Card key={i} className="glass-panel border-primary/10 shadow-lg shadow-primary/5 hover:shadow-primary/10 transition-all duration-300 relative overflow-hidden group">
+            <div className={`absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity ${stat.color}`}>
+              <stat.icon className="w-16 h-16" />
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-3xl font-bold">{usageMetrics?.mau?.toLocaleString() || 0}</p>
-              <p className="text-sm text-muted-foreground">Monthly Active</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-3xl font-bold">{usageMetrics?.dau?.toLocaleString() || 0}</p>
-              <p className="text-sm text-muted-foreground">Daily Active</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <p className="text-3xl font-bold">{usageMetrics?.dauMauRatio || 0}%</p>
-              <p className="text-sm text-muted-foreground">DAU/MAU Ratio</p>
-            </div>
-          </CardContent>
-        </Card>
+            <CardContent className="pt-6 relative z-10">
+              <div className="text-left">
+                <p className="text-4xl font-bold tracking-tighter text-foreground group-hover:scale-105 transition-transform origin-left">
+                  {stat.value}
+                </p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-1">
+                  {stat.label}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      <Tabs defaultValue="aarrr" className="space-y-6">
-        <TabsList className="grid w-full max-w-2xl grid-cols-3">
-          <TabsTrigger value="aarrr">AARRR Funnel</TabsTrigger>
-          <TabsTrigger value="journey">User Journey</TabsTrigger>
-          <TabsTrigger value="persona">User Persona</TabsTrigger>
+      <Tabs defaultValue="aarrr" className="space-y-8">
+        <TabsList className="w-full max-w-2xl grid grid-cols-3 bg-muted/50 p-1 rounded-lg border border-border/50">
+          <TabsTrigger value="aarrr" className="data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-300">AARRR Funnel</TabsTrigger>
+          <TabsTrigger value="journey" className="data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-300">User Journey</TabsTrigger>
+          <TabsTrigger value="persona" className="data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-300">User Persona</TabsTrigger>
         </TabsList>
 
         {/* AARRR Funnel Tab */}
         <TabsContent value="aarrr" className="space-y-6">
           <div className="grid gap-4">
             {aarrFunnelData.map((item, index) => (
-              <Card key={item.stage}>
+              <Card key={item.stage} className="border-l-4 border-l-primary/50 overflow-hidden hover:bg-slate-50 transition-colors">
                 <CardContent className="flex items-center gap-6 p-6">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                    <item.icon className="h-6 w-6 text-primary" />
+                  <div className={cn("flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10",
+                    index === 0 ? "text-blue-500 bg-blue-500/10" :
+                      index === 1 ? "text-cyan-500 bg-cyan-500/10" :
+                        index === 2 ? "text-indigo-500 bg-indigo-500/10" :
+                          index === 3 ? "text-violet-500 bg-violet-500/10" :
+                            "text-fuchsia-500 bg-fuchsia-500/10"
+                  )}>
+                    <item.icon className="h-6 w-6" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
                       <div>
-                        <h3 className="font-semibold">{item.stage}</h3>
-                        <p className="text-2xl font-bold">{item.value.toLocaleString()}</p>
+                        <h3 className="font-bold text-lg">{item.stage}</h3>
+                        <p className="text-2xl font-bold tracking-tight text-foreground">{item.value.toLocaleString()}</p>
                       </div>
                       <div className="text-right">
-                        <Badge variant={item.change >= 0 ? "default" : "destructive"}>
-                          {item.change >= 0 ? (
-                            <TrendingUp className="mr-1 h-3 w-3" />
-                          ) : (
-                            <TrendingDown className="mr-1 h-3 w-3" />
-                          )}
+                        <Badge variant={item.change >= 0 ? "default" : "destructive"} className="ml-auto">
+                          {item.change >= 0 ? <TrendingUp className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />}
                           {Math.abs(item.change)}%
                         </Badge>
-                        <p className="text-sm text-muted-foreground mt-1">vs last month</p>
+                        <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">vs 30d avg</p>
                       </div>
                     </div>
-                    <Progress value={item.percentage} className="h-2" />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {item.percentage}% conversion rate
+                    <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                      <div
+                        className={cn("h-full rounded-full transition-all duration-1000 ease-out",
+                          index === 0 ? "bg-blue-500" :
+                            index === 1 ? "bg-cyan-500" :
+                              index === 2 ? "bg-indigo-500" :
+                                index === 3 ? "bg-violet-500" :
+                                  "bg-fuchsia-500"
+                        )}
+                        style={{ width: `${item.percentage}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      <span className="font-medium text-foreground">{item.percentage}%</span> conversion rate
                     </p>
                   </div>
                   {index < aarrFunnelData.length - 1 && (
-                    <ArrowRight className="h-5 w-5 text-muted-foreground" />
+                    <ArrowRight className="h-5 w-5 text-muted-foreground/30" />
                   )}
                 </CardContent>
               </Card>
@@ -217,7 +236,7 @@ export default function ProductUsage() {
 
         {/* User Journey Tab */}
         <TabsContent value="journey" className="space-y-6">
-          <Card>
+          <Card className="glass-panel">
             <CardHeader>
               <CardTitle>User Journey Map</CardTitle>
               <CardDescription>
@@ -226,32 +245,37 @@ export default function ProductUsage() {
             </CardHeader>
             <CardContent>
               {userJourneySteps.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  ยังไม่มีข้อมูล Funnel Stages - กรุณารัน sample-data.sql
+                <div className="text-center py-12 text-muted-foreground">
+                  Awaiting data stream...
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {userJourneySteps.map((step, index) => (
-                    <div key={step.step} className="flex items-center gap-4">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-medium">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-medium">{step.step}</span>
-                          <span className="text-sm text-muted-foreground">
-                            {step.users.toLocaleString()} users
-                          </span>
+                    <div key={step.step} className="relative">
+                      <div className="flex items-center gap-4 relative z-10">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-lg shadow-primary/20 ring-2 ring-background">
+                          {index + 1}
                         </div>
-                        <Progress
-                          value={(step.users / (userJourneySteps[0]?.users || 1)) * 100}
-                          className="h-2"
-                        />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-semibold text-sm uppercase tracking-wide">{step.step}</span>
+                            <span className="text-sm font-mono text-muted-foreground">
+                              {step.users.toLocaleString()} users
+                            </span>
+                          </div>
+                          <Progress
+                            value={(step.users / (userJourneySteps[0]?.users || 1)) * 100}
+                            className="h-2.5"
+                          />
+                        </div>
+                        {step.dropoff > 0 && (
+                          <Badge variant="destructive" className="ml-2">
+                            -{step.dropoff}% Loss
+                          </Badge>
+                        )}
                       </div>
-                      {step.dropoff > 0 && (
-                        <Badge variant="destructive" className="ml-2">
-                          -{step.dropoff}%
-                        </Badge>
+                      {index < userJourneySteps.length - 1 && (
+                        <div className="absolute left-5 top-10 bottom-[-24px] w-0.5 bg-border/50 -z-0" />
                       )}
                     </div>
                   ))}
@@ -264,28 +288,32 @@ export default function ProductUsage() {
         {/* User Persona Tab */}
         <TabsContent value="persona" className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
-            <Card>
+            <Card className="glass-panel">
               <CardHeader>
                 <CardTitle>User Segments</CardTitle>
                 <CardDescription>Distribution by business type</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 {userSegments?.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    ยังไม่มีข้อมูล User Segments
+                    No segmentation data available.
                   </div>
                 ) : (
                   userSegments?.map((persona) => (
                     <div key={persona.type} className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{persona.type}</span>
-                        <span className="text-sm text-muted-foreground">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium text-foreground">{persona.type}</span>
+                        <span className="text-muted-foreground font-mono">
                           {persona.count.toLocaleString()} ({persona.percentage}%)
                         </span>
                       </div>
-                      <div className="h-2 rounded-full bg-secondary">
+                      <div className="h-2 rounded-full bg-secondary overflow-hidden">
                         <div
-                          className={`h-full rounded-full ${persona.color}`}
+                          className={`h-full rounded-full transition-all duration-1000 ${persona.type === "Small Business" ? "bg-blue-500" :
+                            persona.type === "Agency" ? "bg-indigo-500" :
+                              persona.type === "Enterprise" ? "bg-purple-500" :
+                                "bg-slate-500"
+                            }`}
                           style={{ width: `${persona.percentage}%` }}
                         />
                       </div>
@@ -295,7 +323,7 @@ export default function ProductUsage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="glass-panel">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Persona Insights</CardTitle>
@@ -303,7 +331,7 @@ export default function ProductUsage() {
                 </div>
                 <Dialog open={open} onOpenChange={setOpen}>
                   <DialogTrigger asChild>
-                    <Button size="sm" variant="outline" className="gap-1">
+                    <Button size="sm" variant="outline" className="gap-1 border-primary/20 text-primary hover:bg-primary/5">
                       <Plus className="h-4 w-4" /> Add Persona
                     </Button>
                   </DialogTrigger>
@@ -360,40 +388,35 @@ export default function ProductUsage() {
                 </Dialog>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                   {personas.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       No personas defined yet.
                     </div>
                   ) : (
                     personas.map((p) => (
-                      <div key={p.id} className="rounded-lg border p-4 group relative">
+                      <div key={p.id} className="rounded-xl border border-border/50 p-4 group relative hover:bg-slate-50 transition-colors">
                         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button variant="ghost" size="icon" onClick={() => handleDeletePersona(p.id)} className="h-6 w-6 text-muted-foreground hover:text-destructive">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
-                        <h4 className="font-semibold text-primary">{p.name}</h4>
-                        <p className="text-xs text-muted-foreground mb-2">{p.description}</p>
+                        <h4 className="font-bold text-primary flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-primary" />
+                          {p.name}
+                        </h4>
+                        <p className="text-xs text-muted-foreground mb-3 ml-4">{p.description}</p>
 
                         {(p.characteristics as any)?.list && (
-                          <div className="mt-2">
-                            <p className="text-xs font-medium">Characteristics:</p>
-                            <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
+                          <div className="mt-2 ml-4">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Characteristics</p>
+                            <div className="flex flex-wrap gap-1">
                               {(p.characteristics as any).list.map((c: string, i: number) => (
-                                <li key={i}>{c}</li>
+                                <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded textxs font-medium bg-secondary text-secondary-foreground text-[10px]">
+                                  {c}
+                                </span>
                               ))}
-                            </ul>
-                          </div>
-                        )}
-                        {(p.behaviors as any)?.list && (
-                          <div className="mt-2">
-                            <p className="text-xs font-medium">Behaviors:</p>
-                            <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
-                              {(p.behaviors as any).list.map((c: string, i: number) => (
-                                <li key={i}>{c}</li>
-                              ))}
-                            </ul>
+                            </div>
                           </div>
                         )}
                       </div>
