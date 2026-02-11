@@ -88,6 +88,22 @@ export function useErrorLogStats() {
   return useQuery({
     queryKey: ["admin-error-log-stats"],
     queryFn: async () => {
+      // DEBUG: Verify User Identity and Permissions
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log("Debug - Current Auth User:", user?.id, user?.email);
+
+      if (user) {
+        // Try to fetch employee record to verify RLS ('has_role') is working
+        const { data: emp, error: empErr } = await supabase
+          .from("employees")
+          .select("*, role_employees(role_name)")
+          .eq("user_id", user.id);
+
+        console.log("Debug - Employee Record:", emp);
+        if (empErr) console.error("Debug - Employee Fetch Error:", empErr);
+      }
+
+      // Fetch the last 500 error logs (no time restriction)
       const { data, error } = await supabase
         .from("error_logs")
         .select("level, created_at")
@@ -96,20 +112,15 @@ export function useErrorLogStats() {
 
       if (error) throw error;
 
-      const now = new Date();
-      const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-      const recentLogs = data?.filter(
-        (log) => log.created_at && new Date(log.created_at) > last24h
-      ) || [];
+      const logs = data || [];
 
       return {
-        total: data?.length || 0,
-        errors: recentLogs.filter((l) => l.level.toLowerCase() === "error").length,
-        warnings: recentLogs.filter((l) => 
+        total: logs.length,
+        errors: logs.filter((l) => l.level.toLowerCase() === "error").length,
+        warnings: logs.filter((l) =>
           ["warning", "warn"].includes(l.level.toLowerCase())
         ).length,
-        info: recentLogs.filter((l) => l.level.toLowerCase() === "info").length,
+        info: logs.filter((l) => l.level.toLowerCase() === "info").length,
       };
     },
   });
@@ -130,7 +141,7 @@ export function usePerformanceMetrics() {
       const avgCpu = activeServers.length
         ? activeServers.reduce((sum, s) => sum + (Number(s.cpu_usage_percent) || 0), 0) / activeServers.length
         : 0;
-      
+
       const totalMemory = activeServers.reduce((sum, s) => sum + (Number(s.total_memory) || 0), 0);
       const usedMemory = activeServers.reduce((sum, s) => sum + (Number(s.used_memory) || 0), 0);
       const avgMemory = totalMemory > 0 ? (usedMemory / totalMemory) * 100 : 0;

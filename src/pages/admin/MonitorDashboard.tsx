@@ -82,11 +82,11 @@ export default function MonitorDashboard() {
     setIsRefreshing(false);
   };
 
-  const systemStatus = perfMetrics?.criticalServers 
-    ? "Critical" 
-    : perfMetrics?.warningServers 
-    ? "Warning" 
-    : "Healthy";
+  const systemStatus = perfMetrics?.criticalServers
+    ? "Critical"
+    : perfMetrics?.warningServers
+      ? "Warning"
+      : "Healthy";
 
   return (
     <div className="space-y-6">
@@ -155,7 +155,7 @@ export default function MonitorDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Errors (24h)</CardTitle>
+            <CardTitle className="text-sm font-medium">Errors (Total)</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -207,7 +207,7 @@ export default function MonitorDashboard() {
                 const memoryPercent = server.total_memory && server.used_memory
                   ? Math.round((Number(server.used_memory) / Number(server.total_memory)) * 100)
                   : 0;
-                  
+
                 return (
                   <Card key={server.id}>
                     <CardHeader className="pb-3">
@@ -231,9 +231,9 @@ export default function MonitorDashboard() {
                           </span>
                           <span className="font-medium">{Number(server.cpu_usage_percent) || 0}%</span>
                         </div>
-                        <Progress 
-                          value={Number(server.cpu_usage_percent) || 0} 
-                          className={Number(server.cpu_usage_percent) > 70 ? "[&>div]:bg-yellow-500" : ""} 
+                        <Progress
+                          value={Number(server.cpu_usage_percent) || 0}
+                          className={Number(server.cpu_usage_percent) > 70 ? "[&>div]:bg-yellow-500" : ""}
                         />
                       </div>
                       <div className="space-y-2">
@@ -244,9 +244,9 @@ export default function MonitorDashboard() {
                           </span>
                           <span className="font-medium">{memoryPercent}%</span>
                         </div>
-                        <Progress 
-                          value={memoryPercent} 
-                          className={memoryPercent > 80 ? "[&>div]:bg-yellow-500" : ""} 
+                        <Progress
+                          value={memoryPercent}
+                          className={memoryPercent > 80 ? "[&>div]:bg-yellow-500" : ""}
                         />
                       </div>
                     </CardContent>
@@ -281,7 +281,7 @@ export default function MonitorDashboard() {
                         <div>
                           <p className="font-medium">{pipeline.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            {pipeline.last_run_at 
+                            {pipeline.last_run_at
                               ? `Last run: ${formatDistanceToNow(new Date(pipeline.last_run_at), { addSuffix: true })}`
                               : "Never run"}
                           </p>
@@ -306,7 +306,7 @@ export default function MonitorDashboard() {
         <TabsContent value="errors">
           <Card>
             <CardHeader>
-              <CardTitle>Error Summary (Last 24 Hours)</CardTitle>
+              <CardTitle>Error Summary (Recent)</CardTitle>
               <CardDescription>Overview of system errors and warnings</CardDescription>
             </CardHeader>
             <CardContent>
