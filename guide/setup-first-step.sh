@@ -12,6 +12,10 @@ echo "🚀 Buzzly First-Time Setup"
 echo "=================================="
 echo ""
 
+# Ensure we are in the project root
+cd "$(dirname "$0")/.."
+
+
 # 1. Check if Supabase is running
 echo "📡 Checking Supabase status..."
 DB_CONTAINER=$(docker ps --filter "name=supabase_db" --format "{{.Names}}" | head -n 1)
