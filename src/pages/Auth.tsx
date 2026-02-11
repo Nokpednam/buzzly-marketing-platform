@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, Lock, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Mail, Lock, Loader2, Sparkles, ArrowRight, Zap, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { loginSchema } from "@/lib/validations/auth";
@@ -24,332 +25,209 @@ export default function Auth() {
 
   const selectedPlan = (location.state as any)?.selectedPlan || null;
 
+  // --- AUTH REDIRECTION LOGIC ---
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-
-      if (session?.user) {
-        checkRoleAndRedirect(session.user.id);
-      }
+      if (session?.user) checkRoleAndRedirect(session.user.id);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-
-      if (session?.user) {
-        checkRoleAndRedirect(session.user.id);
-      }
+      if (session?.user) checkRoleAndRedirect(session.user.id);
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
 
   const checkRoleAndRedirect = async (userId: string) => {
-    // Check employees table first (for owner/admin/support/developer)
     const { data: employeeData } = await supabase
       .from("employees")
-      .select(`
-        *,
-        role_employees (
-          role_name
-        )
-      `)
+      .select(`*, role_employees (role_name)`)
       .eq("user_id", userId)
       .maybeSingle();
 
     if (employeeData && employeeData.status === 'active' && employeeData.approval_status === 'approved') {
-      const roleEmployee = employeeData.role_employees as any;
-      const roleName = roleEmployee?.role_name;
-
-      if (roleName === "owner") {
-        navigate("/owner/product-usage");
-        return;
-      }
-
-      if (["admin", "support", "developer"].includes(roleName)) {
-        navigate("/admin/dashboard");
-        return;
-      }
+      const roleName = (employeeData.role_employees as any)?.role_name;
+      if (roleName === "owner") { navigate("/owner/product-usage"); return; }
+      if (["admin", "support", "developer"].includes(roleName)) { navigate("/admin/dashboard"); return; }
     }
 
-    // Fallback to legacy user_roles check
-    const { data: rolesData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-
+    const { data: rolesData } = await supabase.from("user_roles").select("role").eq("user_id", userId);
     if (rolesData && rolesData.length > 0) {
-      const hasOwnerRole = rolesData.some((r) => r.role === "owner");
-      const hasAdminRole = rolesData.some((r) => r.role === "admin");
-
-      if (hasOwnerRole) {
-        navigate("/owner/product-usage");
-        return;
-      }
-
-      if (hasAdminRole) {
-        navigate("/admin/dashboard");
-        return;
-      }
+      if (rolesData.some((r) => r.role === "owner")) { navigate("/owner/product-usage"); return; }
+      if (rolesData.some((r) => r.role === "admin")) { navigate("/admin/dashboard"); return; }
     }
-
-    // All customers go to dashboard (free plan by default)
     navigate("/dashboard");
   };
 
+  // --- SIGN IN HANDLER ---
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Validate input with zod schema
     const result = loginSchema.safeParse({ email, password });
+    
     if (!result.success) {
-      const firstError = result.error.errors[0];
-      toast({
-        title: "Validation Error",
-        description: firstError.message,
-        variant: "destructive",
-      });
+      toast({ title: "Validation Error", description: result.error.errors[0].message, variant: "destructive" });
       return;
     }
 
     setLoading(true);
-
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        if (error.message.includes("Invalid login credentials")) {
-          throw new Error("Invalid email or password. Please try again.");
-        }
-        throw error;
-      }
-
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
       if (data.user) {
-        // Check employees table first
-        const { data: employeeData } = await supabase
-          .from("employees")
-          .select(`
-            *,
-            role_employees (
-              role_name
-            )
-          `)
-          .eq("user_id", data.user.id)
-          .maybeSingle();
-
-        let isAdmin = false;
-        let userRole = "";
-
-        if (employeeData && employeeData.status === 'active' && employeeData.approval_status === 'approved') {
-          // Safely access role_name, handling potentially deep nesting or nulls
-          const roleEmployee = employeeData.role_employees as any;
-          const roleName = roleEmployee?.role_name;
-
-          if (["owner", "admin", "support", "developer"].includes(roleName)) {
-            isAdmin = true;
-            userRole = roleName;
-
-            toast({
-              title: "Welcome back!",
-              description: `You have successfully signed in as ${userRole}.`,
-            });
-
-            // Explicitly handle owner redirect
-            if (roleName === "owner") {
-              navigate("/owner/product-usage");
-              return;
-            } else {
-              navigate("/admin/dashboard");
-              return;
-            }
-          }
-        }
-
-        // Fallback to legacy check
-        const { data: rolesData } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", data.user.id);
-
-        if (rolesData && rolesData.length > 0) {
-          const hasOwnerRole = rolesData.some((r) => r.role === "owner");
-          const hasAdminRole = rolesData.some((r) => r.role === "admin");
-
-          if (hasOwnerRole) {
-            isAdmin = true;
-            userRole = "owner";
-          } else if (hasAdminRole) {
-            isAdmin = true;
-            userRole = "admin";
-          }
-        }
-
-        toast({
-          title: "Welcome back!",
-          description: `You have successfully signed in${isAdmin ? " as " + userRole : ""}.`,
-        });
-
-        if (rolesData?.some((r) => r.role === "owner")) {
-          navigate("/owner/product-usage");
-        } else if (rolesData?.some((r) => r.role === "admin")) {
-          navigate("/admin/dashboard");
-        } else {
-          navigate("/dashboard");
-        }
+        toast({ title: "Welcome back!", description: "Accessing your dashboard..." });
       }
     } catch (error: any) {
-      toast({
-        title: "Sign in failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Sign in failed", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div
-      className="min-h-screen w-full flex"
-      style={{
-        backgroundImage: `url(${authBackground})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }}
-    >
-      {/* Left side - Welcome text */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-center px-12 xl:px-20">
-        <div className="bg-background/80 backdrop-blur-sm rounded-2xl p-8 max-w-lg">
-          <h1 className="text-4xl xl:text-5xl font-bold italic text-foreground mb-4">
-            Welcome<br />Back
-          </h1>
-          <p className="text-muted-foreground text-base leading-relaxed mb-6">
-            Buzzly is your all-in-one marketing analytics platform.
-            Track your campaigns, analyze your audience, and grow your business with powerful insights.
-          </p>
-          <div className="flex gap-4">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-              <span className="text-primary text-sm">f</span>
+    <div className="min-h-screen w-full flex bg-slate-50">
+      {/* Left side - Brand Section */}
+      <div 
+        className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 bg-cover bg-center relative"
+        style={{ backgroundImage: `url(${authBackground})` }}
+      >
+        <div className="absolute inset-0 bg-blue-600/90 mix-blend-multiply" />
+        
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-8">
+            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center shadow-lg">
+              <Zap className="h-6 w-6 text-blue-600 fill-current" />
             </div>
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-              <span className="text-primary text-sm">𝕏</span>
+            <span className="text-2xl font-bold text-white tracking-tight">Buzzly</span>
+          </div>
+          
+          <div className="max-w-md space-y-4">
+            <Badge className="bg-white/20 text-white border-none backdrop-blur-md">
+              Marketing Intelligence 2026
+            </Badge>
+            <h1 className="text-5xl font-extrabold text-white leading-tight">
+              Scale your business <br /> 
+              <span className="text-blue-200 underline decoration-blue-400/50">with data.</span>
+            </h1>
+            <p className="text-blue-50/80 text-lg">
+              The all-in-one analytics platform to track, optimize, and grow your cross-channel campaigns.
+            </p>
+          </div>
+        </div>
+
+        <div className="relative z-10 bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex -space-x-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-8 w-8 rounded-full border-2 border-blue-600 bg-blue-100" />
+              ))}
             </div>
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-              <span className="text-primary text-sm">in</span>
-            </div>
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-              <span className="text-primary text-sm">▶</span>
-            </div>
+            <p className="text-sm font-medium text-white">Join 500+ marketing teams</p>
+          </div>
+          <div className="flex items-center gap-2 text-blue-100 text-xs font-medium">
+            <CheckCircle2 className="h-4 w-4 text-blue-300" /> Verified analytics data across 10+ platforms
           </div>
         </div>
       </div>
 
-      {/* Right side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 lg:p-12">
-        <Card className="w-full max-w-md border-0 shadow-xl bg-card/95 backdrop-blur-sm">
-          <CardHeader className="text-center pb-2">
-            <CardTitle className="text-2xl font-bold text-foreground">Sign in</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-              </TabsList>
+      {/* Right side - Login Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-white">
+        <div className="w-full max-w-md space-y-8">
+          <div className="text-center lg:text-left space-y-2">
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900">Welcome Back</h2>
+            <p className="text-slate-500">Sign in to manage your marketing ecosystem.</p>
+          </div>
 
-              {/* Sign In Tab */}
-              <TabsContent value="signin">
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-email" className="text-sm text-foreground">
-                      Email Address
-                    </Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="signin-email"
-                        type="email"
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="pl-9 bg-background/50"
-                        required
-                        disabled={loading}
-                      />
+          <Card className="border-slate-200 shadow-xl shadow-slate-200/50 rounded-3xl overflow-hidden">
+            <CardContent className="p-8">
+              <Tabs defaultValue="signin" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-8 bg-slate-100 p-1 rounded-xl">
+                  <TabsTrigger value="signin" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-semibold">Sign In</TabsTrigger>
+                  <TabsTrigger value="signup" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm font-semibold">Sign Up</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="signin" className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                  <form onSubmit={handleSignIn} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="email" className="text-xs font-bold text-slate-700 uppercase tracking-wider">Email Address</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+                        <Input
+                          id="email"
+                          type="email"
+                          placeholder="name@company.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="pl-10 h-11 bg-slate-50 border-slate-200 focus:bg-white rounded-xl transition-all"
+                          required
+                          disabled={loading}
+                        />
+                      </div>
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-password" className="text-sm text-foreground">
-                      Password
-                    </Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="signin-password"
-                        type="password"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="pl-9 bg-background/50"
-                        required
-                        disabled={loading}
-                      />
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <Label htmlFor="password" className="text-xs font-bold text-slate-700 uppercase tracking-wider">Password</Label>
+                        <button type="button" className="text-xs font-semibold text-blue-600 hover:text-blue-700">Forgot Password?</button>
+                      </div>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+                        <Input
+                          id="password"
+                          type="password"
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="pl-10 h-11 bg-slate-50 border-slate-200 focus:bg-white rounded-xl transition-all"
+                          required
+                          disabled={loading}
+                        />
+                      </div>
                     </div>
+
+                    <div className="flex items-center space-x-2 py-1">
+                      <input type="checkbox" id="remember" className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-600" />
+                      <label htmlFor="remember" className="text-sm text-slate-600 font-medium">Keep me signed in</label>
+                    </div>
+
+                    <Button type="submit" className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-600/20" disabled={loading}>
+                      {loading ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <span className="flex items-center gap-2">Sign In to Buzzly <ArrowRight className="h-4 w-4" /></span>
+                      )}
+                    </Button>
+                  </form>
+                </TabsContent>
+
+                <TabsContent value="signup" className="py-6 text-center space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                  <div className="h-14 w-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <Sparkles className="h-7 w-7" />
                   </div>
-
-                  <div className="flex items-center justify-between text-sm">
-                    <label className="flex items-center gap-2 text-muted-foreground">
-                      <input type="checkbox" className="rounded border-input" />
-                      Remember Me
-                    </label>
-                    <a href="#" className="text-primary hover:underline">
-                      Lost your password?
-                    </a>
-                  </div>
-
-                  <Button type="submit" className="w-full bg-accent hover:bg-accent/90 text-accent-foreground" disabled={loading}>
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Signing in...
-                      </>
-                    ) : (
-                      "Sign in now"
-                    )}
-                  </Button>
-
-                  <p className="text-center text-xs text-muted-foreground pt-2">
-                    By clicking on "Sign in now" you agree to<br />
-                    <a href="#" className="text-primary hover:underline">Terms of Service</a> | <a href="#" className="text-primary hover:underline">Privacy Policy</a>
-                  </p>
-                </form>
-              </TabsContent>
-
-              {/* Sign Up Tab */}
-              <TabsContent value="signup">
-                <div className="space-y-4 text-center py-6">
-                  <p className="text-muted-foreground">
-                    Create a new account to get started with Buzzly
-                  </p>
+                  <h3 className="text-xl font-bold text-slate-900">New to Buzzly?</h3>
+                  <p className="text-sm text-slate-500 px-4">Create your account today and get a 14-day free trial of our Pro features.</p>
                   <Button
+                    variant="outline"
                     onClick={() => navigate("/signup", { state: { selectedPlan } })}
-                    className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+                    className="w-full h-11 rounded-xl border-slate-200 hover:bg-slate-50 font-bold"
                   >
-                    Go to Sign Up
+                    Start Your Free Trial
                   </Button>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+                </TabsContent>
+              </Tabs>
+
+              <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+                <p className="text-[11px] text-slate-400 uppercase tracking-widest leading-loose">
+                  Secured by Supabase Auth <br />
+                  <a href="#" className="hover:text-slate-600 transition-colors">Terms</a> &bull; <a href="#" className="hover:text-slate-600 transition-colors">Privacy</a>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
