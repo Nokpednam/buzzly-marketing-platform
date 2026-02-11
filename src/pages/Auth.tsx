@@ -55,15 +55,7 @@ export default function Auth() {
       if (["admin", "support", "developer"].includes(roleName)) { navigate("/admin/dashboard"); return; }
     }
 
-<<<<<<< HEAD
     // All customers go to dashboard (free plan by default)
-=======
-    const { data: rolesData } = await supabase.from("user_roles").select("role").eq("user_id", userId);
-    if (rolesData && rolesData.length > 0) {
-      if (rolesData.some((r) => r.role === "owner")) { navigate("/owner/product-usage"); return; }
-      if (rolesData.some((r) => r.role === "admin")) { navigate("/admin/dashboard"); return; }
-    }
->>>>>>> a1e515327a3339f5f2bebcd45ceb1139366c2143
     navigate("/dashboard");
   };
 
@@ -71,7 +63,7 @@ export default function Auth() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = loginSchema.safeParse({ email, password });
-    
+
     if (!result.success) {
       toast({ title: "Validation Error", description: result.error.errors[0].message, variant: "destructive" });
       return;
@@ -82,7 +74,6 @@ export default function Auth() {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       if (data.user) {
-<<<<<<< HEAD
         // Check employees table first
         const { data: employeeData } = await supabase
           .from("employees")
@@ -132,9 +123,6 @@ export default function Auth() {
         } else {
           navigate("/dashboard");
         }
-=======
-        toast({ title: "Welcome back!", description: "Accessing your dashboard..." });
->>>>>>> a1e515327a3339f5f2bebcd45ceb1139366c2143
       }
     } catch (error: any) {
       toast({ title: "Sign in failed", description: error.message, variant: "destructive" });
@@ -146,12 +134,12 @@ export default function Auth() {
   return (
     <div className="min-h-screen w-full flex bg-slate-50">
       {/* Left side - Brand Section */}
-      <div 
+      <div
         className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 bg-cover bg-center relative"
         style={{ backgroundImage: `url(${authBackground})` }}
       >
         <div className="absolute inset-0 bg-blue-600/90 mix-blend-multiply" />
-        
+
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-8">
             <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center shadow-lg">
@@ -159,13 +147,13 @@ export default function Auth() {
             </div>
             <span className="text-2xl font-bold text-white tracking-tight">Buzzly</span>
           </div>
-          
+
           <div className="max-w-md space-y-4">
             <Badge className="bg-white/20 text-white border-none backdrop-blur-md">
               Marketing Intelligence 2026
             </Badge>
             <h1 className="text-5xl font-extrabold text-white leading-tight">
-              Scale your business <br /> 
+              Scale your business <br />
               <span className="text-blue-200 underline decoration-blue-400/50">with data.</span>
             </h1>
             <p className="text-blue-50/80 text-lg">
