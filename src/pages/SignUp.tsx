@@ -8,18 +8,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
-import { 
-  Eye, 
-  EyeOff, 
-  ArrowLeft, 
-  ArrowRight, 
-  Check, 
-  Loader2, 
-  Mail, 
-  Lock, 
-  User as UserIcon, 
-  Phone, 
-  Zap, 
+import {
+  Eye,
+  EyeOff,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Loader2,
+  Mail,
+  Lock,
+  User as UserIcon,
+  Phone,
+  Zap,
   ShieldCheck,
   ClipboardCheck
 } from "lucide-react";
@@ -114,7 +114,16 @@ const SignUp = () => {
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
-        options: { data: { first_name: formData.firstName, last_name: formData.lastName } },
+        options: {
+          data: {
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            full_name: formData.displayName || `${formData.firstName} ${formData.lastName}`,
+            phone: formData.phone,
+            gender_id: formData.genderId,
+            salary_range: formData.salaryRange
+          }
+        },
       });
       if (error) throw error;
       if (data.user) {
@@ -133,13 +142,13 @@ const SignUp = () => {
       case 1:
         return (
           <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
-            <FormInput 
-              label="Email Bridge" 
-              id="email" 
-              icon={Mail} 
-              placeholder="you@company.com" 
-              value={formData.email} 
-              onChange={(v) => setFormData(p => ({...p, email: v}))}
+            <FormInput
+              label="Email Bridge"
+              id="email"
+              icon={Mail}
+              placeholder="you@company.com"
+              value={formData.email}
+              onChange={(v) => setFormData(p => ({ ...p, email: v }))}
               error={errors.email}
             />
             <div className="space-y-2">
@@ -150,7 +159,7 @@ const SignUp = () => {
                   type={showPassword ? "text" : "password"}
                   placeholder="At least 8 characters"
                   value={formData.password}
-                  onChange={(e) => setFormData(p => ({...p, password: e.target.value}))}
+                  onChange={(e) => setFormData(p => ({ ...p, password: e.target.value }))}
                   className={cn("pl-10 h-11 bg-slate-50 border-slate-200 rounded-xl focus:bg-white transition-all", errors.password && "border-red-500")}
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3.5 text-slate-400">
@@ -159,14 +168,14 @@ const SignUp = () => {
               </div>
               {errors.password && <p className="text-[10px] text-red-500 font-bold mt-1 uppercase">{errors.password}</p>}
             </div>
-            <FormInput 
-              label="Confirm Access Key" 
-              id="confirmPassword" 
-              icon={ShieldCheck} 
+            <FormInput
+              label="Confirm Access Key"
+              id="confirmPassword"
+              icon={ShieldCheck}
               type={showConfirmPassword ? "text" : "password"}
-              placeholder="Re-enter password" 
-              value={formData.confirmPassword} 
-              onChange={(v) => setFormData(p => ({...p, confirmPassword: v}))}
+              placeholder="Re-enter password"
+              value={formData.confirmPassword}
+              onChange={(v) => setFormData(p => ({ ...p, confirmPassword: v }))}
               error={errors.confirmPassword}
             />
           </div>
@@ -176,11 +185,11 @@ const SignUp = () => {
         return (
           <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="grid grid-cols-2 gap-4">
-              <FormInput label="First Name" id="firstName" icon={UserIcon} placeholder="John" value={formData.firstName} onChange={(v) => setFormData(p => ({...p, firstName: v}))} error={errors.firstName} />
-              <FormInput label="Last Name" id="lastName" placeholder="Doe" value={formData.lastName} onChange={(v) => setFormData(p => ({...p, lastName: v}))} error={errors.lastName} />
+              <FormInput label="First Name" id="firstName" icon={UserIcon} placeholder="John" value={formData.firstName} onChange={(v) => setFormData(p => ({ ...p, firstName: v }))} error={errors.firstName} />
+              <FormInput label="Last Name" id="lastName" placeholder="Doe" value={formData.lastName} onChange={(v) => setFormData(p => ({ ...p, lastName: v }))} error={errors.lastName} />
             </div>
-            <FormInput label="Display Name (Optional)" id="displayName" placeholder="How should we call you?" value={formData.displayName} onChange={(v) => setFormData(p => ({...p, displayName: v}))} />
-            <FormInput label="Phone" id="phone" icon={Phone} placeholder="0xx-xxx-xxxx" value={formData.phone} onChange={(v) => setFormData(p => ({...p, phone: v}))} />
+            <FormInput label="Display Name (Optional)" id="displayName" placeholder="How should we call you?" value={formData.displayName} onChange={(v) => setFormData(p => ({ ...p, displayName: v }))} />
+            <FormInput label="Phone" id="phone" icon={Phone} placeholder="0xx-xxx-xxxx" value={formData.phone} onChange={(v) => setFormData(p => ({ ...p, phone: v }))} />
           </div>
         );
 
@@ -189,7 +198,7 @@ const SignUp = () => {
           <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
             <div className="space-y-2">
               <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Gender Identity</Label>
-              <Select value={formData.genderId} onValueChange={(v) => setFormData(p => ({...p, genderId: v}))}>
+              <Select value={formData.genderId} onValueChange={(v) => setFormData(p => ({ ...p, genderId: v }))}>
                 <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-200">
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
@@ -201,7 +210,7 @@ const SignUp = () => {
 
             <div className="space-y-2">
               <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">Income Range</Label>
-              <Select value={formData.salaryRange} onValueChange={(v) => setFormData(p => ({...p, salaryRange: v}))}>
+              <Select value={formData.salaryRange} onValueChange={(v) => setFormData(p => ({ ...p, salaryRange: v }))}>
                 <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-200">
                   <SelectValue placeholder="Select range" />
                 </SelectTrigger>
@@ -230,11 +239,11 @@ const SignUp = () => {
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50 relative overflow-hidden">
       {/* Visual Background Elements */}
-      <div 
+      <div
         className="absolute inset-0 bg-cover bg-center opacity-10"
         style={{ backgroundImage: `url(${authBackground})` }}
       />
-      
+
       <div className="w-full max-w-md relative z-10 space-y-8">
         {/* Branding Header */}
         <div className="flex flex-col items-center text-center space-y-4">
@@ -256,8 +265,8 @@ const SignUp = () => {
                   <div className={cn(
                     "h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500",
                     step < currentStep ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" :
-                    step === currentStep ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20 scale-110" :
-                    "bg-slate-100 text-slate-400"
+                      step === currentStep ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20 scale-110" :
+                        "bg-slate-100 text-slate-400"
                   )}>
                     {step < currentStep ? <Check className="h-4 w-4" /> : step}
                   </div>
@@ -277,8 +286,8 @@ const SignUp = () => {
                 </Button>
               )}
               <Button onClick={currentStep === totalSteps ? handleSubmit : handleNext} className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-600/20" disabled={isLoading}>
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 
-                 currentStep === totalSteps ? "Launch Console" : "Next Phase"}
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> :
+                  currentStep === totalSteps ? "Launch Console" : "Next Phase"}
                 {currentStep < totalSteps && <ArrowRight className="ml-2 h-4 w-4" />}
               </Button>
             </div>

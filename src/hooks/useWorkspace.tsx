@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -42,6 +43,7 @@ interface WorkspaceData {
 
 export function useWorkspace() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceData>({
@@ -62,7 +64,7 @@ export function useWorkspace() {
     async function fetchData() {
       try {
         setLoading(true);
-        
+
         // Get current user
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
@@ -76,7 +78,7 @@ export function useWorkspace() {
           .select('id, name, slug, description')
           .eq('is_active', true)
           .order('display_order');
-        
+
         if (businessTypesData) {
           setBusinessTypes(businessTypesData);
         }
@@ -87,7 +89,7 @@ export function useWorkspace() {
           .select('id, name, slug, description')
           .eq('is_active', true)
           .order('display_order');
-        
+
         if (industriesData) {
           setIndustries(industriesData);
         }
@@ -207,7 +209,7 @@ export function useWorkspace() {
 
     try {
       setSaving(true);
-      
+
       const updateData: Record<string, any> = {
         name: data.name,
         description: data.description || null,
@@ -225,6 +227,9 @@ export function useWorkspace() {
       if (error) throw error;
 
       setWorkspace(prev => ({ ...prev, ...data }));
+
+      // Invalidate the workspace-info query to update Sidebar immediately
+      queryClient.invalidateQueries({ queryKey: ['workspace-info'] });
 
       toast({
         title: 'บันทึกสำเร็จ',

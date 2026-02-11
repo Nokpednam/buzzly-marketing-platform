@@ -25,6 +25,7 @@ import { usePlanAccess } from "@/hooks/usePlanAccess";
 import { Badge } from "@/components/ui/badge";
 import { SidebarBottomSection } from "@/components/sidebar/SidebarBottomSection";
 import { useSidebarState } from "@/hooks/useSidebarState";
+import { useWorkspaceInfo } from "@/hooks/useWorkspaceInfo";
 
 const navGroups = [
   {
@@ -64,6 +65,7 @@ export function AppSidebar() {
   const { collapsed, toggle } = useSidebarState();
   const location = useLocation();
   const { currentPlan } = usePlanAccess();
+  const { data: workspaceInfo } = useWorkspaceInfo();
 
   const isItemAccessible = (requiresPlan: "pro" | "team" | null) => {
     if (!requiresPlan) return true;
@@ -96,11 +98,15 @@ export function AppSidebar() {
         <div className="px-4 mb-4" draggable="false">
           <div className="p-3 rounded-2xl bg-muted/40 border border-border/50 transition-all hover:bg-muted/60 group cursor-pointer" draggable="false">
             <div className="flex items-center gap-3" draggable="false">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white font-bold shadow-sm" draggable="false">
-                M
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white font-bold shadow-sm overflow-hidden" draggable="false">
+                {workspaceInfo?.logo_url ? (
+                  <img src={workspaceInfo.logo_url} alt="Logo" className="h-full w-full object-cover" />
+                ) : (
+                  <span>{workspaceInfo?.name?.charAt(0).toUpperCase() || "B"}</span>
+                )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold truncate">Marketing Ops</p>
+                <p className="text-sm font-bold truncate">{workspaceInfo?.name || "Buzzly Workspace"}</p>
                 <div className="flex items-center gap-1.5">
                   <div className={cn("h-1.5 w-1.5 rounded-full", currentPlan === 'free' ? 'bg-slate-400' : 'bg-emerald-500 animate-pulse')} />
                   <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{currentPlan} Plan</span>
