@@ -26,7 +26,9 @@ WITH CHECK (
 
 -- Allow users to read their own employee record
 -- (Re-creating this ensures it exists if we dropped 'emp_select_self')
-CREATE OR REPLACE POLICY "emp_select_self"
+DROP POLICY IF EXISTS "emp_select_self" ON public.employees;
+
+CREATE POLICY "emp_select_self"
 ON public.employees FOR SELECT
 TO authenticated
 USING (auth.uid() = user_id);
