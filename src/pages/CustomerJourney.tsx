@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,19 +19,21 @@ import {
   ArrowRight,
   TrendingUp,
   TrendingDown,
-  BarChart3,
   Loader2,
   Database,
+  Activity,
+  ChevronRight,
 } from "lucide-react";
 import { PlanRestrictedPage } from "@/components/PlanRestrictedPage";
 import { useFunnelData } from "@/hooks/useFunnelData";
+import { cn } from "@/lib/utils";
 
 const stageConfig = [
-  { id: "awareness", name: "Awareness", icon: Eye, description: "Customer discovers your brand" },
-  { id: "consideration", name: "Consideration", icon: MousePointer, description: "Customer shows interest" },
-  { id: "acquisition", name: "Acquisition", icon: UserPlus, description: "Customer signs up or subscribes" },
-  { id: "intent", name: "Intent", icon: ShoppingCart, description: "Customer adds to cart" },
-  { id: "conversion", name: "Conversion", icon: CreditCard, description: "Customer completes purchase" },
+  { id: "awareness", name: "Awareness", icon: Eye, color: "text-blue-500", bg: "bg-blue-500/10", fill: "bg-blue-500", desc: "Ad impressions & Reach" },
+  { id: "consideration", name: "Consideration", icon: MousePointer, color: "text-emerald-500", bg: "bg-emerald-500/10", fill: "bg-emerald-500", desc: "Clicks & Site visits" },
+  { id: "acquisition", name: "Acquisition", icon: UserPlus, color: "text-violet-500", bg: "bg-violet-500/10", fill: "bg-violet-500", desc: "Sign-ups & Leads" },
+  { id: "intent", name: "Intent", icon: ShoppingCart, color: "text-amber-500", bg: "bg-amber-500/10", fill: "bg-amber-500", desc: "Cart additions" },
+  { id: "conversion", name: "Conversion", icon: CreditCard, color: "text-rose-500", bg: "bg-rose-500/10", fill: "bg-rose-500", desc: "Successful checkouts" },
 ];
 
 function CustomerJourneyContent() {
@@ -39,21 +41,21 @@ function CustomerJourneyContent() {
   const [selectedPeriod, setSelectedPeriod] = useState("30d");
   const { funnelStages, isLoading } = useFunnelData();
 
-  // Build journey stages from funnel data or show empty
   const journeyStages = useMemo(() => {
     if (!funnelStages || funnelStages.length === 0) return [];
     
-    // Map funnel stages to journey config
     return stageConfig.map((config, index) => {
       const funnelStage = funnelStages[index];
       const value = funnelStage?.value || 0;
-      const previousValue = index > 0 ? (funnelStages[index - 1]?.value || value) : value;
-      const change = previousValue > 0 ? ((value - previousValue) / previousValue) * 100 : 0;
+      const prevValue = index > 0 ? (funnelStages[index - 1]?.value || 0) : 0;
+      
+      // Calculate conversion rate from previous stage
+      const retentionRate = prevValue > 0 ? (value / prevValue) * 100 : 0;
       
       return {
         ...config,
         value,
-        change: Math.round(change * 10) / 10,
+        retentionRate,
         metrics: funnelStage?.metrics || {},
       };
     });
@@ -61,144 +63,136 @@ function CustomerJourneyContent() {
 
   const hasData = journeyStages.length > 0 && journeyStages.some(s => s.value > 0);
 
-  // Loading state
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-12 w-12 animate-spin text-muted-foreground mb-4" />
-        <p className="text-muted-foreground">กำลังโหลดข้อมูล Customer Journey...</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-sm font-medium text-muted-foreground animate-pulse">Mapping customer paths...</p>
       </div>
     );
   }
 
-  // Empty state - no data
   if (!hasData) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <Database className="h-16 w-16 text-muted-foreground mb-4" />
-        <h2 className="text-xl font-semibold mb-2">ยังไม่มีข้อมูล Customer Journey</h2>
-        <p className="text-muted-foreground mb-4 max-w-md">
-          กรุณารัน sample-data.sql ใน Supabase SQL Editor เพื่อเพิ่มข้อมูลตัวอย่าง
-          หรือเชื่อมต่อ Platform เพื่อรับข้อมูลจริง
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 border-2 border-dashed rounded-[3rem] bg-muted/10 mx-4">
+        <div className="bg-background p-6 rounded-full shadow-xl mb-6">
+          <Activity className="h-10 w-10 text-primary" />
+        </div>
+        <h2 className="text-2xl font-black uppercase tracking-tight mb-2">No Journey Data</h2>
+        <p className="text-muted-foreground max-w-sm mb-8">
+          Synchronize your platform data or use the sample script to visualize the customer lifecycle.
         </p>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate("/api-keys")}>
-            ไปหน้า API Keys
-          </Button>
-          <Button variant="default" onClick={() => window.open("https://supabase.com/dashboard", "_blank")}>
-            เปิด Supabase
-          </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => navigate("/api-keys")} className="rounded-xl">API Settings</Button>
+          <Button onClick={() => window.open("https://supabase.com/dashboard", "_blank")} className="rounded-xl px-8">Open Supabase</Button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Customer Journey</h1>
-          <p className="text-muted-foreground">
-            Track your customers from awareness to conversion
-          </p>
+    <div className="max-w-[1400px] mx-auto space-y-10 p-4 md:p-8">
+      
+      {/* 1. HEADER SECTION */}
+      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between border-b pb-8">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest">
+            <Activity className="h-4 w-4" /> Pipeline Intelligence
+          </div>
+          <h1 className="text-4xl font-black tracking-tighter">CUSTOMER JOURNEY</h1>
+          <p className="text-muted-foreground italic">Visualizing the transition from first-touch to loyal customer.</p>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex items-center gap-3">
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-[130px]">
+            <SelectTrigger className="w-[160px] bg-background rounded-xl border-none shadow-sm ring-1 ring-border h-11">
               <SelectValue placeholder="Period" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="90d">Last 90 days</SelectItem>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="7d">Last 7 Days</SelectItem>
+              <SelectItem value="30d">Last 30 Days</SelectItem>
+              <SelectItem value="90d">Last 90 Days</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      {/* Journey Flow Visualization */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base font-semibold">Journey Overview</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between overflow-x-auto pb-4">
-            {journeyStages.map((stage, index) => (
+      {/* 2. JOURNEY FLOW TRACK */}
+      <div className="relative overflow-x-auto no-scrollbar pb-12">
+        <div className="flex items-start min-w-[1100px] px-4">
+          {journeyStages.map((stage, index) => {
+            const isLast = index === journeyStages.length - 1;
+            const nextStage = journeyStages[index + 1];
+
+            return (
               <div key={stage.id} className="flex items-center">
-                <div className="flex flex-col items-center min-w-[140px]">
-                  <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-2">
-                    <stage.icon className="h-8 w-8 text-primary" />
+                {/* Stage Node */}
+                <div className="flex flex-col items-center w-48 group">
+                  <div className={cn(
+                    "h-20 w-20 rounded-[2rem] flex items-center justify-center mb-4 transition-all duration-500 shadow-lg group-hover:scale-110 group-hover:-translate-y-2",
+                    stage.bg, stage.color, "shadow-black/5 ring-1 ring-current/10"
+                  )}>
+                    <stage.icon className="h-9 w-9" />
                   </div>
-                  <p className="font-medium text-center">{stage.name}</p>
-                  <p className="text-xs text-muted-foreground text-center mt-1">
-                    {stage.description}
+                  
+                  <h3 className="text-sm font-black uppercase tracking-tight">{stage.name}</h3>
+                  <p className="text-[10px] text-muted-foreground text-center mt-1 px-4 leading-tight opacity-70">
+                    {stage.desc}
                   </p>
-                  <p className="text-lg font-bold mt-2">{stage.value.toLocaleString()}</p>
-                  <div className="flex items-center gap-1 mt-1">
-                    {stage.change >= 0 ? (
-                      <TrendingUp className="h-3 w-3 text-green-600" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3 text-red-600" />
-                    )}
-                    <span
-                      className={`text-xs font-medium ${
-                        stage.change >= 0 ? "text-green-600" : "text-red-600"
-                      }`}
-                    >
-                      {stage.change >= 0 ? "+" : ""}
-                      {stage.change}%
-                    </span>
+                  
+                  <div className="mt-4 text-center">
+                    <p className="text-2xl font-black tracking-tighter">{stage.value.toLocaleString()}</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total Users</p>
                   </div>
                 </div>
-                {index < journeyStages.length - 1 && (
-                  <ArrowRight className="h-6 w-6 text-muted-foreground mx-4 flex-shrink-0" />
+
+                {/* Connection Bridge */}
+                {!isLast && nextStage && (
+                  <div className="flex flex-col items-center justify-center px-4 pt-10">
+                    <div className="w-24 h-[2px] bg-gradient-to-r from-muted via-primary/20 to-muted relative">
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background border px-2 py-0.5 rounded-full shadow-sm">
+                        <span className="text-[10px] font-black text-primary">{nextStage.retentionRate.toFixed(1)}%</span>
+                      </div>
+                      <ArrowRight className="absolute -right-1 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <span className="mt-6 text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">Retention</span>
+                  </div>
                 )}
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            );
+          })}
+        </div>
+      </div>
 
-      {/* Stage Details */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* 3. STAGE DETAIL GRID */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
         {journeyStages.map((stage) => (
-          <Card key={stage.id} className="overflow-hidden">
-            <CardHeader className="pb-3 bg-muted/30">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <stage.icon className="h-5 w-5 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <CardTitle className="text-base font-semibold">{stage.name}</CardTitle>
-                  <p className="text-xs text-muted-foreground truncate">{stage.description}</p>
-                </div>
+          <Card key={stage.id} className="group border-none shadow-none bg-muted/30 rounded-3xl transition-all hover:bg-muted/50 overflow-hidden">
+            <CardHeader className="pb-4">
+              <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center mb-2 shadow-sm bg-background", stage.color)}>
+                <stage.icon className="h-5 w-5" />
               </div>
-              <Badge
-                variant={stage.change >= 0 ? "default" : "destructive"}
-                className={`mt-2 w-fit ${
-                  stage.change >= 0
-                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                    : ""
-                }`}
-              >
-                {stage.change >= 0 ? "+" : ""}
-                {stage.change}%
-              </Badge>
+              <CardTitle className="text-sm font-black uppercase tracking-tight">{stage.name}</CardTitle>
+              <CardDescription className="text-[10px] leading-tight line-clamp-2">{stage.desc}</CardDescription>
             </CardHeader>
-            <CardContent className="pt-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-muted-foreground">Users</span>
-                  <span className="font-semibold">{stage.value.toLocaleString()}</span>
+            <CardContent>
+              <div className="space-y-4 pt-4 border-t border-background">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Volume</span>
+                  <span className="text-sm font-black">{stage.value.toLocaleString()}</span>
                 </div>
+                
                 {Object.entries(stage.metrics).map(([key, value]) => (
-                  <div key={key} className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-muted-foreground capitalize">{key}</span>
-                    <span className="font-semibold">{String(value)}</span>
+                  <div key={key} className="flex items-center justify-between gap-2 border-t border-background/50 pt-3">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase truncate pr-2">{key}</span>
+                    <span className="text-xs font-bold">{String(value)}</span>
                   </div>
                 ))}
               </div>
+              
+              <Button variant="ghost" size="sm" className="w-full mt-6 rounded-xl group-hover:bg-background transition-colors text-[10px] font-bold uppercase tracking-widest">
+                Full Details <ChevronRight className="h-3 w-3 ml-1" />
+              </Button>
             </CardContent>
           </Card>
         ))}

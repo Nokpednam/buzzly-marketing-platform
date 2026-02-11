@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,11 +18,43 @@ import {
   Building2,
   Link2,
   Crown,
+  Camera,
+  Globe,
+  ShieldCheck,
+  ChevronRight,
 } from "lucide-react";
+
+// Import your custom sub-components
 import { WorkspaceSettings } from "@/components/settings/WorkspaceSettings";
 import { PlatformConnectionsTab } from "@/components/settings/PlatformConnectionsTab";
 import { BillingTab } from "@/components/settings/BillingTab";
 import { LoyaltyTab } from "@/components/settings/LoyaltyTab";
+
+const settingsGroups = [
+  {
+    label: "Organization",
+    items: [
+      { id: "workspace", label: "Workspace", icon: Building2 },
+      { id: "company", label: "Company", icon: Building },
+      { id: "platforms", label: "Platforms", icon: Link2 },
+    ],
+  },
+  {
+    label: "Account",
+    items: [
+      { id: "profile", label: "My Profile", icon: User },
+      { id: "notifications", label: "Notifications", icon: Bell },
+    ],
+  },
+  {
+    label: "Finance",
+    items: [
+      { id: "billing", label: "Billing & Plan", icon: CreditCard },
+      { id: "budget", label: "Budgeting", icon: DollarSign },
+      { id: "loyalty", label: "Loyalty Points", icon: Crown },
+    ],
+  },
+];
 
 export default function Settings() {
   const [notifications, setNotifications] = useState({
@@ -32,291 +65,255 @@ export default function Settings() {
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-        <p className="text-muted-foreground">Manage your account and application preferences</p>
+    <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
+      {/* 1. COMPACT HEADER */}
+      <div className="flex flex-col gap-2 border-b pb-6">
+        <h1 className="text-3xl font-black tracking-tight uppercase italic">Settings</h1>
+        <p className="text-sm text-muted-foreground font-medium">
+          Configure your workspace, security, and global preferences.
+        </p>
       </div>
 
-      <Tabs defaultValue="workspace" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-8 lg:w-auto lg:inline-grid">
-          <TabsTrigger value="workspace" className="gap-2">
-            <Building2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Workspace</span>
-          </TabsTrigger>
-          <TabsTrigger value="platforms" className="gap-2">
-            <Link2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Platforms</span>
-          </TabsTrigger>
-          <TabsTrigger value="profile" className="gap-2">
-            <User className="h-4 w-4" />
-            <span className="hidden sm:inline">Profile</span>
-          </TabsTrigger>
-          <TabsTrigger value="company" className="gap-2">
-            <Building className="h-4 w-4" />
-            <span className="hidden sm:inline">Company</span>
-          </TabsTrigger>
-          <TabsTrigger value="billing" className="gap-2">
-            <CreditCard className="h-4 w-4" />
-            <span className="hidden sm:inline">Billing</span>
-          </TabsTrigger>
-          <TabsTrigger value="loyalty" className="gap-2">
-            <Crown className="h-4 w-4" />
-            <span className="hidden sm:inline">Loyalty</span>
-          </TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-2">
-            <Bell className="h-4 w-4" />
-            <span className="hidden sm:inline">Notifications</span>
-          </TabsTrigger>
-          <TabsTrigger value="budget" className="gap-2">
-            <DollarSign className="h-4 w-4" />
-            <span className="hidden sm:inline">Budget</span>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Workspace Settings */}
-        <TabsContent value="workspace">
-          <WorkspaceSettings />
-        </TabsContent>
-
-        {/* Platform Connections */}
-        <TabsContent value="platforms">
-          <PlatformConnectionsTab />
-        </TabsContent>
-
-        {/* Profile */}
-        <TabsContent value="profile">
-          <Card className="border-0 shadow-sm">
-            <CardHeader>
-              <CardTitle>Profile Settings</CardTitle>
-              <CardDescription>Manage your personal information</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center gap-6">
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground">
-                  TF
-                </div>
-                <div>
-                  <Button variant="outline" size="sm">
-                    Change Avatar
-                  </Button>
-                  <p className="mt-1 text-xs text-muted-foreground">JPG, PNG or GIF. Max 2MB</p>
-                </div>
-              </div>
-              <Separator />
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input id="firstName" defaultValue="Thomas" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input id="lastName" defaultValue="Fletcher" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" defaultValue="thomas@company.com" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" defaultValue="+66 89 123 4567" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Input id="role" defaultValue="Marketing Lead" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="timezone">Timezone</Label>
-                  <Select defaultValue="asia-bangkok">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select timezone" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="asia-bangkok">Asia/Bangkok (GMT+7)</SelectItem>
-                      <SelectItem value="asia-singapore">Asia/Singapore (GMT+8)</SelectItem>
-                      <SelectItem value="utc">UTC (GMT+0)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex justify-end gap-3">
-                <Button variant="outline">Cancel</Button>
-                <Button>Save Changes</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Company */}
-        <TabsContent value="company">
-          <Card className="border-0 shadow-sm">
-            <CardHeader>
-              <CardTitle>Company Information</CardTitle>
-              <CardDescription>Manage your organization details</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="companyName">Company Name</Label>
-                  <Input id="companyName" defaultValue="Buzzly Ltd." />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="industry">Industry</Label>
-                  <Select defaultValue="ecommerce">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select industry" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ecommerce">E-commerce</SelectItem>
-                      <SelectItem value="saas">SaaS</SelectItem>
-                      <SelectItem value="retail">Retail</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="website">Website</Label>
-                  <Input id="website" defaultValue="https://Buzzly.com" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="size">Company Size</Label>
-                  <Select defaultValue="50-200">
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select size" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1-10">1-10 employees</SelectItem>
-                      <SelectItem value="11-50">11-50 employees</SelectItem>
-                      <SelectItem value="50-200">50-200 employees</SelectItem>
-                      <SelectItem value="200+">200+ employees</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex justify-end gap-3">
-                <Button variant="outline">Cancel</Button>
-                <Button>Save Changes</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Billing */}
-        <TabsContent value="billing">
-          <BillingTab />
-        </TabsContent>
-
-        {/* Loyalty */}
-        <TabsContent value="loyalty">
-          <LoyaltyTab />
-        </TabsContent>
-
-        {/* Notifications */}
-        <TabsContent value="notifications">
-          <Card className="border-0 shadow-sm">
-            <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
-              <CardDescription>Choose how you want to be notified</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Email Notifications</p>
-                  <p className="text-sm text-muted-foreground">Receive email updates about your campaigns</p>
-                </div>
-                <Switch
-                  checked={notifications.email}
-                  onCheckedChange={(checked) => setNotifications({ ...notifications, email: checked })}
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Push Notifications</p>
-                  <p className="text-sm text-muted-foreground">Get push notifications in your browser</p>
-                </div>
-                <Switch
-                  checked={notifications.push}
-                  onCheckedChange={(checked) => setNotifications({ ...notifications, push: checked })}
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Weekly Digest</p>
-                  <p className="text-sm text-muted-foreground">Get a weekly summary of your performance</p>
-                </div>
-                <Switch
-                  checked={notifications.weekly}
-                  onCheckedChange={(checked) => setNotifications({ ...notifications, weekly: checked })}
-                />
-              </div>
-              <Separator />
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Marketing Updates</p>
-                  <p className="text-sm text-muted-foreground">News and updates from Buzzly</p>
-                </div>
-                <Switch
-                  checked={notifications.marketing}
-                  onCheckedChange={(checked) => setNotifications({ ...notifications, marketing: checked })}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Budget */}
-        <TabsContent value="budget">
-          <Card className="border-0 shadow-sm">
-            <CardHeader>
-              <CardTitle>Marketing Budget</CardTitle>
-              <CardDescription>Configure your marketing budget settings per sales cycle</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="monthlyBudget">Monthly Budget (THB)</Label>
-                  <Input id="monthlyBudget" type="number" defaultValue="500000" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="alertThreshold">Alert Threshold (%)</Label>
-                  <Input id="alertThreshold" type="number" defaultValue="80" />
-                </div>
-              </div>
-              <Separator />
-              <div>
-                <h4 className="mb-4 font-medium">Budget Allocation by Channel</h4>
-                <div className="space-y-4">
-                  {[
-                    { name: "Meta Ads", value: 40 },
-                    { name: "Google Ads", value: 30 },
-                    { name: "TikTok", value: 20 },
-                    { name: "LINE OA", value: 10 },
-                  ].map((channel) => (
-                    <div key={channel.name} className="flex items-center gap-4">
-                      <span className="w-24 text-sm">{channel.name}</span>
-                      <div className="flex-1">
-                        <div className="h-2 rounded-full bg-muted">
-                          <div
-                            className="h-2 rounded-full bg-primary"
-                            style={{ width: `${channel.value}%` }}
-                          />
-                        </div>
-                      </div>
-                      <span className="w-12 text-right text-sm text-muted-foreground">{channel.value}%</span>
-                    </div>
+      <Tabs defaultValue="workspace" className="flex flex-col lg:flex-row gap-12">
+        {/* 2. VERTICAL TABS SIDEBAR */}
+        <div className="w-full lg:w-64 shrink-0">
+          <TabsList className="flex flex-col h-auto bg-transparent gap-6 p-0 items-start">
+            {settingsGroups.map((group) => (
+              <div key={group.label} className="w-full space-y-2">
+                <h3 className="px-3 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
+                  {group.label}
+                </h3>
+                <div className="space-y-1">
+                  {group.items.map((item) => (
+                    <TabsTrigger
+                      key={item.id}
+                      value={item.id}
+                      className={cn(
+                        "w-full justify-start gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all",
+                        "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-none",
+                        "hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {item.label}
+                    </TabsTrigger>
                   ))}
                 </div>
               </div>
-              <div className="flex justify-end gap-3">
-                <Button variant="outline">Cancel</Button>
-                <Button>Save Budget</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            ))}
+          </TabsList>
+        </div>
+
+        {/* 3. CONTENT AREA */}
+        <div className="flex-1 min-w-0">
+          {/* Workspace & Platforms (Subcomponents) */}
+          <TabsContent value="workspace" className="mt-0 focus-visible:ring-0">
+            <WorkspaceSettings />
+          </TabsContent>
+
+          <TabsContent value="platforms" className="mt-0 focus-visible:ring-0">
+            <PlatformConnectionsTab />
+          </TabsContent>
+
+          {/* Profile Section */}
+          <TabsContent value="profile" className="mt-0 focus-visible:ring-0">
+            <Card className="border-none shadow-sm bg-muted/20 rounded-3xl">
+              <CardHeader className="p-8">
+                <CardTitle className="text-xl font-black uppercase tracking-tight">Personal Identity</CardTitle>
+                <CardDescription>Update your avatar and global account credentials.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-8 pt-0 space-y-8">
+                <div className="flex flex-col sm:flex-row items-center gap-8 bg-background p-6 rounded-2xl border shadow-sm">
+                  <div className="relative group">
+                    <div className="h-24 w-24 rounded-full bg-primary flex items-center justify-center text-3xl font-black text-white shadow-xl group-hover:opacity-80 transition-opacity">
+                      TF
+                    </div>
+                    <button className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 rounded-full text-white">
+                      <Camera className="h-6 w-6" />
+                    </button>
+                  </div>
+                  <div className="text-center sm:text-left space-y-1">
+                    <h4 className="font-bold">Thomas Fletcher</h4>
+                    <p className="text-xs text-muted-foreground">JPG, PNG or GIF. Max 2MB.</p>
+                    <div className="pt-2 flex gap-2">
+                      <Button size="sm" variant="outline" className="rounded-lg h-8">Upload New</Button>
+                      <Button size="sm" variant="ghost" className="rounded-lg h-8 text-destructive">Remove</Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2">
+                  <SettingInput label="First Name" id="firstName" defaultValue="Thomas" />
+                  <SettingInput label="Last Name" id="lastName" defaultValue="Fletcher" />
+                  <SettingInput label="Email Address" id="email" type="email" defaultValue="thomas@company.com" />
+                  <SettingInput label="Phone Number" id="phone" defaultValue="+66 89 123 4567" />
+                  
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Timezone</Label>
+                    <Select defaultValue="asia-bangkok">
+                      <SelectTrigger className="h-12 rounded-xl bg-background border-none shadow-none ring-1 ring-border">
+                        <Globe className="h-4 w-4 mr-2 text-muted-foreground" />
+                        <SelectValue placeholder="Select timezone" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-none shadow-xl">
+                        <SelectItem value="asia-bangkok">Asia/Bangkok (GMT+7)</SelectItem>
+                        <SelectItem value="utc">UTC (GMT+0)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                <div className="flex justify-end pt-4">
+                  <Button className="rounded-xl px-8 shadow-lg shadow-primary/20 bg-primary">Save Changes</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Company Section */}
+          <TabsContent value="company" className="mt-0 focus-visible:ring-0">
+             <Card className="border-none shadow-sm bg-muted/20 rounded-3xl">
+              <CardHeader className="p-8">
+                <CardTitle className="text-xl font-black uppercase tracking-tight">Organization Profile</CardTitle>
+                <CardDescription>Global information for Buzzly Ltd.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-8 pt-0 space-y-6">
+                <div className="grid gap-6 md:grid-cols-2">
+                  <SettingInput label="Company Name" id="companyName" defaultValue="Buzzly Ltd." />
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Industry</Label>
+                    <Select defaultValue="ecommerce">
+                      <SelectTrigger className="h-12 rounded-xl bg-background border-none ring-1 ring-border shadow-none">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-none shadow-xl">
+                        <SelectItem value="ecommerce">E-commerce</SelectItem>
+                        <SelectItem value="saas">SaaS / Tech</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex justify-end pt-4">
+                  <Button className="rounded-xl px-8 shadow-lg shadow-primary/20 bg-primary">Update Company</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Notifications Section */}
+          <TabsContent value="notifications" className="mt-0 focus-visible:ring-0">
+            <Card className="border-none shadow-sm bg-muted/20 rounded-3xl">
+              <CardHeader className="p-8">
+                <CardTitle className="text-xl font-black uppercase tracking-tight">Channels & Frequency</CardTitle>
+                <CardDescription>Control how and when you receive critical alerts.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-8 pt-0 space-y-2">
+                <NotificationSwitch 
+                  title="Email Reports" 
+                  desc="Daily campaign summaries delivered to your inbox." 
+                  checked={notifications.email} 
+                  onCheckedChange={(v) => setNotifications(p => ({...p, email: v}))}
+                />
+                <NotificationSwitch 
+                  title="Push Notifications" 
+                  desc="Instant updates in your browser for budget alerts." 
+                  checked={notifications.push} 
+                  onCheckedChange={(v) => setNotifications(p => ({...p, push: v}))}
+                />
+                <NotificationSwitch 
+                  title="Weekly Performance Digest" 
+                  desc="A deep-dive analysis into your growth metrics." 
+                  checked={notifications.weekly} 
+                  onCheckedChange={(v) => setNotifications(p => ({...p, weekly: v}))}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Budget Section */}
+          <TabsContent value="budget" className="mt-0 focus-visible:ring-0">
+            <Card className="border-none shadow-sm bg-muted/20 rounded-3xl">
+              <CardHeader className="p-8">
+                <CardTitle className="text-xl font-black uppercase tracking-tight">Marketing Treasury</CardTitle>
+                <CardDescription>Set guardrails for your cross-platform ad spend.</CardDescription>
+              </CardHeader>
+              <CardContent className="p-8 pt-0 space-y-10">
+                <div className="grid gap-6 md:grid-cols-2">
+                   <SettingInput label="Monthly Cap (THB)" id="monthlyBudget" type="number" defaultValue="500000" />
+                   <SettingInput label="Alert Trigger (%)" id="alertThreshold" type="number" defaultValue="80" />
+                </div>
+                
+                <Separator className="bg-border/50" />
+                
+                <div className="space-y-6">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-primary" /> Active Allocation
+                  </h4>
+                  <div className="grid gap-6">
+                    {[
+                      { name: "Meta Ads", value: 40, color: "bg-blue-500" },
+                      { name: "Google Ads", value: 30, color: "bg-emerald-500" },
+                      { name: "TikTok Shop", value: 20, color: "bg-black" },
+                      { name: "LINE OA", value: 10, color: "bg-green-500" },
+                    ].map((channel) => (
+                      <div key={channel.name} className="space-y-2">
+                        <div className="flex justify-between text-xs font-bold uppercase">
+                          <span>{channel.name}</span>
+                          <Badge variant="secondary" className="rounded-md px-1.5 py-0">{channel.value}%</Badge>
+                        </div>
+                        <div className="h-2 rounded-full bg-background shadow-inner">
+                          <div className={cn("h-full rounded-full transition-all duration-1000", channel.color)} style={{ width: `${channel.value}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="flex justify-end pt-4">
+                  <Button className="rounded-xl px-8 shadow-lg shadow-primary/20 bg-primary">Commit Budget</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* External Components */}
+          <TabsContent value="billing" className="mt-0 focus-visible:ring-0">
+            <BillingTab />
+          </TabsContent>
+          <TabsContent value="loyalty" className="mt-0 focus-visible:ring-0">
+            <LoyaltyTab />
+          </TabsContent>
+        </div>
       </Tabs>
+    </div>
+  );
+}
+
+// --- SUB-COMPONENTS ---
+
+function SettingInput({ label, id, ...props }: any) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id} className="text-xs font-bold uppercase text-muted-foreground ml-1">
+        {label}
+      </Label>
+      <Input
+        id={id}
+        className="h-12 rounded-xl bg-background border-none shadow-none ring-1 ring-border focus-visible:ring-primary focus-visible:ring-2"
+        {...props}
+      />
+    </div>
+  );
+}
+
+function NotificationSwitch({ title, desc, checked, onCheckedChange }: any) {
+  return (
+    <div className="flex items-center justify-between p-6 rounded-2xl bg-background border border-border/50 hover:border-primary/20 transition-all group">
+      <div className="space-y-1">
+        <p className="font-bold text-sm group-hover:text-primary transition-colors">{title}</p>
+        <p className="text-xs text-muted-foreground">{desc}</p>
+      </div>
+      <Switch checked={checked} onCheckedChange={onCheckedChange} />
     </div>
   );
 }

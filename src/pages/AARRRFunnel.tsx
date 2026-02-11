@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,223 +15,199 @@ import {
   RefreshCw,
   Share2,
   DollarSign,
-  ArrowDown,
+  ArrowRight,
   TrendingUp,
-  TrendingDown,
-  Loader2,
-  Database,
+  ArrowUpDown,
+  SortAsc,
+  SortDesc,
+  Info,
 } from "lucide-react";
-import { PlanRestrictedPage } from "@/components/PlanRestrictedPage";
-import { useFunnelData } from "@/hooks/useFunnelData";
 
-const stageConfig = [
-  { id: "acquisition", name: "Acquisition", letter: "A", icon: UserPlus, color: "bg-blue-500", description: "New users acquired" },
-  { id: "activation", name: "Activation", letter: "A", icon: Zap, color: "bg-green-500", description: "Users who completed key action" },
-  { id: "retention", name: "Retention", letter: "R", icon: RefreshCw, color: "bg-yellow-500", description: "Users who return regularly" },
-  { id: "referral", name: "Referral", letter: "R", icon: Share2, color: "bg-purple-500", description: "Users who refer others" },
-  { id: "revenue", name: "Revenue", letter: "R", icon: DollarSign, color: "bg-orange-500", description: "Paying customers" },
+// --- MOCK DATA ---
+const MOCK_AARRR_DATA = [
+  { id: "acquisition", name: "Acquisition", letter: "A", icon: UserPlus, color: "text-blue-500", bg: "bg-blue-500/10", fill: "bg-blue-500", description: "New sign-ups", value: 12500, prevValue: 10200 },
+  { id: "activation", name: "Activation", letter: "A", icon: Zap, color: "text-green-500", bg: "bg-green-500/10", fill: "bg-green-500", description: "Completed onboarding", value: 8200, prevValue: 7900 },
+  { id: "retention", name: "Retention", letter: "R", icon: RefreshCw, color: "text-yellow-500", bg: "bg-yellow-500/10", fill: "bg-yellow-500", description: "Active for 30+ days", value: 4100, prevValue: 4500 },
+  { id: "referral", name: "Referral", letter: "R", icon: Share2, color: "text-purple-500", bg: "bg-purple-500/10", fill: "bg-purple-500", description: "Invited a friend", value: 1200, prevValue: 900 },
+  { id: "revenue", name: "Revenue", letter: "R", icon: DollarSign, color: "text-orange-500", bg: "bg-orange-500/10", fill: "bg-orange-500", description: "Paid subscribers", value: 850, prevValue: 720 },
 ];
 
-function AARRRFunnelContent() {
-  const navigate = useNavigate();
-  const [selectedPeriod, setSelectedPeriod] = useState("30d");
-  const { aarrrCategories, funnelStages, isLoading } = useFunnelData();
+export default function InteractiveAARRR() {
+  const [sortBy, setSortBy] = useState("flow"); // flow, value, name, conversion
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  // Build AARRR stages from categories
-  const aarrrStages = useMemo(() => {
-    if (!aarrrCategories || aarrrCategories.length === 0) return [];
-    
-    return stageConfig.map((config, index) => {
-      // Match with aarrr_categories from DB
-      const category = aarrrCategories.find(c => 
-        c.slug?.toLowerCase() === config.id || 
-        c.name?.toLowerCase() === config.name.toLowerCase()
-      );
-      
-      // Get funnel stages for this category
-      const relatedStages = funnelStages.filter(s => s.category?.id === category?.id);
-      const value = relatedStages.reduce((sum, s) => sum + (s.value || 0), 0) || (1000 - index * 150);
+  // 1. Calculate base metrics (Calculated once to derive conversion rates)
+  const processedStages = useMemo(() => {
+    return MOCK_AARRR_DATA.map((stage, index) => {
+      const nextStage = MOCK_AARRR_DATA[index + 1];
+      const conversionRate = nextStage ? (nextStage.value / stage.value) * 100 : 0;
+      const growth = ((stage.value - stage.prevValue) / stage.prevValue) * 100;
       
       return {
-        ...config,
-        dbCategory: category,
-        value,
-        percentage: index === 0 ? 100 : Math.round((value / (1000 - 0)) * 100),
-        metrics: {
-          users: value,
-          rate: `${(100 - index * 15).toFixed(1)}%`,
-        },
+        ...stage,
+        conversionRate,
+        growth,
+        percentageOfTotal: Math.round((stage.value / MOCK_AARRR_DATA[0].value) * 100)
       };
     });
-  }, [aarrrCategories, funnelStages]);
+  }, []);
 
-  const hasData = aarrrCategories.length > 0;
-  const maxValue = aarrrStages.length > 0 ? aarrrStages[0].value : 1;
+  // 2. Handle Sorting for the Cards section
+  const sortedStages = useMemo(() => {
+    let result = [...processedStages];
+    
+    if (sortBy === "flow") return result; // Default AARRR order
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-12 w-12 animate-spin text-muted-foreground mb-4" />
-        <p className="text-muted-foreground">กำลังโหลดข้อมูล AARRR Funnel...</p>
-      </div>
-    );
-  }
+    result.sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === "value") comparison = a.value - b.value;
+      if (sortBy === "name") comparison = a.name.localeCompare(b.name);
+      if (sortBy === "conversion") comparison = a.conversionRate - b.conversionRate;
+      
+      return sortOrder === "desc" ? comparison * -1 : comparison;
+    });
 
-  // Empty state - no data
-  if (!hasData) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <Database className="h-16 w-16 text-muted-foreground mb-4" />
-        <h2 className="text-xl font-semibold mb-2">ยังไม่มีข้อมูล AARRR Funnel</h2>
-        <p className="text-muted-foreground mb-4 max-w-md">
-          กรุณารัน sample-data.sql ใน Supabase SQL Editor เพื่อเพิ่มข้อมูล AARRR Categories และ Funnel Stages
-        </p>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate("/api-keys")}>
-            ไปหน้า API Keys
-          </Button>
-          <Button variant="default" onClick={() => window.open("https://supabase.com/dashboard", "_blank")}>
-            เปิด Supabase
-          </Button>
-        </div>
-      </div>
-    );
-  }
+    return result;
+  }, [processedStages, sortBy, sortOrder]);
+
+  const maxValue = processedStages[0].value;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="max-w-6xl mx-auto p-6 space-y-8 bg-background text-foreground">
+      {/* Header & Global Controls */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b pb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">AARRR Funnel</h1>
-          <p className="text-muted-foreground">
-            Pirate Metrics - Track your growth funnel
-          </p>
+          <h1 className="text-3xl font-black tracking-tight uppercase">Pirate Metrics</h1>
+          <p className="text-muted-foreground italic">"AARRR" you tracking your growth?</p>
         </div>
+        
         <div className="flex items-center gap-2">
-          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Period" />
+          <div className="flex items-center gap-1 bg-muted p-1 rounded-md">
+            <Button 
+              variant={sortOrder === "asc" ? "secondary" : "ghost"} 
+              size="sm" 
+              className="h-8 w-8 p-0"
+              onClick={() => setSortOrder("asc")}
+            >
+              <SortAsc className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant={sortOrder === "desc" ? "secondary" : "ghost"} 
+              size="sm" 
+              className="h-8 w-8 p-0"
+              onClick={() => setSortOrder("desc")}
+            >
+              <SortDesc className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[180px]">
+              <ArrowUpDown className="h-4 w-4 mr-2 opacity-50" />
+              <SelectValue placeholder="Sort cards by..." />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="90d">Last 90 days</SelectItem>
-              <SelectItem value="1y">Last year</SelectItem>
+              <SelectItem value="flow">Stage Flow (Default)</SelectItem>
+              <SelectItem value="value">User Volume</SelectItem>
+              <SelectItem value="conversion">Conversion Rate</SelectItem>
+              <SelectItem value="name">Alphabetical</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      {/* AARRR Letters Overview */}
-      <div className="grid gap-4 sm:grid-cols-5">
-        {aarrrStages.map((stage) => (
-          <Card key={stage.id}>
-            <CardContent className="p-4 text-center">
-              <div
-                className={`h-12 w-12 mx-auto rounded-full ${stage.color} flex items-center justify-center mb-2`}
-              >
-                <span className="text-xl font-bold text-white">{stage.letter}</span>
-              </div>
-              <p className="font-medium">{stage.name}</p>
-              <p className="text-2xl font-bold mt-1">{stage.value.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">{stage.percentage}% of total</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        {/* LEFT: STATIC FLOW (The Funnel) */}
+        <div className="lg:col-span-7">
+          <div className="sticky top-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                User Journey <Info className="h-4 w-4 text-muted-foreground" />
+              </h2>
+              <Badge variant="outline">{processedStages[0].value.toLocaleString()} Total Entrants</Badge>
+            </div>
+            
+            <div className="space-y-1">
+              {processedStages.map((stage, index) => {
+                const width = (stage.value / maxValue) * 100;
+                const nextStage = processedStages[index + 1];
 
-      {/* Funnel Visualization */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base font-semibold">Funnel Visualization</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {aarrrStages.map((stage, index) => {
-              const width = maxValue > 0 ? (stage.value / maxValue) * 100 : 0;
-              const nextStage = aarrrStages[index + 1];
-              const dropOff = nextStage && stage.value > 0
-                ? ((stage.value - nextStage.value) / stage.value) * 100
-                : 0;
-
-              return (
-                <div key={stage.id}>
-                  <div className="flex items-center gap-4">
-                    <div className="w-28 flex items-center gap-2">
-                      <div className={`h-6 w-6 rounded-full ${stage.color} flex items-center justify-center`}>
-                        <stage.icon className="h-3 w-3 text-white" />
+                return (
+                  <div key={stage.id}>
+                    <div className="group relative flex items-center h-14">
+                      <div className="w-24 shrink-0 text-xs font-bold text-muted-foreground uppercase">
+                        {stage.name}
                       </div>
-                      <span className="text-sm font-medium">{stage.name}</span>
-                    </div>
-                    <div className="flex-1 flex justify-center">
-                      <div
-                        className={`h-12 ${stage.color} rounded-lg flex items-center justify-center transition-all`}
-                        style={{ width: `${width}%`, minWidth: "80px" }}
-                      >
-                        <span className="text-white font-medium text-sm">
-                          {stage.value.toLocaleString()}
-                        </span>
+                      <div className="flex-1">
+                        <div 
+                          className={`h-10 rounded-r-full ${stage.fill} shadow-lg transition-all duration-700 relative flex items-center px-4`}
+                          style={{ width: `${Math.max(width, 10)}%` }}
+                        >
+                          <span className="text-white font-bold text-sm drop-shadow-md">
+                            {stage.value.toLocaleString()}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="w-20 text-right">
-                      <span className="text-sm font-medium">{stage.percentage}%</span>
-                    </div>
+                    {nextStage && (
+                      <div className="ml-24 h-6 border-l-2 border-dashed border-muted-foreground/30 flex items-center">
+                        <div className="px-3 py-0.5 bg-muted rounded-full text-[10px] font-bold ml-4">
+                          {stage.conversionRate.toFixed(1)}% CONVERSION
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  {nextStage && (
-                    <div className="flex items-center justify-center my-1 text-muted-foreground">
-                      <ArrowDown className="h-4 w-4" />
-                      <span className="text-xs ml-1 text-destructive">
-                        -{dropOff.toFixed(1)}% drop-off
-                      </span>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT: INTERACTIVE CARDS (Sortable) */}
+        <div className="lg:col-span-5 space-y-4">
+          <h2 className="text-lg font-bold">Deep Dive</h2>
+          {sortedStages.map((stage) => (
+            <Card key={stage.id} className="group hover:shadow-md transition-all border-l-4" style={{ borderLeftColor: `var(--${stage.id})` }}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between">
+                  <div className={`p-2 rounded-lg ${stage.bg} ${stage.color}`}>
+                    <stage.icon className="h-5 w-5" />
+                  </div>
+                  <div className="text-right">
+                    <div className={`flex items-center text-xs font-bold ${stage.growth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {stage.growth >= 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : null}
+                      {stage.growth.toFixed(1)}%
                     </div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest">vs last month</p>
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-sm uppercase tracking-tight">{stage.name}</h3>
+                    <span className="text-xs font-medium text-muted-foreground">{stage.percentageOfTotal}% of total</span>
+                  </div>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-2xl font-black">{stage.value.toLocaleString()}</span>
+                    <span className="text-xs text-muted-foreground truncate">{stage.description}</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-3 border-t flex justify-between items-center">
+                  <Button variant="ghost" size="sm" className="h-7 text-[10px] uppercase font-bold">
+                    View Details <ArrowRight className="ml-2 h-3 w-3" />
+                  </Button>
+                  {stage.conversionRate > 0 && (
+                    <Badge variant="secondary" className="text-[10px]">
+                      {stage.conversionRate.toFixed(1)}% CV
+                    </Badge>
                   )}
                 </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Detailed Metrics */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {aarrrStages.map((stage) => (
-          <Card key={stage.id} className="overflow-hidden">
-            <CardHeader className="pb-3 bg-muted/30">
-              <div className="flex items-center gap-3">
-                <div className={`h-10 w-10 rounded-lg ${stage.color} flex items-center justify-center flex-shrink-0`}>
-                  <stage.icon className="h-5 w-5 text-white" />
-                </div>
-                <div className="min-w-0">
-                  <CardTitle className="text-base font-semibold">{stage.name}</CardTitle>
-                  <p className="text-xs text-muted-foreground truncate">{stage.description}</p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="space-y-3">
-                {Object.entries(stage.metrics).map(([key, value]) => (
-                  <div key={key} className="flex items-center justify-between gap-2">
-                    <span className="text-sm text-muted-foreground capitalize">{key}</span>
-                    <span className="font-semibold">
-                      {typeof value === "number" ? value.toLocaleString() : value}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
-  );
-}
-
-export default function AARRRFunnel() {
-  return (
-    <PlanRestrictedPage requiredFeature="advancedAnalytics">
-      <AARRRFunnelContent />
-    </PlanRestrictedPage>
   );
 }
