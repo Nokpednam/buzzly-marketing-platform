@@ -326,3 +326,70 @@ export function useUserSegments() {
     },
   });
 }
+
+export interface SurvivalData {
+  day: number;
+  totalUsers: number;
+  activeUsers: number;
+  churnedUsers: number;
+  survivalRate: number;
+}
+
+export function useSurvivalAnalysis() {
+  return useQuery({
+    queryKey: ["owner-survival-analysis"],
+    queryFn: async (): Promise<SurvivalData[]> => {
+      // Fetch all subscriptions with created_at, status, and cancelled_at
+      const { data: subscriptions, error } = await supabase
+        .from("subscriptions")
+        .select("id, created_at, status, cancelled_at");
+
+      if (error) throw error;
+
+      const now = new Date();
+      const milestones = [0, 7, 14, 30, 60, 90, 120, 180, 270, 365];
+
+      const survivalData: SurvivalData[] = milestones.map(dayMilestone => {
+        let totalUsers = 0;
+        let activeUsers = 0;
+
+        subscriptions?.forEach(sub => {
+          const createdAt = new Date(sub.created_at);
+          const daysSinceCreation = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+
+          // Only count users who have reached this milestone
+          if (daysSinceCreation >= dayMilestone) {
+            totalUsers++;
+
+            // Check if user was still active at this milestone
+            if (sub.status === 'active') {
+              // If currently active and hasn't been cancelled, count as active
+              activeUsers++;
+            } else if (sub.cancelled_at) {
+              // Check if cancellation happened after the milestone
+              const cancelledAt = new Date(sub.cancelled_at);
+              const daysUntilCancellation = Math.floor((cancelledAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+
+              if (daysUntilCancellation >= dayMilestone) {
+                activeUsers++;
+              }
+            }
+          }
+        });
+
+        const survivalRate = totalUsers > 0 ? Math.round((activeUsers / totalUsers) * 100 * 10) / 10 : 100;
+        const churnedUsers = totalUsers - activeUsers;
+
+        return {
+          day: dayMilestone,
+          totalUsers,
+          activeUsers,
+          churnedUsers,
+          survivalRate
+        };
+      });
+
+      return survivalData;
+    },
+  });
+}

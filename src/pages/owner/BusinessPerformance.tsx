@@ -30,19 +30,20 @@ import {
   Area,
   AreaChart,
 } from "recharts";
-import { useSubscriptionMetrics, useCohortAnalysis } from "@/hooks/useOwnerMetrics";
+import { useSubscriptionMetrics, useCohortAnalysis, useSurvivalAnalysis } from "@/hooks/useOwnerMetrics";
 import { cn } from "@/lib/utils";
 
 export default function BusinessPerformance() {
   const navigate = useNavigate();
   const { data: subscriptionMetrics, isLoading: subLoading, refetch: refetchSub } = useSubscriptionMetrics();
   const { data: cohortData, isLoading: cohortLoading, refetch: refetchCohort } = useCohortAnalysis();
+  const { data: survivalData, isLoading: survivalLoading, refetch: refetchSurvival } = useSurvivalAnalysis();
 
   const handleRefresh = async () => {
-    await Promise.all([refetchSub(), refetchCohort()]);
+    await Promise.all([refetchSub(), refetchCohort(), refetchSurvival()]);
   };
 
-  const isLoading = subLoading || cohortLoading;
+  const isLoading = subLoading || cohortLoading || survivalLoading;
   const currentMrr = subscriptionMetrics?.currentMrr || 0;
   const hasData = currentMrr > 0 || (cohortData && cohortData.length > 0);
 
@@ -166,10 +167,11 @@ export default function BusinessPerformance() {
       </div>
 
       <Tabs defaultValue="revenue" className="space-y-8">
-        <TabsList className="w-full max-w-xl grid grid-cols-3 bg-muted/50 p-1 rounded-lg border border-border/50">
+        <TabsList className="w-full max-w-4xl grid grid-cols-4 bg-muted/50 p-1 rounded-lg border border-border/50">
           <TabsTrigger value="revenue" className="data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all">Revenue Trends</TabsTrigger>
           <TabsTrigger value="growth" className="data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all">Growth Analysis</TabsTrigger>
           <TabsTrigger value="cohort" className="data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all">Cohort Retention</TabsTrigger>
+          <TabsTrigger value="survival" className="data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all">Survival Probability</TabsTrigger>
         </TabsList>
 
         <TabsContent value="revenue" className="space-y-6">
@@ -314,6 +316,107 @@ export default function BusinessPerformance() {
                 </div>
               ) : (
                 <div className="py-20 text-center text-muted-foreground">No cohort data available</div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="survival" className="space-y-6">
+          <Card className="glass-panel p-6">
+            <CardHeader className="px-0 pt-0">
+              <CardTitle>Survival Probability Curve</CardTitle>
+              <CardDescription>User retention rate over time</CardDescription>
+            </CardHeader>
+            <CardContent className="px-0 pb-0 h-[350px]">
+              {survivalData && survivalData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={survivalData}>
+                    <defs>
+                      <linearGradient id="colorSurvival" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" vertical={false} />
+                    <XAxis
+                      dataKey="day"
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                      axisLine={false}
+                      tickLine={false}
+                      label={{ value: 'Days Since Registration', position: 'insideBottom', offset: -5, fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <YAxis
+                      tickFormatter={(v) => `${v}%`}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                      axisLine={false}
+                      tickLine={false}
+                      domain={[0, 100]}
+                      label={{ value: 'Survival Rate (%)', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <Tooltip
+                      formatter={(v: number) => [`${v}%`, "Survival Rate"]}
+                      contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
+                      labelFormatter={(label) => `Day ${label}`}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="survivalRate"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={3}
+                      dot={{ fill: "hsl(var(--primary))", r: 4 }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground">No survival data available</div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="glass-panel">
+            <CardHeader>
+              <CardTitle>Detailed Survival Data</CardTitle>
+              <CardDescription>User retention breakdown by day</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {survivalData && survivalData.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border/50 text-muted-foreground">
+                        <th className="p-4 text-left font-bold uppercase tracking-widest text-[10px]">Day</th>
+                        <th className="p-4 text-center font-bold uppercase tracking-widest text-[10px]">Total Users</th>
+                        <th className="p-4 text-center font-bold uppercase tracking-widest text-[10px]">Still Active</th>
+                        <th className="p-4 text-center font-bold uppercase tracking-widest text-[10px]">Churned</th>
+                        <th className="p-4 text-center font-bold uppercase tracking-widest text-[10px]">Survival Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {survivalData.map((row) => (
+                        <tr key={row.day} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                          <td className="p-4 font-bold">
+                            <span className="text-primary">Day {row.day}</span>
+                          </td>
+                          <td className="p-4 text-center font-mono text-xs">{row.totalUsers.toLocaleString()}</td>
+                          <td className="p-4 text-center font-mono text-xs text-emerald-600">{row.activeUsers.toLocaleString()}</td>
+                          <td className="p-4 text-center font-mono text-xs text-red-600">{row.churnedUsers.toLocaleString()}</td>
+                          <td className="p-4 text-center">
+                            <span className={cn(
+                              "px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm",
+                              row.survivalRate >= 80 ? "bg-emerald-500/20 text-emerald-600" :
+                                row.survivalRate >= 60 ? "bg-blue-500/20 text-blue-600" : "bg-red-500/20 text-red-600"
+                            )}>
+                              {row.survivalRate}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="py-20 text-center text-muted-foreground">No survival data available</div>
               )}
             </CardContent>
           </Card>

@@ -29,6 +29,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { auditAuth } from "@/lib/auditLogger";
 
 const adminNavItems = [
   {
@@ -81,6 +82,11 @@ export function AdminSidebar() {
 
   const handleLogout = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Log logout before signing out
+        await auditAuth.logout(user.id, "Admin", user.email || "unknown");
+      }
       await supabase.auth.signOut({ scope: 'local' });
       toast({
         title: "Signed Out",

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { auditSecurity } from "@/lib/auditLogger";
 
 export interface Employee {
   id: string;
@@ -252,12 +253,30 @@ export function useEmployees() {
 
   const suspendEmployee = useMutation({
     mutationFn: async (id: string) => {
+      const { data: employee } = await supabase
+        .from("employees")
+        .select("email, user_id")
+        .eq("id", id)
+        .single();
+
+      // Get current admin user ID
+      const { data: { user: admin } } = await supabase.auth.getUser();
+
       const { error } = await supabase
         .from("employees")
         .update({ status: "suspended" })
         .eq("id", id);
 
       if (error) throw error;
+
+      // Log employee suspension
+      if (employee && admin) {
+        await auditSecurity.userSuspended(
+          admin.id,
+          employee.user_id || id,
+          employee.email || "Unknown"
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
@@ -271,12 +290,30 @@ export function useEmployees() {
 
   const reactivateEmployee = useMutation({
     mutationFn: async (id: string) => {
+      const { data: employee } = await supabase
+        .from("employees")
+        .select("email, user_id")
+        .eq("id", id)
+        .single();
+
+      // Get current admin user ID
+      const { data: { user: admin } } = await supabase.auth.getUser();
+
       const { error } = await supabase
         .from("employees")
         .update({ status: "active" })
         .eq("id", id);
 
       if (error) throw error;
+
+      // Log employee reactivation
+      if (employee && admin) {
+        await auditSecurity.userActivated(
+          admin.id,
+          employee.user_id || id,
+          employee.email || "Unknown"
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
@@ -289,12 +326,30 @@ export function useEmployees() {
 
   const approveEmployee = useMutation({
     mutationFn: async (id: string) => {
+      const { data: employee } = await supabase
+        .from("employees")
+        .select("email, user_id, role_employees(role_name)")
+        .eq("id", id)
+        .single();
+
+      // Get current admin user ID
+      const { data: { user: admin } } = await supabase.auth.getUser();
+
       const { error } = await supabase
         .from("employees")
         .update({ approval_status: "approved" })
         .eq("id", id);
 
       if (error) throw error;
+
+      // Log employee approval
+      if (employee && admin) {
+        await auditSecurity.employeeApproved(
+          admin.id,
+          employee.user_id || id,
+          employee.email || "Unknown"
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
@@ -307,12 +362,30 @@ export function useEmployees() {
 
   const rejectEmployee = useMutation({
     mutationFn: async (id: string) => {
+      const { data: employee } = await supabase
+        .from("employees")
+        .select("email, user_id, role_employees(role_name)")
+        .eq("id", id)
+        .single();
+
+      // Get current admin user ID
+      const { data: { user: admin } } = await supabase.auth.getUser();
+
       const { error } = await supabase
         .from("employees")
         .update({ approval_status: "rejected" })
         .eq("id", id);
 
       if (error) throw error;
+
+      // Log employee rejection
+      if (employee && admin) {
+        await auditSecurity.employeeRejected(
+          admin.id,
+          employee.user_id || id,
+          employee.email || "Unknown"
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });

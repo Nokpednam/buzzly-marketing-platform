@@ -12,6 +12,8 @@ export interface AuditLog {
   ip_address: string | null;
   metadata: Record<string, unknown> | null;
   created_at: string | null;
+  user_email?: string | null;
+  user_role?: string | null;
 }
 
 export function useAuditLogs(category?: string) {
@@ -43,10 +45,38 @@ export function useAuditLogs(category?: string) {
 
       if (error) throw error;
 
-      return (data || []).map((log: any) => ({
-        ...log,
-        action_name: log.action_type?.action_name || "Unknown",
-      }));
+      // Fetch user details for each log
+      const logs = data || [];
+      const userIds = [...new Set(logs.map(log => log.user_id).filter(Boolean))] as string[];
+
+      // Get user emails and roles from employees table
+      const { data: employees } = await supabase
+        .from('employees')
+        .select('user_id, email, role_employees(role_name)')
+        .in('user_id', userIds);
+
+      // Create a map of user_id -> { email, role }
+      const userMap = new Map(
+        (employees || []).map(emp => [
+          emp.user_id,
+          {
+            email: emp.email,
+            role: (emp.role_employees as any)?.role_name || 'Employee'
+          }
+        ])
+      );
+
+      return logs.map((log: any) => {
+        const userInfo = log.user_id ? userMap.get(log.user_id) : null;
+        const metadata = log.metadata as any || {};
+
+        return {
+          ...log,
+          action_name: log.action_type?.action_name || metadata.action_name || "Unknown",
+          user_email: userInfo?.email || metadata.email || 'Unknown',
+          user_role: userInfo?.role || metadata.role || 'User',
+        };
+      });
     },
   });
 }

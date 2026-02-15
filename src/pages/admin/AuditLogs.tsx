@@ -49,11 +49,11 @@ const getActionIcon = (action: string | undefined) => {
 
 const getActionBadge = (action: string | undefined, status: string | null) => {
   const actionLower = action?.toLowerCase();
-  
+
   if (status === "failed" || actionLower?.includes("failed")) {
     return <Badge className="bg-red-500/10 text-red-600">Failed</Badge>;
   }
-  
+
   switch (actionLower) {
     case "login":
       return <Badge className="bg-green-500/10 text-green-600">Login</Badge>;
@@ -247,15 +247,25 @@ export default function AuditLogs() {
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
                         <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                          {log.user_id ? log.user_id.slice(0, 2).toUpperCase() : "?"}
+                          {log.user_email
+                            ? log.user_email.slice(0, 2).toUpperCase()
+                            : "?"}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{log.action_name || "Unknown Action"}</span>
                           {getCategoryBadge(log.category)}
+                          {log.user_role && (
+                            <Badge variant="outline" className="text-xs">
+                              {log.user_role}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground">{log.description || "No description"}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {log.user_email || "Unknown user"}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -264,7 +274,7 @@ export default function AuditLogs() {
                       <p className="text-sm font-mono text-muted-foreground">{log.ip_address || "N/A"}</p>
                       <p className="text-xs text-muted-foreground flex items-center justify-end gap-1">
                         <Clock className="h-3 w-3" />
-                        {log.created_at 
+                        {log.created_at
                           ? formatDistanceToNow(new Date(log.created_at), { addSuffix: true })
                           : "Unknown"}
                       </p>

@@ -203,11 +203,11 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
   const getApprovalBadge = (status: string | null) => {
     switch (status) {
       case "approved":
-        return <Badge className="bg-success">อนุมัติแล้ว</Badge>;
+        return <Badge className="bg-green-500 hover:bg-green-600 text-white">อนุมัติแล้ว</Badge>;
       case "pending":
-        return <Badge variant="outline" className="border-warning text-warning">รออนุมัติ</Badge>;
+        return <Badge variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50">รออนุมัติ</Badge>;
       case "rejected":
-        return <Badge variant="destructive">ปฏิเสธ</Badge>;
+        return <Badge className="bg-red-500 hover:bg-red-600 text-white">ปฏิเสธ</Badge>;
       default:
         return <Badge variant="secondary">-</Badge>;
     }

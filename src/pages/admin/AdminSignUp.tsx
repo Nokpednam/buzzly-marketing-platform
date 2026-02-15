@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ShieldCheck, Mail, Lock, User, ArrowLeft, ArrowRight, Loader2, Briefcase, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { auditSecurity } from "@/lib/auditLogger";
 
 export default function AdminSignUp() {
   const [step, setStep] = useState(1);
@@ -131,6 +132,14 @@ export default function AdminSignUp() {
               return;
             }
 
+            // Get default Employee role
+            const { data: defaultRole } = await supabase
+              .from('role_employees')
+              .select('id')
+              .ilike('role_name', 'employee')
+              .limit(1)
+              .single();
+
             // create employee record manually (RLS policy allows this for authenticated user)
             const { data: newEmployee, error: insertError } = await supabase
               .from('employees')
@@ -139,6 +148,7 @@ export default function AdminSignUp() {
                 email: formData.email,
                 status: 'active',
                 approval_status: 'pending',
+                role_employees_id: defaultRole?.id || null,
               })
               .select()
               .single(); // Use .single() to get the inserted row
@@ -163,6 +173,13 @@ export default function AdminSignUp() {
               }
             }
 
+            // Log employee registration (existing user)
+            await auditSecurity.employeeRegistered(
+              signInData.user.id,
+              formData.email,
+              `${formData.firstName} ${formData.lastName}`.trim() || formData.email
+            );
+
             toast({
               title: "ลงทะเบียนสำเร็จ!",
               description: "ส่งคำขอเป็นพนักงานเรียบร้อยแล้ว รอการอนุมัติจาก Admin",
@@ -181,6 +198,13 @@ export default function AdminSignUp() {
 
       // 3. Success for New User (Trigger handles logic)
       if (authData.user) {
+        // Log employee registration
+        await auditSecurity.employeeRegistered(
+          authData.user.id,
+          formData.email,
+          `${formData.firstName} ${formData.lastName}`.trim() || formData.email
+        );
+
         toast({
           title: "ลงทะเบียนสำเร็จ!",
           description: "บัญชีของคุณอยู่ระหว่างรอการอนุมัติจาก Admin กรุณารอการยืนยัน",

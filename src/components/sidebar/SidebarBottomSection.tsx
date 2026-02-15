@@ -25,6 +25,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { MessageSquarePlus } from "lucide-react";
+import { auditAuth } from "@/lib/auditLogger";
 
 interface SidebarBottomSectionProps {
   collapsed?: boolean;
@@ -90,6 +91,11 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
   }, []);
 
   const handleLogout = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      // Log logout before signing out
+      await auditAuth.logout(user.id, "Customer", user.email || "unknown");
+    }
     await supabase.auth.signOut();
     navigate("/auth");
   };

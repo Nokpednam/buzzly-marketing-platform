@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { ShieldCheck, Mail, Lock, ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { auditAuth } from "@/lib/auditLogger";
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("");
@@ -25,7 +26,11 @@ export default function AdminLogin() {
         password,
       });
 
-      if (authError) throw authError;
+      if (authError) {
+        // Log failed login attempt
+        await auditAuth.loginFailed(email, authError.message);
+        throw authError;
+      }
 
       // Check if user is an employee
       const { data: employeeData } = await supabase
@@ -51,20 +56,24 @@ export default function AdminLogin() {
           .in("role", ["admin", "owner"]);
 
         if (!roleData || roleData.length === 0) {
-          // Regular customer - redirect to customer dashboard
+          // Regular customer - not allowed on admin login
+          await auditAuth.loginFailed(email, "Not an admin or employee");
           toast({
-            title: "เข้าสู่ระบบสำเร็จ",
-            description: "กำลังนำไปยัง Dashboard...",
+            title: "ไม่มีสิทธิ์เข้าใช้งาน",
+            description: "คุณไม่ใช่ admin หรือ employee กรุณาใช้หน้า login สำหรับลูกค้า",
+            variant: "destructive",
           });
-          navigate("/dashboard");
+          await supabase.auth.signOut();
           return;
         }
 
-        // Has old role - redirect accordingly
+        // Has old role - log and redirect accordingly
         const isOwner = roleData.some(r => r.role === "owner");
+        const role = isOwner ? "Owner" : "Admin";
+        await auditAuth.login(authData.user.id, role, email);
         toast({
           title: "เข้าสู่ระบบสำเร็จ",
-          description: `ยินดีต้อนรับ ${isOwner ? "Owner" : "Admin"}!`,
+          description: `ยินดีต้อนรับ ${role}!`,
         });
         navigate(isOwner ? "/owner/product-usage" : "/admin/monitor");
         return;
@@ -72,6 +81,7 @@ export default function AdminLogin() {
 
       // Check approval status
       if (employeeData.approval_status === "pending") {
+        await auditAuth.loginFailed(email, "Employee approval pending");
         await supabase.auth.signOut();
         toast({
           title: "รอการอนุมัติ",
@@ -82,6 +92,7 @@ export default function AdminLogin() {
       }
 
       if (employeeData.approval_status === "rejected") {
+        await auditAuth.loginFailed(email, "Employee approval rejected");
         await supabase.auth.signOut();
         toast({
           title: "ถูกปฏิเสธ",
@@ -92,6 +103,7 @@ export default function AdminLogin() {
       }
 
       if (employeeData.status !== "active") {
+        await auditAuth.loginFailed(email, "Employee account not active");
         await supabase.auth.signOut();
         toast({
           title: "บัญชีถูกระงับ",
@@ -101,11 +113,14 @@ export default function AdminLogin() {
         return;
       }
 
-      const roleName = (employeeData.role_employees as any)?.role_name;
-      
+      const roleName = (employeeData.role_employees as any)?.role_name || "Employee";
+
+      // Log successful login
+      await auditAuth.login(authData.user.id, roleName, email);
+
       toast({
         title: "เข้าสู่ระบบสำเร็จ",
-        description: `ยินดีต้อนรับ ${roleName || "Employee"}!`,
+        description: `ยินดีต้อนรับ ${roleName}!`,
       });
 
       // Redirect based on role

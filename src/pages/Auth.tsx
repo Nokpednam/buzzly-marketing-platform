@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { loginSchema } from "@/lib/validations/auth";
 import type { User, Session } from "@supabase/supabase-js";
 import authBackground from "@/assets/auth-background.png";
+import { auditAuth } from "@/lib/auditLogger";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
@@ -72,7 +73,11 @@ export default function Auth() {
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      if (error) {
+        // Log failed login attempt 
+        await auditAuth.loginFailed(email, error.message);
+        throw error;
+      }
       if (data.user) {
         // Check employees table first
         const { data: employeeData } = await supabase
@@ -98,6 +103,9 @@ export default function Auth() {
             isAdmin = true;
             userRole = roleName;
 
+            // Log admin/employee login
+            await auditAuth.login(data.user.id, roleName, email);
+
             toast({
               title: "Welcome back!",
               description: `You have successfully signed in as ${userRole}.`,
@@ -121,6 +129,8 @@ export default function Auth() {
             navigate("/admin/dashboard");
           }
         } else {
+          // Regular customer login
+          await auditAuth.login(data.user.id, "Customer", email);
           navigate("/dashboard");
         }
       }
