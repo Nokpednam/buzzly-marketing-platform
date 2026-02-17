@@ -7,7 +7,16 @@ DECLARE
     v_team_id uuid;
     v_ad_account_id uuid;
     v_count integer;
+    v_user_exists boolean;
 BEGIN
+    -- Check if there are any users in the system at all
+    SELECT EXISTS(SELECT 1 FROM auth.users LIMIT 1) INTO v_user_exists;
+    
+    IF NOT v_user_exists THEN
+        RAISE NOTICE 'No users found in the system. Skipping this migration.';
+        RETURN;
+    END IF;
+
     -- 1. Try to find the user 'Nokpednam' (from screenshot)
     -- Check profiles first
     SELECT user_id INTO v_user_id FROM public.profile_customers 
@@ -17,9 +26,20 @@ BEGIN
     -- If not found, just grab ANY user who is in a team
     IF v_user_id IS NULL THEN
         SELECT user_id INTO v_user_id FROM public.team_members LIMIT 1;
-        RAISE NOTICE 'User Nokpednam not found by name, using random team member: %', v_user_id;
+    END IF;
+
+    -- If still not found, grab ANY user from auth.users
+    IF v_user_id IS NULL THEN
+        SELECT id INTO v_user_id FROM auth.users LIMIT 1;
+        RAISE NOTICE 'No team members found, using any auth user: %', v_user_id;
     ELSE
-        RAISE NOTICE 'Found User Nokpednam: %', v_user_id;
+        RAISE NOTICE 'Found user: %', v_user_id;
+    END IF;
+
+    -- If no user found at all, skip the migration
+    IF v_user_id IS NULL THEN
+        RAISE NOTICE 'No users found. Skipping this migration.';
+        RETURN;
     END IF;
 
     -- 2. Find the TEAM for this user
@@ -28,7 +48,7 @@ BEGIN
     LIMIT 1;
 
     IF v_team_id IS NULL THEN
-        RAISE WARNING 'User % has no team! Creating a default team and adding them.', v_user_id;
+        RAISE NOTICE 'User % has no team! Creating a default team and adding them.', v_user_id;
         -- Create team
         INSERT INTO public.teams (name, owner_id) VALUES ('Default Team', v_user_id) RETURNING id INTO v_team_id;
         -- Add member
