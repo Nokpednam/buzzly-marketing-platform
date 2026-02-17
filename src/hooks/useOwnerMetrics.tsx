@@ -410,3 +410,124 @@ export function useSurvivalAnalysis() {
     },
   });
 }
+
+export type FeedbackComment = {
+  id: string;
+  comment: string;
+  created_at: string;
+  rating: number; // 1-5
+  customer: {
+    name: string;
+    avatarUrl: string;
+    email?: string;
+  };
+  workspace: {
+    name: string;
+    businessType: string;
+  };
+};
+
+export function useFeedbackList() {
+  return useQuery({
+    queryKey: ["owner-feedback-list"],
+    queryFn: async (): Promise<FeedbackComment[]> => {
+      // 1. Fetch Feedback with Rating name and Profile info
+      const { data: feedback, error } = await supabase
+        .from("feedback")
+        .select(`
+          id,
+          comment,
+          created_at,
+          user_id,
+          rating:rating_id (
+            name
+          ),
+          customer_activities (
+            profile_customers (
+               first_name,
+               last_name,
+               profile_img
+            )
+          )
+        `)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      if (error) {
+        console.error("Error fetching feedback list:", error);
+        throw error;
+      }
+
+      // 2. Collect User IDs to fetch workspace info
+      // Note: user_id might be null in old data, filter boolean
+      const userIds = Array.from(new Set(feedback?.map((f: any) => f.user_id).filter(Boolean)));
+
+      let workspacesMap: Record<string, { name: string; type: string }> = {};
+
+      if (userIds.length > 0) {
+        // Fetch workspace members for these users
+        // Since we can't easily join deep without exact paths, fetch separately
+        const { data: members, error: wError } = await supabase
+          .from("workspace_members")
+          .select(`
+            user_id,
+            workspaces (
+              workspace_name,
+              business_types (
+                name
+              )
+            )
+          `)
+          .in("user_id", userIds);
+
+        if (!wError && members) {
+          members.forEach((m: any) => {
+            if (m.user_id && m.workspaces) {
+              // Just take the first workspace found for simplicity
+              if (!workspacesMap[m.user_id]) {
+                workspacesMap[m.user_id] = {
+                  name: m.workspaces.workspace_name,
+                  type: m.workspaces.business_types?.name || "Uncategorized"
+                };
+              }
+            }
+          });
+        }
+      }
+
+      // 3. Map to FeedbackComment type
+      const getScoreByName = (name: string): number => {
+        const n = name?.toLowerCase() || "";
+        if (n.includes("excellent") || n.includes("5")) return 5;
+        if (n.includes("good") || n.includes("4")) return 4;
+        if (n.includes("average") || n.includes("3")) return 3;
+        if (n.includes("poor") || n.includes("2")) return 2;
+        if (n.includes("terrible") || n.includes("1")) return 1;
+        return 0;
+      };
+
+      return feedback?.map((f: any) => {
+        // Profile info from customer_activities -> profile_customers
+        // Fallback to "Anonymous" if missing
+        const profile = f.customer_activities?.profile_customers;
+        const fullName = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "Anonymous User";
+        const wsInfo = f.user_id ? workspacesMap[f.user_id] : null;
+
+        return {
+          id: f.id,
+          comment: f.comment,
+          created_at: f.created_at,
+          rating: getScoreByName(f.rating?.name),
+          customer: {
+            name: fullName || "Anonymous",
+            avatarUrl: profile?.profile_img || "",
+          },
+          workspace: {
+            name: wsInfo?.name || "Unknown Workspace",
+            businessType: wsInfo?.type || "-",
+          }
+        };
+      }) || [];
+    },
+  });
+}
