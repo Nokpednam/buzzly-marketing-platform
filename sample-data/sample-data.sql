@@ -434,7 +434,62 @@ ON CONFLICT (id) DO UPDATE SET
   role_name = EXCLUDED.role_name,
   description = EXCLUDED.description;
 
--- ===== Genders =====
+-- ===== Genders Cleanup & Setup (Fixes Duplicates) =====
+-- 1. Ensure Canonical IDs exist (Insert if missing)
+INSERT INTO genders (id, name_gender) VALUES
+  ('6e000001-0000-0000-0000-000000000001', 'Male'),
+  ('6e000002-0000-0000-0000-000000000002', 'Female'),
+  ('6e000003-0000-0000-0000-000000000003', 'Non-binary'),
+  ('6e000004-0000-0000-0000-000000000004', 'Prefer not to say'),
+  ('6e000005-0000-0000-0000-000000000005', 'LGBTQ+')
+ON CONFLICT (id) DO NOTHING;
+
+-- 2. Update references in 'profile_customers' (Merge duplicates & Map non-standard)
+-- Male Duplicates -> Canonical Male
+UPDATE profile_customers SET gender_id = '6e000001-0000-0000-0000-000000000001'
+WHERE gender_id IN (SELECT id FROM genders WHERE name_gender IN ('Male', 'male') AND id != '6e000001-0000-0000-0000-000000000001');
+
+-- Female Duplicates -> Canonical Female
+UPDATE profile_customers SET gender_id = '6e000002-0000-0000-0000-000000000002'
+WHERE gender_id IN (SELECT id FROM genders WHERE name_gender IN ('Female', 'female') AND id != '6e000002-0000-0000-0000-000000000002');
+
+-- Non-binary Duplicates -> Canonical Non-binary
+UPDATE profile_customers SET gender_id = '6e000003-0000-0000-0000-000000000003'
+WHERE gender_id IN (SELECT id FROM genders WHERE name_gender IN ('Non-binary', 'non-binary', 'Queer') AND id != '6e000003-0000-0000-0000-000000000003');
+
+-- LGBTQ+ Duplicates -> Canonical LGBTQ+
+UPDATE profile_customers SET gender_id = '6e000005-0000-0000-0000-000000000005'
+WHERE gender_id IN (SELECT id FROM genders WHERE name_gender IN ('LGBTQ+', 'lgbtq+') AND id != '6e000005-0000-0000-0000-000000000005');
+
+-- Prefer not to say Duplicates & CATCH-ALL -> Canonical Prefer not to say
+UPDATE profile_customers SET gender_id = '6e000004-0000-0000-0000-000000000004'
+WHERE gender_id NOT IN (
+  '6e000001-0000-0000-0000-000000000001',
+  '6e000002-0000-0000-0000-000000000002',
+  '6e000003-0000-0000-0000-000000000003',
+  '6e000004-0000-0000-0000-000000000004',
+  '6e000005-0000-0000-0000-000000000005'
+);
+
+-- 3. Delete the duplicates (Safely remove non-canonical IDs)
+DELETE FROM genders
+WHERE id NOT IN (
+  '6e000001-0000-0000-0000-000000000001',
+  '6e000002-0000-0000-0000-000000000002',
+  '6e000003-0000-0000-0000-000000000003',
+  '6e000004-0000-0000-0000-000000000004',
+  '6e000005-0000-0000-0000-000000000005'
+);
+
+-- 4. Add Constraint (Prevent future duplicates)
+DO $$ 
+BEGIN 
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'genders_name_gender_key') THEN 
+    ALTER TABLE genders ADD CONSTRAINT genders_name_gender_key UNIQUE (name_gender); 
+  END IF; 
+END $$;
+
+-- ===== Genders (Standard Insert) =====
 INSERT INTO genders (id, name_gender) VALUES
   ('6e000001-0000-0000-0000-000000000001', 'Male'),
   ('6e000002-0000-0000-0000-000000000002', 'Female'),
