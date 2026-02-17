@@ -196,25 +196,75 @@ export default function AdminSignUp() {
         throw authError; // Throw other errors
       }
 
-      // 3. Success for New User (Trigger handles logic)
+      // 3. Success for New User - Manually create employee record
       if (authData.user) {
-        // Log employee registration
-        await auditSecurity.employeeRegistered(
-          authData.user.id,
-          formData.email,
-          `${formData.firstName} ${formData.lastName}`.trim() || formData.email
-        );
+        try {
+          // Get default Employee role
+          const { data: defaultRole } = await supabase
+            .from('role_employees')
+            .select('id')
+            .ilike('role_name', 'employee')
+            .limit(1)
+            .single();
 
-        toast({
-          title: "ลงทะเบียนสำเร็จ!",
-          description: "บัญชีของคุณอยู่ระหว่างรอการอนุมัติจาก Admin กรุณารอการยืนยัน",
-        });
+          // Create employee record manually (trigger may fail silently)
+          const { data: newEmployee, error: insertError } = await supabase
+            .from('employees')
+            .insert({
+              user_id: authData.user.id,
+              email: formData.email,
+              status: 'active',
+              approval_status: 'pending',
+              role_employees_id: defaultRole?.id || null,
+            })
+            .select()
+            .single();
 
-        await supabase.auth.signOut();
+          if (insertError) {
+            console.error("Error creating employee:", insertError);
+            throw new Error(`ไม่สามารถสร้างบัญชี employee: ${insertError.message}`);
+          }
 
-        setTimeout(() => {
-          navigate("/admin/login", { replace: true });
-        }, 1000);
+          if (newEmployee) {
+            // Create employee profile
+            const { error: profileError } = await supabase
+              .from('employees_profile')
+              .insert({
+                employees_id: newEmployee.id,
+                first_name: formData.firstName,
+                last_name: formData.lastName,
+                aptitude: formData.aptitude,
+                birthday_at: formData.birthday ? formData.birthday : null,
+              });
+
+            if (profileError) {
+              console.error("Error creating profile:", profileError);
+              // Continue - profile creation is not critical
+            }
+          }
+
+          // Log employee registration
+          await auditSecurity.employeeRegistered(
+            authData.user.id,
+            formData.email,
+            `${formData.firstName} ${formData.lastName}`.trim() || formData.email
+          );
+
+          toast({
+            title: "ลงทะเบียนสำเร็จ!",
+            description: "บัญชีของคุณอยู่ระหว่างรอการอนุมัติจาก Admin กรุณารอการยืนยัน",
+          });
+
+          await supabase.auth.signOut();
+
+          setTimeout(() => {
+            navigate("/admin/login", { replace: true });
+          }, 1000);
+        } catch (employeeError: any) {
+          // If employee creation fails, clean up the auth user
+          await supabase.auth.admin.deleteUser(authData.user.id);
+          throw new Error(employeeError.message || "ไม่สามารถสร้างบัญชี employee ได้");
+        }
       }
     } catch (error: any) {
       toast({
