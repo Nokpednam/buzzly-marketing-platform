@@ -28,11 +28,15 @@ import {
   CartesianGrid,
   Tooltip,
 } from "recharts";
-import { useFeedbackMetrics } from "@/hooks/useOwnerMetrics";
+import { useFeedbackMetrics, useFeedbackList } from "@/hooks/useOwnerMetrics";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { formatDistanceToNow } from "date-fns";
+import { Briefcase, Building2 } from "lucide-react";
 
 export default function UserFeedback() {
   const navigate = useNavigate();
   const { data: feedbackMetrics, isLoading } = useFeedbackMetrics();
+  const { data: feedbackList } = useFeedbackList();
 
   const hasData = (feedbackMetrics?.totalReviews || 0) > 0;
 
@@ -194,9 +198,10 @@ export default function UserFeedback() {
       </div>
 
       <Tabs defaultValue="nps" className="space-y-8">
-        <TabsList className="w-full max-w-sm grid grid-cols-2 bg-muted/50 p-1 rounded-lg border border-border/50">
+        <TabsList className="w-full max-w-md grid grid-cols-3 bg-muted/50 p-1 rounded-lg border border-border/50">
           <TabsTrigger value="nps" className="data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-300">NPS Score</TabsTrigger>
           <TabsTrigger value="sentiment" className="data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-300">Sentiment</TabsTrigger>
+          <TabsTrigger value="comments" className="data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-300">Comments</TabsTrigger>
         </TabsList>
 
         {/* NPS Tab */}
@@ -360,6 +365,67 @@ export default function UserFeedback() {
                 <>
                   {/* Empty placeholders if breakdown is missing but total count > 0 (fallback) */}
                 </>
+              )}
+          </div>
+        </TabsContent>
+
+        {/* Comments Tab */}
+        <TabsContent value="comments" className="space-y-6">
+          <div className="grid gap-4">
+            {feedbackList?.map((item) => (
+              <Card key={item.id} className="glass-panel border-border/50 hover:shadow-md transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex flex-col md:flex-row gap-6">
+                    {/* User Info */}
+                    <div className="flex items-start gap-4 min-w-[200px]">
+                      <Avatar className="h-12 w-12 border-2 border-white/10 shadow-sm">
+                        <AvatarImage src={item.customer.avatarUrl} />
+                        <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                          {item.customer.name.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold text-foreground">{item.customer.name}</p>
+                        <div className="flex items-center gap-1 mt-1">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3.5 h-3.5 ${i < item.rating ? "fill-amber-500 text-amber-500" : "text-muted-foreground/30"
+                                }`}
+                            />
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                          {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Comment Content */}
+                    <div className="flex-1 space-y-3">
+                      <div className="bg-secondary/30 p-4 rounded-xl rounded-tl-none border border-border/50 text-sm leading-relaxed text-foreground/90">
+                        {item.comment}
+                      </div>
+
+                      {/* Workspace Info Footer */}
+                      <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground px-1">
+                        <div className="flex items-center gap-1.5 bg-primary/5 px-2.5 py-1 rounded-full border border-primary/10">
+                          <Building2 className="w-3.5 h-3.5 text-primary/70" />
+                          <span className="font-medium text-primary/80">{item.workspace.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 bg-secondary px-2.5 py-1 rounded-full border border-border/50">
+                          <Briefcase className="w-3.5 h-3.5" />
+                          <span>{item.workspace.businessType}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )) || (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">No comments found.</p>
+                </div>
               )}
           </div>
         </TabsContent>

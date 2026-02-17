@@ -1,48 +1,20 @@
--- 1. Fix RLS Policies (Ensure data is visible)
-DROP POLICY IF EXISTS "Enable read access for authenticated users" ON public.rating;
-CREATE POLICY "Enable read access for authenticated users" ON public.rating FOR SELECT TO authenticated USING (true);
-
-DROP POLICY IF EXISTS "Enable read access for authenticated users" ON public.feedback;
-CREATE POLICY "Enable read access for authenticated users" ON public.feedback FOR SELECT TO authenticated USING (true);
-
--- 2. Insert Sample Ratings if missing
-INSERT INTO public.rating (name, icon_url, color_code, descriptions)
-SELECT 'Excellent', 'star', '#22c55e', '5 Stars'
-WHERE NOT EXISTS (SELECT 1 FROM public.rating LIMIT 1);
-
-INSERT INTO public.rating (name, icon_url, color_code, descriptions)
-SELECT 'Good', 'star', '#3b82f6', '4 Stars'
-WHERE NOT EXISTS (SELECT 1 FROM public.rating WHERE name = 'Good');
-
-INSERT INTO public.rating (name, icon_url, color_code, descriptions)
-SELECT 'Average', 'star', '#eab308', '3 Stars'
-WHERE NOT EXISTS (SELECT 1 FROM public.rating WHERE name = 'Average');
-
-INSERT INTO public.rating (name, icon_url, color_code, descriptions)
-SELECT 'Poor', 'star', '#f97316', '2 Stars'
-WHERE NOT EXISTS (SELECT 1 FROM public.rating WHERE name = 'Poor');
-
-INSERT INTO public.rating (name, icon_url, color_code, descriptions)
-SELECT 'Terrible', 'star', '#ef4444', '1 Star'
-WHERE NOT EXISTS (SELECT 1 FROM public.rating WHERE name = 'Terrible');
-
--- 3. Insert Sample Feedback if missing
-DO $$
-DECLARE
-    r_5 uuid;
-    r_4 uuid;
-    r_1 uuid;
-BEGIN
-    SELECT id INTO r_5 FROM public.rating WHERE name = 'Excellent' LIMIT 1;
-    SELECT id INTO r_4 FROM public.rating WHERE name = 'Good' LIMIT 1;
-    SELECT id INTO r_1 FROM public.rating WHERE name = 'Terrible' LIMIT 1;
-
-    IF NOT EXISTS (SELECT 1 FROM public.feedback LIMIT 1) THEN
-        INSERT INTO public.feedback (rating_id, comment, created_at)
-        VALUES 
-            (r_5, 'Great platform! Really helps manage my business.', now() - interval '2 days'),
-            (r_5, 'Love the new dashboard design.', now() - interval '5 days'),
-            (r_4, 'Good features but needs more tutorials.', now() - interval '10 days'),
-            (r_1, 'Had some issues with login initially.', now() - interval '15 days');
-    END IF;
-END $$;
+INSERT INTO public.error_logs (id, level, message, user_id, request_id, stack_trace, metadata, created_at) VALUES
+('90000000-0000-0000-0000-000000000001', 'error', 'Database connection timeout after 30000ms', NULL, 'req_db_timeout_001', 'Error: Connection timeout', '{"database": "primary"}'::jsonb, NOW() - INTERVAL '2 hours'),
+('90000000-0000-0000-0000-000000000002', 'error', 'Payment processing failed: Insufficient funds', NULL, 'req_payment_001', 'PaymentError: Transaction declined', '{"provider": "stripe"}'::jsonb, NOW() - INTERVAL '4 hours'),
+('90000000-0000-0000-0000-000000000003', 'error', 'Facebook API rate limit exceeded', NULL, 'req_fb_api_001', 'FacebookAPIError: Rate limit exceeded', '{"platform": "facebook"}'::jsonb, NOW() - INTERVAL '6 hours'),
+('90000000-0000-0000-0000-000000000004', 'error', 'Authentication token expired', NULL, 'req_auth_001', 'AuthenticationError: Token expired', '{"token_type": "access_token"}'::jsonb, NOW() - INTERVAL '1 day'),
+('90000000-0000-0000-0000-000000000005', 'error', 'Failed to sync Google Ads', NULL, 'req_gads_001', 'GoogleAdsError: Invalid OAuth', '{"platform": "google_ads"}'::jsonb, NOW() - INTERVAL '8 hours'),
+('90000000-0000-0000-0000-000000000006', 'warning', 'High memory usage detected', NULL, 'req_health_001', NULL, '{"memory_used_mb": 3400}'::jsonb, NOW() - INTERVAL '30 minutes'),
+('90000000-0000-0000-0000-000000000007', 'warning', 'Slow database query detected', NULL, 'req_slow_query_001', NULL, '{"query_time_ms": 7823}'::jsonb, NOW() - INTERVAL '1 hour'),
+('90000000-0000-0000-0000-000000000008', 'warning', 'API response time exceeding threshold', NULL, 'req_latency_001', NULL, '{"endpoint": "/v18.0/insights"}'::jsonb, NOW() - INTERVAL '3 hours'),
+('90000000-0000-0000-0000-000000000009', 'warning', 'Retry attempt 3/5 for webhook', NULL, 'req_webhook_001', NULL, '{"webhook_url": "example.com"}'::jsonb, NOW() - INTERVAL '5 hours'),
+('90000000-0000-0000-0000-000000000010', 'warning', 'Cache miss rate above 40%', NULL, 'req_cache_001', NULL, '{"cache_type": "redis"}'::jsonb, NOW() - INTERVAL '2 hours'),
+('90000000-0000-0000-0000-000000000011', 'info', 'Daily ad insights sync completed', NULL, 'req_sync_001', NULL, '{"accounts_synced": 8}'::jsonb, NOW() - INTERVAL '12 hours'),
+('90000000-0000-0000-0000-000000000012', 'info', 'New workspace created', NULL, 'req_workspace_001', NULL, '{"workspace_id": "w100..."}'::jsonb, NOW() - INTERVAL '1 day'),
+('90000000-0000-0000-0000-000000000013', 'info', 'Scheduled report generated', NULL, 'req_report_001', NULL, '{"report_type": "weekly"}'::jsonb, NOW() - INTERVAL '18 hours'),
+('90000000-0000-0000-0000-000000000014', 'info', 'User role updated', NULL, 'req_role_001', NULL, '{"old_role": "editor"}'::jsonb, NOW() - INTERVAL '6 hours'),
+('90000000-0000-0000-0000-000000000015', 'info', 'Platform connection established', NULL, 'req_connect_001', NULL, '{"platform": "tiktok_ads"}'::jsonb, NOW() - INTERVAL '4 hours'),
+('90000000-0000-0000-0000-000000000016', 'debug', 'Cache invalidation triggered', NULL, 'req_debug_001', NULL, '{"reason": "campaign_update"}'::jsonb, NOW() - INTERVAL '45 minutes'),
+('90000000-0000-0000-0000-000000000017', 'debug', 'Background job queued', NULL, 'req_debug_002', NULL, '{"job_id": "job_abc123"}'::jsonb, NOW() - INTERVAL '20 minutes'),
+('90000000-0000-0000-0000-000000000018', 'debug', 'API request logged', NULL, 'req_debug_003', NULL, '{"path": "/api/v1/campaigns"}'::jsonb, NOW() - INTERVAL '10 minutes')
+ON CONFLICT (id) DO NOTHING;
