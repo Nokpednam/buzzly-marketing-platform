@@ -56,10 +56,35 @@ interface ErrorLog {
   created_at: string | null;
 }
 
+import { logError } from "@/services/errorLogger";
+import { useToast } from "@/hooks/use-toast";
+
 export default function AdminSupport() {
   const [searchQuery, setSearchQuery] = useState("");
   const [levelFilter, setLevelFilter] = useState<string>("all");
   const [selectedLog, setSelectedLog] = useState<ErrorLog | null>(null);
+  const { toast } = useToast();
+
+  // Test Error Function
+  const handleSimulateError = () => {
+    try {
+      throw new Error("Test error generated manually by Admin");
+    } catch (err) {
+      logError("Manual Test Error Verification", err, {
+        component: "AdminSupport",
+        action: "simulate_error",
+        source: "admin_ui"
+      });
+
+      toast({
+        title: "Test Error Logged",
+        description: "A test error has been sent to the system. Refreshing list...",
+      });
+
+      // Wait a bit for DB insertion then refetch
+      setTimeout(() => refetch(), 1500);
+    }
+  };
 
   // Fetch error logs
   const { data: errorLogs, isLoading, refetch } = useQuery({
@@ -139,10 +164,16 @@ export default function AdminSupport() {
             Monitor and analyze system errors and issues
           </p>
         </div>
-        <Button variant="outline" onClick={() => refetch()}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="destructive" onClick={handleSimulateError}>
+            <Bug className="h-4 w-4 mr-2" />
+            Test Error
+          </Button>
+          <Button variant="outline" onClick={() => refetch()}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Stats Overview */}
