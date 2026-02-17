@@ -5,13 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
 import {
   Dialog,
@@ -28,12 +28,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  AlertCircle, 
-  AlertTriangle, 
+import {
+  AlertCircle,
+  AlertTriangle,
   Bug,
   Info,
-  Search, 
+  Search,
   RefreshCw,
   Eye,
   Clock,
@@ -64,6 +64,7 @@ export default function AdminSupport() {
   // Fetch error logs
   const { data: errorLogs, isLoading, refetch } = useQuery({
     queryKey: ["admin-error-logs", levelFilter],
+    refetchInterval: 10000, // Auto-refresh every 10 seconds
     queryFn: async () => {
       let query = supabase
         .from("error_logs")
@@ -274,7 +275,7 @@ export default function AdminSupport() {
                       <div className="flex items-center gap-1 text-sm text-muted-foreground">
                         <Clock className="h-3 w-3" />
                         <span title={log.created_at ? format(new Date(log.created_at), "PPpp") : ""}>
-                          {log.created_at 
+                          {log.created_at
                             ? formatDistanceToNow(new Date(log.created_at), { addSuffix: true })
                             : "-"
                           }
@@ -282,8 +283,8 @@ export default function AdminSupport() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="sm"
                         onClick={() => setSelectedLog(log)}
                       >

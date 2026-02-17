@@ -1,23 +1,28 @@
--- Migration: Cleanup Employee Roles
--- Description: Keep only 3 roles (all lowercase): owner, admin, dev
--- Remove duplicate and unused roles
+-- Migration: Fix Error Logs RLS Policies
+-- Description: Allow all users (authenticated and anonymous) to insert error logs
+-- This is necessary for the error logging system to work properly
 
--- Step 1: Rename 'developer' to 'dev'
-UPDATE role_employees 
-SET role_name = 'dev',
-    description = 'Developer - API access, system development'
-WHERE role_name = 'developer';
+-- Drop existing INSERT policies
+DROP POLICY IF EXISTS "Users can insert their own error logs" ON error_logs;
+DROP POLICY IF EXISTS "Anyone can insert error logs" ON error_logs;
 
--- Step 2: Delete all unused roles (keep only owner, admin, dev)
-DELETE FROM role_employees 
-WHERE role_name NOT IN ('owner', 'admin', 'dev');
+-- Create new INSERT policy that allows both authenticated and anonymous users
+CREATE POLICY "Anyone can insert error logs"
+ON error_logs
+FOR INSERT
+TO public
+WITH CHECK (true);
 
--- Step 3: Verify the cleanup
+-- Keep existing SELECT policy for employees
+-- (This policy already exists and should remain unchanged)
+
+-- Verify policies
 SELECT 
-    role_name, 
-    description,
-    COUNT(e.id) as employee_count
-FROM role_employees r
-LEFT JOIN employees e ON e.role_employees_id = r.id
-GROUP BY r.role_name, r.description
-ORDER BY r.role_name;
+    policyname,
+    roles,
+    cmd,
+    qual,
+    with_check
+FROM pg_policies 
+WHERE tablename = 'error_logs'
+ORDER BY cmd, policyname;

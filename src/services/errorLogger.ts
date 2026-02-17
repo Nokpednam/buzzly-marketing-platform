@@ -115,9 +115,16 @@ export async function logToDatabase(options: LogOptions): Promise<void> {
             });
 
         if (insertError) {
-            console.error('[Error Logger] Failed to insert log:', insertError);
-        } else if (isDevelopment) {
-            console.log(`[Error Logger] ${level.toUpperCase()}: ${errorDetails.message}`);
+            console.error('[Error Logger] ❌ Failed to insert log:', insertError);
+            console.error('[Error Logger] Error details:', {
+                code: insertError.code,
+                message: insertError.message,
+                details: insertError.details,
+                hint: insertError.hint,
+            });
+        } else {
+            // Always log success to help with debugging
+            console.log(`[Error Logger] ✅ Successfully logged ${level.toUpperCase()}: ${errorDetails.message}`);
         }
     } catch (loggingError) {
         // Don't let logging errors crash the app

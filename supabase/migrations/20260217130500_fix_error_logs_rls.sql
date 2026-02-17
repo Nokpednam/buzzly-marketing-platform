@@ -2,8 +2,9 @@
 -- Description: Allow all users (authenticated and anonymous) to insert error logs
 -- This is necessary for the error logging system to work properly
 
--- Drop existing INSERT policy
+-- Drop existing INSERT policies
 DROP POLICY IF EXISTS "Users can insert their own error logs" ON error_logs;
+DROP POLICY IF EXISTS "Anyone can insert error logs" ON error_logs;
 
 -- Create new INSERT policy that allows both authenticated and anonymous users
 CREATE POLICY "Anyone can insert error logs"
