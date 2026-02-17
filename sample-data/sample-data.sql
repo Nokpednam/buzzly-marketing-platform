@@ -76,10 +76,7 @@ INSERT INTO subscription_plans (id, name, slug, description, price_monthly, pric
    '{"max_campaigns": -1, "max_team_members": 5}'::jsonb, 3, true, true, 2, 14),
   ('5b000003-0000-0000-0000-000000000003', 'Team', 'team', 'Full collaboration features for teams', 79.99, 799.99,
    '["Everything in Pro", "Unlimited team members", "Role-based access", "API access", "Dedicated support", "1-year data retention", "White-label reports"]'::jsonb,
-   '{"max_campaigns": -1, "max_team_members": -1}'::jsonb, 10, true, false, 3, 14),
-  ('5b000004-0000-0000-0000-000000000004', 'Enterprise', 'enterprise', 'Custom solutions for large organizations', 299.99, 2999.99,
-   '["Everything in Team", "SSO integration", "Custom integrations", "SLA guarantee", "Unlimited data retention", "On-premise option"]'::jsonb,
-   '{"max_campaigns": -1, "max_team_members": -1}'::jsonb, -1, true, false, 4, 30)
+   '{"max_campaigns": -1, "max_team_members": -1}'::jsonb, 10, true, false, 3, 14)
 ON CONFLICT (slug) DO UPDATE SET 
   name = EXCLUDED.name,
   description = EXCLUDED.description,
@@ -92,24 +89,29 @@ ON CONFLICT (slug) DO UPDATE SET
   display_order = EXCLUDED.display_order,
   trial_days = EXCLUDED.trial_days;
 
+-- Remove Enterprise if it exists (Cleanup)
+DELETE FROM subscription_plans WHERE slug = 'enterprise';
+
 -- ===== Payment Providers =====
 INSERT INTO payment_providers (id, name, slug, description, is_active) VALUES
   ('b0000001-0000-0000-0000-000000000001', 'Stripe', 'stripe', 'Global payment processing via Stripe', true),
   ('b0000002-0000-0000-0000-000000000002', 'PromptPay', 'promptpay', 'Thai PromptPay QR payment', true),
   ('b0000003-0000-0000-0000-000000000003', 'Bank Transfer', 'bank-transfer', 'Direct bank transfer payment', true),
-  ('b0000004-0000-0000-0000-000000000004', 'PayPal', 'paypal', 'PayPal payment processing', true)
+  ('b0000004-0000-0000-0000-000000000004', 'Mobile Banking', 'mobile-banking', 'Mobile Banking App', true)
 ON CONFLICT (id) DO UPDATE SET 
   name = EXCLUDED.name,
   description = EXCLUDED.description;
 
 -- ===== Payment Methods =====
+-- Slugs must match icons: credit_card, promptpay, bank_transfer, mobile_banking
 INSERT INTO payment_methods (id, name, slug, description, provider_id, display_order) VALUES
-  ('b1000001-0000-0000-0000-000000000001', 'Credit/Debit Card', 'card', 'Pay with Visa, Mastercard, JCB, AMEX', 'b0000001-0000-0000-0000-000000000001', 1),
+  ('b1000001-0000-0000-0000-000000000001', 'Credit/Debit Card', 'credit_card', 'Pay with Visa, Mastercard, JCB, AMEX', 'b0000001-0000-0000-0000-000000000001', 1),
   ('b1000002-0000-0000-0000-000000000002', 'PromptPay', 'promptpay', 'Scan QR code with Thai banking app', 'b0000002-0000-0000-0000-000000000002', 2),
-  ('b1000003-0000-0000-0000-000000000003', 'Bank Transfer', 'bank-transfer', 'Transfer to company bank account', 'b0000003-0000-0000-0000-000000000003', 3),
-  ('b1000004-0000-0000-0000-000000000004', 'PayPal', 'paypal', 'Pay with PayPal account', 'b0000004-0000-0000-0000-000000000004', 4)
+  ('b1000003-0000-0000-0000-000000000003', 'Bank Transfer', 'bank_transfer', 'Transfer to company bank account', 'b0000003-0000-0000-0000-000000000003', 3),
+  ('b1000004-0000-0000-0000-000000000004', 'Mobile Banking', 'mobile_banking', 'Pay via Mobile Banking App', 'b0000004-0000-0000-0000-000000000004', 4)
 ON CONFLICT (id) DO UPDATE SET 
   name = EXCLUDED.name,
+  slug = EXCLUDED.slug,
   description = EXCLUDED.description;
 
 -- ===== Currencies =====

@@ -281,7 +281,7 @@ export function useSubscription() {
       const { data: currency } = await supabase
         .from("currencies")
         .select("id")
-        .eq("code", "THB") // สมมติว่าเป็น THB
+        .eq("code", "USD") // ใช้ USD
         .maybeSingle(); // ใช้ maybeSingle เพื่อกัน error ถ้าไม่เจอ
 
       const { error: txnError } = await supabase

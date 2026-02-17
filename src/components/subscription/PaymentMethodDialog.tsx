@@ -109,10 +109,10 @@ export function PaymentMethodDialog({
   };
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("th-TH", {
+    return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "THB",
-      minimumFractionDigits: 0,
+      currency: "USD",
+      minimumFractionDigits: 2,
     }).format(price);
   };
 
