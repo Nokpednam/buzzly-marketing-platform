@@ -132,11 +132,11 @@ export default function AdminSignUp() {
               return;
             }
 
-            // Get default Employee role
+            // Get default Admin role
             const { data: defaultRole } = await supabase
               .from('role_employees')
               .select('id')
-              .ilike('role_name', 'employee')
+              .ilike('role_name', 'admin')
               .limit(1)
               .single();
 
@@ -199,11 +199,11 @@ export default function AdminSignUp() {
       // 3. Success for New User - Manually create employee record
       if (authData.user) {
         try {
-          // Get default Employee role
+          // Get default Admin role (changed from 'employee')
           const { data: defaultRole } = await supabase
             .from('role_employees')
             .select('id')
-            .ilike('role_name', 'employee')
+            .ilike('role_name', 'admin')
             .limit(1)
             .single();
 

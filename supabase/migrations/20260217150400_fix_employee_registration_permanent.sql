@@ -22,15 +22,15 @@ BEGIN
     -- Log the trigger execution
     RAISE NOTICE 'handle_new_user trigger fired for user: %', new.email;
     
-    -- Get the default 'Employee' role ID
+    -- Get the default 'admin' role ID (changed from 'employee')
     SELECT id INTO default_employee_role_id
     FROM public.role_employees
-    WHERE LOWER(role_name) = 'employee'
+    WHERE LOWER(role_name) = 'admin'
     LIMIT 1;
     
-    -- If no Employee role exists, log warning but continue
+    -- If no Admin role exists, log warning but continue
     IF default_employee_role_id IS NULL THEN
-        RAISE WARNING 'No default Employee role found in role_employees table';
+        RAISE WARNING 'No default Admin role found in role_employees table';
     END IF;
     
     -- ==================================================
