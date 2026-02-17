@@ -146,6 +146,15 @@ BEGIN
     WHERE EXISTS (SELECT 1 FROM public.workspaces w WHERE w.id = val.workspace_id::uuid)
     ON CONFLICT (id) DO NOTHING;
 
+    -- 8. Insert Team Members (owner as member of each team)
+    -- Note: team_role is for job positions (CEO, Manager, etc.), not permissions
+    -- Using DEFAULT 'viewer' role since we don't know actual job positions
+    INSERT INTO public.team_members (team_id, user_id, status, joined_at)
+    SELECT t.id, t.owner_id, 'active'::member_status, (NOW() - (random() * INTERVAL '6 months'))
+    FROM public.teams t
+    WHERE t.owner_id IS NOT NULL
+    ON CONFLICT (team_id, user_id) DO NOTHING;
+
 END $$;
 
 -- 9. Insert Ad Accounts

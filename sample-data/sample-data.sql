@@ -186,21 +186,31 @@ BEGIN
   END IF;
 END $$;
 
--- ===== Sample Campaigns (Moved up to fix FK order) =====
+-- ===== Sample Campaigns (Fixed: Verify ad_accounts exist first) =====
 -- Linked to Ad Account aa...01 (Facebook) or aa...02 (Google)
-INSERT INTO public.campaigns (id, ad_account_id, name, objective, status, budget_amount, start_date, end_date) VALUES
-  ('ca000001-0000-0000-0000-000000000001', 'aa000001-0000-0000-0000-000000000001', 'Q1 Brand Awareness 2025', 'awareness', 'active', 5000, NOW() - INTERVAL '30 days', NOW() + INTERVAL '60 days'),
-  ('ca000002-0000-0000-0000-000000000002', 'aa000001-0000-0000-0000-000000000001', 'Black Friday 2025', 'conversions', 'active', 15000, NOW() - INTERVAL '7 days', NOW() + INTERVAL '3 days'),
-  ('ca000003-0000-0000-0000-000000000003', 'aa000002-0000-0000-0000-000000000002', 'Holiday Season 2025', 'sales', 'draft', 20000, NOW() + INTERVAL '30 days', NOW() + INTERVAL '60 days'),
-  ('ca000004-0000-0000-0000-000000000004', 'aa000001-0000-0000-0000-000000000001', 'Summer Promotion 2025', 'engagement', 'completed', 8000, NOW() - INTERVAL '180 days', NOW() - INTERVAL '120 days'),
-  ('ca000005-0000-0000-0000-000000000005', 'aa000002-0000-0000-0000-000000000002', 'Retargeting Q4', 'conversions', 'active', 3500, NOW() - INTERVAL '45 days', NOW() + INTERVAL '15 days'),
-  ('ca000006-0000-0000-0000-000000000006', 'aa000001-0000-0000-0000-000000000001', 'New Product Launch', 'awareness', 'paused', 12000, NOW() - INTERVAL '60 days', NOW() + INTERVAL '30 days'),
-  ('ca000007-0000-0000-0000-000000000007', 'aa000002-0000-0000-0000-000000000002', 'Email Subscriber Growth', 'leads', 'active', 2500, NOW() - INTERVAL '14 days', NOW() + INTERVAL '46 days'),
-  ('ca000008-0000-0000-0000-000000000008', 'aa000001-0000-0000-0000-000000000001', 'Q4 Revenue Push', 'conversions', 'active', 25000, NOW() - INTERVAL '21 days', NOW() + INTERVAL '39 days')
-ON CONFLICT (id) DO UPDATE SET 
-  name = EXCLUDED.name,
-  status = EXCLUDED.status,
-  budget_amount = EXCLUDED.budget_amount;
+DO $$
+BEGIN
+  -- Only insert campaigns if the ad accounts exist
+  IF EXISTS (SELECT 1 FROM public.ad_accounts WHERE id = 'aa000001-0000-0000-0000-000000000001') 
+     AND EXISTS (SELECT 1 FROM public.ad_accounts WHERE id = 'aa000002-0000-0000-0000-000000000002') THEN
+    
+    INSERT INTO public.campaigns (id, ad_account_id, name, objective, status, budget_amount, start_date, end_date) VALUES
+      ('ca000001-0000-0000-0000-000000000001', 'aa000001-0000-0000-0000-000000000001', 'Q1 Brand Awareness 2025', 'awareness', 'active', 5000, NOW() - INTERVAL '30 days', NOW() + INTERVAL '60 days'),
+      ('ca000002-0000-0000-0000-000000000002', 'aa000001-0000-0000-0000-000000000001', 'Black Friday 2025', 'conversions', 'active', 15000, NOW() - INTERVAL '7 days', NOW() + INTERVAL '3 days'),
+      ('ca000003-0000-0000-0000-000000000003', 'aa000002-0000-0000-0000-000000000002', 'Holiday Season 2025', 'sales', 'draft', 20000, NOW() + INTERVAL '30 days', NOW() + INTERVAL '60 days'),
+      ('ca000004-0000-0000-0000-000000000004', 'aa000001-0000-0000-0000-000000000001', 'Summer Promotion 2025', 'engagement', 'completed', 8000, NOW() - INTERVAL '180 days', NOW() - INTERVAL '120 days'),
+      ('ca000005-0000-0000-0000-000000000005', 'aa000002-0000-0000-0000-000000000002', 'Retargeting Q4', 'conversions', 'active', 3500, NOW() - INTERVAL '45 days', NOW() + INTERVAL '15 days'),
+      ('ca000006-0000-0000-0000-000000000006', 'aa000001-0000-0000-0000-000000000001', 'New Product Launch', 'awareness', 'paused', 12000, NOW() - INTERVAL '60 days', NOW() + INTERVAL '30 days'),
+      ('ca000007-0000-0000-0000-000000000007', 'aa000002-0000-0000-0000-000000000002', 'Email Subscriber Growth', 'leads', 'active', 2500, NOW() - INTERVAL '14 days', NOW() + INTERVAL '46 days'),
+      ('ca000008-0000-0000-0000-000000000008', 'aa000001-0000-0000-0000-000000000001', 'Q4 Revenue Push', 'conversions', 'active', 25000, NOW() - INTERVAL '21 days', NOW() + INTERVAL '39 days')
+    ON CONFLICT (id) DO UPDATE SET 
+      name = EXCLUDED.name,
+      status = EXCLUDED.status,
+      budget_amount = EXCLUDED.budget_amount;
+  ELSE
+    RAISE NOTICE 'Skipping campaigns insert: ad accounts not found. Make sure admin-mock-data.sql runs first.';
+  END IF;
+END $$;
 
 -- ===== Ad Groups =====
 INSERT INTO ad_groups (id, name, status) VALUES
