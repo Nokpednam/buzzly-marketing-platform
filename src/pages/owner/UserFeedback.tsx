@@ -9,12 +9,12 @@ import {
   ThumbsUp,
   MessageSquare,
   AlertTriangle,
-  TrendingUp,
   Smile,
   Meh,
   Frown,
   Loader2,
   Database,
+  Activity
 } from "lucide-react";
 import {
   PieChart,
@@ -37,49 +37,49 @@ export default function UserFeedback() {
   const hasData = (feedbackMetrics?.totalReviews || 0) > 0;
 
   const npsBreakdown = [
-    { 
-      type: "Promoters", 
+    {
+      type: "Promoters",
       count: feedbackMetrics?.sentimentBreakdown?.find(s => s.sentiment === "Positive")?.count || 0,
       percentage: feedbackMetrics?.sentimentBreakdown?.find(s => s.sentiment === "Positive")?.percentage || 0,
-      color: "hsl(var(--chart-1))" 
+      color: "#10b981" // emerald-500
     },
-    { 
-      type: "Passives", 
+    {
+      type: "Passives",
       count: feedbackMetrics?.sentimentBreakdown?.find(s => s.sentiment === "Neutral")?.count || 0,
       percentage: feedbackMetrics?.sentimentBreakdown?.find(s => s.sentiment === "Neutral")?.percentage || 0,
-      color: "hsl(var(--chart-2))" 
+      color: "#f59e0b" // amber-500
     },
-    { 
-      type: "Detractors", 
+    {
+      type: "Detractors",
       count: feedbackMetrics?.sentimentBreakdown?.find(s => s.sentiment === "Negative")?.count || 0,
       percentage: feedbackMetrics?.sentimentBreakdown?.find(s => s.sentiment === "Negative")?.percentage || 0,
-      color: "hsl(var(--destructive))" 
+      color: "#ef4444" // red-500
     },
   ];
 
-  // Sentiment trend (based on current data)
+  // Sentiment trend (based on current data) - Simulated history for visual completeness until we have real history hook
   const sentimentTrend = [
     { month: "Jan", positive: 55, neutral: 30, negative: 15 },
     { month: "Feb", positive: 58, neutral: 28, negative: 14 },
     { month: "Mar", positive: 60, neutral: 27, negative: 13 },
     { month: "Apr", positive: 59, neutral: 28, negative: 13 },
     { month: "May", positive: 61, neutral: 26, negative: 13 },
-    { 
-      month: "Jun", 
-      positive: feedbackMetrics?.sentimentBreakdown?.find(s => s.sentiment === "Positive")?.percentage || 62, 
-      neutral: feedbackMetrics?.sentimentBreakdown?.find(s => s.sentiment === "Neutral")?.percentage || 26, 
-      negative: feedbackMetrics?.sentimentBreakdown?.find(s => s.sentiment === "Negative")?.percentage || 12 
+    {
+      month: "Jun",
+      positive: feedbackMetrics?.sentimentBreakdown?.find(s => s.sentiment === "Positive")?.percentage || 62,
+      neutral: feedbackMetrics?.sentimentBreakdown?.find(s => s.sentiment === "Neutral")?.percentage || 26,
+      negative: feedbackMetrics?.sentimentBreakdown?.find(s => s.sentiment === "Negative")?.percentage || 12
     },
   ];
 
   const getSentimentIcon = (sentiment: string) => {
     switch (sentiment.toLowerCase()) {
       case "positive":
-        return <Smile className="h-4 w-4 text-green-500" />;
+        return <Smile className="h-6 w-6 text-emerald-400" />;
       case "neutral":
-        return <Meh className="h-4 w-4 text-yellow-500" />;
+        return <Meh className="h-6 w-6 text-amber-400" />;
       case "negative":
-        return <Frown className="h-4 w-4 text-destructive" />;
+        return <Frown className="h-6 w-6 text-rose-400" />;
       default:
         return null;
     }
@@ -89,8 +89,11 @@ export default function UserFeedback() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-12 w-12 animate-spin text-muted-foreground mb-4" />
-        <p className="text-muted-foreground">กำลังโหลดข้อมูล User Feedback...</p>
+        <div className="relative">
+          <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
+          <Loader2 className="h-16 w-16 animate-spin text-primary relative z-10" />
+        </div>
+        <p className="text-muted-foreground mt-4 font-mono text-sm tracking-wider animate-pulse">Loading Feedback Data...</p>
       </div>
     );
   }
@@ -99,152 +102,189 @@ export default function UserFeedback() {
   if (!hasData) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
-        <Database className="h-16 w-16 text-muted-foreground mb-4" />
-        <h2 className="text-xl font-semibold mb-2">ยังไม่มีข้อมูล User Feedback</h2>
-        <p className="text-muted-foreground mb-4 max-w-md">
-          กรุณารัน sample-data.sql ใน Supabase SQL Editor เพื่อเพิ่มข้อมูล feedback และ ratings
+        <div className="h-24 w-24 bg-primary/10 rounded-full flex items-center justify-center mb-6 ring-1 ring-primary/20 shadow-lg shadow-primary/5">
+          <Database className="h-12 w-12 text-primary" />
+        </div>
+        <h2 className="text-2xl font-bold mb-2 tracking-tight">No Feedback Data Found</h2>
+        <p className="text-muted-foreground mb-8 max-w-md">
+          The feedback table appears to be empty. Please ensure data is inserted into the `feedback` table independently.
         </p>
-        <Button variant="default" onClick={() => window.open("https://supabase.com/dashboard", "_blank")}>
-          เปิด Supabase
+        <Button variant="default" size="lg" onClick={() => window.location.reload()} className="shadow-lg shadow-primary/25">
+          Refresh Page
         </Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">User Feedback & Sentiment</h1>
-        <p className="text-muted-foreground">
-          Understand how users feel about Buzzly
-        </p>
+    <div className="space-y-8 animate-in fade-in duration-700">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+            User Feedback
+          </h1>
+          <p className="text-muted-foreground mt-2 text-lg">
+            Understand how users feel about Buzzly
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="px-3 py-1 border-primary/20 bg-primary/5 text-primary">
+            <Activity className="w-3 h-3 mr-2 animate-pulse" />
+            Live Insights
+          </Badge>
+        </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <Star className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{feedbackMetrics?.avgRating || 0}</p>
-                <p className="text-sm text-muted-foreground">Avg Rating</p>
-              </div>
+      {/* Summary Cards with V3 Design */}
+      <div className="grid gap-6 md:grid-cols-4">
+        {[
+          {
+            label: "Avg Rating",
+            value: feedbackMetrics?.avgRating?.toFixed(1) || "0.0",
+            sub: "Stars",
+            icon: Star,
+            gradient: "from-amber-500 to-orange-600",
+            text: "text-amber-100"
+          },
+          {
+            label: "NPS Score",
+            value: (feedbackMetrics?.npsScore && feedbackMetrics.npsScore > 0 ? "+" : "") + (feedbackMetrics?.npsScore || 0),
+            sub: "Net Promoter Score",
+            icon: ThumbsUp,
+            gradient: "from-emerald-600 to-teal-700",
+            text: "text-emerald-100"
+          },
+          {
+            label: "Total Reviews",
+            value: feedbackMetrics?.totalReviews || 0,
+            sub: "Responses",
+            icon: MessageSquare,
+            gradient: "from-blue-600 to-cyan-600",
+            text: "text-blue-100"
+          },
+          {
+            label: "Negative Reviews",
+            value: feedbackMetrics?.openIssues || 0,
+            sub: "Requires Attention",
+            icon: AlertTriangle,
+            gradient: "from-rose-500 to-red-600",
+            text: "text-rose-100"
+          }
+        ].map((stat, i) => (
+          <Card key={i} className={`bg-gradient-to-br ${stat.gradient} border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden`}>
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+              <stat.icon className="h-24 w-24 text-white transform rotate-12 translate-x-8 translate-y-[-10px]" />
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10">
-                <ThumbsUp className="h-5 w-5 text-green-500" />
+            <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+              <CardTitle className={`text-sm font-medium ${stat.text}`}>
+                {stat.label}
+              </CardTitle>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white backdrop-blur-sm">
+                <stat.icon className="h-5 w-5" />
               </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {feedbackMetrics?.npsScore !== undefined && feedbackMetrics.npsScore >= 0 ? "+" : ""}
-                  {feedbackMetrics?.npsScore || 0}
-                </p>
-                <p className="text-sm text-muted-foreground">NPS Score</p>
+            </CardHeader>
+            <CardContent className="relative z-10">
+              <div className="text-4xl font-bold tracking-tight text-white shadow-sm">
+                {stat.value}
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10">
-                <MessageSquare className="h-5 w-5 text-accent-foreground" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{feedbackMetrics?.totalReviews || 0}</p>
-                <p className="text-sm text-muted-foreground">Total Reviews</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-destructive/10">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{feedbackMetrics?.openIssues || 0}</p>
-                <p className="text-sm text-muted-foreground">Negative Reviews</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              <p className={`text-xs mt-1 ${stat.text} opacity-80 font-medium`}>{stat.sub}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      <Tabs defaultValue="nps" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="nps">NPS Score</TabsTrigger>
-          <TabsTrigger value="sentiment">Sentiment</TabsTrigger>
+      <Tabs defaultValue="nps" className="space-y-8">
+        <TabsList className="w-full max-w-sm grid grid-cols-2 bg-muted/50 p-1 rounded-lg border border-border/50">
+          <TabsTrigger value="nps" className="data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-300">NPS Score</TabsTrigger>
+          <TabsTrigger value="sentiment" className="data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:shadow-sm transition-all duration-300">Sentiment</TabsTrigger>
         </TabsList>
 
         {/* NPS Tab */}
         <TabsContent value="nps" className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
-            <Card>
+            <Card className="glass-panel overflow-hidden border-border/50 shadow-sm relative">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -z-10" />
               <CardHeader>
                 <CardTitle>Net Promoter Score</CardTitle>
                 <CardDescription>Based on {feedbackMetrics?.totalReviews || 0} responses</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-center">
+                <div className="flex items-center justify-center py-8">
                   <div className="relative">
                     <div className="text-center">
-                      <p className="text-6xl font-bold text-primary">
+                      <p className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-primary to-primary/60 tracking-tighter">
                         {feedbackMetrics?.npsScore !== undefined && feedbackMetrics.npsScore >= 0 ? "+" : ""}
                         {feedbackMetrics?.npsScore || 0}
                       </p>
-                      <p className="text-muted-foreground">NPS Score</p>
+                      <p className="text-muted-foreground font-medium mt-2">NPS Score</p>
                     </div>
                   </div>
                 </div>
-                <div className="mt-6 space-y-4">
+                <div className="mt-8 space-y-5">
                   {npsBreakdown.map((item) => (
                     <div key={item.type} className="space-y-2">
                       <div className="flex items-center justify-between text-sm">
-                        <span>{item.type}</span>
-                        <span className="font-medium">
+                        <span className="font-medium">{item.type}</span>
+                        <span className="font-mono text-muted-foreground">
                           {item.count} ({item.percentage}%)
                         </span>
                       </div>
-                      <Progress value={item.percentage} className="h-2" />
+                      <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-1000 ease-out"
+                          style={{
+                            width: `${item.percentage}%`,
+                            backgroundColor: item.color
+                          }}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="glass-panel border-border/50 shadow-sm">
               <CardHeader>
                 <CardTitle>NPS Distribution</CardTitle>
+                <CardDescription>Breakdown by customer segment</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-64">
+                <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={npsBreakdown.filter(n => n.count > 0)}
                         cx="50%"
                         cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
+                        innerRadius={80}
+                        outerRadius={120}
+                        paddingAngle={5}
                         dataKey="count"
-                        label={({ type, percentage }) => `${type}: ${percentage}%`}
                       >
                         {npsBreakdown.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
+                          <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
                         ))}
                       </Pie>
-                      <Tooltip />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
+                          borderColor: "hsl(var(--border))",
+                          borderRadius: "12px",
+                          boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)"
+                        }}
+                        itemStyle={{ color: "hsl(var(--foreground))" }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
+                </div>
+                <div className="flex justify-center gap-6 mt-4">
+                  {npsBreakdown.map((item, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                      <span className="text-sm text-muted-foreground">{item.type}</span>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -253,28 +293,40 @@ export default function UserFeedback() {
 
         {/* Sentiment Tab */}
         <TabsContent value="sentiment" className="space-y-6">
-          <Card>
+          <Card className="glass-panel border-border/50 shadow-sm">
             <CardHeader>
               <CardTitle>Sentiment Trend</CardTitle>
               <CardDescription>How sentiment has changed over time</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-80">
+              <div className="h-[350px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={sentimentTrend}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="month" className="text-xs" />
-                    <YAxis tickFormatter={(v) => `${v}%`} className="text-xs" />
+                  <BarChart data={sentimentTrend} barGap={4}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/50" />
+                    <XAxis
+                      dataKey="month"
+                      className="text-xs font-medium"
+                      tickLine={false}
+                      axisLine={false}
+                      dy={10}
+                    />
+                    <YAxis
+                      tickFormatter={(v) => `${v}%`}
+                      className="text-xs font-medium"
+                      tickLine={false}
+                      axisLine={false}
+                    />
                     <Tooltip
+                      cursor={{ fill: 'hsl(var(--muted)/0.3)' }}
                       contentStyle={{
                         backgroundColor: "hsl(var(--card))",
                         border: "1px solid hsl(var(--border))",
                         borderRadius: "8px",
                       }}
                     />
-                    <Bar dataKey="positive" stackId="a" fill="hsl(142 76% 36%)" name="Positive" />
-                    <Bar dataKey="neutral" stackId="a" fill="hsl(var(--muted))" name="Neutral" />
-                    <Bar dataKey="negative" stackId="a" fill="hsl(var(--destructive))" name="Negative" />
+                    <Bar dataKey="positive" stackId="a" fill="#10b981" name="Positive" radius={[0, 0, 4, 4]} />
+                    <Bar dataKey="neutral" stackId="a" fill="#f59e0b" name="Neutral" />
+                    <Bar dataKey="negative" stackId="a" fill="#ef4444" name="Negative" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -283,39 +335,32 @@ export default function UserFeedback() {
 
           <div className="grid gap-4 md:grid-cols-3">
             {feedbackMetrics?.sentimentBreakdown?.map((item) => (
-              <Card key={item.sentiment}>
-                <CardContent className="p-6 text-center">
-                  {getSentimentIcon(item.sentiment)}
-                  <p className="mt-2 text-3xl font-bold">{item.percentage}%</p>
-                  <p className="text-sm text-muted-foreground">{item.sentiment}</p>
-                  <p className="text-xs text-muted-foreground">{item.count} reviews</p>
+              <Card key={item.sentiment} className="glass-panel border-border/50 hover:bg-muted/30 transition-colors duration-300">
+                <CardContent className="p-8 text-center flex flex-col items-center gap-3">
+                  <div className={`p-4 rounded-2xl bg-secondary/50 ring-1 ring-border/50 mb-2`}>
+                    {getSentimentIcon(item.sentiment)}
+                  </div>
+                  <div>
+                    <p className="text-4xl font-bold tracking-tight text-foreground">{item.percentage}%</p>
+                    <p className="text-sm font-medium text-muted-foreground mt-1">{item.sentiment}</p>
+                  </div>
+                  <div className="w-full h-1.5 bg-secondary rounded-full mt-2 overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${item.percentage}%`,
+                        backgroundColor: item.sentiment === "Positive" ? "#10b981" : item.sentiment === "Neutral" ? "#f59e0b" : "#ef4444"
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">{item.count} reviews</p>
                 </CardContent>
               </Card>
             )) || (
-              <>
-                <Card>
-                  <CardContent className="p-6 text-center">
-                    <Smile className="mx-auto h-8 w-8 text-green-500" />
-                    <p className="mt-2 text-3xl font-bold">0%</p>
-                    <p className="text-sm text-muted-foreground">Positive</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-6 text-center">
-                    <Meh className="mx-auto h-8 w-8 text-yellow-500" />
-                    <p className="mt-2 text-3xl font-bold">0%</p>
-                    <p className="text-sm text-muted-foreground">Neutral</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-6 text-center">
-                    <Frown className="mx-auto h-8 w-8 text-destructive" />
-                    <p className="mt-2 text-3xl font-bold">0%</p>
-                    <p className="text-sm text-muted-foreground">Negative</p>
-                  </CardContent>
-                </Card>
-              </>
-            )}
+                <>
+                  {/* Empty placeholders if breakdown is missing but total count > 0 (fallback) */}
+                </>
+              )}
           </div>
         </TabsContent>
       </Tabs>

@@ -145,28 +145,32 @@ export default function ProductUsage() {
             Live Data
           </Badge>
         </div>
+
       </div>
 
       {/* Quick Stats - Tech Panels */}
       <div className="grid gap-6 md:grid-cols-4">
         {[
-          { label: "Total Users", value: usageMetrics?.totalUsers?.toLocaleString() || 0, icon: Users, color: "text-blue-500" },
-          { label: "Monthly Active", value: usageMetrics?.mau?.toLocaleString() || 0, icon: UserCheck, color: "text-indigo-500" },
-          { label: "Daily Active", value: usageMetrics?.dau?.toLocaleString() || 0, icon: Activity, color: "text-cyan-500" },
-          { label: "DAU/MAU Ratio", value: `${usageMetrics?.dauMauRatio || 0}%`, icon: Repeat, color: "text-violet-500" }
+          { label: "Total Users", value: usageMetrics?.totalUsers?.toLocaleString() || 0, icon: Users, gradient: "from-blue-600 to-blue-700", text: "text-blue-100" },
+          { label: "Monthly Active", value: usageMetrics?.mau?.toLocaleString() || 0, icon: UserCheck, gradient: "from-violet-600 to-purple-700", text: "text-purple-100" },
+          { label: "Daily Active", value: usageMetrics?.dau?.toLocaleString() || 0, icon: Activity, gradient: "from-cyan-500 to-blue-600", text: "text-cyan-100" },
+          { label: "DAU/MAU Ratio", value: `${usageMetrics?.dauMauRatio || 0}%`, icon: Repeat, gradient: "from-fuchsia-600 to-pink-700", text: "text-pink-100" }
         ].map((stat, i) => (
-          <Card key={i} className="glass-panel border-primary/10 shadow-lg shadow-primary/5 hover:shadow-primary/10 transition-all duration-300 relative overflow-hidden group">
-            <div className={`absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity ${stat.color}`}>
-              <stat.icon className="w-16 h-16" />
+          <Card key={i} className={`bg-gradient-to-br ${stat.gradient} border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden`}>
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+              <stat.icon className="h-24 w-24 text-white transform rotate-12 translate-x-8 translate-y-[-10px]" />
             </div>
-            <CardContent className="pt-6 relative z-10">
-              <div className="text-left">
-                <p className="text-4xl font-bold tracking-tighter text-foreground group-hover:scale-105 transition-transform origin-left">
-                  {stat.value}
-                </p>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-1">
-                  {stat.label}
-                </p>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+              <CardTitle className={`text-sm font-medium ${stat.text}`}>
+                {stat.label}
+              </CardTitle>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white backdrop-blur-sm">
+                <stat.icon className="h-5 w-5" />
+              </div>
+            </CardHeader>
+            <CardContent className="relative z-10">
+              <div className="text-4xl font-bold tracking-tight text-white shadow-sm">
+                {stat.value}
               </div>
             </CardContent>
           </Card>
@@ -184,49 +188,62 @@ export default function ProductUsage() {
         <TabsContent value="aarrr" className="space-y-6">
           <div className="grid gap-4">
             {aarrFunnelData.map((item, index) => (
-              <Card key={item.stage} className="border-l-4 border-l-primary/50 overflow-hidden hover:bg-slate-50 transition-colors">
+              <Card key={item.stage} className={`border-l-4 overflow-hidden hover:bg-slate-50 transition-all duration-300 ${index === 0 ? "border-l-blue-500 shadow-blue-500/5 hover:shadow-blue-500/10" :
+                index === 1 ? "border-l-cyan-500 shadow-cyan-500/5 hover:shadow-cyan-500/10" :
+                  index === 2 ? "border-l-indigo-500 shadow-indigo-500/5 hover:shadow-indigo-500/10" :
+                    index === 3 ? "border-l-violet-500 shadow-violet-500/5 hover:shadow-violet-500/10" :
+                      "border-l-fuchsia-500 shadow-fuchsia-500/5 hover:shadow-fuchsia-500/10"
+                } shadow-md`}>
                 <CardContent className="flex items-center gap-6 p-6">
-                  <div className={cn("flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10",
-                    index === 0 ? "text-blue-500 bg-blue-500/10" :
-                      index === 1 ? "text-cyan-500 bg-cyan-500/10" :
-                        index === 2 ? "text-indigo-500 bg-indigo-500/10" :
-                          index === 3 ? "text-violet-500 bg-violet-500/10" :
-                            "text-fuchsia-500 bg-fuchsia-500/10"
+                  <div className={cn("flex h-14 w-14 items-center justify-center rounded-2xl shadow-inner",
+                    index === 0 ? "text-blue-600 bg-blue-100" :
+                      index === 1 ? "text-cyan-600 bg-cyan-100" :
+                        index === 2 ? "text-indigo-600 bg-indigo-100" :
+                          index === 3 ? "text-violet-600 bg-violet-100" :
+                            "text-fuchsia-600 bg-fuchsia-100"
                   )}>
-                    <item.icon className="h-6 w-6" />
+                    <item.icon className="h-7 w-7" />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
                       <div>
-                        <h3 className="font-bold text-lg">{item.stage}</h3>
-                        <p className="text-2xl font-bold tracking-tight text-foreground">{item.value.toLocaleString()}</p>
+                        <h3 className="font-bold text-lg text-slate-800">{item.stage}</h3>
+                        <p className="text-3xl font-black tracking-tight text-slate-900">{item.value.toLocaleString()}</p>
                       </div>
                       <div className="text-right">
-                        <Badge variant={item.change >= 0 ? "default" : "destructive"} className="ml-auto">
+                        <Badge variant="outline" className={cn("ml-auto border-0",
+                          item.change >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                        )}>
                           {item.change >= 0 ? <TrendingUp className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />}
                           {Math.abs(item.change)}%
                         </Badge>
-                        <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">vs 30d avg</p>
+                        <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">vs 30d avg</p>
                       </div>
                     </div>
-                    <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                    <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
                       <div
-                        className={cn("h-full rounded-full transition-all duration-1000 ease-out",
-                          index === 0 ? "bg-blue-500" :
-                            index === 1 ? "bg-cyan-500" :
-                              index === 2 ? "bg-indigo-500" :
-                                index === 3 ? "bg-violet-500" :
-                                  "bg-fuchsia-500"
+                        className={cn("h-full rounded-full transition-all duration-1000 ease-out shadow-sm",
+                          index === 0 ? "bg-gradient-to-r from-blue-400 to-blue-600" :
+                            index === 1 ? "bg-gradient-to-r from-cyan-400 to-cyan-600" :
+                              index === 2 ? "bg-gradient-to-r from-indigo-400 to-indigo-600" :
+                                index === 3 ? "bg-gradient-to-r from-violet-400 to-violet-600" :
+                                  "bg-gradient-to-r from-fuchsia-400 to-fuchsia-600"
                         )}
                         style={{ width: `${item.percentage}%` }}
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      <span className="font-medium text-foreground">{item.percentage}%</span> conversion rate
+                    <p className="text-xs text-muted-foreground mt-2 font-medium">
+                      <span className={cn("font-bold text-lg mr-1",
+                        index === 0 ? "text-blue-600" :
+                          index === 1 ? "text-cyan-600" :
+                            index === 2 ? "text-indigo-600" :
+                              index === 3 ? "text-violet-600" :
+                                "text-fuchsia-600"
+                      )}>{item.percentage}%</span> conversion rate
                     </p>
                   </div>
                   {index < aarrFunnelData.length - 1 && (
-                    <ArrowRight className="h-5 w-5 text-muted-foreground/30" />
+                    <ArrowRight className="h-6 w-6 text-slate-300" />
                   )}
                 </CardContent>
               </Card>
@@ -428,6 +445,6 @@ export default function ProductUsage() {
           </div>
         </TabsContent>
       </Tabs>
-    </div>
+    </div >
   );
 }

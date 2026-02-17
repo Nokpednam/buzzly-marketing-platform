@@ -286,66 +286,95 @@ export default function CustomerTiers() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5 hover:translate-y-[-2px] transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">สมาชิกทั้งหมด</CardTitle>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
-              <Users className="h-4 w-4" />
+      {/* Summary Cards */}
+      <div className="grid gap-6 md:grid-cols-4">
+        {/* Total Members - Deep Blue Gradient */}
+        <Card className="bg-gradient-to-br from-blue-600 to-blue-700 border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <Users className="h-24 w-24 text-white transform rotate-12 translate-x-8 translate-y-[-10px]" />
+          </div>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+            <CardTitle className="text-sm font-medium text-blue-100">สมาชิกทั้งหมด</CardTitle>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white backdrop-blur-sm">
+              <Users className="h-5 w-5" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold tracking-tight">{(totalCustomers || 0).toLocaleString()}</div>
-            <div className="flex items-center text-xs text-emerald-600 mt-1 font-bold">
-              <ArrowUpRight className="h-3 w-3 mr-1" />
-              +12.5%
+          <CardContent className="relative z-10">
+            <div className="text-4xl font-bold tracking-tight text-white shadow-sm">{(totalCustomers || 0).toLocaleString()}</div>
+            <div className="flex items-center text-xs font-medium mt-3 text-blue-100">
+              <span className="flex items-center bg-white/20 px-2 py-1 rounded-lg text-white mr-2 backdrop-blur-sm">
+                <ArrowUpRight className="h-3 w-3 mr-1" />
+                12.5%
+              </span>
+              <span>vs last month</span>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5 hover:translate-y-[-2px] transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">รายได้รวม</CardTitle>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
-              <DollarSign className="h-4 w-4" />
+        {/* Revenue - Deep Emerald Gradient */}
+        <Card className="bg-gradient-to-br from-emerald-600 to-teal-700 border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <DollarSign className="h-24 w-24 text-white transform rotate-12 translate-x-8 translate-y-[-10px]" />
+          </div>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+            <CardTitle className="text-sm font-medium text-emerald-100">รายได้รวม</CardTitle>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white backdrop-blur-sm">
+              <DollarSign className="h-5 w-5" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold tracking-tight">฿{(totalRevenue / 1000000).toFixed(2)}M</div>
-            <div className="flex items-center text-xs text-emerald-600 mt-1 font-bold">
-              <ArrowUpRight className="h-3 w-3 mr-1" />
-              +8.2%
+          <CardContent className="relative z-10">
+            <div className="text-4xl font-bold tracking-tight text-white shadow-sm">฿{(totalRevenue / 1000000).toFixed(2)}M</div>
+            <div className="flex items-center text-xs font-medium mt-3 text-emerald-100">
+              <span className="flex items-center bg-white/20 px-2 py-1 rounded-lg text-white mr-2 backdrop-blur-sm">
+                <ArrowUpRight className="h-3 w-3 mr-1" />
+                8.2%
+              </span>
+              <span>vs last month</span>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5 hover:translate-y-[-2px] transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">ค่าใช้จ่ายเฉลี่ย</CardTitle>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-500/10 text-orange-500">
-              <TrendingUp className="h-4 w-4" />
+        {/* Avg Spend - Deep Orange/Red Gradient */}
+        <Card className="bg-gradient-to-br from-orange-500 to-red-600 border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <TrendingUp className="h-24 w-24 text-white transform rotate-12 translate-x-8 translate-y-[-10px]" />
+          </div>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+            <CardTitle className="text-sm font-medium text-orange-100">ค่าใช้จ่ายเฉลี่ย</CardTitle>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white backdrop-blur-sm">
+              <TrendingUp className="h-5 w-5" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold tracking-tight">฿{avgSpendAll.toLocaleString()}</div>
-            <div className="flex items-center text-xs text-emerald-600 mt-1 font-bold">
-              <ArrowUpRight className="h-3 w-3 mr-1" />
-              +5.4%
+          <CardContent className="relative z-10">
+            <div className="text-4xl font-bold tracking-tight text-white shadow-sm">฿{avgSpendAll.toLocaleString()}</div>
+            <div className="flex items-center text-xs font-medium mt-3 text-orange-100">
+              <span className="flex items-center bg-white/20 px-2 py-1 rounded-lg text-white mr-2 backdrop-blur-sm">
+                <ArrowUpRight className="h-3 w-3 mr-1" />
+                5.4%
+              </span>
+              <span>vs last month</span>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5 hover:translate-y-[-2px] transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Platinum Members</CardTitle>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-500">
-              <Award className="h-4 w-4" />
+        {/* Platinum - Deep Indigo/Purple Gradient */}
+        <Card className="bg-gradient-to-br from-indigo-600 to-purple-700 border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <Award className="h-24 w-24 text-white transform rotate-12 translate-x-8 translate-y-[-10px]" />
+          </div>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+            <CardTitle className="text-sm font-medium text-indigo-100">Platinum Members</CardTitle>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white backdrop-blur-sm">
+              <Award className="h-5 w-5" />
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold tracking-tight">{platinumCount}</div>
-            <div className="flex items-center text-xs text-indigo-600 mt-1 font-bold italic">
-              Premium Segment
+          <CardContent className="relative z-10">
+            <div className="text-4xl font-bold tracking-tight text-white shadow-sm">{platinumCount}</div>
+            <div className="flex items-center text-xs font-medium mt-3 text-indigo-100">
+              <span className="flex items-center bg-white/20 px-2 py-1 rounded-lg text-white mr-2 backdrop-blur-sm">
+                Premium
+              </span>
+              <span>Segment</span>
             </div>
           </CardContent>
         </Card>

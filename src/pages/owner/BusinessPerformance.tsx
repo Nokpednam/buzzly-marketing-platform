@@ -60,7 +60,8 @@ export default function BusinessPerformance() {
       change: subscriptionMetrics?.mrrGrowth || 0,
       trend: (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "up" as const : "down" as const,
       icon: DollarSign,
-      color: "text-emerald-500",
+      gradient: "from-emerald-600 to-teal-700",
+      text: "text-emerald-100"
     },
     {
       title: "Active Subscriptions",
@@ -68,7 +69,8 @@ export default function BusinessPerformance() {
       change: 0, // Simplified
       trend: "up" as const,
       icon: Users,
-      color: "text-blue-500",
+      gradient: "from-blue-600 to-indigo-700",
+      text: "text-blue-100"
     },
     {
       title: "Annual Run Rate",
@@ -76,7 +78,8 @@ export default function BusinessPerformance() {
       change: subscriptionMetrics?.mrrGrowth || 0,
       trend: (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "up" as const : "down" as const,
       icon: Target,
-      color: "text-purple-500",
+      gradient: "from-purple-600 to-fuchsia-700",
+      text: "text-purple-100"
     },
     {
       title: "Avg Revenue/User",
@@ -86,7 +89,8 @@ export default function BusinessPerformance() {
       change: 0,
       trend: "up" as const,
       icon: Activity,
-      color: "text-cyan-500",
+      gradient: "from-cyan-500 to-sky-600",
+      text: "text-cyan-100"
     },
   ];
 
@@ -144,22 +148,25 @@ export default function BusinessPerformance() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
-          <Card key={kpi.title} className="glass-panel border-primary/10 shadow-lg shadow-primary/5 hover:translate-y-[-2px] transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10", kpi.color)}>
+          <Card key={kpi.title} className={`bg-gradient-to-br ${kpi.gradient} border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden`}>
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+              <kpi.icon className="h-24 w-24 text-white transform rotate-12 translate-x-8 translate-y-[-10px]" />
+            </div>
+            <CardContent className="p-6 relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white backdrop-blur-sm">
                   <kpi.icon className="h-5 w-5" />
                 </div>
-                <Badge variant={kpi.trend === "up" ? "default" : "secondary"} className={cn(
-                  kpi.trend === "up" ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600"
+                <Badge variant={kpi.trend === "up" ? "default" : "outline"} className={cn("border-0 font-medium backdrop-blur-sm",
+                  kpi.trend === "up" ? "bg-white/20 text-white" : "bg-white/20 text-white"
                 )}>
                   {kpi.trend === "up" ? <ArrowUpRight className="mr-1 h-3 w-3" /> : <ArrowDownRight className="mr-1 h-3 w-3" />}
                   {Math.abs(kpi.change)}%
                 </Badge>
               </div>
-              <div className="mt-4">
-                <p className="text-3xl font-bold tracking-tight text-foreground">{kpi.value}</p>
-                <p className="text-sm font-medium text-muted-foreground mt-1">{kpi.title}</p>
+              <div className="space-y-1">
+                <p className="text-4xl font-bold tracking-tight text-white shadow-sm">{kpi.value}</p>
+                <p className={`text-sm font-medium ${kpi.text}`}>{kpi.title}</p>
               </div>
             </CardContent>
           </Card>
