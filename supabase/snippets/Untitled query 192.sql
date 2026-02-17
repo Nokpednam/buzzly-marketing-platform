@@ -1,5 +1,6 @@
-    INSERT INTO public.team_members (team_id, user_id, status, joined_at)
-    SELECT t.id, t.owner_id, 'active'::member_status, (NOW() - (random() * INTERVAL '6 months'))
-    FROM public.teams t
-    WHERE t.owner_id IS NOT NULL
-    ON CONFLICT (team_id, user_id) DO NOTHING;
+-- Delete the problem trigger
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+-- Delete related functions
+DROP FUNCTION IF EXISTS public.handle_new_user();
+DROP FUNCTION IF EXISTS public.create_user_profile();

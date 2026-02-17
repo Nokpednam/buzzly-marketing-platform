@@ -46,7 +46,14 @@ const SignUp = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [genders, setGenders] = useState<Gender[]>([]);
+
+  const genders = [
+    { value: "female", label: "Female" },
+    { value: "lgbtq+", label: "LGBTQ+" },
+    { value: "male", label: "Male" },
+    { value: "non-binary", label: "Non-binary" },
+    { value: "prefer-not-to-say", label: "Prefer not to say" },
+  ];
 
   const [formData, setFormData] = useState({
     email: "",
@@ -63,13 +70,7 @@ const SignUp = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // ... (Keep existing useEffects for genders and session check) ...
-  useEffect(() => {
-    const fetchGenders = async () => {
-      const { data } = await supabase.from("genders").select("id, name_gender").order("name_gender");
-      setGenders(data || []);
-    };
-    fetchGenders();
-  }, []);
+  /* Removed fetchGenders useEffect as we now use hardcoded list */
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -203,7 +204,7 @@ const SignUp = () => {
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border-none shadow-xl">
-                  {genders.map((g) => <SelectItem key={g.id} value={g.id}>{g.name_gender}</SelectItem>)}
+                  {genders.map((g) => <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
