@@ -183,30 +183,48 @@ export function useFeedbackMetrics() {
           id,
           comment,
           rating:rating_id (
-            score
+            name
           )
         `)
         .limit(500);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching feedback:", error);
+        throw error;
+      }
+
+      // Map rating names to scores (5-star scale)
+      const getScoreByName = (name: string): number => {
+        const n = name?.toLowerCase() || "";
+        if (n.includes("excellent") || n.includes("5")) return 5;
+        if (n.includes("good") || n.includes("4")) return 4;
+        if (n.includes("average") || n.includes("3")) return 3;
+        if (n.includes("poor") || n.includes("2")) return 2;
+        if (n.includes("terrible") || n.includes("1")) return 1;
+        return 0;
+      };
 
       // Calculate metrics
-      const ratings = feedback?.map((f: any) => f.rating?.score || 0).filter(Boolean) || [];
+      const ratings = feedback?.map((f: any) => getScoreByName(f.rating?.name)).filter((r) => r > 0) || [];
       const avgRating = ratings.length
         ? ratings.reduce((a, b) => a + b, 0) / ratings.length
         : 0;
 
       // Simulate NPS calculation (promoters - detractors)
-      const promoters = ratings.filter((r) => r >= 9).length;
-      const detractors = ratings.filter((r) => r <= 6).length;
+      // NPS usually based on 0-10 scale. Mapping 5-star to NPS:
+      // 5 = Promoter (9-10 equivalent)
+      // 4 = Passive (7-8 equivalent)
+      // 1-3 = Detractor (0-6 equivalent)
+      const promoters = ratings.filter((r) => r === 5).length;
+      const detractors = ratings.filter((r) => r <= 3).length;
       const npsScore = ratings.length
         ? Math.round(((promoters - detractors) / ratings.length) * 100)
         : 0;
 
       // Basic sentiment analysis based on rating
-      const positive = ratings.filter((r) => r >= 4).length;
-      const neutral = ratings.filter((r) => r === 3).length;
-      const negative = ratings.filter((r) => r <= 2).length;
+      const positive = ratings.filter((r) => r >= 4).length; // 4-5
+      const neutral = ratings.filter((r) => r === 3).length; // 3
+      const negative = ratings.filter((r) => r <= 2).length; // 1-2
       const total = ratings.length || 1;
 
       return {
@@ -288,8 +306,7 @@ export function useUserSegments() {
         .select(`
           id,
           business_types (
-            name,
-            color_code
+            name
           )
         `);
 
