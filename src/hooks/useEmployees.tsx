@@ -44,47 +44,21 @@ export function useEmployees() {
   const { data: employees = [], isLoading, error } = useQuery({
     queryKey: ["employees"],
     queryFn: async () => {
-      // Bug #L2-4 NOTE: This uses 3 separate queries (N+1 pattern)
-      // Future optimization: Use Supabase joins instead
-      // Example: .select('*, profile:employees_profile(*), role:role_employees(*)')
+      // Bug #L2-4 FIX: Use Supabase joins instead of N+1 pattern
+      // This ensures role data is always fresh, even after approval triggers update role_employees_id
 
-      // Fetch employees
       const { data: employeesData, error: employeesError } = await supabase
         .from("employees")
-        .select("*")
+        .select(`
+          *,
+          profile:employees_profile(*),
+          role:role_employees(*)
+        `)
         .order("created_at", { ascending: false });
 
       if (employeesError) throw employeesError;
 
-      // Fetch employee profiles
-      const employeeIds = employeesData?.map(e => e.id) || [];
-      const { data: profiles } = await supabase
-        .from("employees_profile")
-        .select("*")
-        .in("employees_id", employeeIds);
-
-      // Fetch roles
-      const roleIds = [...new Set(employeesData?.map(e => e.role_employees_id).filter(Boolean) as string[])];
-      const { data: roles } = await supabase
-        .from("role_employees")
-        .select("*")
-        .in("id", roleIds);
-
-      const profileMap = new Map(profiles?.map(p => [p.employees_id, {
-        id: p.id,
-        first_name: p.first_name,
-        last_name: p.last_name,
-        profile_img: p.profile_img,
-        aptitude: p.aptitude,
-        last_active: p.last_active,
-      }]) || []);
-      const roleMap = new Map(roles?.map(r => [r.id, {
-        id: r.id,
-        role_name: r.role_name,
-        description: r.description,
-      }]) || []);
-
-      return employeesData.map(emp => ({
+      return (employeesData || []).map(emp => ({
         id: emp.id,
         email: emp.email,
         user_id: emp.user_id,
@@ -94,8 +68,19 @@ export function useEmployees() {
         is_locked: emp.is_locked,
         created_at: emp.created_at,
         updated_at: emp.updated_at,
-        profile: profileMap.get(emp.id),
-        role: emp.role_employees_id ? roleMap.get(emp.role_employees_id) : undefined,
+        profile: emp.profile ? {
+          id: emp.profile.id,
+          first_name: emp.profile.first_name,
+          last_name: emp.profile.last_name,
+          profile_img: emp.profile.profile_img,
+          aptitude: emp.profile.aptitude,
+          last_active: emp.profile.last_active,
+        } : undefined,
+        role: emp.role ? {
+          id: emp.role.id,
+          role_name: emp.role.role_name,
+          description: emp.role.description,
+        } : undefined,
       })) as Employee[];
     },
   });
