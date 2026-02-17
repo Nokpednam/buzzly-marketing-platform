@@ -99,14 +99,14 @@ export function BillingTab() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-3xl font-bold">
-                  ฿{getPrice(currentPlan, currentSubscription?.billing_cycle || "monthly").toLocaleString()}
+                  ${getPrice(currentPlan, currentSubscription?.billing_cycle || "monthly").toLocaleString()}
                   <span className="text-lg font-normal text-muted-foreground">
                     /{currentSubscription?.billing_cycle === "yearly" ? "ปี" : "เดือน"}
                   </span>
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  ชำระ{currentSubscription?.billing_cycle === "yearly" ? "รายปี" : "รายเดือน"} • 
-                  รอบบิลถัดไป: {currentSubscription?.current_period_end 
+                  ชำระ{currentSubscription?.billing_cycle === "yearly" ? "รายปี" : "รายเดือน"} •
+                  รอบบิลถัดไป: {currentSubscription?.current_period_end
                     ? new Date(currentSubscription.current_period_end).toLocaleDateString("th-TH")
                     : "-"}
                 </p>
@@ -144,10 +144,10 @@ export function BillingTab() {
         {plans.map((plan) => {
           const isCurrentPlan = currentPlan?.id === plan.id;
           const savings = getSavingsPercent(plan);
-          
+
           return (
-            <Card 
-              key={plan.id} 
+            <Card
+              key={plan.id}
               className={`relative border-0 shadow-sm ${plan.is_popular ? "ring-2 ring-primary" : ""}`}
             >
               {plan.is_popular && (
@@ -165,7 +165,7 @@ export function BillingTab() {
                 </CardTitle>
                 <div className="mt-2">
                   <span className="text-3xl font-bold">
-                    ฿{getPrice(plan, billingCycle).toLocaleString()}
+                    ${getPrice(plan, billingCycle).toLocaleString()}
                   </span>
                   <span className="text-muted-foreground">
                     /{billingCycle === "yearly" ? "ปี" : "เดือน"}
@@ -185,8 +185,8 @@ export function BillingTab() {
                     </li>
                   ))}
                 </ul>
-                <Button 
-                  className="w-full" 
+                <Button
+                  className="w-full"
                   variant={isCurrentPlan ? "outline" : "default"}
                   disabled={isCurrentPlan}
                   onClick={() => handleUpgrade(plan.id)}

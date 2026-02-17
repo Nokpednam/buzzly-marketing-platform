@@ -310,18 +310,30 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
           </PopoverContent>
         </Popover>
 
-        {/* Notifications */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-9 w-9 relative">
-              <Bell className="h-4 w-4 text-muted-foreground" />
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent side="top" align="end" className="w-80">
-            <NotificationsContent />
-          </PopoverContent>
-        </Popover>
+        {/* Notifications & Logout */}
+        <div className="flex items-center gap-1">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-9 w-9 relative text-muted-foreground hover:text-foreground">
+                <Bell className="h-4 w-4" />
+                <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-primary" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="top" align="end" className="w-80">
+              <NotificationsContent />
+            </PopoverContent>
+          </Popover>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+            onClick={handleLogout}
+            title="Log out"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <PlanSelectionDialog open={planDialogOpen} onOpenChange={setPlanDialogOpen} />

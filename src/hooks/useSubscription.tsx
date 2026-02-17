@@ -169,6 +169,7 @@ export function useSubscription() {
     paymentMethodId: string,
     billingCycle: BillingCycle
   ): Promise<{ success: boolean; subscriptionId?: string; error?: string }> => {
+    console.log("Creating subscription:", { planId, billingCycle, userId });
     if (!userId) {
       return { success: false, error: "กรุณาเข้าสู่ระบบก่อน" };
     }
@@ -180,70 +181,76 @@ export function useSubscription() {
         return { success: false, error: "ไม่พบแพ็กเกจที่เลือก" };
       }
 
-      // 2. ดึงข้อมูล Subscription ปัจจุบัน (เพื่อให้ชัวร์ที่สุดดึงใหม่จาก DB)
-      const { data: currentSub } = await supabase
+      // 2. ดึงข้อมูล Subscription ปัจจุบัน (ดึงทั้งหมดที่เป็น active เพื่อป้องกันเคสมีซ้ำ)
+      const { data: currentSubs } = await supabase
         .from("subscriptions")
         .select("*")
         .eq("user_id", userId)
-        .eq("status", "active")
-        .single();
+        .eq("status", "active");
 
       let isUpgrade = false;
       let chargeAmount: number;
       let newCreditBalance = 0;
 
-      if (currentSub) {
+      // ถ้ามี Subscription เดิม (อาจจะมีหลาย row ถ้า data ผิดพลาด) เราจะ loop ปิดให้หมด
+      if (currentSubs && currentSubs.length > 0) {
+        // ใช้ตัวแรกเป็นตัวหลักในการคำนวณ Credit
+        const mainSub = currentSubs[0];
+
         // --- กรณีมี Plan เดิม (Upgrade) ---
-        const currentPlan = plans.find((p) => p.id === currentSub.plan_id);
-        if (!currentPlan) {
-          return { success: false, error: "ไม่พบแพ็กเกจปัจจุบัน" };
+        const currentPlan = plans.find((p) => p.id === mainSub.plan_id);
+
+        if (currentPlan) {
+          // กฎ: ห้าม Downgrade (เช็คแค่ตัวหลัก)
+          if (newPlan.tier < currentPlan.tier) {
+            return { success: false, error: "ไม่สามารถเปลี่ยนไปแพ็กเกจที่ต่ำกว่าได้" };
+          }
+          isUpgrade = newPlan.tier > currentPlan.tier;
+
+          // คำนวณ Proration (ส่วนลดจากวันคงเหลือ)
+          const existingCredit = await getUserCreditBalance(userId);
+
+          let timeCredit = 0;
+          if (mainSub.current_period_start && mainSub.current_period_end) {
+            const start = new Date(mainSub.current_period_start);
+            const end = new Date(mainSub.current_period_end);
+            const now = new Date();
+
+            const totalMs = end.getTime() - start.getTime();
+            const remainingMs = Math.max(0, end.getTime() - now.getTime());
+            const fractionRemaining = totalMs > 0 ? remainingMs / totalMs : 0;
+
+            const currentPrice = getPrice(
+              currentPlan,
+              (mainSub.billing_cycle as BillingCycle) || "monthly"
+            );
+            timeCredit = Number((currentPrice * fractionRemaining).toFixed(2));
+          }
+
+          const effectiveCredit = existingCredit + timeCredit;
+          const newPrice = getPrice(newPlan, billingCycle);
+
+          // ราคาสุทธิที่ต้องจ่าย และ เครดิตที่จะเก็บไว้รอบหน้า
+          chargeAmount = Math.max(0, Number((newPrice - effectiveCredit).toFixed(2)));
+          newCreditBalance = Math.max(0, Number((effectiveCredit - newPrice).toFixed(2)));
+        } else {
+          // Fallback ถ้าหา Plan เก่าไม่เจอ ให้คิดราคาเต็ม
+          chargeAmount = getPrice(newPlan, billingCycle);
         }
 
-        // กฎ: ห้าม Downgrade
-        if (newPlan.tier < currentPlan.tier) {
-          return { success: false, error: "ไม่สามารถเปลี่ยนไปแพ็กเกจที่ต่ำกว่าได้" };
+        // ปิด Plan เก่า "ทุกตัว" ที่ active อยู่
+        for (const sub of currentSubs) {
+          const { error: updateOldSubError } = await supabase
+            .from("subscriptions")
+            .update({
+              status: "upgraded",
+              cancel_at_period_end: false,
+              cancelled_at: new Date().toISOString(),
+            })
+            .eq("id", sub.id);
+
+          if (updateOldSubError) console.error("Error closing old sub:", updateOldSubError);
         }
-
-        isUpgrade = newPlan.tier > currentPlan.tier;
-
-        // คำนวณ Proration (ส่วนลดจากวันคงเหลือ)
-        const existingCredit = await getUserCreditBalance(userId);
-
-        let timeCredit = 0;
-        if (currentSub.current_period_start && currentSub.current_period_end) {
-          const start = new Date(currentSub.current_period_start);
-          const end = new Date(currentSub.current_period_end);
-          const now = new Date();
-
-          const totalMs = end.getTime() - start.getTime();
-          const remainingMs = Math.max(0, end.getTime() - now.getTime());
-          const fractionRemaining = totalMs > 0 ? remainingMs / totalMs : 0;
-
-          const currentPrice = getPrice(
-            currentPlan,
-            (currentSub.billing_cycle as BillingCycle) || "monthly"
-          );
-          timeCredit = Number((currentPrice * fractionRemaining).toFixed(2));
-        }
-
-        const effectiveCredit = existingCredit + timeCredit;
-        const newPrice = getPrice(newPlan, billingCycle);
-
-        // ราคาสุทธิที่ต้องจ่าย และ เครดิตที่จะเก็บไว้รอบหน้า
-        chargeAmount = Math.max(0, Number((newPrice - effectiveCredit).toFixed(2)));
-        newCreditBalance = Math.max(0, Number((effectiveCredit - newPrice).toFixed(2)));
-
-        // ปิด Plan เก่าทันที (Upgraded)
-        const { error: updateOldSubError } = await supabase
-          .from("subscriptions")
-          .update({
-            status: "upgraded",
-            cancel_at_period_end: false,
-            cancelled_at: new Date().toISOString(),
-          })
-          .eq("id", currentSub.id);
-
-        if (updateOldSubError) throw updateOldSubError;
 
       } else {
         // --- กรณีสมัครใหม่ (New Subscription) ---

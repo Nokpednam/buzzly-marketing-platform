@@ -323,7 +323,7 @@ export default function CustomerTiers() {
             </div>
           </CardHeader>
           <CardContent className="relative z-10">
-            <div className="text-4xl font-bold tracking-tight text-white shadow-sm">฿{(totalRevenue / 1000000).toFixed(2)}M</div>
+            <div className="text-4xl font-bold tracking-tight text-white shadow-sm">${(totalRevenue / 1000000).toFixed(2)}M</div>
             <div className="flex items-center text-xs font-medium mt-3 text-emerald-100">
               <span className="flex items-center bg-white/20 px-2 py-1 rounded-lg text-white mr-2 backdrop-blur-sm">
                 <ArrowUpRight className="h-3 w-3 mr-1" />
@@ -346,7 +346,7 @@ export default function CustomerTiers() {
             </div>
           </CardHeader>
           <CardContent className="relative z-10">
-            <div className="text-4xl font-bold tracking-tight text-white shadow-sm">฿{avgSpendAll.toLocaleString()}</div>
+            <div className="text-4xl font-bold tracking-tight text-white shadow-sm">${avgSpendAll.toLocaleString()}</div>
             <div className="flex items-center text-xs font-medium mt-3 text-orange-100">
               <span className="flex items-center bg-white/20 px-2 py-1 rounded-lg text-white mr-2 backdrop-blur-sm">
                 <ArrowUpRight className="h-3 w-3 mr-1" />
@@ -440,11 +440,11 @@ export default function CustomerTiers() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={revenueByTier} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 'bold' }} />
-                  <YAxis tickFormatter={(v) => `฿${v / 1000}K`} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                  <YAxis tickFormatter={(v) => `$${v / 1000}K`} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
                   <Tooltip
                     cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }}
                     contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "12px", border: "1px solid hsl(var(--border))", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}
-                    formatter={(value: number) => [`฿${value.toLocaleString()}`, "Revenue"]}
+                    formatter={(value: number) => [`$${value.toLocaleString()}`, "Revenue"]}
                   />
                   <Bar
                     dataKey="revenue"
@@ -537,7 +537,7 @@ export default function CustomerTiers() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-black text-xl text-primary">฿{customer.totalSpend.toLocaleString() ?? 0}</p>
+                    <p className="font-black text-xl text-primary">${customer.totalSpend.toLocaleString() ?? 0}</p>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{customer.points.toLocaleString() ?? 0} PTS</p>
                   </div>
                 </div>

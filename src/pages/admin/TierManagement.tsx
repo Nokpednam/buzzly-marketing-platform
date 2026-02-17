@@ -279,7 +279,7 @@ export default function TierManagement() {
                 <p className="text-sm text-muted-foreground">Points</p>
               </div>
               <div className="text-center p-4 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold">฿{selectedCustomer.totalSpend.toLocaleString()}</p>
+                <p className="text-2xl font-bold">${selectedCustomer.totalSpend.toLocaleString()}</p>
                 <p className="text-sm text-muted-foreground">Total Spend</p>
               </div>
               <div className="text-center p-4 rounded-lg bg-muted/50">

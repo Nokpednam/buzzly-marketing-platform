@@ -13,6 +13,8 @@ import { PlanType, usePlanAccess } from "@/hooks/usePlanAccess";
 import { toast } from "@/hooks/use-toast";
 import { useSubscription, BillingCycle } from "@/hooks/useSubscription";
 import { PaymentMethodDialog } from "@/components/subscription/PaymentMethodDialog";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface UpgradeRequiredDialogProps {
   open: boolean;
@@ -110,8 +112,8 @@ export function UpgradeRequiredDialog({
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // UpgradeRequiredDialog defaults to monthly for simplicity, or we could add a toggle later
-  const [billingCycle] = useState<BillingCycle>("monthly");
+  // UpgradeRequiredDialog defaults to monthly, but we should allow toggling
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
 
   const { currentPlan, updatePlan, refetch: refetchPlanAccess } = usePlanAccess();
   const {
@@ -265,7 +267,38 @@ export function UpgradeRequiredDialog({
                 </div>
               </DialogHeader>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+              <div className="flex items-center justify-center gap-4 py-4">
+                <Label
+                  htmlFor="upgrade-billing-toggle"
+                  className={cn(
+                    "cursor-pointer",
+                    billingCycle === "monthly" ? "font-semibold" : "text-muted-foreground"
+                  )}
+                >
+                  รายเดือน
+                </Label>
+                <Switch
+                  id="upgrade-billing-toggle"
+                  checked={billingCycle === "yearly"}
+                  onCheckedChange={(checked) =>
+                    setBillingCycle(checked ? "yearly" : "monthly")
+                  }
+                />
+                <Label
+                  htmlFor="upgrade-billing-toggle"
+                  className={cn(
+                    "cursor-pointer flex items-center gap-2",
+                    billingCycle === "yearly" ? "font-semibold" : "text-muted-foreground"
+                  )}
+                >
+                  รายปี
+                  <Badge variant="secondary" className="bg-accent text-accent-foreground">
+                    -17%
+                  </Badge>
+                </Label>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
                 {planDisplays.map((plan) => {
                   const planIndex = planOrder.indexOf(plan.id);
                   const isCurrentPlan = plan.id === currentPlan;
@@ -317,9 +350,19 @@ export function UpgradeRequiredDialog({
                       {/* Price */}
                       <div className="text-center mb-4">
                         <span className={cn("text-3xl font-bold", plan.color)}>
-                          {plan.price}
+                          {plan.id !== "free" && billingCycle === "yearly"
+                            ? (plan.id === "pro" ? "$25" : "$67")
+                            : plan.price
+                          }
                         </span>
                         <span className="text-muted-foreground text-sm">{plan.period}</span>
+                        {billingCycle === "yearly" && plan.id !== "free" && (
+                          <div className="mt-1">
+                            <Badge variant="outline" className="text-xs border-green-500 text-green-500">
+                              Save ~17%
+                            </Badge>
+                          </div>
+                        )}
                       </div>
 
                       {/* Features */}
