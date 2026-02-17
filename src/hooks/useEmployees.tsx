@@ -58,30 +58,37 @@ export function useEmployees() {
 
       if (employeesError) throw employeesError;
 
-      return (employeesData || []).map(emp => ({
-        id: emp.id,
-        email: emp.email,
-        user_id: emp.user_id,
-        role_employees_id: emp.role_employees_id,
-        status: emp.status,
-        approval_status: emp.approval_status,
-        is_locked: emp.is_locked,
-        created_at: emp.created_at,
-        updated_at: emp.updated_at,
-        profile: emp.profile ? {
-          id: emp.profile.id,
-          first_name: emp.profile.first_name,
-          last_name: emp.profile.last_name,
-          profile_img: emp.profile.profile_img,
-          aptitude: emp.profile.aptitude,
-          last_active: emp.profile.last_active,
-        } : undefined,
-        role: emp.role ? {
-          id: emp.role.id,
-          role_name: emp.role.role_name,
-          description: emp.role.description,
-        } : undefined,
-      })) as Employee[];
+      return (employeesData || []).map(emp => {
+        // Handle profile - Supabase might return it as array or object
+        const profileData = Array.isArray(emp.profile) ? emp.profile[0] : emp.profile;
+        // Handle role - Supabase might return it as array or object
+        const roleData = Array.isArray(emp.role) ? emp.role[0] : emp.role;
+
+        return {
+          id: emp.id,
+          email: emp.email,
+          user_id: emp.user_id,
+          role_employees_id: emp.role_employees_id,
+          status: emp.status,
+          approval_status: emp.approval_status,
+          is_locked: emp.is_locked,
+          created_at: emp.created_at,
+          updated_at: emp.updated_at,
+          profile: profileData ? {
+            id: profileData.id,
+            first_name: profileData.first_name,
+            last_name: profileData.last_name,
+            profile_img: profileData.profile_img,
+            aptitude: profileData.aptitude,
+            last_active: profileData.last_active,
+          } : undefined,
+          role: roleData ? {
+            id: roleData.id,
+            role_name: roleData.role_name,
+            description: roleData.description,
+          } : undefined,
+        };
+      }) as Employee[];
     },
   });
 
@@ -313,7 +320,7 @@ export function useEmployees() {
     mutationFn: async (id: string) => {
       const { data: employee } = await supabase
         .from("employees")
-        .select("email, user_id, role_employees(role_name)")
+        .select("email, user_id, role_employees(*)")
         .eq("id", id)
         .single();
 
@@ -349,7 +356,7 @@ export function useEmployees() {
     mutationFn: async (id: string) => {
       const { data: employee } = await supabase
         .from("employees")
-        .select("email, user_id, role_employees(role_name)")
+        .select("email, user_id, role_employees(*)")
         .eq("id", id)
         .single();
 
