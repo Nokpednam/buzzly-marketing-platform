@@ -236,7 +236,7 @@ export default function Campaigns() {
         await createCampaign.mutateAsync({ ...payload, status: "draft" });
       }
       setIsDialogOpen(false);
-    } catch (e) {}
+    } catch (e) { }
   };
 
   if (isLoading) {
@@ -278,29 +278,37 @@ export default function Campaigns() {
           value={activeCampaignsCount}
           icon={Target}
           color="text-blue-500"
+          bgColor="bg-blue-50/50 dark:bg-blue-950/20"
+          borderColor="border-blue-200/40 dark:border-blue-800/40"
         />
         <MetricCard
           label="Total Impressions"
           value={formatNumber(totalImpressions)}
           icon={Eye}
           color="text-emerald-500"
+          bgColor="bg-emerald-50/50 dark:bg-emerald-950/20"
+          borderColor="border-emerald-200/40 dark:border-emerald-800/40"
         />
         <MetricCard
           label="Total Spend"
           value={`$${formatNumber(totalSpend)}`}
           icon={DollarSign}
           color="text-amber-500"
+          bgColor="bg-amber-50/50 dark:bg-amber-950/20"
+          borderColor="border-amber-200/40 dark:border-amber-800/40"
         />
         <MetricCard
           label="Conversions"
           value={formatNumber(totalConversions)}
           icon={Users}
           color="text-indigo-500"
+          bgColor="bg-indigo-50/50 dark:bg-indigo-950/20"
+          borderColor="border-indigo-200/40 dark:border-indigo-800/40"
         />
       </div>
 
       {/* 3. FILTER & SEARCH BAR */}
-      <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-muted/30 p-2 rounded-2xl backdrop-blur-sm">
+      <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-gradient-to-r from-violet-50/30 via-sky-50/30 to-emerald-50/30 dark:from-violet-950/10 dark:via-sky-950/10 dark:to-emerald-950/10 p-2 rounded-2xl backdrop-blur-sm border-2 border-violet-200/30 dark:border-violet-800/30">
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
@@ -332,7 +340,7 @@ export default function Campaigns() {
       {/* 4. CAMPAIGN LIST */}
       <div className="space-y-4">
         {filteredCampaigns.length === 0 ? (
-          <Card className="border-2 border-dashed bg-muted/10">
+          <Card className="border-2 border-dashed border-border/60 bg-muted/10">
             <CardContent className="py-20 flex flex-col items-center justify-center text-center">
               <div className="p-4 bg-background rounded-full mb-4 shadow-sm">
                 <Target className="h-8 w-8 text-muted-foreground/30" />
@@ -348,12 +356,12 @@ export default function Campaigns() {
           filteredCampaigns.map((campaign) => (
             <Card
               key={campaign.id}
-              className="group overflow-hidden border-none shadow-sm hover:shadow-xl hover:ring-1 ring-primary/20 transition-all duration-300 cursor-pointer"
+              className="group overflow-hidden border-2 border-border/60 shadow-md hover:shadow-xl hover:border-primary/50 transition-all duration-300 cursor-pointer"
               onClick={() => navigate(`/campaigns/${campaign.id}`)}
             >
               <div className="flex flex-col lg:flex-row">
                 {/* Meta Column */}
-                <div className="p-6 lg:w-80 border-b lg:border-b-0 lg:border-r bg-muted/5 transition-colors group-hover:bg-muted/20">
+                <div className="p-6 lg:w-80 border-b-2 lg:border-b-0 lg:border-r-2 border-border/50 bg-gradient-to-br from-blue-50/30 to-purple-50/30 dark:from-blue-950/10 dark:to-purple-950/10 transition-colors group-hover:from-blue-100/40 group-hover:to-purple-100/40 dark:group-hover:from-blue-900/20 dark:group-hover:to-purple-900/20">
                   <div className="flex items-start justify-between mb-3">
                     <Badge
                       variant="outline"
@@ -368,9 +376,9 @@ export default function Campaigns() {
                       <Clock className="h-3 w-3" />{" "}
                       {campaign.start_date
                         ? new Date(campaign.start_date).toLocaleDateString(
-                            "en-US",
-                            { month: "short", day: "numeric" },
-                          )
+                          "en-US",
+                          { month: "short", day: "numeric" },
+                        )
                         : "TBD"}
                     </span>
                   </div>
@@ -394,7 +402,7 @@ export default function Campaigns() {
                 </div>
 
                 {/* Performance Column */}
-                <div className="p-6 flex-1 bg-background relative">
+                <div className="p-6 flex-1 bg-gradient-to-br from-emerald-50/20 to-cyan-50/20 dark:from-emerald-950/5 dark:to-cyan-950/5 relative">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
                     <DataPoint
                       label="Impressions"
@@ -629,9 +637,9 @@ export default function Campaigns() {
 }
 
 // UI HELPERS
-function MetricCard({ label, value, icon: Icon, color }: any) {
+function MetricCard({ label, value, icon: Icon, color, bgColor, borderColor }: any) {
   return (
-    <Card className="border-none bg-muted/20 shadow-none rounded-2xl group transition-all hover:bg-muted/40">
+    <Card className={`border-2 ${borderColor} ${bgColor} shadow-sm rounded-2xl group transition-all hover:shadow-md hover:border-primary/30`}>
       <CardContent className="p-5 flex items-center gap-4">
         <div
           className={`p-3 rounded-xl bg-background ${color} shadow-sm group-hover:scale-110 transition-transform`}
