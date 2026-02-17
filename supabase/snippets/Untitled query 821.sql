@@ -1,20 +1,45 @@
-INSERT INTO public.error_logs (id, level, message, user_id, request_id, stack_trace, metadata, created_at) VALUES
-('90000000-0000-0000-0000-000000000001', 'error', 'Database connection timeout after 30000ms', NULL, 'req_db_timeout_001', 'Error: Connection timeout', '{"database": "primary"}'::jsonb, NOW() - INTERVAL '2 hours'),
-('90000000-0000-0000-0000-000000000002', 'error', 'Payment processing failed: Insufficient funds', NULL, 'req_payment_001', 'PaymentError: Transaction declined', '{"provider": "stripe"}'::jsonb, NOW() - INTERVAL '4 hours'),
-('90000000-0000-0000-0000-000000000003', 'error', 'Facebook API rate limit exceeded', NULL, 'req_fb_api_001', 'FacebookAPIError: Rate limit exceeded', '{"platform": "facebook"}'::jsonb, NOW() - INTERVAL '6 hours'),
-('90000000-0000-0000-0000-000000000004', 'error', 'Authentication token expired', NULL, 'req_auth_001', 'AuthenticationError: Token expired', '{"token_type": "access_token"}'::jsonb, NOW() - INTERVAL '1 day'),
-('90000000-0000-0000-0000-000000000005', 'error', 'Failed to sync Google Ads', NULL, 'req_gads_001', 'GoogleAdsError: Invalid OAuth', '{"platform": "google_ads"}'::jsonb, NOW() - INTERVAL '8 hours'),
-('90000000-0000-0000-0000-000000000006', 'warning', 'High memory usage detected', NULL, 'req_health_001', NULL, '{"memory_used_mb": 3400}'::jsonb, NOW() - INTERVAL '30 minutes'),
-('90000000-0000-0000-0000-000000000007', 'warning', 'Slow database query detected', NULL, 'req_slow_query_001', NULL, '{"query_time_ms": 7823}'::jsonb, NOW() - INTERVAL '1 hour'),
-('90000000-0000-0000-0000-000000000008', 'warning', 'API response time exceeding threshold', NULL, 'req_latency_001', NULL, '{"endpoint": "/v18.0/insights"}'::jsonb, NOW() - INTERVAL '3 hours'),
-('90000000-0000-0000-0000-000000000009', 'warning', 'Retry attempt 3/5 for webhook', NULL, 'req_webhook_001', NULL, '{"webhook_url": "example.com"}'::jsonb, NOW() - INTERVAL '5 hours'),
-('90000000-0000-0000-0000-000000000010', 'warning', 'Cache miss rate above 40%', NULL, 'req_cache_001', NULL, '{"cache_type": "redis"}'::jsonb, NOW() - INTERVAL '2 hours'),
-('90000000-0000-0000-0000-000000000011', 'info', 'Daily ad insights sync completed', NULL, 'req_sync_001', NULL, '{"accounts_synced": 8}'::jsonb, NOW() - INTERVAL '12 hours'),
-('90000000-0000-0000-0000-000000000012', 'info', 'New workspace created', NULL, 'req_workspace_001', NULL, '{"workspace_id": "w100..."}'::jsonb, NOW() - INTERVAL '1 day'),
-('90000000-0000-0000-0000-000000000013', 'info', 'Scheduled report generated', NULL, 'req_report_001', NULL, '{"report_type": "weekly"}'::jsonb, NOW() - INTERVAL '18 hours'),
-('90000000-0000-0000-0000-000000000014', 'info', 'User role updated', NULL, 'req_role_001', NULL, '{"old_role": "editor"}'::jsonb, NOW() - INTERVAL '6 hours'),
-('90000000-0000-0000-0000-000000000015', 'info', 'Platform connection established', NULL, 'req_connect_001', NULL, '{"platform": "tiktok_ads"}'::jsonb, NOW() - INTERVAL '4 hours'),
-('90000000-0000-0000-0000-000000000016', 'debug', 'Cache invalidation triggered', NULL, 'req_debug_001', NULL, '{"reason": "campaign_update"}'::jsonb, NOW() - INTERVAL '45 minutes'),
-('90000000-0000-0000-0000-000000000017', 'debug', 'Background job queued', NULL, 'req_debug_002', NULL, '{"job_id": "job_abc123"}'::jsonb, NOW() - INTERVAL '20 minutes'),
-('90000000-0000-0000-0000-000000000018', 'debug', 'API request logged', NULL, 'req_debug_003', NULL, '{"path": "/api/v1/campaigns"}'::jsonb, NOW() - INTERVAL '10 minutes')
-ON CONFLICT (id) DO NOTHING;
+-- Migration: Cleanup Employee Roles
+-- Description: Keep only 3 roles (all lowercase): owner, admin, dev
+-- Fixes: 23503 foreign key violation by reassigning employees before deletion
+
+-- Step 1: Ensure the 3 primary roles exist
+INSERT INTO role_employees (role_name, description)
+SELECT 'owner', 'Owner - Full system access and business management'
+WHERE NOT EXISTS (SELECT 1 FROM role_employees WHERE role_name = 'owner');
+
+INSERT INTO role_employees (role_name, description)
+SELECT 'admin', 'Administrator - Staff management and operational access'
+WHERE NOT EXISTS (SELECT 1 FROM role_employees WHERE role_name = 'admin');
+
+INSERT INTO role_employees (role_name, description)
+SELECT 'dev', 'Developer - API access, system development'
+WHERE NOT EXISTS (SELECT 1 FROM role_employees WHERE role_name = 'dev' OR role_name = 'developer');
+
+-- Step 2: Rename 'developer' to 'dev' if it exists
+UPDATE role_employees 
+SET role_name = 'dev',
+    description = 'Developer - API access, system development'
+WHERE role_name = 'developer';
+
+-- Step 3: Reassign employees with other roles to 'admin'
+-- This prevents foreign key violations when deleting unused roles
+UPDATE employees
+SET role_employees_id = (SELECT id FROM role_employees WHERE role_name = 'admin')
+WHERE role_employees_id IN (
+    SELECT id FROM role_employees 
+    WHERE role_name NOT IN ('owner', 'admin', 'dev')
+);
+
+-- Step 4: Delete all unused roles (keep only owner, admin, dev)
+DELETE FROM role_employees 
+WHERE role_name NOT IN ('owner', 'admin', 'dev');
+
+-- Step 5: Verify the cleanup
+SELECT 
+    role_name, 
+    description,
+    COUNT(e.id) as employee_count
+FROM role_employees r
+LEFT JOIN employees e ON e.role_employees_id = r.id
+GROUP BY r.role_name, r.description
+ORDER BY r.role_name;
