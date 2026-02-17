@@ -146,6 +146,62 @@ ON CONFLICT (slug) DO UPDATE SET
   name = EXCLUDED.name,
   description = EXCLUDED.description;
 
+-- ===== Ad Accounts (Moved up to fix FK order) =====
+DO $$
+DECLARE
+  t_id UUID;
+  fb_id UUID;
+  gg_id UUID;
+  o_id UUID;
+BEGIN
+  -- 1. Ensure a team exists (Required for sample data)
+  SELECT id INTO t_id FROM public.teams LIMIT 1;
+  
+  IF t_id IS NULL THEN
+    -- Find an owner or any user to own the team
+    SELECT id INTO o_id FROM auth.users ORDER BY created_at ASC LIMIT 1;
+    
+    IF o_id IS NOT NULL THEN
+      INSERT INTO public.teams (id, name, owner_id)
+      VALUES (gen_random_uuid(), 'Sample Growth Team', o_id)
+      RETURNING id INTO t_id;
+      
+      -- Also add to team_members
+      INSERT INTO public.team_members (team_id, user_id, role, status)
+      VALUES (t_id, o_id, 'owner', 'active')
+      ON CONFLICT DO NOTHING;
+    END IF;
+  END IF;
+
+  -- 2. Create Ad Accounts linked to this team
+  SELECT id INTO fb_id FROM public.platforms WHERE slug = 'facebook';
+  SELECT id INTO gg_id FROM public.platforms WHERE slug = 'google';
+
+  IF t_id IS NOT NULL AND fb_id IS NOT NULL AND gg_id IS NOT NULL THEN
+    INSERT INTO public.ad_accounts (id, team_id, platform_id, account_name, is_active)
+    VALUES 
+      ('aa000001-0000-0000-0000-000000000001', t_id, fb_id, 'Buzzly Facebook Ads', true),
+      ('aa000002-0000-0000-0000-000000000002', t_id, gg_id, 'Buzzly Google Ads', true)
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+END $$;
+
+-- ===== Sample Campaigns (Moved up to fix FK order) =====
+-- Linked to Ad Account aa...01 (Facebook) or aa...02 (Google)
+INSERT INTO public.campaigns (id, ad_account_id, name, objective, status, budget_amount, start_date, end_date) VALUES
+  ('ca000001-0000-0000-0000-000000000001', 'aa000001-0000-0000-0000-000000000001', 'Q1 Brand Awareness 2025', 'awareness', 'active', 5000, NOW() - INTERVAL '30 days', NOW() + INTERVAL '60 days'),
+  ('ca000002-0000-0000-0000-000000000002', 'aa000001-0000-0000-0000-000000000001', 'Black Friday 2025', 'conversions', 'active', 15000, NOW() - INTERVAL '7 days', NOW() + INTERVAL '3 days'),
+  ('ca000003-0000-0000-0000-000000000003', 'aa000002-0000-0000-0000-000000000002', 'Holiday Season 2025', 'sales', 'draft', 20000, NOW() + INTERVAL '30 days', NOW() + INTERVAL '60 days'),
+  ('ca000004-0000-0000-0000-000000000004', 'aa000001-0000-0000-0000-000000000001', 'Summer Promotion 2025', 'engagement', 'completed', 8000, NOW() - INTERVAL '180 days', NOW() - INTERVAL '120 days'),
+  ('ca000005-0000-0000-0000-000000000005', 'aa000002-0000-0000-0000-000000000002', 'Retargeting Q4', 'conversions', 'active', 3500, NOW() - INTERVAL '45 days', NOW() + INTERVAL '15 days'),
+  ('ca000006-0000-0000-0000-000000000006', 'aa000001-0000-0000-0000-000000000001', 'New Product Launch', 'awareness', 'paused', 12000, NOW() - INTERVAL '60 days', NOW() + INTERVAL '30 days'),
+  ('ca000007-0000-0000-0000-000000000007', 'aa000002-0000-0000-0000-000000000002', 'Email Subscriber Growth', 'leads', 'active', 2500, NOW() - INTERVAL '14 days', NOW() + INTERVAL '46 days'),
+  ('ca000008-0000-0000-0000-000000000008', 'aa000001-0000-0000-0000-000000000001', 'Q4 Revenue Push', 'conversions', 'active', 25000, NOW() - INTERVAL '21 days', NOW() + INTERVAL '39 days')
+ON CONFLICT (id) DO UPDATE SET 
+  name = EXCLUDED.name,
+  status = EXCLUDED.status,
+  budget_amount = EXCLUDED.budget_amount;
+
 -- ===== Ad Groups =====
 INSERT INTO ad_groups (id, name, status) VALUES
   ('a6000001-0000-0000-0000-000000000001', 'Summer Campaign 2025', 'active'),
@@ -513,44 +569,6 @@ INSERT INTO industries (id, name, slug, description, display_order) VALUES
 ON CONFLICT (id) DO UPDATE SET 
   name = EXCLUDED.name,
   description = EXCLUDED.description;
-
--- ===== Ad Accounts (New Section for RLS) =====
-DO $$
-DECLARE
-  t_id UUID;
-  fb_id UUID;
-  gg_id UUID;
-BEGIN
-  -- Find the default team (usually the first one created)
-  SELECT id INTO t_id FROM teams LIMIT 1;
-  SELECT id INTO fb_id FROM platforms WHERE slug = 'facebook';
-  SELECT id INTO gg_id FROM platforms WHERE slug = 'google';
-
-  IF t_id IS NOT NULL THEN
-    -- Create Ad Accounts linked to this team
-    INSERT INTO ad_accounts (id, team_id, platform_id, account_name, is_active)
-    VALUES 
-      ('aa000001-0000-0000-0000-000000000001', t_id, fb_id, 'Buzzly Facebook Ads', true),
-      ('aa000002-0000-0000-0000-000000000002', t_id, gg_id, 'Buzzly Google Ads', true)
-    ON CONFLICT (id) DO NOTHING;
-  END IF;
-END $$;
-
--- ===== Sample Campaigns (Active and Historical) =====
--- Linked to Ad Account aa...01 (Facebook) or aa...02 (Google)
-INSERT INTO campaigns (id, ad_account_id, name, objective, status, budget_amount, start_date, end_date) VALUES
-  ('ca000001-0000-0000-0000-000000000001', 'aa000001-0000-0000-0000-000000000001', 'Q1 Brand Awareness 2025', 'awareness', 'active', 5000, NOW() - INTERVAL '30 days', NOW() + INTERVAL '60 days'),
-  ('ca000002-0000-0000-0000-000000000002', 'aa000001-0000-0000-0000-000000000001', 'Black Friday 2025', 'conversions', 'active', 15000, NOW() - INTERVAL '7 days', NOW() + INTERVAL '3 days'),
-  ('ca000003-0000-0000-0000-000000000003', 'aa000002-0000-0000-0000-000000000002', 'Holiday Season 2025', 'sales', 'draft', 20000, NOW() + INTERVAL '30 days', NOW() + INTERVAL '60 days'),
-  ('ca000004-0000-0000-0000-000000000004', 'aa000001-0000-0000-0000-000000000001', 'Summer Promotion 2025', 'engagement', 'completed', 8000, NOW() - INTERVAL '180 days', NOW() - INTERVAL '120 days'),
-  ('ca000005-0000-0000-0000-000000000005', 'aa000002-0000-0000-0000-000000000002', 'Retargeting Q4', 'conversions', 'active', 3500, NOW() - INTERVAL '45 days', NOW() + INTERVAL '15 days'),
-  ('ca000006-0000-0000-0000-000000000006', 'aa000001-0000-0000-0000-000000000001', 'New Product Launch', 'awareness', 'paused', 12000, NOW() - INTERVAL '60 days', NOW() + INTERVAL '30 days'),
-  ('ca000007-0000-0000-0000-000000000007', 'aa000002-0000-0000-0000-000000000002', 'Email Subscriber Growth', 'leads', 'active', 2500, NOW() - INTERVAL '14 days', NOW() + INTERVAL '46 days'),
-  ('ca000008-0000-0000-0000-000000000008', 'aa000001-0000-0000-0000-000000000001', 'Q4 Revenue Push', 'conversions', 'active', 25000, NOW() - INTERVAL '21 days', NOW() + INTERVAL '39 days')
-ON CONFLICT (id) DO UPDATE SET 
-  name = EXCLUDED.name,
-  status = EXCLUDED.status,
-  budget_amount = EXCLUDED.budget_amount;
 
 -- ===== Social Posts (FIXED: uses correct column names from schema) =====
 DO $$
