@@ -94,44 +94,44 @@ export function useWorkspace() {
           setIndustries(industriesData);
         }
 
-        // Fetch user's team (as owner)
-        const { data: teamData } = await supabase
-          .from('teams')
+        // Fetch user's workspace (as owner)
+        const { data: workspaceData } = await supabase
+          .from('workspaces')
           .select('*')
           .eq('owner_id', user.id)
           .maybeSingle();
 
-        if (teamData) {
+        if (workspaceData) {
           setHasTeam(true);
           setWorkspace({
-            id: teamData.id,
-            name: teamData.name || '',
-            description: teamData.description || '',
-            logo_url: teamData.logo_url || '',
-            workspace_url: teamData.workspace_url || '',
-            business_type_id: teamData.business_type_id || '',
-            industries_id: teamData.industries_id || '',
+            id: workspaceData.id,
+            name: workspaceData.name || '',
+            description: workspaceData.description || '',
+            logo_url: workspaceData.logo_url || '',
+            workspace_url: workspaceData.workspace_url || '',
+            business_type_id: workspaceData.business_type_id || '',
+            industries_id: workspaceData.industries_id || '',
           });
         } else {
-          // Check if user is a member of any team
+          // Check if user is a member of any workspace
           const { data: memberData } = await supabase
-            .from('team_members')
-            .select('team_id, teams(*)')
+            .from('workspace_members')
+            .select('team_id, workspaces(*)')
             .eq('user_id', user.id)
             .eq('status', 'active')
             .maybeSingle();
 
-          if (memberData?.teams) {
-            const team = memberData.teams as unknown as Team;
+          if (memberData?.workspaces) {
+            const workspace = memberData.workspaces as unknown as Team;
             setHasTeam(true);
             setWorkspace({
-              id: team.id,
-              name: team.name || '',
-              description: team.description || '',
-              logo_url: team.logo_url || '',
-              workspace_url: team.workspace_url || '',
-              business_type_id: team.business_type_id || '',
-              industries_id: team.industries_id || '',
+              id: workspace.id,
+              name: workspace.name || '',
+              description: workspace.description || '',
+              logo_url: workspace.logo_url || '',
+              workspace_url: workspace.workspace_url || '',
+              business_type_id: workspace.business_type_id || '',
+              industries_id: workspace.industries_id || '',
             });
           }
         }
@@ -145,7 +145,7 @@ export function useWorkspace() {
     fetchData();
   }, []);
 
-  // Create new team/workspace
+  // Create new workspace
   const createWorkspace = async (name: string) => {
     try {
       setSaving(true);
@@ -153,7 +153,7 @@ export function useWorkspace() {
       if (!user) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
-        .from('teams')
+        .from('workspaces')
         .insert({
           name,
           owner_id: user.id,
@@ -164,9 +164,9 @@ export function useWorkspace() {
 
       if (error) throw error;
 
-      // Add owner as team member
+      // Add owner as workspace member
       await supabase
-        .from('team_members')
+        .from('workspace_members')
         .insert({
           team_id: data.id,
           user_id: user.id,
@@ -220,7 +220,7 @@ export function useWorkspace() {
       };
 
       const { error } = await supabase
-        .from('teams')
+        .from('workspaces')
         .update(updateData)
         .eq('id', workspace.id);
 

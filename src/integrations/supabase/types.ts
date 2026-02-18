@@ -167,7 +167,7 @@ export type Database = {
             foreignKeyName: "ad_accounts_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
-            referencedRelation: "teams"
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -690,7 +690,7 @@ export type Database = {
             foreignKeyName: "budgets_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
-            referencedRelation: "teams"
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -884,7 +884,7 @@ export type Database = {
             foreignKeyName: "cohort_analysis_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
-            referencedRelation: "teams"
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -3161,7 +3161,7 @@ export type Database = {
             foreignKeyName: "reports_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
-            referencedRelation: "teams"
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -3279,7 +3279,7 @@ export type Database = {
             foreignKeyName: "revenue_metrics_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
-            referencedRelation: "teams"
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -3399,7 +3399,7 @@ export type Database = {
             foreignKeyName: "scheduled_reports_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
-            referencedRelation: "teams"
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -3523,7 +3523,7 @@ export type Database = {
             foreignKeyName: "social_posts_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
-            referencedRelation: "teams"
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -3660,7 +3660,7 @@ export type Database = {
             foreignKeyName: "subscriptions_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
-            referencedRelation: "teams"
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -3836,7 +3836,7 @@ export type Database = {
             foreignKeyName: "team_activity_logs_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
-            referencedRelation: "teams"
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -3886,12 +3886,12 @@ export type Database = {
             foreignKeyName: "team_invitations_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
-            referencedRelation: "teams"
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
       }
-      team_members: {
+      workspace_members: {
         Row: {
           custom_permissions: Json | null
           id: string
@@ -3927,7 +3927,7 @@ export type Database = {
             foreignKeyName: "team_members_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
-            referencedRelation: "teams"
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -3962,12 +3962,12 @@ export type Database = {
             foreignKeyName: "team_role_permissions_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
-            referencedRelation: "teams"
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
       }
-      teams: {
+      workspaces: {
         Row: {
           business_type_id: string | null
           created_at: string
@@ -4311,141 +4311,12 @@ export type Database = {
             foreignKeyName: "workspace_api_keys_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
-            referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workspace_members: {
-        Row: {
-          created_at: string | null
-          id: string
-          invitation_email: string | null
-          invitation_expires_at: string | null
-          invitation_token: string | null
-          is_favourite: boolean | null
-          joined_at: string | null
-          last_accessed_at: string | null
-          notification_setting: Json | null
-          permissions_override: Json | null
-          role_customer_id: string | null
-          status: string | null
-          updated_at: string | null
-          user_id: string | null
-          workspace_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          invitation_email?: string | null
-          invitation_expires_at?: string | null
-          invitation_token?: string | null
-          is_favourite?: boolean | null
-          joined_at?: string | null
-          last_accessed_at?: string | null
-          notification_setting?: Json | null
-          permissions_override?: Json | null
-          role_customer_id?: string | null
-          status?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-          workspace_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          invitation_email?: string | null
-          invitation_expires_at?: string | null
-          invitation_token?: string | null
-          is_favourite?: boolean | null
-          joined_at?: string | null
-          last_accessed_at?: string | null
-          notification_setting?: Json | null
-          permissions_override?: Json | null
-          role_customer_id?: string | null
-          status?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-          workspace_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workspace_members_role_customer_id_fkey"
-            columns: ["role_customer_id"]
-            isOneToOne: false
-            referencedRelation: "role_customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workspace_members_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
       }
-      workspaces: {
-        Row: {
-          business_type_id: string | null
-          created_at: string | null
-          id: string
-          industries_id: string | null
-          logo_url: string | null
-          status: string | null
-          team_id: string | null
-          updated_at: string | null
-          workspace_name: string
-          workspace_url: string | null
-        }
-        Insert: {
-          business_type_id?: string | null
-          created_at?: string | null
-          id?: string
-          industries_id?: string | null
-          logo_url?: string | null
-          status?: string | null
-          team_id?: string | null
-          updated_at?: string | null
-          workspace_name: string
-          workspace_url?: string | null
-        }
-        Update: {
-          business_type_id?: string | null
-          created_at?: string | null
-          id?: string
-          industries_id?: string | null
-          logo_url?: string | null
-          status?: string | null
-          team_id?: string | null
-          updated_at?: string | null
-          workspace_name?: string
-          workspace_url?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workspaces_business_type_id_fkey"
-            columns: ["business_type_id"]
-            isOneToOne: false
-            referencedRelation: "business_types"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workspaces_industries_id_fkey"
-            columns: ["industries_id"]
-            isOneToOne: false
-            referencedRelation: "industries"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "workspaces_team_id_fkey"
-            columns: ["team_id"]
-            isOneToOne: false
-            referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+
     }
     Views: {
       [_ in never]: never

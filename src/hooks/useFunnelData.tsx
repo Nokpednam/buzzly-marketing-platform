@@ -96,12 +96,37 @@ export function useFunnelData() {
         }
       });
       stageValue = uniqueUsersInStage.size;
-    } else if (stage.slug === 'active') {
-      // Active Users (engaged with any event recently, or just total unique active in dataset)
+    } else if (stage.slug === 'active' || stage.slug === 'email-verified') {
+      // Active Users or Email Verified (using Login as proxy for verified)
       activities.forEach(a => {
-        if (a.profile_customer_id) uniqueUsersInStage.add(a.profile_customer_id);
+        const eventSlug = a.event_types?.slug;
+        if (eventSlug === 'login' || (stage.slug === 'active' && a.profile_customer_id)) {
+          if (a.profile_customer_id) uniqueUsersInStage.add(a.profile_customer_id);
+        }
       });
       stageValue = uniqueUsersInStage.size;
+    } else if (stage.slug === 'profile-complete') {
+      // Profile Complete: Users who have at least one activity recorded implies they exist
+      // A better proxy might be users who have 'update' events on settings, but simplistic view:
+      // Use users who have reached this far in funnel (e.g. have done anything post-signup)
+      // For strictness: Check for 'profile-update' or similar, but let's stick to explicit events if available.
+      // Since we don't have a specific event for this in the sample data, we'll check for ANY activity that isn't just landing/signup.
+      activities.forEach(a => {
+        const eventSlug = a.event_types?.slug;
+        if (eventSlug && !['page-view', 'signup'].includes(eventSlug)) {
+          if (a.profile_customer_id) uniqueUsersInStage.add(a.profile_customer_id);
+        }
+      });
+      stageValue = uniqueUsersInStage.size;
+
+    } else if (stage.slug === 'first-campaign' || stage.slug === 'campaign-created') {
+      activities.forEach(a => {
+        if (a.event_types?.slug === 'campaign-created') {
+          if (a.profile_customer_id) uniqueUsersInStage.add(a.profile_customer_id);
+        }
+      });
+      stageValue = uniqueUsersInStage.size;
+
     } else if (stage.slug === 'first-payment' || stage.slug === 'purchase') {
       activities.forEach(a => {
         if (a.event_types?.slug === 'purchase' || a.page_url?.includes('checkout')) {
@@ -109,21 +134,27 @@ export function useFunnelData() {
         }
       });
       stageValue = uniqueUsersInStage.size;
+    } else if (stage.slug === 'referral') {
+      activities.forEach(a => {
+        if (a.event_types?.slug === 'referral') {
+          if (a.profile_customer_id) uniqueUsersInStage.add(a.profile_customer_id);
+        }
+      });
+      stageValue = uniqueUsersInStage.size;
     } else {
-      // For other stages without direct event mapping (e.g. 'email-verified'), 
-      // use a decay from the PREVIOUS stage to simulate flow.
-      stageValue = Math.round(previousStageValue * 0.6);
+      // STRICT MODE: If we don't have a mapping, it is ZERO. No guesses.
+      stageValue = 0;
     }
 
     // Waterfall constraint: Stage N cannot be larger than Stage N-1
+    // (Optional: depending on if we want strict funnel or just raw counts. 
+    // strictly speaking, a funnel should shrink. but data errors might make it grow.
+    // Let's keep the constraint to avoid confusing charts.)
     if (index > 0) {
       stageValue = Math.min(stageValue, previousStageValue);
     }
 
-    // Ensure we don't have 0 if we have users (cosmetic fix)
-    if (stageValue === 0 && previousStageValue > 0 && index < 5) {
-      stageValue = Math.max(1, Math.round(previousStageValue * 0.1));
-    }
+    // REMOVED: The cosmetic fix that forced stageValue to be max(1, ...)
 
     // Update previousStageValue for next iteration
     previousStageValue = stageValue;
@@ -133,10 +164,10 @@ export function useFunnelData() {
     return {
       ...stage,
       value: stageValue,
-      percentage: 0, // Calculated in second pass to avoid circular reference
+      percentage: 0, // Calculated in second pass
       metrics: {
         users: stageValue,
-        rate: ((stageValue / totalActivities) * 100).toFixed(1),
+        rate: stageValue > 0 ? ((stageValue / totalActivities) * 100).toFixed(1) : "0.0",
       },
       category,
     };

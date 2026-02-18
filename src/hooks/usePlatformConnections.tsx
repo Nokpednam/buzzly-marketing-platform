@@ -64,19 +64,19 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       // Get user's team
       let currentTeamId: string | null = null;
 
-      // Check if user owns a team
-      const { data: ownedTeam } = await supabase
-        .from('teams')
+      // Check if user owns a workspace
+      const { data: ownedWorkspace } = await supabase
+        .from('workspaces')
         .select('id')
         .eq('owner_id', user.id)
         .maybeSingle();
 
-      if (ownedTeam) {
-        currentTeamId = ownedTeam.id;
+      if (ownedWorkspace) {
+        currentTeamId = ownedWorkspace.id;
       } else {
-        // Check if user is a member of a team
+        // Check if user is a member of a workspace
         const { data: memberData } = await supabase
-          .from('team_members')
+          .from('workspace_members')
           .select('team_id')
           .eq('user_id', user.id)
           .eq('status', 'active')
@@ -134,8 +134,8 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
           icon: platformIcons[p.slug] || null,
           emoji: platformEmojis[p.slug],
           status,
-          lastSync: connection?.last_synced_at 
-            ? new Date(connection.last_synced_at).toLocaleString() 
+          lastSync: connection?.last_synced_at
+            ? new Date(connection.last_synced_at).toLocaleString()
             : undefined,
           accessToken: connection?.access_token,
           error: connection?.error_message,
@@ -160,12 +160,12 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       prev.map((p) =>
         p.id === id
           ? {
-              ...p,
-              status: "connected" as PlatformStatus,
-              accessToken: token,
-              lastSync: new Date().toLocaleString(),
-              error: undefined,
-            }
+            ...p,
+            status: "connected" as PlatformStatus,
+            accessToken: token,
+            lastSync: new Date().toLocaleString(),
+            error: undefined,
+          }
           : p
       )
     );
@@ -176,12 +176,12 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       prev.map((p) =>
         p.id === id
           ? {
-              ...p,
-              status: "disconnected" as PlatformStatus,
-              accessToken: undefined,
-              lastSync: undefined,
-              error: undefined,
-            }
+            ...p,
+            status: "disconnected" as PlatformStatus,
+            accessToken: undefined,
+            lastSync: undefined,
+            error: undefined,
+          }
           : p
       )
     );
@@ -192,12 +192,12 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       prev.map((p) =>
         p.id === id
           ? {
-              ...p,
-              accessToken: token,
-              lastSync: new Date().toLocaleString(),
-              status: "connected" as PlatformStatus,
-              error: undefined,
-            }
+            ...p,
+            accessToken: token,
+            lastSync: new Date().toLocaleString(),
+            status: "connected" as PlatformStatus,
+            error: undefined,
+          }
           : p
       )
     );
@@ -208,11 +208,11 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       prev.map((p) =>
         p.id === id
           ? {
-              ...p,
-              lastSync: new Date().toLocaleString(),
-              status: p.accessToken ? "connected" as PlatformStatus : "disconnected" as PlatformStatus,
-              error: undefined,
-            }
+            ...p,
+            lastSync: new Date().toLocaleString(),
+            status: p.accessToken ? "connected" as PlatformStatus : "disconnected" as PlatformStatus,
+            error: undefined,
+          }
           : p
       )
     );

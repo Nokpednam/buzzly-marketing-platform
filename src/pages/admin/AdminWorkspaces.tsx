@@ -102,7 +102,7 @@ export default function AdminWorkspaces() {
     queryKey: ["admin-workspaces"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("teams")
+        .from("workspaces")
         .select(`
           *,
           business_types:business_type_id (name),
@@ -123,7 +123,7 @@ export default function AdminWorkspaces() {
 
       // Get member counts
       const { data: memberCounts } = await supabase
-        .from("team_members")
+        .from("workspace_members")
         .select("team_id");
 
       if (memberCounts) {
@@ -160,7 +160,7 @@ export default function AdminWorkspaces() {
       if (!selectedWorkspace) return [];
 
       const { data, error } = await supabase
-        .from("team_members")
+        .from("workspace_members")
         .select("id, user_id, role, status, joined_at")
         .eq("team_id", selectedWorkspace.id);
 
