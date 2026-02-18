@@ -62,20 +62,20 @@ BEGIN
 
     -- Facebook Ad Account
     v_aa_fb := gen_random_uuid();
-    INSERT INTO public.ad_accounts (id, team_id, platform_id, account_name, platform_account_id, is_active, status, created_at)
+    INSERT INTO public.ad_accounts (id, team_id, platform_id, account_name, platform_account_id, is_active, created_at)
     VALUES (v_aa_fb, v_ws, v_fb,
       (SELECT name FROM public.workspaces WHERE id = v_ws) || ' — FB Ads',
       'act_' || floor(random()*9000000000+1000000000)::text,
-      true, 'active', NOW() - (random()*INTERVAL '180 days'))
+      true, NOW() - (random()*INTERVAL '180 days'))
     ON CONFLICT DO NOTHING;
 
     -- Google Ad Account
     v_aa_gg := gen_random_uuid();
-    INSERT INTO public.ad_accounts (id, team_id, platform_id, account_name, platform_account_id, is_active, status, created_at)
+    INSERT INTO public.ad_accounts (id, team_id, platform_id, account_name, platform_account_id, is_active, created_at)
     VALUES (v_aa_gg, v_ws, v_gg,
       (SELECT name FROM public.workspaces WHERE id = v_ws) || ' — Google Ads',
       floor(random()*900000000+100000000)::text || '-' || floor(random()*9000+1000)::text,
-      true, 'active', NOW() - (random()*INTERVAL '180 days'))
+      true, NOW() - (random()*INTERVAL '180 days'))
     ON CONFLICT DO NOTHING;
 
     -- 2-3 campaigns per workspace
@@ -97,11 +97,11 @@ BEGIN
         NOW() - (random()*INTERVAL '60 days')
       ) ON CONFLICT DO NOTHING;
 
-      -- Budget for campaign (FIXED: added name column)
+      -- Budget for campaign (FIXED: added name column and team_id)
       v_budget_id := gen_random_uuid();
-      INSERT INTO public.budgets (id, campaign_id, name, amount, budget_type, start_date, end_date, is_active, created_at)
+      INSERT INTO public.budgets (id, team_id, campaign_id, name, amount, budget_type, start_date, end_date, is_active, created_at)
       VALUES (
-        v_budget_id, v_camp_id,
+        v_budget_id, v_ws, v_camp_id,
         'Budget for ' || v_camp_names[1 + ((i + v_idx) % array_length(v_camp_names,1))],
         (5000 + floor(random()*45000))::numeric,
         CASE WHEN v_idx % 2 = 0 THEN 'lifetime' ELSE 'daily' END,
@@ -127,7 +127,7 @@ BEGIN
         v_ad_id, v_adg_id,
         v_ad_names[1 + ((i + v_idx) % array_length(v_ad_names,1))],
         CASE WHEN random() > 0.15 THEN 'active' ELSE 'paused' END,
-        (SELECT id FROM public.creative_types ORDER BY random() LIMIT 1),
+        NULL, -- creative_types table was dropped
         NOW() - (random()*INTERVAL '50 days')
       ) ON CONFLICT DO NOTHING;
 

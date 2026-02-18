@@ -4,19 +4,45 @@
 -- reports (60), scheduled_reports (30), team_invitations (50)
 -- ============================================================
 
--- 7.1 Discounts / Promo Codes (FIXED: min_order_value, usage_limit, usage_count)
-INSERT INTO public.discounts (id, code, discount_type, discount_value, min_order_value, usage_limit, usage_count, is_active, start_date, end_date, description, created_at) VALUES
-  (gen_random_uuid(),'WELCOME20','percentage',20,0,1000,342,true,NOW()-INTERVAL '180 days',NOW()+INTERVAL '365 days','Welcome 20% Off',NOW()-INTERVAL '180 days'),
-  (gen_random_uuid(),'NEWYEAR25','percentage',25,500,500,198,true,NOW()-INTERVAL '60 days',NOW()+INTERVAL '90 days','New Year 25% Off',NOW()-INTERVAL '60 days'),
-  (gen_random_uuid(),'SAVE500','fixed',500,2000,200,87,true,NOW()-INTERVAL '120 days',NOW()+INTERVAL '180 days','Save ฿500',NOW()-INTERVAL '120 days'),
-  (gen_random_uuid(),'FLASH50','percentage',50,0,100,100,false,NOW()-INTERVAL '90 days',NOW()-INTERVAL '89 days','Flash Sale 50%',NOW()-INTERVAL '90 days'),
-  (gen_random_uuid(),'LOYAL10','percentage',10,0,9999,1205,true,NOW()-INTERVAL '200 days',NOW()+INTERVAL '365 days','Loyalty Member 10%',NOW()-INTERVAL '200 days'),
-  (gen_random_uuid(),'TEAM30','percentage',30,0,300,45,true,NOW()-INTERVAL '45 days',NOW()+INTERVAL '180 days','Team Plan 30% Off',NOW()-INTERVAL '45 days'),
-  (gen_random_uuid(),'REFER200','fixed',200,0,9999,892,true,NOW()-INTERVAL '150 days',NOW()+INTERVAL '365 days','Referral ฿200',NOW()-INTERVAL '150 days'),
-  (gen_random_uuid(),'SUMMER15','percentage',15,1000,500,234,true,NOW()-INTERVAL '100 days',NOW()+INTERVAL '100 days','Summer Sale 15%',NOW()-INTERVAL '100 days'),
-  (gen_random_uuid(),'BDAY100','fixed',100,0,9999,456,true,NOW()-INTERVAL '180 days',NOW()+INTERVAL '365 days','Birthday ฿100',NOW()-INTERVAL '180 days'),
-  (gen_random_uuid(),'PROEARLY','percentage',40,0,50,50,false,NOW()-INTERVAL '300 days',NOW()-INTERVAL '240 days','Pro Plan Early Bird',NOW()-INTERVAL '300 days')
-ON CONFLICT DO NOTHING;
+-- 7.1 Discounts / Promo Codes (FIXED: now requires team_id)
+DO $$
+DECLARE
+  v_team_id uuid;
+  v_codes text[]   := ARRAY['WELCOME20','NEWYEAR25','SAVE500','FLASH50','LOYAL10','TEAM30','REFER200','SUMMER15','BDAY100','PROEARLY'];
+  v_types text[]   := ARRAY['percentage','percentage','fixed','percentage','percentage','percentage','fixed','percentage','fixed','percentage'];
+  v_values numeric[] := ARRAY[20,25,500,50,10,30,200,15,100,40];
+  v_mins numeric[]   := ARRAY[0,500,2000,0,0,0,0,1000,0,0];
+  v_limits int[]     := ARRAY[1000,500,200,100,9999,300,9999,500,9999,50];
+  v_counts int[]     := ARRAY[342,198,87,100,1205,45,892,234,456,50];
+  v_active bool[]    := ARRAY[true,true,true,false,true,true,true,true,true,false];
+  v_descs text[]     := ARRAY['Welcome 20% Off','New Year 25% Off','Save ฿500','Flash Sale 50%','Loyalty Member 10%','Team Plan 30% Off','Referral ฿200','Summer Sale 15%','Birthday ฿100','Pro Plan Early Bird'];
+  v_days_ago int[]   := ARRAY[180,60,120,90,200,45,150,100,180,300];
+  v_days_end int[]   := ARRAY[365,90,180,-89,365,180,365,100,365,-240];
+  i int;
+BEGIN
+  SELECT id INTO v_team_id FROM public.workspaces ORDER BY created_at LIMIT 1;
+  IF v_team_id IS NULL THEN
+    RAISE WARNING 'No workspace found, skipping discounts seed.';
+    RETURN;
+  END IF;
+  FOR i IN 1..10 LOOP
+    INSERT INTO public.discounts (
+      id, team_id, code, discount_type, discount_value,
+      min_order_value, usage_limit, usage_count,
+      is_active, start_date, end_date, description, created_at
+    ) VALUES (
+      gen_random_uuid(), v_team_id,
+      v_codes[i], v_types[i], v_values[i],
+      v_mins[i], v_limits[i], v_counts[i],
+      v_active[i],
+      NOW() - (v_days_ago[i] || ' days')::interval,
+      NOW() + (v_days_end[i] || ' days')::interval,
+      v_descs[i],
+      NOW() - (v_days_ago[i] || ' days')::interval
+    ) ON CONFLICT DO NOTHING;
+  END LOOP;
+  RAISE NOTICE 'Part 7a: Discounts seeded (10 promo codes).';
+END $$;
 
 -- 7.2 User Payment Methods (FIXED: card_last_four, gateway_customer_id, gateway_payment_method_id)
 DO $$
@@ -117,11 +143,11 @@ BEGIN
   RAISE NOTICE 'Part 7d: Reports seeded (60).';
 END $$;
 
--- 7.5 Scheduled Reports (FIXED: schedule_type/next_send_at columns)
+-- 7.5 Scheduled Reports (FIXED: frequency/next_run_at/recipients jsonb per new schema)
 DO $$
 DECLARE
   v_ws record;
-  v_schedule_types text[] := ARRAY['daily','weekly','monthly'];
+  v_frequencies text[] := ARRAY['daily','weekly','monthly'];
   v_report_types text[] := ARRAY['campaign_performance','revenue_summary','funnel_analysis','email_performance'];
   i int;
 BEGIN
@@ -129,13 +155,13 @@ BEGIN
   FOR v_ws IN SELECT id FROM public.workspaces ORDER BY created_at LIMIT 30 LOOP
     i := i + 1;
     INSERT INTO public.scheduled_reports (
-      id, team_id, name, schedule_type,
-      recipients, is_active, next_send_at, created_at
+      id, team_id, name, frequency,
+      recipients, is_active, next_run_at, created_at
     ) VALUES (
       gen_random_uuid(), v_ws.id,
       v_report_types[1 + (i % array_length(v_report_types,1))] || ' — Auto Report',
-      v_schedule_types[1 + (i % array_length(v_schedule_types,1))],
-      ARRAY['admin@buzzly.com', 'report@buzzly.com'],
+      v_frequencies[1 + (i % array_length(v_frequencies,1))],
+      '["admin@buzzly.com","report@buzzly.com"]'::jsonb,
       true,
       NOW() + (7 - (i % 7))::int * INTERVAL '1 day',
       NOW() - (floor(random()*30)+1)::int * INTERVAL '1 day'

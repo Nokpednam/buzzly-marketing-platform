@@ -69,7 +69,6 @@ DECLARE
     v_created_at timestamptz;
     v_password_hash text := '$2a$10$rYvLBvZvQ6qE5Q5Z5Q5Q5OMxKZ9xH7xJ8wL5gF2hE9xJ8wKjL5K8i'; -- "owner123" (or similar hash)
     v_rls_was_enabled boolean;
-    v_loyalty_point_id uuid;
 BEGIN
     RAISE NOTICE 'Seeding Users & Profiles...';
     
@@ -89,27 +88,16 @@ BEGIN
             'authenticated', 'authenticated'
         ) ON CONFLICT (id) DO NOTHING;
 
-        -- 2. Create Loyalty Points
-        v_loyalty_point_id := gen_random_uuid();
-        INSERT INTO public.loyalty_points (id, loyalty_tier_id, point_balance, status)
-        VALUES (
-             v_loyalty_point_id, 
-             '17000001-0000-0000-0000-000000000001', -- Bronze
-             (random() * 500)::int, 
-             'active'
-        ) ON CONFLICT DO NOTHING;
-
-        -- 3. Insert into public.profile_customers (App Profile)
+        -- 2. Insert into public.profile_customers (App Profile)
         -- Splitting Name
         INSERT INTO public.profile_customers (
-            id, user_id, first_name, last_name, gender_id, loyalty_point_id, created_at
+            id, user_id, first_name, last_name, gender_id, created_at
         ) VALUES (
             gen_random_uuid(), -- Profile ID is random
             v_user_ids[i],
             split_part(v_full_names[i], ' ', 1),
             split_part(v_full_names[i], ' ', 2),
             (SELECT id FROM genders ORDER BY random() LIMIT 1),
-            v_loyalty_point_id,
             v_created_at
         ) ON CONFLICT (user_id) DO NOTHING;
 

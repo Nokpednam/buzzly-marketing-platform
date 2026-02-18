@@ -9,7 +9,8 @@
 -- ============================================================
 -- 1. BUDGETS — Campaign budget management
 -- ============================================================
-CREATE TABLE IF NOT EXISTS public.budgets (
+DROP TABLE IF EXISTS public.budgets CASCADE;
+CREATE TABLE public.budgets (
     id uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     team_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
     campaign_id uuid REFERENCES public.campaigns(id) ON DELETE SET NULL,
@@ -81,7 +82,8 @@ CREATE TRIGGER update_budgets_updated_at
 -- ============================================================
 -- 2. DISCOUNTS — Promo code management
 -- ============================================================
-CREATE TABLE IF NOT EXISTS public.discounts (
+DROP TABLE IF EXISTS public.discounts CASCADE;
+CREATE TABLE public.discounts (
     id uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     team_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
     code character varying(50) NOT NULL,
@@ -155,7 +157,8 @@ CREATE TRIGGER update_discounts_updated_at
 -- ============================================================
 -- 3. TAGS — Universal tagging for campaigns, posts, personas
 -- ============================================================
-CREATE TABLE IF NOT EXISTS public.tags (
+DROP TABLE IF EXISTS public.tags CASCADE;
+CREATE TABLE public.tags (
     id uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     team_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
     name character varying(255) NOT NULL,
@@ -220,7 +223,8 @@ CREATE TRIGGER update_tags_updated_at
 -- ============================================================
 -- 4. SCHEDULED_REPORTS — Automated report scheduling
 -- ============================================================
-CREATE TABLE IF NOT EXISTS public.scheduled_reports (
+DROP TABLE IF EXISTS public.scheduled_reports CASCADE;
+CREATE TABLE public.scheduled_reports (
     id uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
     team_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
     report_id uuid REFERENCES public.reports(id) ON DELETE SET NULL,

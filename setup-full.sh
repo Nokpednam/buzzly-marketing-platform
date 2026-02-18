@@ -217,7 +217,31 @@ run_sql_script() {
 
 run_sql_script "sample-data/unified-seed.sql" "Seeding Realistic Data (Users, Feedbacks, etc.)"
 
+# ---------------------------------------------------------
+# 5.5 Re-run mock data scripts that depend on auth.users/workspaces
+# ---------------------------------------------------------
+echo "Step 5.5: Re-seeding mock data (user-dependent tables)..."
+DB_CONTAINER=$(docker ps --filter "name=supabase_db" --format "{{.Names}}" | head -n 1)
 
+run_mock_sql() {
+    local file=$1
+    local description=$2
+    echo "→ Running: $description"
+    if [ -f "$file" ]; then
+        cat "$file" | docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres > /dev/null 2>&1
+        echo "  ✓ Done"
+    else
+        echo "  ⚠ Skipped (file not found): $file"
+    fi
+}
+
+run_mock_sql "supabase/migrations/20260218200002_mock_campaigns.sql"      "Ad Accounts, Campaigns, Budgets"
+run_mock_sql "supabase/migrations/20260218200003_mock_ad_insights.sql"    "Ad Insights (30 days)"
+run_mock_sql "supabase/migrations/20260218200006_mock_crm_system.sql"     "Prospects, Audit Logs, Suspicious Activities"
+run_mock_sql "supabase/migrations/20260218200007_mock_billing_reports.sql" "Discounts, Invoices, Reports"
+run_mock_sql "supabase/migrations/20260218200008_mock_team_activity_logs.sql" "Team Activity Logs"
+
+echo "✅ Mock data re-seeded."
 echo ""
 echo "========================================="
 echo "✅✅ SETUP COMPLETE SUCCESSFULLY! ✅✅"

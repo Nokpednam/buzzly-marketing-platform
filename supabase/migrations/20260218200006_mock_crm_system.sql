@@ -27,6 +27,10 @@ DECLARE
   i int; v_uid uuid;
 BEGIN
   SELECT ARRAY(SELECT id FROM auth.users LIMIT 50) INTO v_user_ids;
+  IF v_user_ids IS NULL OR array_length(v_user_ids,1) IS NULL THEN
+    RAISE WARNING 'Part 6a: No auth.users found, skipping prospects seed.';
+    RETURN;
+  END IF;
   FOR i IN 1..50 LOOP
     v_uid := v_user_ids[1 + ((i-1) % array_length(v_user_ids,1))];
     INSERT INTO public.prospects (
@@ -59,7 +63,7 @@ DECLARE
   v_gender_ids uuid[];
   i int; j int;
 BEGIN
-  SELECT ARRAY(SELECT id FROM public.genders ORDER BY name) INTO v_gender_ids;
+  SELECT ARRAY(SELECT id FROM public.genders ORDER BY name_gender) INTO v_gender_ids;
   j := 0;
   FOR v_ws IN SELECT id FROM public.workspaces ORDER BY created_at LIMIT 10 LOOP
     FOR i IN 1..5 LOOP
@@ -186,6 +190,10 @@ DECLARE
 BEGIN
   SELECT ARRAY(SELECT id FROM auth.users LIMIT 30) INTO v_user_ids;
   SELECT ARRAY(SELECT id FROM public.action_type) INTO v_actions;
+  IF v_user_ids IS NULL OR array_length(v_user_ids,1) IS NULL THEN
+    RAISE WARNING 'Part 6e: No auth.users found, skipping audit_logs_enhanced seed.';
+    RETURN;
+  END IF;
   FOR i IN 1..50 LOOP
     v_uid := v_user_ids[1 + (i % array_length(v_user_ids,1))];
     v_act := CASE WHEN array_length(v_actions,1) > 0 THEN v_actions[1 + (i % array_length(v_actions,1))] ELSE NULL END;
@@ -278,6 +286,10 @@ DECLARE
   i int;
 BEGIN
   SELECT ARRAY(SELECT id FROM auth.users LIMIT 30) INTO v_user_ids;
+  IF v_user_ids IS NULL OR array_length(v_user_ids,1) IS NULL THEN
+    RAISE WARNING 'Part 6j: No auth.users found, skipping suspicious_activities seed.';
+    RETURN;
+  END IF;
   FOR i IN 1..20 LOOP
     INSERT INTO public.suspicious_activities (
       id, user_id, activity_type, severity,
