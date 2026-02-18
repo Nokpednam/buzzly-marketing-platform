@@ -472,7 +472,7 @@ export function useFeedbackList() {
           .select(`
             user_id,
             workspaces (
-              workspace_name,
+              name,
               business_types (
                 name
               )
@@ -486,7 +486,7 @@ export function useFeedbackList() {
               // Just take the first workspace found for simplicity
               if (!workspacesMap[m.user_id]) {
                 workspacesMap[m.user_id] = {
-                  name: m.workspaces.workspace_name,
+                  name: m.workspaces.name,
                   type: m.workspaces.business_types?.name || "Uncategorized"
                 };
               }

@@ -240,6 +240,7 @@ run_mock_sql "supabase/migrations/20260218200003_mock_ad_insights.sql"    "Ad In
 run_mock_sql "supabase/migrations/20260218200006_mock_crm_system.sql"     "Prospects, Audit Logs, Suspicious Activities"
 run_mock_sql "supabase/migrations/20260218200007_mock_billing_reports.sql" "Discounts, Invoices, Reports"
 run_mock_sql "supabase/migrations/20260218200008_mock_team_activity_logs.sql" "Team Activity Logs"
+run_mock_sql "supabase/migrations/20260218200009_mock_funnel_activities.sql" "Funnel Stages + Customer Activities"
 
 echo "✅ Mock data re-seeded."
 echo ""
