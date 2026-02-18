@@ -22,9 +22,9 @@ cd "$(dirname "$0")"
 # ---------------------------------------------------------
 echo "Step 1: Checking Supabase status..."
 # Check if supabase is running, if not start it
-if ! npx supabase status > /dev/null 2>&1; then
+if ! npx --yes supabase status > /dev/null 2>&1; then
     echo "   Starting Supabase..."
-    npx supabase start
+    npx --yes supabase start
 else
     echo "✅ Supabase is already running."
 fi
@@ -51,7 +51,7 @@ DROP FUNCTION IF EXISTS public.handle_new_user();
 DROP FUNCTION IF EXISTS public.create_user_profile();
 EOF
 
-npx supabase db reset --local
+npx --yes supabase db reset --local
 echo "✅ Database reset complete."
 echo ""
 
