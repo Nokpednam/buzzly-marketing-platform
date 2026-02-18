@@ -87,26 +87,44 @@ export function useAuditLogStats() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("audit_logs_enhanced")
-        .select("category, status, created_at")
+        .select("category, status, created_at, action_type_id, metadata")
         .order("created_at", { ascending: false })
         .limit(1000);
 
       if (error) throw error;
 
       const logs = data || [];
+      const total = logs.length;
 
-      // Calculate stats
-      const authLogs = logs.filter((l) => l.category === "authentication");
+      // Auth logs: category='authentication' OR any login/logout related
+      const authLogs = logs.filter((l) =>
+        l.category === "authentication" ||
+        l.category === "auth"
+      );
       const successfulLogins = authLogs.filter(
-        (l) => l.status === "success"
+        (l) => l.status === "success" || l.status === "completed"
       ).length;
-      const failedLogins = authLogs.filter((l) => l.status === "failed").length;
+      const failedLogins = authLogs.filter(
+        (l) => l.status === "failed" || l.status === "error"
+      ).length;
 
-      const dataExports = logs.filter((l) => l.category === "data").length;
-      const securityActions = logs.filter((l) => l.category === "security").length;
-      const settingsChanges = logs.filter((l) => l.category === "settings").length;
+      // Data exports: category='data' or 'report'
+      const dataExports = logs.filter(
+        (l) => l.category === "data" || l.category === "report"
+      ).length;
+
+      // Security actions: category='security' or 'subscription' or 'discount'
+      const securityActions = logs.filter(
+        (l) => l.category === "security" || l.category === "subscription"
+      ).length;
+
+      // Settings changes: category='settings' or 'workspace'
+      const settingsChanges = logs.filter(
+        (l) => l.category === "settings" || l.category === "workspace"
+      ).length;
 
       return {
+        total,
         totalLogins: authLogs.length,
         successfulLogins,
         failedLogins,
