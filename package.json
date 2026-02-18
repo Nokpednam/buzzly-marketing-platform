@@ -14,7 +14,14 @@
     "test:coverage": "vitest --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:headed": "playwright test --headed"
+    "test:e2e:headed": "playwright test --headed",
+    "test:monitor": "vitest run src/hooks/__tests__/useAdminMonitor.test.tsx src/pages/admin/__tests__/MonitorDashboard.test.tsx",
+    "test:audit": "vitest run src/hooks/__tests__/useAuditLogs.test.tsx src/pages/admin/__tests__/AuditLogs.test.tsx",
+    "test:employee": "vitest run src/hooks/__tests__/useEmployees_approval.test.tsx src/components/team/__tests__/EmployeesList.test.tsx",
+    "test:support": "vitest run src/pages/admin/__tests__/AdminSupport.test.tsx",
+    "test:logger": "vitest run src/services/__tests__/errorLogger.test.ts",
+    "test:tier": "vitest run src/pages/admin/__tests__/TierManagement.test.tsx",
+    "test:loyalty": "vitest run src/hooks/__tests__/useLoyaltyTier.test.tsx"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
