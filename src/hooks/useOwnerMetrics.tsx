@@ -148,25 +148,27 @@ export function useCohortAnalysis() {
       return (data || []).map((cohort) => {
         let retentionData: number[] = [];
         const rawRetention = cohort.retention_data;
+        const cohortSize = cohort.cohort_size || 1;
+
+        // Helper: if value > 100, it's an absolute count → convert to %
+        const toPercent = (val: number) =>
+          val > 100 ? Math.min(100, Math.round((val / cohortSize) * 100 * 10) / 10) : val;
 
         if (Array.isArray(rawRetention)) {
-          retentionData = rawRetention as number[];
+          retentionData = (rawRetention as number[]).map(toPercent);
         } else if (rawRetention && typeof rawRetention === 'object') {
-          // If it's an object from sample data (week_1, month_2, etc.)
-          // Convert to a sorted array or pick standard values
-          // For the UI, we'll try to get month 1, 2, 3 or fallback to first 3 keys
+          // Object format: { month_1, month_2, month_3 } or { week_4, month_2, month_3 }
           const rd = rawRetention as Record<string, any>;
-          retentionData = [
-            rd.week_4 || rd.month_1 || 100, // Month 1 approx
-            rd.month_2 || 85,
-            rd.month_3 || 72
-          ];
+          const m1 = Number(rd.week_4 ?? rd.month_1 ?? 100);
+          const m2 = Number(rd.month_2 ?? 85);
+          const m3 = Number(rd.month_3 ?? 72);
+          retentionData = [toPercent(m1), toPercent(m2), toPercent(m3)];
         }
 
         return {
           cohort: format(parseISO(cohort.cohort_date), "MMM yyyy"),
           cohortSize: cohort.cohort_size || 0,
-          retentionData: retentionData,
+          retentionData,
         };
       });
     },

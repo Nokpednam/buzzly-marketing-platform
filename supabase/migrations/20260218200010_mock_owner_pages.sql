@@ -1,9 +1,9 @@
 -- ============================================================
--- Mock Data Part 10: Owner Pages Realistic Data
+-- Mock Data Part 10: Owner Pages Realistic Data (v2 - Robust)
 -- Fixes: /owner/business-performance (all tabs) and /owner/customer-tiers
 --
 -- Part A: Subscriptions (80 active + 20 cancelled) → Survival Analysis
--- Part B: Payment Transactions (12 months MRR) → Revenue Trends
+-- Part B: Payment Transactions (12 months MRR, THB) → Revenue Trends
 -- Part C: Loyalty Points Backfill → Customer Tiers page
 -- Part D: Cohort Analysis (percentage-based retention) → Cohort tab
 -- ============================================================
@@ -11,6 +11,7 @@
 -- ============================================================
 -- PART A: Subscriptions with realistic cancelled_at
 -- 80 active (Pro/Team plans) + 20 cancelled (churn simulation)
+-- Uses ON CONFLICT DO NOTHING for idempotency
 -- ============================================================
 DO $$
 DECLARE
@@ -18,12 +19,11 @@ DECLARE
   v_user_id     uuid;
   v_plan_pro    uuid := '5b000002-0000-0000-0000-000000000002';
   v_plan_team   uuid := '5b000003-0000-0000-0000-000000000003';
-  v_plan_free   uuid := '5b000001-0000-0000-0000-000000000001';
-  v_plan_id     uuid;
   v_created_at  timestamptz;
   v_days_ago    int;
   i             int;
   v_cancel_days int;
+  v_plan_id     uuid;
 BEGIN
   -- Collect up to 100 auth users
   SELECT ARRAY(SELECT id FROM auth.users ORDER BY created_at LIMIT 100) INTO v_users;
@@ -67,7 +67,7 @@ BEGIN
     v_user_id    := v_users[1 + ((i + 79) % array_length(v_users, 1))];
     v_days_ago   := (floor(random() * 300) + 60)::int;   -- created 60-360 days ago
     v_created_at := NOW() - (v_days_ago || ' days')::interval;
-    v_cancel_days := (floor(random() * (v_days_ago - 30)) + 30)::int; -- cancelled 30...(days_ago-30) days after creation
+    v_cancel_days := (floor(random() * (v_days_ago - 30)) + 30)::int;
 
     v_plan_id := CASE WHEN random() < 0.7 THEN v_plan_pro ELSE v_plan_team END;
 
@@ -94,25 +94,21 @@ BEGIN
 END $$;
 
 -- ============================================================
--- PART B: Payment Transactions (12 months of MRR data)
+-- PART B: Payment Transactions (12 months of MRR data, THB)
 -- Realistic SaaS growth: ฿80,000 → ฿150,000 over 12 months
--- ~40-50 transactions per month
+-- Pro plan = ฿999/mo, Team plan = ฿2,499/mo
+-- ~30-55 transactions per month
 -- ============================================================
 DO $$
 DECLARE
   v_users       uuid[];
   v_user_id     uuid;
-  v_plan_pro    uuid := '5b000002-0000-0000-0000-000000000002';
-  v_plan_team   uuid := '5b000003-0000-0000-0000-000000000003';
-  v_plan_free   uuid := '5b000001-0000-0000-0000-000000000001';
   v_currency_id uuid := 'c0000002-0000-0000-0000-000000000002'; -- THB
   v_month       int;
   v_tx_count    int;
-  v_base_mrr    numeric;
   v_amount      numeric;
   i             int;
   v_tx_date     timestamptz;
-  v_plan_amounts numeric[] := ARRAY[999.00, 2499.00]; -- Pro monthly, Team monthly (THB)
 BEGIN
   SELECT ARRAY(SELECT id FROM auth.users ORDER BY created_at LIMIT 100) INTO v_users;
 
@@ -125,7 +121,6 @@ BEGIN
   FOR v_month IN REVERSE 11..0 LOOP
     -- Realistic growth: start at ~30 transactions, grow to ~55
     v_tx_count := (30 + floor((11 - v_month) * 2.2) + floor(random() * 8))::int;
-    v_base_mrr := 80000 + ((11 - v_month) * 6500) + (random() * 5000)::numeric;
 
     FOR i IN 1..v_tx_count LOOP
       v_user_id := v_users[1 + ((i - 1) % array_length(v_users, 1))];
@@ -135,7 +130,7 @@ BEGIN
                    + (floor(random() * 28) || ' days')::interval
                    + (floor(random() * 23) || ' hours')::interval;
 
-      -- Amount: 70% Pro (฿999), 30% Team (฿2499), with small random variance
+      -- Amount: 70% Pro (฿999), 30% Team (฿2,499), with small random variance
       v_amount := CASE
         WHEN random() < 0.7 THEN 999.00 + (random() * 50 - 25)::numeric
         ELSE 2499.00 + (random() * 100 - 50)::numeric
@@ -158,7 +153,7 @@ BEGIN
     END LOOP;
   END LOOP;
 
-  RAISE NOTICE 'Part B: Payment Transactions seeded (12 months of MRR data).';
+  RAISE NOTICE 'Part B: Payment Transactions seeded (12 months of THB MRR data).';
 END $$;
 
 -- ============================================================
@@ -176,7 +171,6 @@ DECLARE
   v_rnd         float;
   v_points      int;
   v_total_pts   int;
-  v_spend       numeric;
   -- Tier IDs from static seed
   v_bronze      uuid := '17000001-0000-0000-0000-000000000001';
   v_silver      uuid := '17000002-0000-0000-0000-000000000002';
@@ -260,17 +254,17 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Remove old cohort data for this workspace
+  -- Remove old cohort data for this workspace (both absolute-count and old % data)
   DELETE FROM public.cohort_analysis WHERE team_id = v_ws_id;
 
-  -- Insert 8 months of cohort data with percentage retention
+  -- Insert 8 months of cohort data with PERCENTAGE retention
   FOR m IN 0..7 LOOP
     v_cohort_size := (80 + floor(random() * 120))::int;  -- 80–200 users per cohort
 
     -- Realistic SaaS retention percentages (declining each month)
-    v_m1 := round((72 + random() * 18)::numeric, 1);   -- 72–90%
-    v_m2 := round((v_m1 * (0.70 + random() * 0.10))::numeric, 1);  -- ~70–80% of M1
-    v_m3 := round((v_m2 * (0.70 + random() * 0.10))::numeric, 1);  -- ~70–80% of M2
+    v_m1 := round((72 + random() * 18)::numeric, 1);                          -- 72–90%
+    v_m2 := round((v_m1 * (0.70 + random() * 0.10))::numeric, 1);             -- ~70–80% of M1
+    v_m3 := round((v_m2 * (0.70 + random() * 0.10))::numeric, 1);             -- ~70–80% of M2
 
     INSERT INTO public.cohort_analysis (
       id, team_id, cohort_date, cohort_type, cohort_size,
@@ -301,4 +295,40 @@ BEGIN
   RAISE NOTICE 'Part D: Cohort Analysis seeded (8 months, percentage-based retention).';
 END $$;
 
-DO $$ BEGIN RAISE NOTICE '✅ Part 10: Owner Pages Mock Data seeded successfully!'; END $$;
+-- ============================================================
+-- PART E: Also fix existing cohort_analysis rows from old seed
+-- (file 5 stored absolute counts like month_1: 120 instead of %)
+-- Convert any remaining rows where month_1 > 100 to percentages
+-- ============================================================
+DO $$
+DECLARE
+  v_row   record;
+  v_rd    jsonb;
+  v_m1    numeric;
+  v_m2    numeric;
+  v_m3    numeric;
+  v_size  int;
+BEGIN
+  FOR v_row IN
+    SELECT id, cohort_size, retention_data
+    FROM public.cohort_analysis
+    WHERE (retention_data->>'month_1')::numeric > 100
+  LOOP
+    v_size := GREATEST(v_row.cohort_size, 1);
+    v_m1 := round(((v_row.retention_data->>'month_1')::numeric / v_size * 100)::numeric, 1);
+    v_m2 := round(((v_row.retention_data->>'month_2')::numeric / v_size * 100)::numeric, 1);
+    v_m3 := round(((v_row.retention_data->>'month_3')::numeric / v_size * 100)::numeric, 1);
+
+    UPDATE public.cohort_analysis
+    SET retention_data = jsonb_build_object(
+      'month_1', v_m1,
+      'month_2', v_m2,
+      'month_3', v_m3
+    )
+    WHERE id = v_row.id;
+  END LOOP;
+
+  RAISE NOTICE 'Part E: Converted absolute-count cohort rows to percentages.';
+END $$;
+
+DO $$ BEGIN RAISE NOTICE '✅ Part 10 (v2): Owner Pages Mock Data seeded successfully!'; END $$;
