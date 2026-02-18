@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 
 export interface MRRMetrics {
   currentMrr: number;
@@ -164,7 +164,7 @@ export function useCohortAnalysis() {
         }
 
         return {
-          cohort: cohort.cohort_date,
+          cohort: format(parseISO(cohort.cohort_date), "MMM yyyy"),
           cohortSize: cohort.cohort_size || 0,
           retentionData: retentionData,
         };
