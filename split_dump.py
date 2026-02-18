@@ -28,6 +28,10 @@ with open(dump_file, 'r') as f_in, \
         is_enable_rls = "ENABLE ROW LEVEL SECURITY" in line and line.strip().startswith("ALTER TABLE")
         is_force_rls = "FORCE ROW LEVEL SECURITY" in line and line.strip().startswith("ALTER TABLE")
         
+        # Filter out psql meta-commands (like \restrict, \connect, etc.) which might appear in some dumps
+        if line.strip().startswith("\\"):
+            continue
+
         if is_policy or is_enable_rls or is_force_rls:
             f_rls.write(line)
         else:
