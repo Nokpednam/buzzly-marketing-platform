@@ -53,40 +53,52 @@ const fetchUserMap = async (userIds: string[]) => {
     return map;
 };
 
-export function useAdminErrorLogs(levelFilter: string) {
+export function useAdminErrorLogs(levelFilter: string, page: number = 1, pageSize: number = 10, searchQuery: string = "") {
     return useQuery({
-        queryKey: ["admin-error-logs", levelFilter],
+        queryKey: ["admin-error-logs", levelFilter, page, pageSize, searchQuery],
         refetchInterval: 10000,
         queryFn: async () => {
-            // 1. Get total count first
-            let countQuery = supabase
-                .from("error_logs")
-                .select("*", { count: 'exact', head: true });
+            // Calculate range
+            const from = (page - 1) * pageSize;
+            const to = from + pageSize - 1;
 
-            if (levelFilter !== "all") {
-                countQuery = countQuery.eq("level", levelFilter);
-            }
-
-            const { count } = await countQuery;
-
-            // 2. Get data
+            // Build query
             let query = supabase
                 .from("error_logs")
-                .select("*")
-                .order("created_at", { ascending: false })
-                .limit(500);
+                .select("*", { count: 'exact' });
 
+            // Apply filters
             if (levelFilter !== "all") {
                 query = query.eq("level", levelFilter);
             }
 
-            const { data, error } = await query;
+            if (searchQuery) {
+                // Determine if search query is a UUID
+                const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(searchQuery);
+
+                if (isUuid) {
+                    query = query.or(`request_id.eq.${searchQuery},user_id.eq.${searchQuery}`);
+                } else {
+                    query = query.ilike('message', `%${searchQuery}%`);
+                }
+            }
+
+            // Apply pagination and ordering
+            const { data, error, count } = await query
+                .order("created_at", { ascending: false })
+                .range(from, to);
+
             if (error) throw error;
 
-            // 3. Enrich with user details
+            // Enrich with user details
             const logs = data || [];
             const userIds = [...new Set(logs.map(l => l.user_id).filter(Boolean))] as string[];
-            const userMap = await fetchUserMap(userIds);
+
+            // Only fetch user map if we have users to fetch
+            let userMap = new Map();
+            if (userIds.length > 0) {
+                userMap = await fetchUserMap(userIds);
+            }
 
             const enrichedLogs = logs.map(log => {
                 const userInfo = log.user_id ? userMap.get(log.user_id) : null;
@@ -97,7 +109,11 @@ export function useAdminErrorLogs(levelFilter: string) {
                 };
             });
 
-            return { logs: enrichedLogs as ErrorLog[], totalCount: count || 0 };
+            return {
+                logs: enrichedLogs as ErrorLog[],
+                totalCount: count || 0,
+                totalPages: Math.ceil((count || 0) / pageSize)
+            };
         },
     });
 }
