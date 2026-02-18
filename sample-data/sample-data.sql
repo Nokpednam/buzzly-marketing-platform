@@ -156,26 +156,26 @@ DECLARE
   gg_id UUID;
   o_id UUID;
 BEGIN
-  -- 1. Ensure a team exists (Required for sample data)
-  SELECT id INTO t_id FROM public.teams LIMIT 1;
+  -- 1. Ensure a workspace exists (Required for sample data)
+  SELECT id INTO t_id FROM public.workspaces LIMIT 1;
   
   IF t_id IS NULL THEN
-    -- Find an owner or any user to own the team
+    -- Find an owner or any user to own the workspace
     SELECT id INTO o_id FROM auth.users ORDER BY created_at ASC LIMIT 1;
     
     IF o_id IS NOT NULL THEN
-      INSERT INTO public.teams (id, name, owner_id)
-      VALUES (gen_random_uuid(), 'Sample Growth Team', o_id)
+      INSERT INTO public.workspaces (id, name, owner_id)
+      VALUES (gen_random_uuid(), 'Sample Growth Workspace', o_id)
       RETURNING id INTO t_id;
       
-      -- Also add to team_members
-      INSERT INTO public.team_members (team_id, user_id, role, status)
+      -- Also add to workspace_members
+      INSERT INTO public.workspace_members (team_id, user_id, role, status)
       VALUES (t_id, o_id, 'owner', 'active')
       ON CONFLICT DO NOTHING;
     END IF;
   END IF;
 
-  -- 2. Create Ad Accounts linked to this team
+  -- 2. Create Ad Accounts linked to this workspace
   SELECT id INTO fb_id FROM public.platforms WHERE slug = 'facebook';
   SELECT id INTO gg_id FROM public.platforms WHERE slug = 'google';
 
