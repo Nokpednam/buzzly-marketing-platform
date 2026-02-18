@@ -201,7 +201,8 @@ echo ""
 # ---------------------------------------------------------
 echo "Step 5: Running Dashboard Fixes & Seeds..."
 
-run_migration() {
+
+run_sql_script() {
     local file=$1
     local description=$2
     echo "→ Running: $description ($file)"
@@ -214,11 +215,8 @@ run_migration() {
     fi
 }
 
-run_migration "supabase/migrations/20260211183000_update_handle_new_user_extended.sql" "Extend user signup trigger"
-run_migration "supabase/migrations/20260211184500_seed_genders_and_fix_rls.sql" "Seed gender options"
-run_migration "supabase/migrations/20260211185500_fix_handle_new_user_strict.sql" "Add error isolation"
-run_migration "supabase/migrations/20260211210000_reseed_dashboard_data.sql" "Generate 30 days of data"
-run_migration "supabase/migrations/20260211213000_disable_rls_debug.sql" "Disable RLS for development"
+run_sql_script "sample-data/unified-seed.sql" "Seeding Realistic Data (Users, Feedbacks, etc.)"
+
 
 echo ""
 echo "========================================="
