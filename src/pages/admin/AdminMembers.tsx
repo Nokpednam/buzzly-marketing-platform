@@ -1,6 +1,11 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  useAdminAllMembers,
+  useAdminAllInvitations,
+  useUpdateMember,
+  useDeleteMember,
+  useDeleteInvitation,
+} from "@/hooks/useAdminMembers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -97,7 +102,6 @@ interface TeamInvitation {
 
 export default function AdminMembers() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("members");
   const [editingMember, setEditingMember] = useState<TeamMemberWithProfile | null>(null);
@@ -105,123 +109,18 @@ export default function AdminMembers() {
   const [newStatus, setNewStatus] = useState<MemberStatus>("active");
 
   // Fetch all team members
-  const { data: allMembers, isLoading: loadingMembers, refetch: refetchMembers } = useQuery({
-    queryKey: ["admin-all-members"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("workspace_members")
-        .select("id, team_id, user_id, role, status, joined_at")
-        .order("joined_at", { ascending: false });
-
-      if (error) throw error;
-
-      // Fetch profiles and teams separately
-      const userIds = data.map(m => m.user_id);
-      const teamIds = [...new Set(data.map(m => m.team_id))];
-
-      const [profilesRes, teamsRes] = await Promise.all([
-        supabase.from("customer").select("id, full_name, email").in("id", userIds),
-        supabase.from("workspaces").select("id, name").in("id", teamIds)
-      ]);
-
-      const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
-      const teamMap = new Map((teamsRes.data || []).map(t => [t.id, t]));
-
-      return data.map(m => ({
-        ...m,
-        profile: profileMap.get(m.user_id) || null,
-        team: teamMap.get(m.team_id) || null
-      })) as TeamMemberWithProfile[];
-    },
-  });
+  const { data: allMembers, isLoading: loadingMembers, refetch: refetchMembers } = useAdminAllMembers();
 
   // Fetch all invitations
-  const { data: allInvitations, isLoading: loadingInvitations, refetch: refetchInvitations } = useQuery({
-    queryKey: ["admin-all-invitations"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("team_invitations")
-        .select("id, team_id, email, role, invited_by, expires_at, status, created_at")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      // Fetch teams and inviter profiles
-      const teamIds = [...new Set(data.map(i => i.team_id))];
-      const inviterIds = [...new Set(data.map(i => i.invited_by))];
-
-      const [teamsRes, profilesRes] = await Promise.all([
-        supabase.from("workspaces").select("id, name").in("id", teamIds),
-        supabase.from("customer").select("id, full_name").in("id", inviterIds)
-      ]);
-
-      const teamMap = new Map((teamsRes.data || []).map(t => [t.id, t]));
-      const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
-
-      return data.map(i => ({
-        ...i,
-        teams: teamMap.get(i.team_id) || null,
-        inviter: profileMap.get(i.invited_by) || null
-      })) as TeamInvitation[];
-    },
-  });
-
-
+  const { data: allInvitations, isLoading: loadingInvitations, refetch: refetchInvitations } = useAdminAllInvitations();
 
   // Update member mutation
-  const updateMemberMutation = useMutation({
-    mutationFn: async ({ id, role, status }: { id: string; role: TeamRole; status: MemberStatus }) => {
-      const { error } = await supabase
-        .from("workspace_members")
-        .update({ role, status })
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Member updated successfully." });
-      queryClient.invalidateQueries({ queryKey: ["admin-all-members"] });
-      setEditingMember(null);
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update member.", variant: "destructive" });
-    },
-  });
-
+  const updateMemberMutation = useUpdateMember();
   // Delete member mutation
-  const deleteMemberMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("workspace_members")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Member removed successfully." });
-      queryClient.invalidateQueries({ queryKey: ["admin-all-members"] });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to remove member.", variant: "destructive" });
-    },
-  });
-
+  const deleteMemberMutation = useDeleteMember();
   // Delete invitation mutation
-  const deleteInvitationMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("team_invitations")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Invitation deleted successfully." });
-      queryClient.invalidateQueries({ queryKey: ["admin-all-invitations"] });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to delete invitation.", variant: "destructive" });
-    },
-  });
+  const deleteInvitationMutation = useDeleteInvitation();
+
 
   const filteredMembers = allMembers?.filter((m) =>
     m.profile?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||

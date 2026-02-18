@@ -59,17 +59,17 @@ export function useAdInsights(dateRange?: string) {
     totalSpend: insights.reduce((sum, i) => sum + Number(i.spend || 0), 0),
     totalConversions: insights.reduce((sum, i) => sum + (i.conversions || 0), 0),
     totalReach: insights.reduce((sum, i) => sum + (i.reach || 0), 0),
-    avgRoas: insights.length > 0 
-      ? insights.reduce((sum, i) => sum + Number(i.roas || 0), 0) / insights.length 
+    avgRoas: insights.length > 0
+      ? insights.reduce((sum, i) => sum + Number(i.roas || 0), 0) / insights.length
       : 0,
-    avgCtr: insights.length > 0 
-      ? insights.reduce((sum, i) => sum + Number(i.ctr || 0), 0) / insights.length 
+    avgCtr: insights.length > 0
+      ? insights.reduce((sum, i) => sum + Number(i.ctr || 0), 0) / insights.length
       : 0,
-    avgCpc: insights.length > 0 
-      ? insights.reduce((sum, i) => sum + Number(i.cpc || 0), 0) / insights.length 
+    avgCpc: insights.length > 0
+      ? insights.reduce((sum, i) => sum + Number(i.cpc || 0), 0) / insights.length
       : 0,
-    avgCpm: insights.length > 0 
-      ? insights.reduce((sum, i) => sum + Number(i.cpm || 0), 0) / insights.length 
+    avgCpm: insights.length > 0
+      ? insights.reduce((sum, i) => sum + Number(i.cpm || 0), 0) / insights.length
       : 0,
     dailyData: insights.map(i => ({
       date: i.date,
@@ -86,4 +86,52 @@ export function useAdInsights(dateRange?: string) {
     isLoading,
     error,
   };
+}
+
+export interface CampaignDailyInsight {
+  date: string;
+  impressions: number;
+  reach: number;
+  clicks: number;
+  conversions: number;
+  spend: number;
+}
+
+/**
+ * Fetches real daily ad_insights rows for a specific campaign.
+ * Groups multiple rows on the same date (from different ad groups/ads) into one.
+ */
+export function useCampaignInsights(campaignId: string | null | undefined) {
+  const { data: dailyInsights = [], isLoading } = useQuery({
+    queryKey: ["campaign_insights", campaignId],
+    enabled: !!campaignId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ad_insights")
+        .select("date, impressions, reach, clicks, conversions, spend")
+        .eq("campaign_id", campaignId!)
+        .order("date", { ascending: true });
+
+      if (error) throw error;
+
+      // Group by date (multiple ad groups may share a date)
+      const byDate = new Map<string, CampaignDailyInsight>();
+      for (const row of data ?? []) {
+        const key = row.date;
+        if (!byDate.has(key)) {
+          byDate.set(key, { date: key, impressions: 0, reach: 0, clicks: 0, conversions: 0, spend: 0 });
+        }
+        const entry = byDate.get(key)!;
+        entry.impressions += row.impressions || 0;
+        entry.reach += row.reach || 0;
+        entry.clicks += row.clicks || 0;
+        entry.conversions += row.conversions || 0;
+        entry.spend += Number(row.spend || 0);
+      }
+
+      return Array.from(byDate.values());
+    },
+  });
+
+  return { dailyInsights, isLoading };
 }

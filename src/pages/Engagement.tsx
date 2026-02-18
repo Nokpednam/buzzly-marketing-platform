@@ -49,7 +49,7 @@ export default function Engagement() {
   const navigate = useNavigate();
   const { connectedPlatforms } = usePlatformConnections();
   const [dateRange, setDateRange] = useState("30");
-  
+
   // Calculate date range for query
   const getDaysFromRange = () => {
     switch (dateRange) {
@@ -75,7 +75,7 @@ export default function Engagement() {
   const engagementData = (() => {
     const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const dayTotals: Record<string, { likes: number; comments: number; shares: number }> = {};
-    
+
     days.forEach(day => {
       dayTotals[day] = { likes: 0, comments: 0, shares: 0 };
     });
@@ -122,7 +122,7 @@ export default function Engagement() {
   // Calculate social metrics by platform
   const socialMetrics = (() => {
     const platformStats: Record<string, { posts: number; likes: number; comments: number; shares: number }> = {};
-    
+
     filteredPosts.forEach(post => {
       const platform = post.platform_id || 'unknown';
       if (!platformStats[platform]) {
@@ -136,17 +136,16 @@ export default function Engagement() {
 
     return Object.entries(platformStats).map(([platform, stats]) => {
       const totalEngagement = stats.likes + stats.comments + stats.shares;
-      const estimatedFollowers = totalEngagement * 50; // Rough estimate
       return {
         platform: platform.charAt(0).toUpperCase() + platform.slice(1),
-        followers: estimatedFollowers >= 1000 ? `${(estimatedFollowers / 1000).toFixed(0)}K` : estimatedFollowers.toString(),
-        growth: Number((Math.random() * 10).toFixed(1)),
+        followers: totalEngagement.toLocaleString(), // Total engagement (no estimate)
+        growth: null, // No real growth data available
         engagement: Number((stats.posts > 0 ? (totalEngagement / stats.posts / 100) : 0).toFixed(1)),
         posts: stats.posts,
         icon: platform === 'facebook' ? Facebook : platform === 'instagram' ? Instagram : Heart,
-        color: platform === 'facebook' ? "bg-info/10 text-info" : 
-               platform === 'instagram' ? "bg-primary/10 text-primary" : 
-               "bg-destructive/10 text-destructive",
+        color: platform === 'facebook' ? "bg-info/10 text-info" :
+          platform === 'instagram' ? "bg-primary/10 text-primary" :
+            "bg-destructive/10 text-destructive",
       };
     });
   })();

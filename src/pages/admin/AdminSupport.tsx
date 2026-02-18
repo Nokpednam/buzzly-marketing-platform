@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useAdminErrorLogs } from "@/hooks/useAdminSupport";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,17 +44,6 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
-interface ErrorLog {
-  id: string;
-  level: string;
-  message: string;
-  user_id: string | null;
-  request_id: string | null;
-  stack_trace: string | null;
-  metadata: Record<string, unknown> | null;
-  created_at: string | null;
-}
-
 import { logError } from "@/services/errorLogger";
 import { useToast } from "@/hooks/use-toast";
 
@@ -87,26 +75,7 @@ export default function AdminSupport() {
   };
 
   // Fetch error logs
-  const { data: errorLogs, isLoading, refetch } = useQuery({
-    queryKey: ["admin-error-logs", levelFilter],
-    refetchInterval: 10000, // Auto-refresh every 10 seconds
-    queryFn: async () => {
-      let query = supabase
-        .from("error_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(500);
-
-      if (levelFilter !== "all") {
-        query = query.eq("level", levelFilter);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      return data as ErrorLog[];
-    },
-  });
+  const { data: errorLogs, isLoading, refetch } = useAdminErrorLogs(levelFilter);
 
   const filteredLogs = errorLogs?.filter((log) =>
     log.message.toLowerCase().includes(searchQuery.toLowerCase()) ||

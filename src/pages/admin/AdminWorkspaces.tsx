@@ -1,6 +1,14 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  useAdminWorkspaces,
+  useAdminWorkspaceStats,
+  useAdminWorkspaceMembers,
+  useAdminWorkspaceAdAccounts,
+  useToggleAdAccount,
+  type Team,
+  type WorkspaceMember,
+  type AdAccount,
+} from "@/hooks/useAdminWorkspaces";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,50 +51,6 @@ import {
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
-interface Team {
-  id: string;
-  name: string;
-  description: string | null;
-  logo_url: string | null;
-  workspace_url: string | null;
-  status: string | null;
-  created_at: string;
-  owner_id: string;
-  business_type_id: string | null;
-  industries_id: string | null;
-  business_types?: {
-    name: string;
-  } | null;
-  industries?: {
-    name: string;
-  } | null;
-}
-
-interface TeamMember {
-  id: string;
-  user_id: string;
-  role: string;
-  status: string;
-  joined_at: string;
-}
-
-interface AdAccount {
-  id: string;
-  account_name: string;
-  platform_id: string | null;
-  is_active: boolean | null;
-  platform_account_id: string | null;
-  platforms?: {
-    name: string | null;
-    icon_url: string | null;
-  } | null;
-}
-
-interface Profile {
-  id: string;
-  full_name: string | null;
-  email: string | null;
-}
 
 export default function AdminWorkspaces() {
   const { toast } = useToast();
@@ -98,117 +62,33 @@ export default function AdminWorkspaces() {
   const [suspendedWorkspaces, setSuspendedWorkspaces] = useState<Set<string>>(new Set());
 
   // Fetch all workspaces (teams)
-  const { data: workspaces, isLoading, refetch } = useQuery({
-    queryKey: ["admin-workspaces"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("workspaces")
-        .select(`
-          *,
-          business_types:business_type_id (name),
-          industries:industries_id (name)
-        `)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data as Team[];
-    },
-  });
+  const { data: workspaces, isLoading, refetch } = useAdminWorkspaces();
 
   // Fetch team stats (members count, ad accounts)
-  const { data: workspaceStats } = useQuery({
-    queryKey: ["admin-workspace-stats"],
-    queryFn: async () => {
-      const stats: Record<string, { members: number; adAccounts: number }> = {};
-
-      // Get member counts
-      const { data: memberCounts } = await supabase
-        .from("workspace_members")
-        .select("team_id");
-
-      if (memberCounts) {
-        memberCounts.forEach((m) => {
-          if (m.team_id) {
-            stats[m.team_id] = stats[m.team_id] || { members: 0, adAccounts: 0 };
-            stats[m.team_id].members++;
-          }
-        });
-      }
-
-      // Get ad account counts
-      const { data: adAccountCounts } = await supabase
-        .from("ad_accounts")
-        .select("team_id");
-
-      if (adAccountCounts) {
-        adAccountCounts.forEach((a) => {
-          if (a.team_id) {
-            stats[a.team_id] = stats[a.team_id] || { members: 0, adAccounts: 0 };
-            stats[a.team_id].adAccounts++;
-          }
-        });
-      }
-
-      return stats;
-    },
-  });
+  const { data: rawStats } = useAdminWorkspaceStats();
+  // Normalize stats shape to match existing JSX (members/adAccounts keys)
+  const workspaceStats = rawStats
+    ? Object.fromEntries(
+      Object.entries(rawStats).map(([id, s]) => [
+        id,
+        { members: s.memberCount, adAccounts: s.adAccountCount },
+      ])
+    )
+    : undefined;
 
   // Fetch members for selected workspace
-  const { data: workspaceMembers, isLoading: loadingMembers } = useQuery({
-    queryKey: ["admin-workspace-members", selectedWorkspace?.id],
-    queryFn: async () => {
-      if (!selectedWorkspace) return [];
-
-      const { data, error } = await supabase
-        .from("workspace_members")
-        .select("id, user_id, role, status, joined_at")
-        .eq("team_id", selectedWorkspace.id);
-
-      if (error) throw error;
-
-      // Fetch profiles separately
-      const userIds = data.map(m => m.user_id);
-      const { data: profiles } = await supabase
-        .from("customer")
-        .select("id, full_name, email")
-        .in("id", userIds);
-
-      const profileMap = new Map((profiles || []).map(p => [p.id, p]));
-
-      return data.map(m => ({
-        ...m,
-        profile: profileMap.get(m.user_id) || null
-      }));
-    },
-    enabled: !!selectedWorkspace && viewMode === "members",
-  });
+  const { data: workspaceMembers, isLoading: loadingMembers } = useAdminWorkspaceMembers(
+    selectedWorkspace?.id ?? null,
+    viewMode === "members"
+  );
 
   // Fetch ad accounts for selected workspace
-  const { data: workspaceAdAccounts, isLoading: loadingAdAccounts } = useQuery({
-    queryKey: ["admin-workspace-ad-accounts", selectedWorkspace?.id],
-    queryFn: async () => {
-      if (!selectedWorkspace) return [];
+  const { data: workspaceAdAccounts, isLoading: loadingAdAccounts } = useAdminWorkspaceAdAccounts(
+    selectedWorkspace?.id ?? null,
+    viewMode === "api"
+  );
 
-      const { data, error } = await supabase
-        .from("ad_accounts")
-        .select(`
-          id,
-          account_name,
-          platform_id,
-          is_active,
-          platform_account_id,
-          platforms:platform_id (
-            name,
-            icon_url
-          )
-        `)
-        .eq("team_id", selectedWorkspace.id);
-
-      if (error) throw error;
-      return data as AdAccount[];
-    },
-    enabled: !!selectedWorkspace && viewMode === "api",
-  });
+  const toggleAdAccountMutation = useToggleAdAccount();
 
   const filteredWorkspaces = workspaces?.filter((ws) =>
     ws.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -236,25 +116,10 @@ export default function AdminWorkspaces() {
   };
 
   const handleToggleAdAccount = async (accountId: string, currentStatus: boolean | null) => {
-    const { error } = await supabase
-      .from("ad_accounts")
-      .update({ is_active: !currentStatus })
-      .eq("id", accountId);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update ad account status.",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Success",
-        description: `Ad account ${!currentStatus ? "activated" : "deactivated"}.`,
-      });
-      refetch();
-    }
+    await toggleAdAccountMutation.mutateAsync({ id: accountId, isActive: !currentStatus });
+    refetch();
   };
+
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {

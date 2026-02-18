@@ -1,0 +1,107 @@
+# Realistic Mock Data — Implementation Plan
+
+## Background
+
+ปัจจุบัน seed ที่มีอยู่ครอบคลุม:
+- ✅ **Lookup/Fixed tables**: aarrr_categories, business_types, industries, platforms, subscription_plans, currencies, payment_methods, genders, loyalty_tiers, role_customers, role_employees, event_types, rating, priority_level, action_type, ad_buying_types, creative_types, change_type
+- ✅ **Users & Profiles**: 30 users, profile_customers, customer (unified-seed.sql)
+- ✅ **Workspaces**: 1 workspace per user (30 workspaces)
+- ✅ **Subscriptions & Transactions**: 30 subscriptions, ~20 payment_transactions
+- ✅ **Feedback**: 40 rows
+- ✅ **Error Logs**: 4 rows (ต้องเพิ่ม)
+
+## Tables ที่ต้องเพิ่ม Mock Data
+
+### Group 1 — Location (Fixed/Reference)
+| Table | Strategy | Count |
+|-------|----------|-------|
+| `countries` | ประเทศไทย + ประเทศหลักในอาเซียน | 11 rows |
+| `provinces` | 77 จังหวัดของไทย | 77 rows |
+| `locations` | ที่อยู่ตัวอย่างสำหรับ profile_customers | 50 rows |
+
+### Group 2 — Ad Accounts, Campaigns, Ad Groups, Ads
+| Table | Strategy | Count |
+|-------|----------|-------|
+| `ad_accounts` | 2 accounts per workspace (FB + Google) สำหรับ 25 workspaces | 50 rows |
+| `campaigns` | 2-3 campaigns per ad account | 60 rows |
+| `ad_groups` | 2 ad groups per campaign | 60 rows |
+| `ads` | 2 ads per ad group | 60 rows |
+| `budgets` | 1 budget per campaign | 60 rows |
+
+### Group 3 — Ad Insights (Daily Performance)
+| Table | Strategy | Count |
+|-------|----------|-------|
+| `ad_insights` | 30 วันย้อนหลัง × 5 campaigns หลัก | 150 rows |
+
+### Group 4 — Social Posts
+| Table | Strategy | Count |
+|-------|----------|-------|
+| `social_posts` | 2-3 posts per workspace × 20 workspaces | 60 rows |
+
+### Group 5 — Email Campaigns
+| Table | Strategy | Count |
+|-------|----------|-------|
+| `email_campaigns` | 2-3 campaigns per workspace × 20 workspaces | 60 rows |
+
+### Group 6 — Loyalty & Points
+| Table | Strategy | Count |
+|-------|----------|-------|
+| `points_transactions` | 3-5 transactions per user (earn/spend) | 100 rows |
+| `tier_history` | 1-2 tier changes per user | 50 rows |
+
+### Group 7 — Analytics
+| Table | Strategy | Count |
+|-------|----------|-------|
+| `customer_activities` | 5-10 activities per user | 150 rows |
+| `revenue_metrics` | 90 วันย้อนหลัง | 90 rows |
+| `cohort_analysis` | 6 เดือนย้อนหลัง | 6 rows |
+
+### Group 8 — Prospects & CRM
+| Table | Strategy | Count |
+|-------|----------|-------|
+| `prospects` | 50 prospects สำหรับ workspaces หลัก | 50 rows |
+| `customer_personas` | 2-3 personas per workspace × 20 | 50 rows |
+
+### Group 9 — System & Admin
+| Table | Strategy | Count |
+|-------|----------|-------|
+| `error_logs` | เพิ่มจาก 4 → 60 rows (หลากหลาย level) | +56 rows |
+| `audit_logs_enhanced` | 50 audit events | 50 rows |
+| `server` | 5 servers (web, db, cache, queue, worker) | 5 rows |
+| `data_pipeline` | 5 pipelines | 5 rows |
+| `external_api_status` | 1 per platform (8 platforms) | 8 rows |
+| `system_health` | 8 services | 8 rows |
+| `suspicious_activities` | 20 security alerts | 20 rows |
+
+### Group 10 — Billing
+| Table | Strategy | Count |
+|-------|----------|-------|
+| `invoices` | 1 invoice per paid subscription | 50 rows |
+| `discounts` | 10 promo codes | 10 rows |
+| `user_payment_methods` | 1 saved card per paid user | 30 rows |
+
+### Group 11 — Reports
+| Table | Strategy | Count |
+|-------|----------|-------|
+| `reports` | 2-3 reports per workspace | 60 rows |
+| `scheduled_reports` | 1 scheduled report per workspace | 30 rows |
+
+### Group 12 — Team & Invitations
+| Table | Strategy | Count |
+|-------|----------|-------|
+| `team_invitations` | 2 invitations per workspace (mix pending/accepted) | 50 rows |
+| `team_activity_logs` | 50 activity logs | 50 rows |
+
+## ไฟล์ที่จะสร้าง
+
+จะสร้างเป็น **1 migration file** ใหม่:
+```
+supabase/migrations/20260218200000_comprehensive_mock_data.sql
+```
+
+โครงสร้างแบ่งเป็น sections ชัดเจน ใช้ `DO $$ ... $$` blocks เพื่อ reuse UUIDs จาก existing data และ `ON CONFLICT DO NOTHING` ทุก insert
+
+## Verification Plan
+- ตรวจสอบ row counts หลัง migration
+- ตรวจสอบ FK constraints ไม่ error
+- ตรวจสอบ UI pages แสดงข้อมูลถูกต้อง
