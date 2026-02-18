@@ -36,17 +36,18 @@ INSERT INTO public.industries (id, name, slug, description, icon_url, display_or
   ('30000000-0000-0000-0000-000000000008', 'Logistics', 'logistics', 'Transportation and delivery', NULL, 8, true)
 ON CONFLICT (id) DO NOTHING;
 
--- 2.4 Platforms
+-- 2.4 Platforms (slugs must match ALLOWED_PLATFORM_SLUGS in usePlatformsDB.tsx)
 INSERT INTO public.platforms (id, name, slug, description, icon_url, is_active, api_version) VALUES
-  ('40000000-0000-0000-0000-000000000001', 'Facebook Ads', 'facebook-ads', 'Meta Facebook advertising platform', NULL, true, 'v18.0'),
-  ('40000000-0000-0000-0000-000000000002', 'Google Ads', 'google-ads', 'Google advertising platform', NULL, true, 'v15'),
-  ('40000000-0000-0000-0000-000000000003', 'TikTok Ads', 'tiktok-ads', 'TikTok advertising platform', NULL, true, 'v1.3'),
-  ('40000000-0000-0000-0000-000000000004', 'LINE Ads', 'line-ads', 'LINE advertising platform', NULL, true, 'v2.0'),
-  ('40000000-0000-0000-0000-000000000005', 'LinkedIn Ads', 'linkedin-ads', 'LinkedIn advertising platform', NULL, true, 'v2'),
-  ('40000000-0000-0000-0000-000000000006', 'Twitter/X Ads', 'twitter-ads', 'Twitter/X advertising platform', NULL, true, 'v2'),
-  ('40000000-0000-0000-0000-000000000007', 'Shopee Ads', 'shopee-ads', 'Shopee marketplace advertising', NULL, true, 'v2.0'),
-  ('40000000-0000-0000-0000-000000000008', 'Lazada Ads', 'lazada-ads', 'Lazada marketplace advertising', NULL, true, 'v1.0')
-ON CONFLICT (id) DO NOTHING;
+  ('40000000-0000-0000-0000-000000000001', 'Facebook',   'facebook',   'Meta Facebook advertising platform', NULL, true, 'v18.0'),
+  ('40000000-0000-0000-0000-000000000002', 'Google',     'google',     'Google advertising platform',        NULL, true, 'v15'),
+  ('40000000-0000-0000-0000-000000000003', 'TikTok',     'tiktok',     'TikTok advertising platform',        NULL, true, 'v1.3'),
+  ('40000000-0000-0000-0000-000000000004', 'LINE Ads',   'line-ads',   'LINE advertising platform',          NULL, true, 'v2.0'),
+  ('40000000-0000-0000-0000-000000000005', 'LinkedIn',   'linkedin-ads','LinkedIn advertising platform',     NULL, true, 'v2'),
+  ('40000000-0000-0000-0000-000000000006', 'Twitter/X',  'twitter-ads','Twitter/X advertising platform',    NULL, true, 'v2'),
+  ('40000000-0000-0000-0000-000000000007', 'Shopee',     'shopee',     'Shopee marketplace advertising',     NULL, true, 'v2.0'),
+  ('40000000-0000-0000-0000-000000000008', 'Lazada',     'lazada-ads', 'Lazada marketplace advertising',     NULL, true, 'v1.0'),
+  ('40000000-0000-0000-0000-000000000009', 'Instagram',  'instagram',  'Instagram Ads & Analytics',          NULL, true, 'v18.0')
+ON CONFLICT (id) DO UPDATE SET slug = EXCLUDED.slug, name = EXCLUDED.name;
 
 -- 2.5 Subscription Plans
 INSERT INTO public.subscription_plans (id, name, slug, description, price_monthly, price_yearly, features, limits, max_workspace, is_active, is_popular, display_order, trial_days) VALUES

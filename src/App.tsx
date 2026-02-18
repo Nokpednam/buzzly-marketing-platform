@@ -29,7 +29,6 @@ import APIKeys from "./pages/APIKeys";
 import Analytics from "./pages/Analytics";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
-import Discounts from "./pages/Discounts";
 import NotFound from "./pages/NotFound";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminSignUp from "./pages/admin/AdminSignUp";
@@ -43,6 +42,7 @@ import BusinessPerformance from "./pages/owner/BusinessPerformance";
 import UserFeedback from "./pages/owner/UserFeedback";
 import ExecutiveReport from "./pages/owner/ExecutiveReport";
 import CustomerTiers from "./pages/owner/CustomerTiers";
+import OwnerDiscounts from "./pages/owner/OwnerDiscounts";
 import TeamManagement from "./pages/TeamManagement";
 import TierManagement from "./pages/admin/TierManagement";
 import EmployeeManagement from "./pages/admin/EmployeeManagement";
@@ -96,7 +96,6 @@ const App = () => (
 
                     <Route path="/analytics" element={<Analytics />} />
                     <Route path="/reports" element={<Reports />} />
-                    <Route path="/discounts" element={<Discounts />} />
                     <Route path="/settings" element={<Settings />} />
                     <Route path="/team" element={<TeamManagement />} />
                   </Route>
@@ -125,6 +124,7 @@ const App = () => (
                     <Route path="/owner/user-feedback" element={<UserFeedback />} />
                     <Route path="/owner/executive-report" element={<ExecutiveReport />} />
                     <Route path="/owner/customer-tiers" element={<CustomerTiers />} />
+                    <Route path="/owner/discounts" element={<OwnerDiscounts />} />
                   </Route>
 
                   <Route path="*" element={<NotFound />} />

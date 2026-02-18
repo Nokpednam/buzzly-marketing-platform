@@ -13,6 +13,7 @@ import {
   ChevronRight,
   User,
   Settings,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,12 @@ const ownerNavItems = [
     icon: FileText,
     href: "/owner/executive-report",
     description: "PDF Reports & Insights",
+  },
+  {
+    title: "Discount Codes",
+    icon: Tag,
+    href: "/owner/discounts",
+    description: "Subscription Promotions",
   },
 ];
 

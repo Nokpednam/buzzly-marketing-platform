@@ -35,8 +35,8 @@ interface PlatformWithConnection extends Platform {
   error?: string;
 }
 
-// Only show these 4 platforms
-const ALLOWED_PLATFORM_SLUGS = ['facebook', 'instagram', 'tiktok', 'shopee'];
+// Show these 5 platforms: Instagram, Facebook, TikTok, Shopee, Google
+const ALLOWED_PLATFORM_SLUGS = ['facebook', 'instagram', 'tiktok', 'shopee', 'google'];
 
 export function usePlatformsDB(teamId: string | null | undefined) {
   const [platforms, setPlatforms] = useState<PlatformWithConnection[]>([]);
@@ -83,7 +83,7 @@ export function usePlatformsDB(teamId: string | null | undefined) {
         const mergedPlatforms: PlatformWithConnection[] = (platformsData || []).map((platform: any) => {
           const connection = connectionsMap[platform.id] || null;
           let status: 'connected' | 'disconnected' | 'error' = 'disconnected';
-          
+
           if (connection) {
             if (connection.error_message) {
               status = 'error';
@@ -97,8 +97,8 @@ export function usePlatformsDB(teamId: string | null | undefined) {
             category_name: platform.platform_categories?.name || null,
             connection,
             status,
-            lastSync: connection?.last_synced_at 
-              ? new Date(connection.last_synced_at).toLocaleString() 
+            lastSync: connection?.last_synced_at
+              ? new Date(connection.last_synced_at).toLocaleString()
               : undefined,
             accessToken: connection?.access_token || undefined,
             error: connection?.error_message || undefined,
@@ -153,7 +153,7 @@ export function usePlatformsDB(teamId: string | null | undefined) {
       const mergedPlatforms: PlatformWithConnection[] = (platformsData || []).map((platform: any) => {
         const connection = connectionsMap[platform.id] || null;
         let status: 'connected' | 'disconnected' | 'error' = 'disconnected';
-        
+
         if (connection) {
           if (connection.error_message) {
             status = 'error';
@@ -167,8 +167,8 @@ export function usePlatformsDB(teamId: string | null | undefined) {
           category_name: platform.platform_categories?.name || null,
           connection,
           status,
-          lastSync: connection?.last_synced_at 
-            ? new Date(connection.last_synced_at).toLocaleString() 
+          lastSync: connection?.last_synced_at
+            ? new Date(connection.last_synced_at).toLocaleString()
             : undefined,
           accessToken: connection?.access_token || undefined,
           error: connection?.error_message || undefined,
