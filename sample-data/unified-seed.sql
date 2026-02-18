@@ -103,13 +103,22 @@ INSERT INTO public.loyalty_tiers (id, name, description, min_points, min_spend_a
   ('17000004-0000-0000-0000-000000000004', 'Platinum', 'VIP exclusive tier', 5000, 50000, 15, 2.0, '#E5E4E2', 4)
 ON CONFLICT (id) DO NOTHING;
 
--- 2.10 Role Customers
+-- 2.10a Role Customers
 INSERT INTO public.role_customers (id, name, is_active) VALUES
   ('10000000-0000-0000-0000-000000000001', 'owner', true),
   ('10000000-0000-0000-0000-000000000002', 'admin', true),
   ('10000000-0000-0000-0000-000000000003', 'editor', true),
   ('10000000-0000-0000-0000-000000000004', 'viewer', true)
 ON CONFLICT (id) DO NOTHING;
+
+-- 2.10b Role Employees
+INSERT INTO public.role_employees (role_name, description, permission_level) VALUES
+    ('owner', 'Buzzly Owner - Full access', 100),
+    ('admin', 'Administrator - Manage Workspaces/Users', 80),
+    ('support', 'Support - View Logs/Help Customers', 50),
+    ('developer', 'Developer - API/Pipelines', 60)
+ON CONFLICT (role_name) DO NOTHING;
+
 
 -- 2.11 Event Types & Categories (Minimal Set)
 INSERT INTO public.event_categories (id, name, slug, description, color_code, display_order) VALUES
@@ -446,4 +455,7 @@ INSERT INTO public.error_logs (id, level, message, stack_trace, request_id, meta
   (gen_random_uuid(), 'info', 'Scheduled maintenance completed', NULL, 'maint_001', '{"duration": "15m"}', NOW() - INTERVAL '12 hours')
 ON CONFLICT DO NOTHING;
 
-RAISE NOTICE '✅✅ UNIFIED SEED COMPLETED SUCCESSFULLY! ✅✅';
+DO $$
+BEGIN
+    RAISE NOTICE '✅✅ UNIFIED SEED COMPLETED SUCCESSFULLY! ✅✅';
+END $$;
