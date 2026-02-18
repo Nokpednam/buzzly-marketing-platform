@@ -17,17 +17,37 @@ export interface ErrorLog {
 const fetchUserMap = async (userIds: string[]) => {
     if (userIds.length === 0) return new Map();
 
+    // 1. Fetch Employees
     const { data: employees } = await supabase
         .from('employees')
         .select('user_id, email, role_employees(role_name)')
         .in('user_id', userIds);
 
+    // 2. Fetch Customers
+    // Note: Assuming 'customer' table has id, email. Adjust if table name/columns differ.
+    // Based on schema search, 'public.customer' exists with 'id' and 'email'.
+    const { data: customers } = await supabase
+        .from('customer')
+        .select('id, email')
+        .in('id', userIds);
+
     const map = new Map();
+
+    // specific handling: Employees override customers if duplicate (unlikely)
     employees?.forEach(emp => {
         map.set(emp.user_id, {
             email: emp.email,
             role: (emp.role_employees as any)?.role_name || 'Employee'
         });
+    });
+
+    customers?.forEach(cust => {
+        if (!map.has(cust.id)) {
+            map.set(cust.id, {
+                email: cust.email,
+                role: 'Customer'
+            });
+        }
     });
 
     return map;
@@ -79,5 +99,42 @@ export function useAdminErrorLogs(levelFilter: string) {
 
             return { logs: enrichedLogs as ErrorLog[], totalCount: count || 0 };
         },
+    });
+}
+
+export function useAdminLogStats() {
+    return useQuery({
+        queryKey: ["admin-error-stats"],
+        refetchInterval: 30000, // Refresh stats every 30s
+        queryFn: async () => {
+            // We'll run parallel queries to get counts for each level
+            // This is not the most efficient way (a single aggregation query would be better),
+            // but for now it avoids a migration and is strictly typed.
+
+            const levels = ["critical", "error", "warning", "info"];
+            const promises = levels.map(level =>
+                supabase
+                    .from("error_logs")
+                    .select("*", { count: 'exact', head: true })
+                    .eq("level", level)
+            );
+
+            // Also get total count
+            const totalPromise = supabase
+                .from("error_logs")
+                .select("*", { count: 'exact', head: true });
+
+            const results = await Promise.all([...promises, totalPromise]);
+
+            const stats = {
+                critical: results[0].count || 0,
+                error: results[1].count || 0,
+                warning: results[2].count || 0,
+                info: results[3].count || 0,
+                total: results[4].count || 0
+            };
+
+            return stats;
+        }
     });
 }

@@ -1,16 +1,17 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import AdminSupport from '../AdminSupport';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { logError } from '@/services/errorLogger';
+import { useAdminLogStats } from '@/hooks/useAdminSupport';
 
 // Mock Supabase client
 const mockSelect = vi.fn();
 const mockOrder = vi.fn();
 const mockLimit = vi.fn();
 const mockEq = vi.fn();
+const mockIn = vi.fn();
 
 vi.mock('@/integrations/supabase/client', () => ({
     supabase: {
@@ -24,6 +25,15 @@ vi.mock('@/integrations/supabase/client', () => ({
 vi.mock('@/services/errorLogger', () => ({
     logError: vi.fn(),
 }));
+
+// Mock hooks
+vi.mock('@/hooks/useAdminSupport', async () => {
+    const actual = await vi.importActual('@/hooks/useAdminSupport');
+    return {
+        ...actual as any,
+        useAdminLogStats: vi.fn(),
+    };
+});
 
 // Mock toast
 const mockToast = vi.fn();
@@ -51,12 +61,47 @@ describe('AdminSupport', () => {
         });
         vi.clearAllMocks();
 
-        // Setup default mock chain
-        mockSelect.mockReturnValue({ order: mockOrder });
-        mockOrder.mockReturnValue({ limit: mockLimit });
-        mockLimit.mockResolvedValue({ data: [], error: null });
-        mockEq.mockResolvedValue({ data: [], error: null }); // In case eq is used
+        // Create a mock builder that handles chaining nicely
+        const mockBuilder = {
+            select: mockSelect,
+            order: mockOrder,
+            limit: mockLimit,
+            eq: mockEq,
+            in: mockIn,
+            then: (resolve: any) => resolve({ data: [], count: 0, error: null })
+        };
+
+        // Setup mock implementations
+        mockSelect.mockReturnValue(mockBuilder);
+        mockOrder.mockReturnValue(mockBuilder);
+        mockLimit.mockReturnValue(mockBuilder);
+        mockEq.mockReturnValue(mockBuilder);
+        mockIn.mockReturnValue(mockBuilder);
+
+        // Default stats mock
+        (useAdminLogStats as any).mockReturnValue({
+            data: {
+                total: 0,
+                critical: 0,
+                error: 0,
+                warning: 0,
+                info: 0
+            },
+            isLoading: false
+        });
     });
+
+    // Helper to mock Supabase response while maintaining builder chain
+    const mockSupabaseResponse = (response: any) => {
+        const builder = {
+            eq: mockEq,
+            order: mockOrder,
+            limit: mockLimit,
+            in: mockIn,
+            then: (resolve: any) => resolve(response)
+        };
+        mockLimit.mockReturnValue(builder);
+    };
 
     const renderComponent = () => {
         return render(
@@ -71,6 +116,8 @@ describe('AdminSupport', () => {
         expect(screen.getByText('Support & Error Logs')).toBeInTheDocument();
         expect(screen.getByText('Monitor and analyze system errors and issues')).toBeInTheDocument();
         expect(screen.getByText('Total Logs')).toBeInTheDocument();
+        // Use regex for robust finding of text next to icon
+        expect(screen.getByRole('heading', { name: /Critical/i })).toBeInTheDocument();
         expect(screen.getByText('Errors')).toBeInTheDocument();
     });
 
@@ -88,7 +135,7 @@ describe('AdminSupport', () => {
             },
         ];
 
-        mockLimit.mockResolvedValueOnce({ data: mockLogs, error: null });
+        mockSupabaseResponse({ data: mockLogs, error: null });
 
         renderComponent();
 
@@ -119,7 +166,7 @@ describe('AdminSupport', () => {
             },
         ];
 
-        mockLimit.mockResolvedValue({ data: mockLogs, error: null });
+        mockSupabaseResponse({ data: mockLogs, error: null });
 
         renderComponent();
 
@@ -134,6 +181,81 @@ describe('AdminSupport', () => {
         await waitFor(() => {
             expect(screen.getByText('Unique Error')).toBeInTheDocument();
             expect(screen.queryByText('Common Info')).not.toBeInTheDocument();
+        });
+    });
+
+    it('filters logs by critical level', async () => {
+        const mockLogs = [
+            {
+                id: '1',
+                level: 'critical',
+                message: 'Critical Error',
+                user_id: 'u1',
+                request_id: 'r1',
+                created_at: new Date().toISOString(),
+            },
+            {
+                id: '2',
+                level: 'error',
+                message: 'Normal Error',
+                user_id: 'u2',
+                request_id: 'r2',
+                created_at: new Date().toISOString(),
+            },
+        ];
+
+        // Mock stats response - should be constant regardless of filter
+        (useAdminLogStats as any).mockReturnValue({
+            data: {
+                total: 10,
+                critical: 5,
+                error: 3,
+                warning: 1,
+                info: 1
+            },
+            isLoading: false
+        });
+
+        // First call with default (all)
+        const builder1 = {
+            eq: mockEq,
+            in: mockIn,
+            then: (resolve: any) => resolve({ data: mockLogs, error: null })
+        };
+
+        // Second call with critical filter
+        const builder2 = {
+            eq: mockEq,
+            in: mockIn,
+            then: (resolve: any) => resolve({ data: [mockLogs[0]], error: null })
+        };
+
+        mockLimit.mockReturnValueOnce(builder1).mockReturnValueOnce(builder2);
+
+        renderComponent();
+
+        await waitFor(() => {
+            // Stats should show total 10 even if logs are just 2 in the unfiltered mock
+            expect(screen.getByText('10')).toBeInTheDocument(); // Total
+            expect(screen.getByText('5')).toBeInTheDocument();  // Critical Stats
+
+            // Logs in table
+            expect(screen.getByText('Critical Error')).toBeInTheDocument();
+            expect(screen.getByText('Normal Error')).toBeInTheDocument();
+        });
+
+        // Open filter dropdown (combobox trigger)
+        const filterTrigger = screen.getByRole('combobox');
+        fireEvent.click(filterTrigger);
+
+        // Select Critical Only
+        const criticalOption = screen.getByText('Critical Only');
+        fireEvent.click(criticalOption);
+
+        await waitFor(() => {
+            expect(mockEq).toHaveBeenCalledWith('level', 'critical');
+            // Stats should definitely still verify as present/unchanged visually
+            expect(screen.getByText('10')).toBeInTheDocument();
         });
     });
 
@@ -174,7 +296,7 @@ describe('AdminSupport', () => {
             },
         ];
 
-        mockLimit.mockResolvedValue({ data: mockLogs, error: null });
+        mockSupabaseResponse({ data: mockLogs, error: null });
 
         renderComponent();
 

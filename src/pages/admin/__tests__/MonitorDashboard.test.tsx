@@ -47,7 +47,7 @@ describe('MonitorDashboard', () => {
             refetch: vi.fn(),
         } as any);
         vi.mocked(useAdminMonitor.useErrorLogStats).mockReturnValue({
-            data: { total: 0, errors: 0, warnings: 0, info: 0 },
+            data: { total: 0, critical: 0, errors: 0, warnings: 0, info: 0 },
             isLoading: false,
             refetch: vi.fn(),
         } as any);
@@ -128,6 +128,35 @@ describe('MonitorDashboard', () => {
         expect(criticalElements.length).toBeGreaterThan(0);
         // Ideally we'd target more specifically, but given the component structure, this verifies the text is present.
         // The first card is System Status, so it should be there.
+    });
+
+    it('should display critical errors card when critical logs exist', async () => {
+        vi.mocked(useAdminMonitor.useErrorLogStats).mockReturnValue({
+            data: { total: 5, critical: 2, errors: 1, warnings: 1, info: 1 },
+            isLoading: false,
+            refetch: vi.fn(),
+        } as any);
+
+        const user = userEvent.setup();
+        render(<MonitorDashboard />, { wrapper });
+
+        // Switch to Errors tab
+        const errorsTab = screen.getByRole('tab', { name: /Errors/i });
+        await user.click(errorsTab);
+
+        await waitFor(() => {
+            expect(screen.getByText('Error Summary (Recent)')).toBeInTheDocument();
+        });
+
+        // Check for "Critical" text in the error summary section
+        // Note: "Critical" might appear in multiple places (system status), so we check for the specific value "2"
+        // associated with the Critical card style or simple presence if unique enough in this context
+
+        // Since we have multiple "Critical" texts, let's look for the value '2' which matches our mock
+        // and is near "Critical"
+        const criticalCount = screen.getByText('2');
+        expect(criticalCount).toBeInTheDocument();
+        expect(criticalCount.className).toContain('text-red-700');
     });
 
     it('should call refetch on all hooks when refresh button is clicked', async () => {

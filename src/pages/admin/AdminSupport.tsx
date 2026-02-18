@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAdminErrorLogs, ErrorLog } from "@/hooks/useAdminSupport";
+import { useAdminErrorLogs, useAdminLogStats, ErrorLog } from "@/hooks/useAdminSupport";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ import {
   Bug,
   Info,
   Search,
+  XCircle,
   RefreshCw,
   Eye,
   Clock,
@@ -88,6 +89,8 @@ export default function AdminSupport() {
 
   const getLevelIcon = (level: string) => {
     switch (level.toLowerCase()) {
+      case "critical":
+        return <XCircle className="h-4 w-4 text-destructive" />;
       case "error":
         return <AlertCircle className="h-4 w-4 text-destructive" />;
       case "warning":
@@ -104,6 +107,8 @@ export default function AdminSupport() {
 
   const getLevelBadge = (level: string) => {
     switch (level.toLowerCase()) {
+      case "critical":
+        return <Badge variant="destructive" className="bg-red-800 hover:bg-red-900">Critical</Badge>;
       case "error":
         return <Badge variant="destructive">Error</Badge>;
       case "warning":
@@ -118,12 +123,16 @@ export default function AdminSupport() {
     }
   };
 
-  // Calculate stats
+  // Fetch stats separately
+  const { data: statsData, isLoading: isLoadingStats } = useAdminLogStats();
+
+  // Calculate stats - prefer fetched stats, fallback to 0 or local if needed (though local is filtered now)
   const stats = {
-    total: totalCount,
-    errors: errorLogs?.filter((l) => l.level.toLowerCase() === "error").length || 0,
-    warnings: errorLogs?.filter((l) => ["warning", "warn"].includes(l.level.toLowerCase())).length || 0,
-    info: errorLogs?.filter((l) => l.level.toLowerCase() === "info").length || 0,
+    total: statsData?.total || 0,
+    critical: statsData?.critical || 0,
+    errors: statsData?.error || 0,
+    warnings: statsData?.warning || 0,
+    info: statsData?.info || 0,
   };
 
   return (
@@ -149,7 +158,7 @@ export default function AdminSupport() {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -158,6 +167,17 @@ export default function AdminSupport() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-red-700 dark:text-red-500" />
+              Critical
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-700 dark:text-red-500">{stats.critical}</div>
           </CardContent>
         </Card>
         <Card>
@@ -215,6 +235,7 @@ export default function AdminSupport() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Levels</SelectItem>
+                <SelectItem value="critical">Critical Only</SelectItem>
                 <SelectItem value="error">Errors Only</SelectItem>
                 <SelectItem value="warning">Warnings Only</SelectItem>
                 <SelectItem value="info">Info Only</SelectItem>

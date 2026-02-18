@@ -116,6 +116,7 @@ export function useErrorLogStats() {
 
       return {
         total: logs.length,
+        critical: logs.filter((l) => l.level.toLowerCase() === "critical").length,
         errors: logs.filter((l) => l.level.toLowerCase() === "error").length,
         warnings: logs.filter((l) =>
           ["warning", "warn"].includes(l.level.toLowerCase())
