@@ -24,82 +24,23 @@ interface UpgradeRequiredDialogProps {
   featureDescription?: string;
 }
 
-interface PlanDisplay {
-  id: PlanType;
-  name: string;
-  price: string;
-  period: string;
-  description: string;
-  icon: React.ReactNode;
-  color: string;
-  bgGradient: string;
-  features: { name: string; included: boolean }[];
-  popular?: boolean;
-}
+import { PLANS, PlanConfig } from "@/constants/plans";
 
-const planDisplays: PlanDisplay[] = [
-  {
-    id: "free",
-    name: "Free",
-    price: "$0",
-    period: "/month",
-    description: "เริ่มต้นใช้งานฟรี",
-    icon: <Zap className="h-5 w-5" />,
-    color: "text-muted-foreground",
-    bgGradient: "from-muted/50 to-muted/20",
-    features: [
-      { name: "เชื่อมต่อ 2 Platforms", included: true },
-      { name: "Dashboard พื้นฐาน", included: true },
-      { name: "รายงาน 7 วันย้อนหลัง", included: true },
-      { name: "Customer Persona", included: true },
-      { name: "AI Insights", included: false },
-      { name: "Custom Reports", included: false },
-      { name: "Priority Support", included: false },
-      { name: "Team Members", included: false },
-    ],
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    price: "$29",
-    period: "/month",
-    description: "สำหรับธุรกิจที่ต้องการเติบโต",
-    icon: <Crown className="h-5 w-5" />,
-    color: "text-primary",
-    bgGradient: "from-primary/20 to-primary/5",
-    popular: true,
-    features: [
-      { name: "เชื่อมต่อ Unlimited Platforms", included: true },
-      { name: "Dashboard ขั้นสูง", included: true },
-      { name: "รายงาน 90 วันย้อนหลัง", included: true },
-      { name: "Customer Persona", included: true },
-      { name: "AI Insights", included: true },
-      { name: "Custom Reports", included: true },
-      { name: "Priority Support", included: true },
-      { name: "Team Members", included: false },
-    ],
-  },
-  {
-    id: "team",
-    name: "Team",
-    price: "$79",
-    period: "/month",
-    description: "สำหรับทีมที่ต้องการจัดการร่วมกัน",
-    icon: <Users className="h-5 w-5" />,
-    color: "text-violet-500",
-    bgGradient: "from-violet-500/20 to-violet-500/5",
-    features: [
-      { name: "เชื่อมต่อ Unlimited Platforms", included: true },
-      { name: "Dashboard ขั้นสูง", included: true },
-      { name: "รายงาน Unlimited ย้อนหลัง", included: true },
-      { name: "Customer Persona", included: true },
-      { name: "AI Insights", included: true },
-      { name: "Custom Reports", included: true },
-      { name: "Priority Support", included: true },
-      { name: "Invite Team Members (5 คน)", included: true },
-    ],
-  },
-];
+// Helper to map PLANS constant to PlanDisplay format
+const planDisplays = Object.values(PLANS).map((plan) => ({
+  id: plan.id,
+  name: plan.name,
+  price: plan.price.monthly === 0 ? "Free" : `฿${plan.price.monthly.toLocaleString()}`,
+  priceYearly: plan.price.yearly === 0 ? "Free" : `฿${plan.price.yearly.toLocaleString()}`,
+  period: "/month",
+  description: plan.description,
+  icon: <plan.icon className="h-5 w-5" />, // Instantiate icon component
+  color: plan.color,
+  bgGradient: plan.bgGradient,
+  popular: plan.popular,
+  features: plan.features,
+}));
+
 
 export function UpgradeRequiredDialog({
   open,
@@ -350,10 +291,7 @@ export function UpgradeRequiredDialog({
                       {/* Price */}
                       <div className="text-center mb-4">
                         <span className={cn("text-3xl font-bold", plan.color)}>
-                          {plan.id !== "free" && billingCycle === "yearly"
-                            ? (plan.id === "pro" ? "$25" : "$67")
-                            : plan.price
-                          }
+                          {billingCycle === "yearly" ? plan.priceYearly : plan.price}
                         </span>
                         <span className="text-muted-foreground text-sm">{plan.period}</span>
                         {billingCycle === "yearly" && plan.id !== "free" && (

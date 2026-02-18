@@ -25,8 +25,14 @@ import {
 } from "lucide-react";
 import { useSubscription, BillingCycle } from "@/hooks/useSubscription";
 import { useInvoices } from "@/hooks/useInvoices";
+import { useUserPaymentMethods } from "@/hooks/useUserPaymentMethods";
+import { PaymentMethodDialog } from "@/components/subscription/PaymentMethodDialog";
 
-export function BillingTab() {
+interface BillingTabProps {
+  onNavigateToPaymentMethods?: () => void;
+}
+
+export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
   const {
     plans,
     paymentMethods,
@@ -35,6 +41,7 @@ export function BillingTab() {
     getPrice,
     getSavingsPercent,
     createSubscription,
+    cancelSubscription,
   } = useSubscription();
 
   const {
@@ -63,6 +70,20 @@ export function BillingTab() {
       setPaymentDialogOpen(false);
       setSelectedPlanId(null);
     }
+  };
+
+  const handleCancelPlan = async () => {
+    if (!confirm("คุณต้องการยกเลิกแผนปัจจุบันใช่หรือไม่? สิทธิพิเศษจะสิ้นสุดลงเมื่อครบรอบบิล")) return;
+    const success = await cancelSubscription();
+    if (success) {
+      // Toast is handled by hook or we can add one here if needed, but hook usually returns boolean
+      // Ideally we should use toast() here if available, but let's rely on the return for now/UI update
+      window.location.reload(); // Simple refresh to update state
+    }
+  };
+
+  const scrollToPlans = () => {
+    document.getElementById("plans-section")?.scrollIntoView({ behavior: "smooth" });
   };
 
   if (subLoading) {
@@ -99,7 +120,7 @@ export function BillingTab() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-3xl font-bold">
-                  ${getPrice(currentPlan, currentSubscription?.billing_cycle || "monthly").toLocaleString()}
+                  ฿{getPrice(currentPlan, currentSubscription?.billing_cycle || "monthly").toLocaleString()}
                   <span className="text-lg font-normal text-muted-foreground">
                     /{currentSubscription?.billing_cycle === "yearly" ? "ปี" : "เดือน"}
                   </span>
@@ -112,11 +133,11 @@ export function BillingTab() {
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline">เปลี่ยนแผน</Button>
+                <Button variant="outline" onClick={scrollToPlans}>เปลี่ยนแผน</Button>
                 {currentSubscription?.cancel_at_period_end ? (
                   <Badge variant="destructive">จะยกเลิกเมื่อสิ้นสุดรอบบิล</Badge>
                 ) : (
-                  <Button variant="ghost" className="text-destructive">ยกเลิกแผน</Button>
+                  <Button variant="ghost" className="text-destructive" onClick={handleCancelPlan}>ยกเลิกแผน</Button>
                 )}
               </div>
             </div>
@@ -133,17 +154,20 @@ export function BillingTab() {
             <TabsTrigger value="monthly">รายเดือน</TabsTrigger>
             <TabsTrigger value="yearly" className="gap-2">
               รายปี
-              <Badge variant="secondary" className="text-xs">ประหยัด 20%</Badge>
+              <Badge variant="secondary" className="text-xs">
+                ประหยัดสูงสุด 17%
+              </Badge>
             </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
 
       {/* Plans */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div id="plans-section" className="grid gap-4 md:grid-cols-3">
         {plans.map((plan) => {
           const isCurrentPlan = currentPlan?.id === plan.id;
           const savings = getSavingsPercent(plan);
+          const isDowngrade = currentPlan ? plan.tier < currentPlan.tier : false;
 
           return (
             <Card
@@ -165,14 +189,14 @@ export function BillingTab() {
                 </CardTitle>
                 <div className="mt-2">
                   <span className="text-3xl font-bold">
-                    ${getPrice(plan, billingCycle).toLocaleString()}
+                    ฿{getPrice(plan, billingCycle).toLocaleString()}
                   </span>
                   <span className="text-muted-foreground">
                     /{billingCycle === "yearly" ? "ปี" : "เดือน"}
                   </span>
                 </div>
                 {billingCycle === "yearly" && savings > 0 && (
-                  <p className="text-sm text-success">ประหยัด {savings}%</p>
+                  <p className="text-sm text-success">ประหยัด 17%</p>
                 )}
               </CardHeader>
               <CardContent className="space-y-4">
@@ -188,10 +212,10 @@ export function BillingTab() {
                 <Button
                   className="w-full"
                   variant={isCurrentPlan ? "outline" : "default"}
-                  disabled={isCurrentPlan}
+                  disabled={isCurrentPlan || isDowngrade}
                   onClick={() => handleUpgrade(plan.id)}
                 >
-                  {isCurrentPlan ? "แผนปัจจุบัน" : "เลือกแผนนี้"}
+                  {isCurrentPlan ? "แผนปัจจุบัน" : isDowngrade ? "ไม่สามารถลดแผนได้" : "เลือกแผนนี้"}
                 </Button>
               </CardContent>
             </Card>
@@ -208,20 +232,7 @@ export function BillingTab() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between rounded-lg border p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <CreditCard className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-medium">•••• •••• •••• 4242</p>
-                <p className="text-sm text-muted-foreground">หมดอายุ 12/26</p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm">
-              อัปเดต
-            </Button>
-          </div>
+          <PaymentMethodDisplay onNavigate={onNavigateToPaymentMethods} />
         </CardContent>
       </Card>
 
@@ -295,6 +306,69 @@ export function BillingTab() {
           )}
         </CardContent>
       </Card>
+      <PaymentMethodDialog
+        open={paymentDialogOpen}
+        onOpenChange={setPaymentDialogOpen}
+        selectedPlan={plans.find(p => p.id === selectedPlanId) || null}
+        billingCycle={billingCycle}
+        paymentMethods={paymentMethods}
+        onConfirmPayment={handlePaymentConfirm}
+        onBack={() => setPaymentDialogOpen(false)}
+        isProcessing={false}
+      />
+    </div >
+  );
+}
+
+function PaymentMethodDisplay({ onNavigate }: { onNavigate?: () => void }) {
+  const { defaultMethod, isLoading } = useUserPaymentMethods();
+
+  if (isLoading) {
+    return <Skeleton className="h-20 w-full" />;
+  }
+
+  if (!defaultMethod) {
+    return (
+      <div className="flex flex-col items-center justify-center py-6 text-center border rounded-lg border-dashed">
+        <CreditCard className="h-8 w-8 text-muted-foreground/30 mb-2" />
+        <p className="text-sm text-muted-foreground">ยังไม่มีวิธีการชำระเงินเริ่มต้น</p>
+        <Button
+          variant="link"
+          className="text-primary mt-2"
+          onClick={() => onNavigate?.()}
+        >
+          เพิ่มวิธีการชำระเงิน
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between rounded-lg border p-4">
+      <div className="flex items-center gap-4">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+          <CreditCard className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <p className="font-medium">
+            {defaultMethod.card_brand
+              ? `${defaultMethod.card_brand} •••• ${defaultMethod.card_last_four}`
+              : (defaultMethod.bank_name || "Payment Method")}
+          </p>
+          {defaultMethod.card_exp_month && defaultMethod.card_exp_year && (
+            <p className="text-sm text-muted-foreground">
+              หมดอายุ {String(defaultMethod.card_exp_month).padStart(2, '0')}/{defaultMethod.card_exp_year}
+            </p>
+          )}
+        </div>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onNavigate?.()}
+      >
+        จัดการ
+      </Button>
     </div>
   );
 }

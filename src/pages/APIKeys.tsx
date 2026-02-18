@@ -41,7 +41,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useWorkspace } from "@/hooks/useWorkspace";
-import { usePlatformsDB } from "@/hooks/usePlatformsDB";
+import { usePlatformConnections } from "@/hooks/usePlatformConnections";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +79,7 @@ export default function APIKeys() {
     disconnectPlatform,
     updatePlatformToken,
     refreshPlatformStatus,
-  } = usePlatformsDB(workspace.id);
+  } = usePlatformConnections();
 
   const [editingPlatformId, setEditingPlatformId] = useState<string | null>(null);
   const [visibleTokens, setVisibleTokens] = useState<string[]>([]);
@@ -129,8 +129,8 @@ export default function APIKeys() {
             const isVisible = visibleTokens.includes(platform.id);
 
             return (
-              <Card 
-                key={platform.id} 
+              <Card
+                key={platform.id}
                 className={cn(
                   "group transition-all duration-300 border-l-4 overflow-hidden",
                   platform.status === 'connected' ? "border-l-emerald-500 shadow-sm" : "border-l-transparent"
@@ -181,7 +181,7 @@ export default function APIKeys() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 rounded-lg hover:bg-background"
-                              onClick={() => setVisibleTokens(prev => 
+                              onClick={() => setVisibleTokens(prev =>
                                 isVisible ? prev.filter(i => i !== platform.id) : [...prev, platform.id]
                               )}
                             >
@@ -195,7 +195,7 @@ export default function APIKeys() {
                           <p className="text-xs font-medium text-amber-700">Action Required: Establish connection to sync marketing data.</p>
                         </div>
                       )}
-                      
+
                       {platform.error && (
                         <div className="p-3 bg-destructive/5 border border-destructive/20 rounded-lg flex items-start gap-2">
                           <XCircle className="h-4 w-4 text-destructive mt-0.5" />
@@ -215,7 +215,7 @@ export default function APIKeys() {
                           <DeleteAction platform={platform} handleDeleteKey={handleDeleteKey} />
                         </>
                       ) : (
-                        <Button 
+                        <Button
                           className="w-full md:w-auto px-6 rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]"
                           onClick={() => handleConnect(platform.id)}
                           disabled={connecting === platform.id}

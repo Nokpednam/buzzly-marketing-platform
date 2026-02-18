@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -38,11 +39,18 @@ export function useSocialPosts(dateRange?: string) {
     },
   });
 
+  const { workspace } = useWorkspace();
+
   const createPost = useMutation({
     mutationFn: async (newPost: SocialPostInsert) => {
+      if (!workspace.id) throw new Error("No workspace found");
+
       const { data, error } = await supabase
         .from("social_posts")
-        .insert(newPost)
+        .insert({
+          ...newPost,
+          team_id: workspace.id,
+        })
         .select()
         .single();
       if (error) throw error;

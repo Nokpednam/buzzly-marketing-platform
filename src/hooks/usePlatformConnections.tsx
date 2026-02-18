@@ -1,18 +1,22 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Facebook, Instagram } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export type PlatformStatus = "connected" | "disconnected" | "error";
 
 export interface Platform {
   id: string;
   name: string;
+  slug: string;
   icon: React.ComponentType<{ className?: string }> | null;
+  icon_url?: string | null;
   emoji?: string;
   status: PlatformStatus;
   lastSync?: string;
   accessToken?: string;
   error?: string;
+  category_name?: string;
 }
 
 // Icon mapping for platforms
@@ -21,21 +25,23 @@ const platformIcons: Record<string, React.ComponentType<{ className?: string }> 
   instagram: Instagram,
   tiktok: null,
   shopee: null,
+  google: null,
 };
 
 const platformEmojis: Record<string, string> = {
   tiktok: "🎵",
   shopee: "🛒",
+  google: "🔍",
 };
 
 interface PlatformConnectionsContextType {
   platforms: Platform[];
   connectedPlatforms: Platform[];
   loading: boolean;
-  connectPlatform: (id: string, token: string) => void;
-  disconnectPlatform: (id: string) => void;
-  updatePlatformToken: (id: string, token: string) => void;
-  refreshPlatformStatus: (id: string) => void;
+  connectPlatform: (id: string, token?: string) => Promise<boolean>;
+  disconnectPlatform: (id: string) => Promise<boolean>;
+  updatePlatformToken: (id: string, token: string) => Promise<boolean>;
+  refreshPlatformStatus: (id: string) => Promise<void>;
   getPlatformById: (id: string) => Platform | undefined;
   refetch: () => Promise<void>;
 }
@@ -89,11 +95,14 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
 
       setTeamId(currentTeamId);
 
-      // Fetch platforms from database (only 4 supported platforms)
-      const ALLOWED_SLUGS = ['facebook', 'instagram', 'tiktok', 'shopee'];
+      // Fetch platforms from database (all 5 supported platforms)
+      const ALLOWED_SLUGS = ['facebook', 'instagram', 'tiktok', 'shopee', 'google'];
       const { data: platformsData, error: platformsError } = await supabase
         .from('platforms')
-        .select('id, name, slug')
+        .select(`
+          *,
+          platform_categories(name)
+        `)
         .eq('is_active', true)
         .in('slug', ALLOWED_SLUGS)
         .order('name');
@@ -129,9 +138,11 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
         }
 
         return {
-          id: p.slug || p.id,
+          id: p.id, // Use UUID from DB, not slug
+          slug: p.slug,
           name: p.name,
           icon: platformIcons[p.slug] || null,
+          icon_url: p.icon_url,
           emoji: platformEmojis[p.slug],
           status,
           lastSync: connection?.last_synced_at
@@ -139,6 +150,7 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
             : undefined,
           accessToken: connection?.access_token,
           error: connection?.error_message,
+          category_name: p.platform_categories?.name,
         };
       });
 
@@ -155,55 +167,162 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
     fetchPlatforms();
   }, []);
 
-  const connectPlatform = (id: string, token: string) => {
-    setPlatforms((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-            ...p,
-            status: "connected" as PlatformStatus,
-            accessToken: token,
-            lastSync: new Date().toLocaleString(),
-            error: undefined,
-          }
-          : p
-      )
-    );
+  // Connect platform (simulate OAuth + DB Write)
+  const connectPlatform = async (id: string, token: string = ""): Promise<boolean> => {
+    if (!teamId) {
+      toast.error('กรุณาสร้าง Workspace ก่อน');
+      return false;
+    }
+
+    try {
+      const platform = platforms.find(p => p.id === id);
+      toast.info(`กำลังเชื่อมต่อ ${platform?.name}...`);
+
+      // Simulate delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Use provided token or simulate one
+      const accessToken = token || `oauth_${platform?.slug || 'key'}_${Date.now().toString(36)}`;
+
+      // Try actual DB update first
+      const { error } = await supabase
+        .from('workspace_api_keys')
+        .upsert({
+          team_id: teamId,
+          platform_id: id,
+          access_token: accessToken,
+          sync_status: 'connected',
+          is_active: true,
+          last_synced_at: new Date().toISOString(),
+          error_message: null,
+        }, {
+          onConflict: 'team_id,platform_id',
+        });
+
+      if (error) {
+        console.error("DB update failed:", error);
+        throw error;
+      }
+
+      // Update local state ONLY on success
+      setPlatforms((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? {
+              ...p,
+              status: "connected" as PlatformStatus,
+              accessToken: accessToken,
+              lastSync: new Date().toLocaleString(),
+              error: undefined,
+            }
+            : p
+        )
+      );
+
+      toast.success(`${platform?.name} เชื่อมต่อสำเร็จ!`);
+      return true;
+    } catch (error: any) {
+      toast.error(`เชื่อมต่อล้มเหลว: ${error.message}`);
+      return false;
+    }
   };
 
-  const disconnectPlatform = (id: string) => {
-    setPlatforms((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-            ...p,
-            status: "disconnected" as PlatformStatus,
-            accessToken: undefined,
-            lastSync: undefined,
-            error: undefined,
-          }
-          : p
-      )
-    );
+  // Disconnect platform
+  const disconnectPlatform = async (id: string): Promise<boolean> => {
+    if (!teamId) return false;
+
+    try {
+      const platform = platforms.find(p => p.id === id);
+
+      const { error } = await supabase
+        .from('workspace_api_keys')
+        .delete()
+        .eq('team_id', teamId)
+        .eq('platform_id', id);
+
+      if (error) throw error;
+
+      setPlatforms((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? {
+              ...p,
+              status: "disconnected" as PlatformStatus,
+              accessToken: undefined,
+              lastSync: undefined,
+              error: undefined,
+            }
+            : p
+        )
+      );
+
+      toast.success(`${platform?.name} ถูกยกเลิกการเชื่อมต่อ`);
+      return true;
+    } catch (error: any) {
+      toast.error(`ยกเลิกการเชื่อมต่อล้มเหลว: ${error.message}`);
+      return false;
+    }
   };
 
-  const updatePlatformToken = (id: string, token: string) => {
-    setPlatforms((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-            ...p,
-            accessToken: token,
-            lastSync: new Date().toLocaleString(),
-            status: "connected" as PlatformStatus,
-            error: undefined,
-          }
-          : p
-      )
-    );
+  // Update token
+  const updatePlatformToken = async (id: string, token: string): Promise<boolean> => {
+    if (!teamId) return false;
+
+    try {
+      const platform = platforms.find(p => p.id === id);
+
+      const { error } = await supabase
+        .from('workspace_api_keys')
+        .update({
+          access_token: token,
+          last_synced_at: new Date().toISOString(),
+          error_message: null,
+        })
+        .eq('team_id', teamId)
+        .eq('platform_id', id);
+
+      if (error) throw error;
+
+      setPlatforms((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? {
+              ...p,
+              accessToken: token,
+              lastSync: new Date().toLocaleString(),
+              status: "connected" as PlatformStatus,
+              error: undefined,
+            }
+            : p
+        )
+      );
+
+      toast.success(`${platform?.name} API key อัปเดตสำเร็จ`);
+      return true;
+    } catch (error: any) {
+      toast.error(`อัปเดต API key ล้มเหลว: ${error.message}`);
+      return false;
+    }
   };
 
-  const refreshPlatformStatus = (id: string) => {
+  const refreshPlatformStatus = async (id: string) => {
+    if (!teamId) return;
+    const platform = platforms.find(p => p.id === id);
+    toast.info(`กำลังตรวจสอบ ${platform?.name}...`);
+
+    // Simulate refresh
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    await supabase
+      .from('workspace_api_keys')
+      .update({
+        last_synced_at: new Date().toISOString(),
+        sync_status: 'connected',
+      })
+      .eq('team_id', teamId)
+      .eq('platform_id', id);
+
+    // Simply update local lastSync
     setPlatforms((prev) =>
       prev.map((p) =>
         p.id === id
@@ -211,11 +330,11 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
             ...p,
             lastSync: new Date().toLocaleString(),
             status: p.accessToken ? "connected" as PlatformStatus : "disconnected" as PlatformStatus,
-            error: undefined,
           }
           : p
       )
     );
+    toast.success(`${platform?.name} การเชื่อมต่อปกติ`);
   };
 
   const getPlatformById = (id: string) => {
@@ -248,3 +367,4 @@ export function usePlatformConnections() {
   }
   return context;
 }
+

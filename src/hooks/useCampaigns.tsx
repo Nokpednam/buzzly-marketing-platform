@@ -8,12 +8,15 @@ export type CampaignInsert = Database["public"]["Tables"]["campaigns"]["Insert"]
 export type CampaignUpdate = Database["public"]["Tables"]["campaigns"]["Update"];
 
 // Extended campaign with insights
+import { Tag } from "./useTags";
+
 export interface CampaignWithInsights extends Campaign {
   impressions: number;
   reach: number;
   clicks: number;
   conversions: number;
   spend: number;
+  tags: Tag[];
 }
 
 export function useCampaigns() {
@@ -22,19 +25,30 @@ export function useCampaigns() {
   const { data: campaigns = [], isLoading, error } = useQuery({
     queryKey: ["campaigns"],
     queryFn: async () => {
-      // Get campaigns
+      // Get campaigns with tags
       const { data: campaignsData, error: campaignsError } = await supabase
         .from("campaigns")
-        .select("*")
+        .select(`
+          *,
+          campaign_tags (
+            tag_id,
+            tags (
+              id,
+              name,
+              color_code,
+              entity_type
+            )
+          )
+        `)
         .order("created_at", { ascending: false });
-      
+
       if (campaignsError) throw campaignsError;
 
       // Get aggregated insights per campaign
       const { data: insights, error: insightsError } = await supabase
         .from("ad_insights")
         .select("campaign_id, impressions, reach, clicks, conversions, spend");
-      
+
       if (insightsError) throw insightsError;
 
       // Aggregate insights by campaign
@@ -52,13 +66,14 @@ export function useCampaigns() {
         return acc;
       }, {} as Record<string, { impressions: number; reach: number; clicks: number; conversions: number; spend: number }>) || {};
 
-      return campaignsData.map(campaign => ({
+      return campaignsData.map((campaign: any) => ({
         ...campaign,
         impressions: insightsMap[campaign.id]?.impressions || 0,
         reach: insightsMap[campaign.id]?.reach || 0,
         clicks: insightsMap[campaign.id]?.clicks || 0,
         conversions: insightsMap[campaign.id]?.conversions || 0,
         spend: insightsMap[campaign.id]?.spend || 0,
+        tags: campaign.campaign_tags?.map((ct: any) => ct.tags).filter(Boolean) || []
       })) as CampaignWithInsights[];
     },
   });

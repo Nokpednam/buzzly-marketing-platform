@@ -20,7 +20,7 @@ export function useDashboardMetrics(dateRange: string = "7d") {
       // Calculate date range
       const now = new Date();
       let startDate = new Date();
-      
+
       switch (dateRange) {
         case "today":
           startDate = new Date(now.setHours(0, 0, 0, 0));
@@ -44,6 +44,7 @@ export function useDashboardMetrics(dateRange: string = "7d") {
 
       if (error) throw error;
 
+
       // Aggregate metrics
       const totalImpressions = insights?.reduce((sum, i) => sum + (i.impressions || 0), 0) || 0;
       const totalClicks = insights?.reduce((sum, i) => sum + (i.clicks || 0), 0) || 0;
@@ -53,7 +54,7 @@ export function useDashboardMetrics(dateRange: string = "7d") {
       const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
       const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
       const avgCpm = totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0;
-      
+
       // Calculate ROAS
       const totalRoas = insights?.reduce((sum, i) => sum + Number(i.roas || 0), 0) || 0;
       const avgRoas = insights?.length ? totalRoas / insights.length : 0;

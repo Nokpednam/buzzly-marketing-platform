@@ -120,7 +120,7 @@ export default function SocialAnalytics() {
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
-      
+
       {/* 1. TOP HEADER & PERFORMANCE PILLS */}
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">
@@ -133,8 +133,8 @@ export default function SocialAnalytics() {
 
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1 bg-muted p-1 rounded-xl">
-             <Button variant="ghost" size="sm" className="rounded-lg h-8 px-4">Overview</Button>
-             <Button variant="secondary" size="sm" className="rounded-lg h-8 px-4 shadow-sm">Detailed</Button>
+            <Button variant="ghost" size="sm" className="rounded-lg h-8 px-4">Overview</Button>
+            <Button variant="secondary" size="sm" className="rounded-lg h-8 px-4 shadow-sm">Detailed</Button>
           </div>
           <Select value={dateRange} onValueChange={setDateRange}>
             <SelectTrigger className="w-[140px] bg-background border-none shadow-sm ring-1 ring-border">
@@ -165,17 +165,16 @@ export default function SocialAnalytics() {
             </span>
             <div className="flex flex-wrap gap-4">
               {connectedPlatforms.map((platform) => (
-                <div 
-                  key={platform.id} 
-                  className={`flex items-center gap-3 px-3 py-1.5 rounded-full transition-all border ${
-                    activePlatforms.includes(platform.id) 
-                    ? 'bg-background border-primary/20 shadow-sm' 
-                    : 'bg-transparent border-transparent grayscale opacity-50'
-                  }`}
+                <div
+                  key={platform.id}
+                  className={`flex items-center gap-3 px-3 py-1.5 rounded-full transition-all border ${activePlatforms.includes(platform.id)
+                      ? 'bg-background border-primary/20 shadow-sm'
+                      : 'bg-transparent border-transparent grayscale opacity-50'
+                    }`}
                 >
                   <Switch
                     checked={activePlatforms.includes(platform.id)}
-                    onCheckedChange={() => setActivePlatforms(prev => 
+                    onCheckedChange={() => setActivePlatforms(prev =>
                       prev.includes(platform.id) ? prev.filter(i => i !== platform.id) : [...prev, platform.id]
                     )}
                     className="data-[state=checked]:bg-primary"
@@ -189,7 +188,7 @@ export default function SocialAnalytics() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="bg-primary text-primary-foreground border-none overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
             <TrendingUp className="h-16 w-16" />
@@ -232,6 +231,7 @@ export default function SocialAnalytics() {
                   );
                 }}
                 dateRange={dateRange}
+                activePlatforms={activePlatforms}
               />
             </TabsContent>
             <TabsContent value="ads" className="m-0 border-none outline-none">
@@ -268,16 +268,16 @@ export default function SocialAnalytics() {
               </div>
             </div>
           </DialogHeader>
-          
+
           <div className="p-6 space-y-8">
             <div className="h-[350px] w-full bg-background rounded-2xl p-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={compareChartData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 11, fontWeight: 600}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11}} />
-                  <Tooltip cursor={{fill: 'hsl(var(--muted)/0.4)'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
-                  <Legend iconType="circle" wrapperStyle={{paddingTop: '20px'}} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                  <Tooltip cursor={{ fill: 'hsl(var(--muted)/0.4)' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                  <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
                   <Bar dataKey="impressions" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={32} />
                   <Bar dataKey="reach" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} barSize={32} />
                   <Bar dataKey="likes" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} barSize={32} />
@@ -291,7 +291,7 @@ export default function SocialAnalytics() {
                   <h4 className="font-bold text-sm mb-4 truncate group-hover:text-primary transition-colors">{item.name}</h4>
                   <div className="space-y-3">
                     <MetricRow label="Engagement" value={`${item.engagement}%`} icon={TrendingUp} color="text-green-500" />
-                    <MetricRow label="Impressions" value={`${(item.impressions/1000).toFixed(1)}K`} icon={Eye} />
+                    <MetricRow label="Impressions" value={`${(item.impressions / 1000).toFixed(1)}K`} icon={Eye} />
                     <MetricRow label="Likes" value={item.likes.toLocaleString()} icon={Heart} color="text-red-500" />
                   </div>
                 </div>

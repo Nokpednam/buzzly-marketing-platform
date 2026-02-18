@@ -29,7 +29,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useEmailCampaigns, CreateEmailCampaignInput } from "@/hooks/useEmailCampaigns";
+import { useAdPosts, AdPostInsert } from "@/hooks/useAdPosts";
 import { format } from "date-fns";
 
 const statusStyles: Record<string, string> = {
@@ -44,36 +44,43 @@ const CATEGORIES = ["Onboarding", "Product", "Newsletter", "Retention", "E-comme
 export default function Email() {
   const [searchQuery, setSearchQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState<CreateEmailCampaignInput>({
+  const [form, setForm] = useState<AdPostInsert>({
     name: "",
     subject: "",
     category: "",
     status: "draft",
+    team_id: "", // Will be set by hook but needed for type
   });
 
   const {
-    campaigns,
+    adPosts,
     isLoading,
     stats,
-    createEmailCampaign,
-    deleteEmailCampaign,
-    duplicateEmailCampaign,
-  } = useEmailCampaigns();
+    createAdPost,
+    deleteAdPost,
+    duplicateAdPost,
+  } = useAdPosts();
 
-  const filtered = campaigns.filter((c) =>
+  const filtered = adPosts.filter((c) =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (c.category ?? "").toLowerCase().includes(searchQuery.toLowerCase())
+    (c.subject || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (c.category || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const drafts = filtered.filter((c) => c.status === "draft");
   const sent = filtered.filter((c) => c.status === "sent");
 
   const handleCreate = async () => {
-    if (!form.name || !form.subject) return;
-    await createEmailCampaign.mutateAsync(form);
+    if (!form.name) return;
+    await createAdPost.mutateAsync({
+      name: form.name,
+      subject: form.subject,
+      category: form.category,
+      status: form.status,
+      scheduled_at: form.scheduled_at
+    });
     setCreateOpen(false);
-    setForm({ name: "", subject: "", category: "", status: "draft" });
+    setForm({ name: "", subject: "", category: "", status: "draft", team_id: "" });
   };
 
   const formatCount = (n: number) => {
@@ -86,12 +93,12 @@ export default function Email() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Email Marketing</h1>
-          <p className="text-muted-foreground">Create and manage email campaigns with AI-powered optimization</p>
+          <h1 className="text-2xl font-bold text-foreground">Email Marketing (Ad Posts)</h1>
+          <p className="text-muted-foreground">Manage your ad posts and email campaigns.</p>
         </div>
         <Button className="gap-2" onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" />
-          Create Email
+          Create Ad Post
         </Button>
       </div>
 
@@ -104,7 +111,7 @@ export default function Email() {
                 <Send className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Emails Sent</p>
+                <p className="text-sm text-muted-foreground">Total Sent</p>
                 {isLoading ? (
                   <Skeleton className="h-7 w-20 mt-1" />
                 ) : (
@@ -125,7 +132,7 @@ export default function Email() {
                 {isLoading ? (
                   <Skeleton className="h-7 w-20 mt-1" />
                 ) : (
-                  <p className="text-2xl font-bold">{stats.avgOpenRate}%</p>
+                  <p className="text-2xl font-bold">{stats.avgOpenRate.toFixed(1)}%</p>
                 )}
               </div>
             </div>
@@ -142,12 +149,14 @@ export default function Email() {
                 {isLoading ? (
                   <Skeleton className="h-7 w-20 mt-1" />
                 ) : (
-                  <p className="text-2xl font-bold">{stats.avgClickRate}%</p>
+                  <p className="text-2xl font-bold">{stats.avgClickRate.toFixed(1)}%</p>
                 )}
               </div>
             </div>
           </CardContent>
         </Card>
+        {/* Placeholder for Scheduled - stats doesn't have it yet, we can add later or just remove for now. 
+            The hook doesn't export scheduledCount. Let's omit or mock it 0. */}
         <Card className="border-0 shadow-sm">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -159,7 +168,7 @@ export default function Email() {
                 {isLoading ? (
                   <Skeleton className="h-7 w-20 mt-1" />
                 ) : (
-                  <p className="text-2xl font-bold">{stats.scheduledCount}</p>
+                  <p className="text-2xl font-bold">0</p>
                 )}
                 <p className="text-xs text-muted-foreground">Upcoming</p>
               </div>
@@ -170,9 +179,8 @@ export default function Email() {
 
       <Tabs defaultValue="templates" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="templates">Email Templates</TabsTrigger>
-          <TabsTrigger value="recent">Recent Campaigns</TabsTrigger>
-          <TabsTrigger value="automation">Automation</TabsTrigger>
+          <TabsTrigger value="templates">Drafts & Templates</TabsTrigger>
+          <TabsTrigger value="recent">Sent History</TabsTrigger>
         </TabsList>
 
         {/* Templates Tab — shows drafts */}
@@ -180,11 +188,11 @@ export default function Email() {
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold">Email Templates</CardTitle>
+                <CardTitle className="text-base font-semibold">Drafts</CardTitle>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    placeholder="Search templates..."
+                    placeholder="Search drafts..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-64 pl-9"
@@ -209,17 +217,17 @@ export default function Email() {
               ) : drafts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <InboxIcon className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No templates yet</h3>
-                  <p className="text-muted-foreground mb-4">Create your first email campaign to get started.</p>
+                  <h3 className="text-lg font-semibold mb-2">No drafts found</h3>
+                  <p className="text-muted-foreground mb-4">Create a new ad post to get started.</p>
                   <Button onClick={() => setCreateOpen(true)} className="gap-2">
                     <Plus className="h-4 w-4" />
-                    Create Email
+                    Create Ad Post
                   </Button>
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {drafts.map((campaign) => (
-                    <Card key={campaign.id} className="border shadow-none">
+                  {drafts.map((post) => (
+                    <Card key={post.id} className="border shadow-none">
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between">
                           <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
@@ -232,13 +240,13 @@ export default function Email() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => duplicateEmailCampaign.mutate(campaign.id)}>
+                              <DropdownMenuItem onClick={() => duplicateAdPost.mutate(post)}>
                                 <Copy className="mr-2 h-4 w-4" />
                                 Duplicate
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="text-destructive"
-                                onClick={() => deleteEmailCampaign.mutate(campaign.id)}
+                                onClick={() => deleteAdPost.mutate(post.id)}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
@@ -246,31 +254,24 @@ export default function Email() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
-                        <h4 className="mt-3 font-semibold">{campaign.name}</h4>
-                        <p className="mt-1 text-sm text-muted-foreground line-clamp-1">{campaign.subject}</p>
+                        <h4 className="mt-3 font-semibold">{post.name}</h4>
+                        <p className="mt-1 text-sm text-muted-foreground line-clamp-1">{post.subject || "No subject"}</p>
                         <div className="mt-3 flex items-center gap-2">
-                          {campaign.category && (
-                            <Badge variant="secondary">{campaign.category}</Badge>
+                          {post.category && (
+                            <Badge variant="secondary">{post.category}</Badge>
                           )}
                           <Badge
                             variant="outline"
-                            className={statusStyles[campaign.status] || statusStyles.draft}
+                            className={statusStyles[post.status] || statusStyles.draft}
                           >
-                            {campaign.status}
+                            {post.status}
                           </Badge>
                         </div>
-                        <div className="mt-3 flex items-center gap-4 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Eye className="h-3 w-3" />
-                            {campaign.openRate}%
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <MousePointer className="h-3 w-3" />
-                            {campaign.clickRate}%
-                          </span>
-                        </div>
+                        <p className="mt-3 text-xs text-muted-foreground">
+                          Created {format(new Date(post.created_at), "MMM d, yyyy")}
+                        </p>
                         <Button className="mt-4 w-full" variant="outline">
-                          Use Template
+                          Edit Draft
                         </Button>
                       </CardContent>
                     </Card>
@@ -285,7 +286,7 @@ export default function Email() {
         <TabsContent value="recent">
           <Card className="border-0 shadow-sm">
             <CardHeader>
-              <CardTitle className="text-base font-semibold">Recent Email Campaigns</CardTitle>
+              <CardTitle className="text-base font-semibold">Sent History</CardTitle>
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -295,8 +296,8 @@ export default function Email() {
               ) : sent.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <Send className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No sent campaigns yet</h3>
-                  <p className="text-muted-foreground">Sent campaigns will appear here.</p>
+                  <h3 className="text-lg font-semibold mb-2">No sent posts yet</h3>
+                  <p className="text-muted-foreground">Sent items will appear here.</p>
                 </div>
               ) : (
                 <Table>
@@ -313,40 +314,34 @@ export default function Email() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sent.map((campaign) => (
-                      <TableRow key={campaign.id}>
-                        <TableCell className="font-medium">{campaign.subject}</TableCell>
+                    {sent.map((post) => (
+                      <TableRow key={post.id}>
+                        <TableCell className="font-medium">{post.subject || post.name}</TableCell>
                         <TableCell>
-                          {campaign.category ? (
-                            <Badge variant="secondary">{campaign.category}</Badge>
+                          {post.category ? (
+                            <Badge variant="secondary">{post.category}</Badge>
                           ) : (
                             <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
                         <TableCell>
-                          {campaign.sent_at
-                            ? format(new Date(campaign.sent_at), "MMM d, yyyy")
+                          {post.sent_at
+                            ? format(new Date(post.sent_at), "MMM d, yyyy")
                             : "—"}
                         </TableCell>
-                        <TableCell>{campaign.recipient_count.toLocaleString()}</TableCell>
+                        <TableCell>{post.recipient_count.toLocaleString()}</TableCell>
                         <TableCell>
-                          {campaign.open_count.toLocaleString()}
-                          <span className="text-muted-foreground text-xs ml-1">
-                            ({campaign.openRate}%)
-                          </span>
+                          {post.open_count.toLocaleString()}
                         </TableCell>
                         <TableCell>
-                          {campaign.click_count.toLocaleString()}
-                          <span className="text-muted-foreground text-xs ml-1">
-                            ({campaign.clickRate}%)
-                          </span>
+                          {post.click_count.toLocaleString()}
                         </TableCell>
                         <TableCell>
                           <Badge
                             variant="outline"
-                            className={statusStyles[campaign.status] || statusStyles.draft}
+                            className={statusStyles[post.status] || statusStyles.draft}
                           >
-                            {campaign.status}
+                            {post.status}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -357,13 +352,13 @@ export default function Email() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => duplicateEmailCampaign.mutate(campaign.id)}>
+                              <DropdownMenuItem onClick={() => duplicateAdPost.mutate(post)}>
                                 <Copy className="mr-2 h-4 w-4" />
                                 Duplicate
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="text-destructive"
-                                onClick={() => deleteEmailCampaign.mutate(campaign.id)}
+                                onClick={() => deleteAdPost.mutate(post.id)}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete
@@ -379,62 +374,43 @@ export default function Email() {
             </CardContent>
           </Card>
         </TabsContent>
-
-        {/* Automation Tab */}
-        <TabsContent value="automation">
-          <Card className="border-0 shadow-sm">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-4">
-                <Mail className="h-8 w-8 text-primary" />
-              </div>
-              <h3 className="text-lg font-semibold">Email Automation</h3>
-              <p className="mt-2 text-center text-muted-foreground max-w-md">
-                Set up automated email sequences to nurture leads and engage customers automatically.
-              </p>
-              <Button className="mt-4 gap-2">
-                <Plus className="h-4 w-4" />
-                Create Automation
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* Create Campaign Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Create Email Campaign</DialogTitle>
+            <DialogTitle>Create Ad Post</DialogTitle>
             <DialogDescription>
-              Fill in the details to create a new email campaign.
+              Create a new ad post or email campaign.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <Label htmlFor="email-name">Campaign Name *</Label>
+              <Label htmlFor="post-name">Name *</Label>
               <Input
-                id="email-name"
-                placeholder="e.g. Welcome Series - Day 1"
+                id="post-name"
+                placeholder="e.g. Monthly Newsletter"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="email-subject">Subject Line *</Label>
+              <Label htmlFor="post-subject">Subject</Label>
               <Input
-                id="email-subject"
-                placeholder="e.g. Welcome to Buzzly! 🎉"
-                value={form.subject}
+                id="post-subject"
+                placeholder="e.g. Big News Inside! 🚀"
+                value={form.subject || ""}
                 onChange={(e) => setForm((f) => ({ ...f, subject: e.target.value }))}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="email-category">Category</Label>
+              <Label htmlFor="post-category">Category</Label>
               <Select
                 value={form.category ?? ""}
                 onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}
               >
-                <SelectTrigger id="email-category">
+                <SelectTrigger id="post-category">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -445,17 +421,18 @@ export default function Email() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="email-status">Status</Label>
+              <Label htmlFor="post-status">Status</Label>
               <Select
                 value={form.status ?? "draft"}
-                onValueChange={(v) => setForm((f) => ({ ...f, status: v as "draft" | "scheduled" }))}
+                onValueChange={(v) => setForm((f) => ({ ...f, status: v as "draft" | "scheduled" | "sent" | "paused" }))}
               >
-                <SelectTrigger id="email-status">
+                <SelectTrigger id="post-status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="scheduled">Scheduled</SelectItem>
+                  <SelectItem value="sent">Sent</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -466,11 +443,11 @@ export default function Email() {
             </Button>
             <Button
               onClick={handleCreate}
-              disabled={!form.name || !form.subject || createEmailCampaign.isPending}
+              disabled={!form.name || createAdPost.isPending}
               className="gap-2"
             >
-              {createEmailCampaign.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              Create Campaign
+              {createAdPost.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              Create
             </Button>
           </DialogFooter>
         </DialogContent>

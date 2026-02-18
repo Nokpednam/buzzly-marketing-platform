@@ -84,7 +84,8 @@ export function useSubscription() {
           is_active: plan.is_active ?? true,
           display_order: plan.display_order || 0,
           trial_days: plan.trial_days || 0,
-          tier: Number((plan as any).tier ?? 1), // Map tier เข้ามาเพื่อใช้เช็ค Upgrade/Downgrade
+          // Map tier from slug to ensure correct ordering even if DB is missing tier column
+          tier: plan.slug === 'team' ? 3 : plan.slug === 'pro' ? 2 : 1,
         }))
         .filter((plan) => ["free", "pro", "team"].includes(plan.slug));
 

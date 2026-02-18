@@ -15,23 +15,16 @@ interface PlanPanelProps {
   collapsed?: boolean;
 }
 
-const planInfo: Record<PlanType, { name: string; color: string; features: string[] }> = {
-  free: {
-    name: "Free",
-    color: "bg-muted text-muted-foreground",
-    features: ["Basic Dashboard", "3 Platforms", "7-Day History"],
-  },
-  pro: {
-    name: "Pro",
-    color: "bg-primary text-primary-foreground",
-    features: ["AI Insights", "Advanced Analytics", "90-Day History", "Priority Support"],
-  },
-  team: {
-    name: "Team",
-    color: "bg-violet-500 text-white",
-    features: ["Everything in Pro", "Team Collaboration", "Unlimited History", "Custom Roles"],
-  },
-};
+import { PLANS } from "@/constants/plans";
+
+const planInfo = Object.entries(PLANS).reduce((acc, [key, plan]) => {
+  acc[key as PlanType] = {
+    name: plan.name,
+    color: plan.color,
+    features: plan.features.filter(f => f.included).map(f => f.name).slice(0, 4), // Show top 4 features
+  };
+  return acc;
+}, {} as Record<PlanType, { name: string; color: string; features: string[] }>);
 
 export function PlanPanel({ collapsed = false }: PlanPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -118,9 +111,9 @@ export function PlanPanel({ collapsed = false }: PlanPanelProps) {
                   ? "Unlock AI insights and advanced analytics"
                   : "Add team collaboration and unlimited history"}
               </p>
-              <Button 
-                size="sm" 
-                className="w-full" 
+              <Button
+                size="sm"
+                className="w-full"
                 onClick={() => setPlanDialogOpen(true)}
               >
                 Upgrade Now

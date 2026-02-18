@@ -6,6 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -211,6 +218,10 @@ export default function Settings() {
     }
   };
 
+  const [activeTab, setActiveTab] = useState("workspace");
+
+  const navigateToPaymentMethods = () => setActiveTab("payment-methods");
+
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
       {/* 1. COMPACT HEADER */}
@@ -221,7 +232,7 @@ export default function Settings() {
         </p>
       </div>
 
-      <Tabs defaultValue="workspace" className="flex flex-col lg:flex-row gap-12">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col lg:flex-row gap-12">
         {/* 2. VERTICAL TABS SIDEBAR */}
         <div className="w-full lg:w-64 shrink-0">
           <TabsList className="flex flex-col h-auto bg-transparent gap-6 p-0 items-start">
@@ -234,6 +245,7 @@ export default function Settings() {
                   {group.items.map((item) => (
                     <TabsTrigger
                       key={item.id}
+                      id={`tab-${item.id}`}
                       value={item.id}
                       className={cn(
                         "w-full justify-start gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all",
@@ -384,7 +396,7 @@ export default function Settings() {
 
           {/* External Components */}
           <TabsContent value="billing" className="mt-0 focus-visible:ring-0">
-            <BillingTab />
+            <BillingTab onNavigateToPaymentMethods={navigateToPaymentMethods} />
           </TabsContent>
           <TabsContent value="loyalty" className="mt-0 focus-visible:ring-0">
             <LoyaltyTab />
@@ -543,7 +555,10 @@ function BudgetSection() {
 }
 
 function PaymentMethodsSection() {
-  const { paymentMethods, isLoading, setDefault, removeMethod } = useUserPaymentMethods();
+  const { paymentMethods, isLoading, setDefault, removeMethod, addMethod } = useUserPaymentMethods();
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const { toast } = useToast();
+  const [newCard, setNewCard] = useState({ number: "", expiry: "", cvc: "", name: "" });
 
   const getCardIcon = (brand: string | null) => {
     if (!brand) return "💳";
@@ -554,95 +569,230 @@ function PaymentMethodsSection() {
     return "🏦";
   };
 
+  const handleAddCard = async () => {
+    if (!newCard.number || !newCard.expiry || !newCard.cvc || !newCard.name) {
+      toast({
+        title: "ข้อมูลไม่ครบถ้วน",
+        description: "กรุณากรอกข้อมูลบัตรให้ครบทุกช่อง",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Parse expiry MM/YY
+    const [expMonthStr, expYearStr] = newCard.expiry.split('/');
+    if (!expMonthStr || !expYearStr || expMonthStr.length !== 2 || expYearStr.length !== 2) {
+      toast({
+        title: "รูปแบบวันหมดอายุไม่ถูกต้อง",
+        description: "กรุณาระบุในรูปแบบ MM/YY (เช่น 12/26)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const expMonth = parseInt(expMonthStr, 10);
+    const expYear = 2000 + parseInt(expYearStr, 10); // Assume 20xx
+
+    // Determine brand based on number (simple check)
+    let brand = "unknown";
+    if (newCard.number.startsWith("4")) brand = "visa";
+    if (newCard.number.startsWith("5")) brand = "mastercard";
+
+    try {
+      await addMethod.mutateAsync({
+        brand,
+        last4: newCard.number.slice(-4),
+        expMonth,
+        expYear,
+        name: newCard.name
+      });
+
+      toast({
+        title: "เพิ่มบัตรสำเร็จ",
+        description: "บัตรเครดิตของคุณถูกเพิ่มเรียบร้อยแล้ว",
+      });
+
+      setIsAddDialogOpen(false);
+      setNewCard({ number: "", expiry: "", cvc: "", name: "" });
+    } catch (error) {
+      // Error handled in hook, but we catch here to stop flow if needed
+    }
+  };
+
   return (
-    <Card className="border-none shadow-sm bg-muted/20 rounded-3xl">
-      <CardHeader className="p-8">
-        <CardTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
-          <Wallet className="h-5 w-5 text-primary" /> Payment Methods
-        </CardTitle>
-        <CardDescription>
-          วิธีชำระเงินที่บันทึกไว้สำหรับการต่ออายุและอัปเกรดแผน
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-8 pt-0 space-y-4">
-        {isLoading ? (
-          <div className="space-y-3">
-            {[1, 2].map((i) => (
-              <Skeleton key={i} className="h-20 w-full rounded-2xl" />
-            ))}
+    <>
+      <Card className="border-none shadow-sm bg-muted/20 rounded-3xl">
+        <CardHeader className="p-8 pb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-primary" /> Payment Methods
+              </CardTitle>
+              <CardDescription>
+                วิธีชำระเงินที่บันทึกไว้สำหรับการต่ออายุและอัปเกรดแผน
+              </CardDescription>
+            </div>
+            <Button onClick={() => setIsAddDialogOpen(true)} className="rounded-xl shadow-sm">
+              <CreditCard className="h-4 w-4 mr-2" />
+              เพิ่มบัตรใหม่
+            </Button>
           </div>
-        ) : paymentMethods.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center rounded-2xl border border-dashed">
-            <CreditCard className="h-10 w-10 text-muted-foreground/30 mb-3" />
-            <p className="font-bold text-muted-foreground">ยังไม่มีวิธีชำระเงิน</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              วิธีชำระเงินจะปรากฏที่นี่หลังจากคุณชำระเงินครั้งแรก
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {paymentMethods.map((method) => (
-              <div
-                key={method.id}
-                className={cn(
-                  "flex items-center justify-between p-5 rounded-2xl border bg-background transition-all",
-                  method.is_default && "border-primary/40 bg-primary/5 ring-1 ring-primary/20"
-                )}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="text-3xl">{getCardIcon(method.card_brand)}</div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-sm">
-                        {method.card_brand
-                          ? `${method.card_brand} •••• ${method.card_last_four}`
-                          : method.bank_name
-                            ? `${method.bank_name} •••• ${method.account_last_four}`
-                            : method.payment_method?.name ?? "Payment Method"}
-                      </p>
-                      {method.is_default && (
-                        <Badge className="bg-primary/10 text-primary text-[10px] h-4 px-1.5">
-                          <CheckCircle2 className="h-2.5 w-2.5 mr-1" /> Default
-                        </Badge>
+        </CardHeader>
+        <CardContent className="p-8 pt-0 space-y-4">
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2].map((i) => (
+                <Skeleton key={i} className="h-20 w-full rounded-2xl" />
+              ))}
+            </div>
+          ) : paymentMethods.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center rounded-2xl border border-dashed bg-background/50">
+              <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                <CreditCard className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <p className="font-bold text-lg">ยังไม่มีวิธีชำระเงิน</p>
+              <p className="text-sm text-muted-foreground mt-1 mb-6 max-w-xs mx-auto">
+                เพิ่มบัตรเครดิตหรือเดบิตเพื่อความสะดวกในการชำระค่าบริการและต่ออายุอัตโนมัติ
+              </p>
+              <Button onClick={() => setIsAddDialogOpen(true)} variant="outline" className="rounded-xl">
+                เพิ่มวิธีการชำระเงิน
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {paymentMethods.map((method) => (
+                <div
+                  key={method.id}
+                  className={cn(
+                    "flex items-center justify-between p-5 rounded-2xl border bg-background transition-all hover:shadow-sm",
+                    method.is_default && "border-primary/40 bg-primary/5 ring-1 ring-primary/20"
+                  )}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-muted/50 text-2xl">
+                      {getCardIcon(method.card_brand)}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-base">
+                          {method.card_brand
+                            ? `${method.card_brand} •••• ${method.card_last_four}`
+                            : method.bank_name
+                              ? `${method.bank_name} •••• ${method.account_last_four}`
+                              : method.payment_method?.name ?? "Payment Method"}
+                        </p>
+                        {method.is_default && (
+                          <Badge className="bg-primary/10 text-primary text-[10px] h-5 px-2 rounded-full border-primary/20 shadow-none">
+                            <CheckCircle2 className="h-3 w-3 mr-1" /> Default
+                          </Badge>
+                        )}
+                      </div>
+                      {method.card_exp_month && method.card_exp_year && (
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                          Expires {String(method.card_exp_month).padStart(2, "0")}/{method.card_exp_year}
+                        </p>
                       )}
                     </div>
-                    {method.card_exp_month && method.card_exp_year && (
-                      <p className="text-xs text-muted-foreground">
-                        Expires {String(method.card_exp_month).padStart(2, "0")}/{method.card_exp_year}
-                      </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!method.is_default && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-xl h-9 text-xs font-medium hover:bg-primary/10 hover:text-primary"
+                        onClick={() => setDefault.mutate(method.id)}
+                        disabled={setDefault.isPending}
+                      >
+                        Set Default
+                      </Button>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => removeMethod.mutate(method.id)}
+                      disabled={removeMethod.isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {!method.is_default && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="rounded-xl h-8 text-xs"
-                      onClick={() => setDefault.mutate(method.id)}
-                      disabled={setDefault.isPending}
-                    >
-                      <Star className="h-3 w-3 mr-1" /> Set Default
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-xl text-muted-foreground hover:text-destructive"
-                    onClick={() => removeMethod.mutate(method.id)}
-                    disabled={removeMethod.isPending}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          )}
+          <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 rounded-xl text-xs mt-4">
+            <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5" />
+            <p>
+              ข้อมูลการชำระเงินของคุณถูกจัดเก็บอย่างปลอดภัยด้วยมาตรฐาน PCI DSS สากล
+              เราไม่เก็บข้อมูลบัตรเครดิตฉบับเต็มไว้ในระบบของเรา
+            </p>
           </div>
-        )}
-        <p className="text-xs text-muted-foreground pt-2">
-          วิธีชำระเงินจะถูกเพิ่มโดยอัตโนมัติเมื่อคุณชำระเงินผ่านหน้า Billing
-        </p>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>เพิ่มบัตรเครดิต/เดบิต</DialogTitle>
+            <DialogDescription>
+              เพิ่มบัตรใหม่สำหรับชำระค่าบริการ บัตรนี้จะถูกบันทึกไว้อย่างปลอดภัย
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">ชื่อบนบัตร</Label>
+              <Input
+                id="name"
+                placeholder="JOHN DOE"
+                value={newCard.name}
+                onChange={(e) => setNewCard({ ...newCard, name: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="number">หมายเลขบัตร</Label>
+              <div className="relative">
+                <Input
+                  id="number"
+                  placeholder="0000 0000 0000 0000"
+                  value={newCard.number}
+                  onChange={(e) => setNewCard({ ...newCard, number: e.target.value })}
+                  className="pl-10"
+                />
+                <CreditCard className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="expiry">วันหมดอายุ</Label>
+                <Input
+                  id="expiry"
+                  placeholder="MM/YY"
+                  value={newCard.expiry}
+                  onChange={(e) => setNewCard({ ...newCard, expiry: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="cvc">CVC</Label>
+                <Input
+                  id="cvc"
+                  placeholder="123"
+                  maxLength={4}
+                  value={newCard.cvc}
+                  onChange={(e) => setNewCard({ ...newCard, cvc: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={addMethod.isPending}>
+              ยกเลิก
+            </Button>
+            <Button onClick={handleAddCard} disabled={addMethod.isPending}>
+              {addMethod.isPending ? "กำลังบันทึก..." : "บันทึกบัตร"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

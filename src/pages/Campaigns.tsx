@@ -388,7 +388,7 @@ export default function Campaigns() {
                   <p className="text-xs text-muted-foreground line-clamp-2 mb-4 italic">
                     {campaign.objective || "No objective defined."}
                   </p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 mb-3">
                     <div className="bg-primary/10 text-primary p-1 rounded">
                       <DollarSign className="h-3 w-3" />
                     </div>
@@ -398,6 +398,19 @@ export default function Campaigns() {
                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest ml-1">
                       Budget
                     </span>
+                  </div>
+
+                  {/* Tags */}
+                  <div className="flex flex-wrap gap-1.5 min-h-[24px]">
+                    {campaign.tags?.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium text-white shadow-sm"
+                        style={{ backgroundColor: tag.color_code }}
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
                   </div>
                 </div>
 

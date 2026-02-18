@@ -104,11 +104,50 @@ export function useUserPaymentMethods() {
 
     const defaultMethod = paymentMethods.find((m) => m.is_default) ?? null;
 
+    const addMethod = useMutation({
+        mutationFn: async (cardDetails: {
+            brand: string;
+            last4: string;
+            expMonth: number;
+            expYear: number;
+            name: string;
+        }) => {
+            const {
+                data: { user },
+            } = await supabase.auth.getUser();
+            if (!user) throw new Error("Not authenticated");
+
+            const { error } = await supabase.from("user_payment_methods").insert({
+                user_id: user.id,
+                card_brand: cardDetails.brand,
+                card_last_four: cardDetails.last4,
+                card_exp_month: cardDetails.expMonth,
+                card_exp_year: cardDetails.expYear,
+                billing_details: { name: cardDetails.name },
+                is_default: false, // Default to false, let user set it
+                is_active: true,
+                // In a real app, you'd integrate Stripe/Omise here to get a token
+                // For now we just store the mock details
+                gateway_customer_id: "cus_mock_" + Math.random().toString(36).substring(7),
+                gateway_payment_method_id: "pm_mock_" + Math.random().toString(36).substring(7),
+            });
+
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["user-payment-methods"] });
+        },
+        onError: (error: Error) => {
+            toast.error("เกิดข้อผิดพลาดในการเพิ่มบัตร", { description: error.message });
+        },
+    });
+
     return {
         paymentMethods,
         defaultMethod,
         isLoading,
         setDefault,
         removeMethod,
+        addMethod,
     };
 }
