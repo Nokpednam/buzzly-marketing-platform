@@ -324,15 +324,7 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
             </PopoverContent>
           </Popover>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={handleLogout}
-            title="Log out"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
+
         </div>
       </div>
 
