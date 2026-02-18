@@ -128,3 +128,47 @@ INSERT INTO public.rating (id, name, descriptions, color_code) VALUES
   ('47000004-0000-0000-0000-000000000004', '2 Stars', 'Poor - Dissatisfied', '#F97316'),
   ('47000005-0000-0000-0000-000000000005', '1 Star', 'Very Poor - Very dissatisfied', '#EF4444')
 ON CONFLICT (id) DO NOTHING;
+
+-- 2.13 Priority Levels (SLA)
+INSERT INTO public.priority_level (id, priority_name, description, color_code, sla_hours) VALUES
+  ('p0000001-0000-0000-0000-000000000001', 'Low', 'Routine tasks with flexible deadlines', '#10B981', 48.0),
+  ('p0000002-0000-0000-0000-000000000002', 'Medium', 'Standard priority tasks', '#3B82F6', 24.0),
+  ('p0000003-0000-0000-0000-000000000003', 'High', 'Urgent tasks requiring immediate attention', '#F59E0B', 8.0),
+  ('p0000004-0000-0000-0000-000000000004', 'Critical', 'System outages or critical bugs', '#EF4444', 2.0)
+ON CONFLICT (id) DO NOTHING;
+
+-- 2.14 Action Types (Audit Logs)
+INSERT INTO public.action_type (id, action_name, description, icon_url, color_code) VALUES
+  ('at000001-0000-0000-0000-000000000001', 'LOGIN', 'User logged into the system', 'log-in', '#10B981'),
+  ('at000002-0000-0000-0000-000000000002', 'LOGOUT', 'User logged out', 'log-out', '#6B7280'),
+  ('at000003-0000-0000-0000-000000000003', 'CREATE', 'Created a new resource', 'plus-circle', '#3B82F6'),
+  ('at000004-0000-0000-0000-000000000004', 'UPDATE', 'Updated an existing resource', 'edit', '#F59E0B'),
+  ('at000005-0000-0000-0000-000000000005', 'DELETE', 'Deleted a resource', 'trash-2', '#EF4444'),
+  ('at000006-0000-0000-0000-000000000006', 'EXPORT', 'Exported data report', 'download', '#8B5CF6')
+ON CONFLICT (id) DO NOTHING;
+
+-- 2.15 Ad Buying Types
+INSERT INTO public.ad_buying_types (id, name, slug, description, display_order, is_active) VALUES
+  ('ab000001-0000-0000-0000-000000000001', 'CPM (Cost Per Mille)', 'cpm', 'Pay per 1,000 impressions', 1, true),
+  ('ab000002-0000-0000-0000-000000000002', 'CPC (Cost Per Click)', 'cpc', 'Pay when user clicks the ad', 2, true),
+  ('ab000003-0000-0000-0000-000000000003', 'CPA (Cost Per Action)', 'cpa', 'Pay when user performs a specific action', 3, true),
+  ('ab000004-0000-0000-0000-000000000004', 'Flat Rate', 'flat', 'Fixed price for a specific duration', 4, true)
+ON CONFLICT (id) DO NOTHING;
+
+-- 2.16 Creative Types (Ad Formats)
+INSERT INTO public.creative_types (id, name, slug, description, display_order, is_active) VALUES
+  ('ct000001-0000-0000-0000-000000000001', 'Image', 'image', 'Static image banner', 1, true),
+  ('ct000002-0000-0000-0000-000000000002', 'Video', 'video', 'Video advertisement', 2, true),
+  ('ct000003-0000-0000-0000-000000000003', 'Carousel', 'carousel', 'Scrollable series of images/videos', 3, true),
+  ('ct000004-0000-0000-0000-000000000004', 'Story', 'story', 'Full-screen vertical format', 4, true),
+  ('ct000005-0000-0000-0000-000000000005', 'Text', 'text', 'Text-only advertisement', 5, true)
+ON CONFLICT (id) DO NOTHING;
+
+-- 2.17 Change Types (Audit Context)
+INSERT INTO public.change_type (id, priority_level_id, name, description, color_code) VALUES
+  ('ch000001-0000-0000-0000-000000000001', 'p0000002-0000-0000-0000-000000000002', 'Configuration Change', 'Updates to system settings', '#6B7280'),
+  ('ch000002-0000-0000-0000-000000000002', 'p0000003-0000-0000-0000-000000000003', 'Security Update', 'Changes to roles or permissions', '#EF4444'),
+  ('ch000003-0000-0000-0000-000000000003', 'p0000001-0000-0000-0000-000000000001', 'Content Update', 'Changes to content or text', '#3B82F6'),
+  ('ch000004-0000-0000-0000-000000000004', 'p0000004-0000-0000-0000-000000000004', 'Schema Migration', 'Database schema modifications', '#8B5CF6')
+ON CONFLICT (id) DO NOTHING;
+
