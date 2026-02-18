@@ -327,3 +327,22 @@ DO $$
 BEGIN
     RAISE NOTICE '✅✅ UNIFIED SEED COMPLETED SUCCESSFULLY! ✅✅';
 END $$;
+
+-- ============================================================
+-- FINAL DATA POLISH: Ensure all error_logs have user_ids
+-- (Because some might be created before users exist during reset)
+-- ============================================================
+DO $$
+DECLARE
+  v_user_ids uuid[];
+BEGIN
+  SELECT ARRAY(SELECT id FROM auth.users) INTO v_user_ids;
+  
+  IF v_user_ids IS NOT NULL AND array_length(v_user_ids, 1) > 0 THEN
+    UPDATE public.error_logs
+    SET user_id = v_user_ids[1 + floor(random() * array_length(v_user_ids, 1))::int]
+    WHERE user_id IS NULL;
+    
+    RAISE NOTICE 'Reference Data Polish: Backfilled missing user_ids in error_logs';
+  END IF;
+END $$;

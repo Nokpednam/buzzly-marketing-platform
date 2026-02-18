@@ -41,7 +41,6 @@ export interface WorkspaceMember {
 export interface AdAccount {
     id: string;
     team_id: string;
-    platform: string;
     account_name: string;
     platform_id: string | null;
     is_active: boolean | null;
@@ -148,6 +147,26 @@ export function useToggleAdAccount() {
         },
         onError: (err: any) => {
             toast.error(err.message ?? "Failed to update ad account");
+        },
+    });
+}
+
+export function useUpdateWorkspaceStatus() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ id, status }: { id: string; status: string }) => {
+            const { error } = await supabase
+                .from("workspaces")
+                .update({ status })
+                .eq("id", id);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["admin-workspaces"] });
+            toast.success("Workspace status updated");
+        },
+        onError: (err: any) => {
+            toast.error(err.message ?? "Failed to update workspace status");
         },
     });
 }

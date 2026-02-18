@@ -17,12 +17,23 @@ export interface ErrorLog {
 const fetchUserMap = async (userIds: string[]) => {
     if (userIds.length === 0) return new Map();
 
+    // 1. Fetch Employees
     const { data: employees } = await supabase
         .from('employees')
         .select('user_id, email, role_employees(role_name)')
         .in('user_id', userIds);
 
+    // 2. Fetch Customers
+    // Note: Assuming 'customer' table has id, email. Adjust if table name/columns differ.
+    // Based on schema search, 'public.customer' exists with 'id' and 'email'.
+    const { data: customers } = await supabase
+        .from('customer')
+        .select('id, email')
+        .in('id', userIds);
+
     const map = new Map();
+
+    // specific handling: Employees override customers if duplicate (unlikely)
     employees?.forEach(emp => {
         map.set(emp.user_id, {
             email: emp.email,
@@ -30,43 +41,64 @@ const fetchUserMap = async (userIds: string[]) => {
         });
     });
 
+    customers?.forEach(cust => {
+        if (!map.has(cust.id)) {
+            map.set(cust.id, {
+                email: cust.email,
+                role: 'Customer'
+            });
+        }
+    });
+
     return map;
 };
 
-export function useAdminErrorLogs(levelFilter: string) {
+export function useAdminErrorLogs(levelFilter: string, page: number = 1, pageSize: number = 10, searchQuery: string = "") {
     return useQuery({
-        queryKey: ["admin-error-logs", levelFilter],
+        queryKey: ["admin-error-logs", levelFilter, page, pageSize, searchQuery],
         refetchInterval: 10000,
         queryFn: async () => {
-            // 1. Get total count first
-            let countQuery = supabase
-                .from("error_logs")
-                .select("*", { count: 'exact', head: true });
+            // Calculate range
+            const from = (page - 1) * pageSize;
+            const to = from + pageSize - 1;
 
-            if (levelFilter !== "all") {
-                countQuery = countQuery.eq("level", levelFilter);
-            }
-
-            const { count } = await countQuery;
-
-            // 2. Get data
+            // Build query
             let query = supabase
                 .from("error_logs")
-                .select("*")
-                .order("created_at", { ascending: false })
-                .limit(500);
+                .select("*", { count: 'exact' });
 
+            // Apply filters
             if (levelFilter !== "all") {
                 query = query.eq("level", levelFilter);
             }
 
-            const { data, error } = await query;
+            if (searchQuery) {
+                // Determine if search query is a UUID
+                const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(searchQuery);
+
+                if (isUuid) {
+                    query = query.or(`request_id.eq.${searchQuery},user_id.eq.${searchQuery}`);
+                } else {
+                    query = query.ilike('message', `%${searchQuery}%`);
+                }
+            }
+
+            // Apply pagination and ordering
+            const { data, error, count } = await query
+                .order("created_at", { ascending: false })
+                .range(from, to);
+
             if (error) throw error;
 
-            // 3. Enrich with user details
+            // Enrich with user details
             const logs = data || [];
             const userIds = [...new Set(logs.map(l => l.user_id).filter(Boolean))] as string[];
-            const userMap = await fetchUserMap(userIds);
+
+            // Only fetch user map if we have users to fetch
+            let userMap = new Map();
+            if (userIds.length > 0) {
+                userMap = await fetchUserMap(userIds);
+            }
 
             const enrichedLogs = logs.map(log => {
                 const userInfo = log.user_id ? userMap.get(log.user_id) : null;
@@ -77,7 +109,48 @@ export function useAdminErrorLogs(levelFilter: string) {
                 };
             });
 
-            return { logs: enrichedLogs as ErrorLog[], totalCount: count || 0 };
+            return {
+                logs: enrichedLogs as ErrorLog[],
+                totalCount: count || 0,
+                totalPages: Math.ceil((count || 0) / pageSize)
+            };
         },
+    });
+}
+
+export function useAdminLogStats() {
+    return useQuery({
+        queryKey: ["admin-error-stats"],
+        refetchInterval: 30000, // Refresh stats every 30s
+        queryFn: async () => {
+            // We'll run parallel queries to get counts for each level
+            // This is not the most efficient way (a single aggregation query would be better),
+            // but for now it avoids a migration and is strictly typed.
+
+            const levels = ["critical", "error", "warning", "info"];
+            const promises = levels.map(level =>
+                supabase
+                    .from("error_logs")
+                    .select("*", { count: 'exact', head: true })
+                    .eq("level", level)
+            );
+
+            // Also get total count
+            const totalPromise = supabase
+                .from("error_logs")
+                .select("*", { count: 'exact', head: true });
+
+            const results = await Promise.all([...promises, totalPromise]);
+
+            const stats = {
+                critical: results[0].count || 0,
+                error: results[1].count || 0,
+                warning: results[2].count || 0,
+                info: results[3].count || 0,
+                total: results[4].count || 0
+            };
+
+            return stats;
+        }
     });
 }

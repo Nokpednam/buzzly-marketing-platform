@@ -5,6 +5,7 @@ import {
   useAdminWorkspaceMembers,
   useAdminWorkspaceAdAccounts,
   useToggleAdAccount,
+  useUpdateWorkspaceStatus,
   type Team,
   type WorkspaceMember,
   type AdAccount,
@@ -58,11 +59,9 @@ export default function AdminWorkspaces() {
   const [selectedWorkspace, setSelectedWorkspace] = useState<Team | null>(null);
   const [viewMode, setViewMode] = useState<"members" | "api" | null>(null);
 
-  // Mock suspended state (would need DB column in production)
-  const [suspendedWorkspaces, setSuspendedWorkspaces] = useState<Set<string>>(new Set());
-
   // Fetch all workspaces (teams)
   const { data: workspaces, isLoading, refetch } = useAdminWorkspaces();
+  const updateStatusMutation = useUpdateWorkspaceStatus();
 
   // Fetch team stats (members count, ad accounts)
   const { data: rawStats } = useAdminWorkspaceStats();
@@ -96,23 +95,15 @@ export default function AdminWorkspaces() {
     ws.business_types?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleSuspendToggle = (workspaceId: string) => {
-    const newSuspended = new Set(suspendedWorkspaces);
-    if (newSuspended.has(workspaceId)) {
-      newSuspended.delete(workspaceId);
-      toast({
-        title: "Workspace Activated",
-        description: "Workspace has been reactivated successfully.",
-      });
-    } else {
-      newSuspended.add(workspaceId);
-      toast({
-        title: "Workspace Suspended",
-        description: "Workspace has been suspended.",
-        variant: "destructive",
-      });
+  const handleSuspendToggle = async (workspace: Team) => {
+    const isSuspended = workspace.status === 'suspended';
+    const newStatus = isSuspended ? 'active' : 'suspended';
+
+    try {
+      await updateStatusMutation.mutateAsync({ id: workspace.id, status: newStatus });
+    } catch (error) {
+      // Error handled by mutation onError
     }
-    setSuspendedWorkspaces(newSuspended);
   };
 
   const handleToggleAdAccount = async (accountId: string, currentStatus: boolean | null) => {
@@ -166,7 +157,7 @@ export default function AdminWorkspaces() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">
-              {(workspaces?.length || 0) - suspendedWorkspaces.size}
+              {workspaces?.filter(w => w.status === 'active').length || 0}
             </div>
           </CardContent>
         </Card>
@@ -178,7 +169,7 @@ export default function AdminWorkspaces() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-destructive">
-              {suspendedWorkspaces.size}
+              {workspaces?.filter(w => w.status === 'suspended').length || 0}
             </div>
           </CardContent>
         </Card>
@@ -233,7 +224,7 @@ export default function AdminWorkspaces() {
               <TableBody>
                 {filteredWorkspaces?.map((workspace) => {
                   const stats = workspaceStats?.[workspace.id] || { members: 0, adAccounts: 0 };
-                  const isSuspended = suspendedWorkspaces.has(workspace.id);
+                  const isSuspended = workspace.status === 'suspended';
 
                   return (
                     <TableRow key={workspace.id} className={isSuspended ? "opacity-60" : ""}>
@@ -316,22 +307,22 @@ export default function AdminWorkspaces() {
                               }}
                             >
                               <Link2 className="h-4 w-4 mr-2" />
-                              API Connections
+                              Manage Ad Accounts
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
-                              onClick={() => handleSuspendToggle(workspace.id)}
-                              className={isSuspended ? "text-primary" : "text-destructive"}
+                              className={isSuspended ? "text-green-600" : "text-destructive"}
+                              onClick={() => handleSuspendToggle(workspace)}
                             >
                               {isSuspended ? (
                                 <>
                                   <CheckCircle className="h-4 w-4 mr-2" />
-                                  Activate
+                                  Activate Workspace
                                 </>
                               ) : (
                                 <>
                                   <Ban className="h-4 w-4 mr-2" />
-                                  Suspend
+                                  Suspend Workspace
                                 </>
                               )}
                             </DropdownMenuItem>

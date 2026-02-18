@@ -66,7 +66,7 @@ export default function BusinessPerformance() {
     {
       title: "Active Subscriptions",
       value: (subscriptionMetrics?.activeSubscriptions ?? 0).toString(),
-      change: 0, // Simplified
+      change: subscriptionMetrics?.activeSubscriptionsGrowth || 0,
       trend: "up" as const,
       icon: Users,
       gradient: "from-blue-600 to-indigo-700",

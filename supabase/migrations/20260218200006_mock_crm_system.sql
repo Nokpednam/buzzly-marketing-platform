@@ -154,15 +154,22 @@ DECLARE
     'Failed login attempt from IP 103.45.67.89'
   ];
   v_services text[] := ARRAY['api','payment','auth','scheduler','ads-sync','email','cache','webhook','storage','database'];
+  v_user_ids uuid[];
   i int;
 BEGIN
+  SELECT ARRAY(SELECT id FROM auth.users LIMIT 50) INTO v_user_ids; -- Get some users
+
   FOR i IN 1..56 LOOP
     INSERT INTO public.error_logs (
-      id, level, message, stack_trace, request_id, metadata, created_at
+      id, level, message, user_id, stack_trace, request_id, metadata, created_at
     ) VALUES (
       gen_random_uuid(),
       v_levels[1 + (i % array_length(v_levels,1))],
       v_messages[1 + (i % array_length(v_messages,1))],
+      CASE 
+        WHEN array_length(v_user_ids, 1) > 0 THEN v_user_ids[1 + floor(random() * array_length(v_user_ids, 1))::int]
+        ELSE NULL 
+      END,
       CASE WHEN v_levels[1 + (i % array_length(v_levels,1))] IN ('error','critical')
         THEN 'Error: ' || v_messages[1 + (i % array_length(v_messages,1))] || E'\n  at handler (/app/src/index.ts:' || (100+i)::text || ')'
         ELSE NULL END,

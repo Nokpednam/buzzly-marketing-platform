@@ -186,6 +186,7 @@ describe('useAdminMonitor', () => {
 
             expect(result.current.data).toEqual({
                 total: 5,
+                critical: 0,
                 errors: 2,
                 warnings: 1,
                 info: 1,

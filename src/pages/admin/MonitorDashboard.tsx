@@ -310,10 +310,14 @@ export default function MonitorDashboard() {
               <CardDescription>Overview of system errors and warnings</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-4">
+              <div className="grid gap-4 md:grid-cols-5">
                 <div className="p-4 rounded-lg border text-center">
                   <p className="text-3xl font-bold">{errorStats?.total || 0}</p>
                   <p className="text-sm text-muted-foreground">Total Logs</p>
+                </div>
+                <div className="p-4 rounded-lg border text-center border-red-300 bg-red-100/50 dark:border-red-800 dark:bg-red-900/40">
+                  <p className="text-3xl font-bold text-red-700 dark:text-red-400">{errorStats?.critical || 0}</p>
+                  <p className="text-sm text-muted-foreground">Critical</p>
                 </div>
                 <div className="p-4 rounded-lg border text-center border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20">
                   <p className="text-3xl font-bold text-red-600">{errorStats?.errors || 0}</p>
