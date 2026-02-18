@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAdminErrorLogs } from "@/hooks/useAdminSupport";
+import { useAdminErrorLogs, ErrorLog } from "@/hooks/useAdminSupport";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -75,12 +75,15 @@ export default function AdminSupport() {
   };
 
   // Fetch error logs
-  const { data: errorLogs, isLoading, refetch } = useAdminErrorLogs(levelFilter);
+  const { data, isLoading, refetch } = useAdminErrorLogs(levelFilter);
+  const errorLogs = data?.logs || [];
+  const totalCount = data?.totalCount || 0;
 
-  const filteredLogs = errorLogs?.filter((log) =>
+  const filteredLogs = errorLogs.filter((log) =>
     log.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
     log.request_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    log.user_id?.toLowerCase().includes(searchQuery.toLowerCase())
+    log.user_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    log.user_email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const getLevelIcon = (level: string) => {
@@ -117,7 +120,7 @@ export default function AdminSupport() {
 
   // Calculate stats
   const stats = {
-    total: errorLogs?.length || 0,
+    total: totalCount,
     errors: errorLogs?.filter((l) => l.level.toLowerCase() === "error").length || 0,
     warnings: errorLogs?.filter((l) => ["warning", "warn"].includes(l.level.toLowerCase())).length || 0,
     info: errorLogs?.filter((l) => l.level.toLowerCase() === "info").length || 0,
@@ -253,9 +256,12 @@ export default function AdminSupport() {
                     </TableCell>
                     <TableCell>
                       {log.user_id ? (
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <User className="h-3 w-3" />
-                          <span className="truncate max-w-[100px]">{log.user_id.slice(0, 8)}...</span>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">{log.user_email || "Unknown"}</span>
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <span className="font-mono">{log.user_id.slice(0, 8)}...</span>
+                            {log.user_role && <Badge variant="outline" className="text-[10px] h-4">{log.user_role}</Badge>}
+                          </div>
                         </div>
                       ) : (
                         <span className="text-muted-foreground">-</span>

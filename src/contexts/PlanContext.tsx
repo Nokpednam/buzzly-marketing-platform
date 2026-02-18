@@ -99,7 +99,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   const fetchUserPlan = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         setCurrentPlan("free");
         setUserId(null);
@@ -113,28 +113,28 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
         .from('subscriptions')
         .select('*, subscription_plans(slug)')
         .eq('user_id', user.id)
-        .eq('status', 'active') 
+        .eq('status', 'active')
         .maybeSingle();
-      
-        // ตรวจสอบว่ามีข้อมูล Subscription และมีชื่อ Plan (slug) ติดมาไหม
-          if (subscription?.subscription_plans?.slug) {
-            // *** แก้ตรงนี้: ให้ใช้ค่าจาก subscription แทน profile ***
-            const rawType = subscription.subscription_plans.slug.toLowerCase();
-            
-            console.log("Real Plan from Subscription Table:", rawType); 
 
-            // Logic การเช็คเหมือนเดิม
-            if (rawType.includes("team")) {
-                setCurrentPlan("team");
-            } else if (rawType.includes("pro")) {
-                setCurrentPlan("pro");
-            } else {
-                setCurrentPlan("free");
-            }
-          } else {
-            console.log("No active subscription found, falling back to Free");
-            setCurrentPlan("free");
-          }
+      // ตรวจสอบว่ามีข้อมูล Subscription และมีชื่อ Plan (slug) ติดมาไหม
+      if (subscription?.subscription_plans?.slug) {
+        // *** แก้ตรงนี้: ให้ใช้ค่าจาก subscription แทน profile ***
+        const rawType = subscription.subscription_plans.slug.toLowerCase();
+
+        console.log("Real Plan from Subscription Table:", rawType);
+
+        // Logic การเช็คเหมือนเดิม
+        if (rawType.includes("team")) {
+          setCurrentPlan("team");
+        } else if (rawType.includes("pro")) {
+          setCurrentPlan("pro");
+        } else {
+          setCurrentPlan("free");
+        }
+      } else {
+        console.log("No active subscription found, falling back to Free");
+        setCurrentPlan("free");
+      }
     } catch (error) {
       console.error("Error fetching user plan:", error);
       setCurrentPlan("free");
@@ -176,22 +176,60 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   const updatePlan = useCallback(async (newPlan: PlanType): Promise<boolean> => {
     if (!userId) return false;
 
+    // Map plan types to UUIDs
+    const planIds: Record<PlanType, string> = {
+      free: "5b000001-0000-0000-0000-000000000001",
+      pro: "5b000002-0000-0000-0000-000000000002",
+      team: "5b000003-0000-0000-0000-000000000003"
+    };
+
+    const targetPlanId = planIds[newPlan];
+
     try {
-      const { error } = await supabase
-        .from("customer")
-        .update({ plan_type: newPlan })
-        .eq("id", userId);
+      // 1. Check if subscription exists
+      const { data: existingSub } = await supabase
+        .from("subscriptions")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      let error;
+
+      if (existingSub) {
+        // Update existing subscription
+        const { error: updateError } = await supabase
+          .from("subscriptions")
+          .update({
+            plan_id: targetPlanId,
+            status: 'active',
+            updated_at: new Date().toISOString()
+          })
+          .eq("user_id", userId);
+        error = updateError;
+      } else {
+        // Create new subscription (fallback)
+        const { error: insertError } = await supabase
+          .from("subscriptions")
+          .insert({
+            user_id: userId,
+            plan_id: targetPlanId,
+            status: 'active',
+            // Default workspace/team handling might be needed here, but for now focus on user subscription
+          });
+        error = insertError;
+      }
 
       if (error) throw error;
 
       // Update state immediately for reactive UI
       setCurrentPlan(newPlan);
+      await fetchUserPlan(); // Refetch to ensure everything is synced
       return true;
     } catch (error) {
       console.error("Error updating plan:", error);
       return false;
     }
-  }, [userId]);
+  }, [userId, fetchUserPlan]);
 
   const value: PlanContextValue = {
     currentPlan,
