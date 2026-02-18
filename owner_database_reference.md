@@ -1,97 +1,115 @@
 # Owner Pages: Database & Function Reference
 
-This guide maps each page in the Owner Dashboard to its underlying database tables and code functions.
+This guide details the **Primary Tables** and the **Code Functions** (Hooks) used to fetch data for each page in the Owner Dashboard.
 
 ---
 
 ## 1. Business Performance
 **Path:** `/owner/business-performance`
-**Goal:** revenue tracking (MRR, ARR) and growth metrics.
 
-### 🗄️ Database Tables
-*   **`subscriptions`**: Tracks active vs. cancelled subscriptions. Used to calculate current MRR.
-*   **`subscription_plans`**: Gets the price (`price_monthly`, `price_yearly`) for each subscription.
-*   **`payment_transactions`**: Source of truth for historical revenue charts.
-*   **`cohort_analysis`**: Stores pre-calculated retention data for the heatmap.
+### 🗄️ Database Relationships
+*   **Metric: Monthly Recurring Revenue (MRR)**
+    *   **Primary Table:** `subscriptions` (Active status)
+    *   **Join:** `subscriptions.plan_id` → `subscription_plans.id`
+    *   **Purpose:** To fetch `price_monthly` for calculating total MRR.
+*   **Metric: Historical Revenue**
+    *   **Primary Table:** `payment_transactions`
+    *   **Connection:** Filtered by `created_at` (last 12 months) and `status = 'completed'`.
+*   **Metric: Cohort Retention**
+    *   **Primary Table:** `cohort_analysis`
+    *   **Note:** Fetched directly; populated via background ETL.
 
-### ⚡ Attributes / Functions
-*   **`useSubscriptionMetrics`**:
-    *   Computes **MRR**, **ARR**, and **Growth %**.
-    *   Breaks down revenue into **New**, **Expansion**, and **Churn**.
-*   **`useCohortAnalysis`**: Fetches the retention heatmap data.
-*   **`useSurvivalAnalysis`**: Calculates how long users stay active (Survival Rate).
+### ⚡ Related Functions (Hooks)
+### ⚡ Related Functions (Hooks)
+| Function Name | Source File | UI Section / Purpose |
+| :--- | :--- | :--- |
+| **`useSubscriptionMetrics`** | `useOwnerMetrics.tsx` | **Revenue & Growth Tabs:** <br>• Power the 4 KPI Cards (MRR, Active Subs, ARR).<br>• Powers the "Revenue Trends" charts (MRR Area Chart).<br>• Powers the breakdown (New/Expansion/Churn). |
+| **`useCohortAnalysis`** | `useOwnerMetrics.tsx` | **Cohort Retention Tab:** <br>• Fetches the heat map data showing user retention over time. |
+| **`useSurvivalAnalysis`** | `useOwnerMetrics.tsx` | **Survival Probability Tab:** <br>• Powers the "Survival Curve" line chart and detailed table. |
 
 ---
 
 ## 2. User Feedback
 **Path:** `/owner/user-feedback`
-**Goal:** Track customer sentiment and read specific comments.
 
-### 🗄️ Database Tables
-*   **`feedback`**: The main table for user comments and ratings.
-*   **`rating`**: Lookup for rating labels (e.g., "5 Stars", "1 Star").
-*   **`customer_activities`** & **`profile_customers`**: Links feedback to the real person who wrote it.
-*   **`workspaces`**: Shows which business type the user belongs to.
+### 🗄️ Database Relationships
+*   **Metric: Feedback List**
+    *   **Primary Table:** `feedback`
+    *   **Join 1:** `feedback.rating_id` → `rating.id` (To get "5 Stars" label)
+    *   **Join 2:** `feedback.user_id` → `customer_activities` → `profile_customers` (To get User Name/Avatar)
+    *   **Join 3:** `feedback.user_id` → `workspaces` (To get Business Type)
 
-### ⚡ Attributes / Functions
-*   **`useFeedbackMetrics`**: Calculates **NPS Score**, **Avg Rating**, and **Sentiment Trends** (Last 6 months).
-*   **`useFeedbackList`**: Fetches the actual list of comments with pagination.
+### ⚡ Related Functions (Hooks)
+| Function Name | Source File | Purpose |
+| :--- | :--- | :--- |
+| **`useFeedbackMetrics`** | `src/hooks/useOwnerMetrics.tsx` | **Summarizes Sentiment:** Calculates the Net Promoter Score (NPS), Average Rating (e.g. 4.8/5), and groups feedback into Positive/Neutral/Negative for the pie chart. |
+| **`useFeedbackList`** | `src/hooks/useOwnerMetrics.tsx` | **Fetches Comments:** Retrieves the actual table of user comments with server-side pagination (page, limit). Joins with user profiles to show *who* said *what*. |
 
 ---
 
 ## 3. Customer Tiers
 **Path:** `/owner/customer-tiers`
-**Goal:** Analyze customer loyalty segments.
 
-### 🗄️ Database Tables
-*   **`loyalty_tiers`**: Defines rules for Bronze, Silver, Gold, Platinum.
-*   **`profile_customers`**: The customer records.
-*   **`loyalty_points`**: Tracks current points and total lifetime points.
-*   **`payment_transactions`**: Used to find "Top Performers" (highest spenders).
+### 🗄️ Database Relationships
+*   **Metric: Tiers & Points**
+    *   **Primary Table:** `profile_customers`
+    *   **Join:** `profile_customers.loyalty_point_id` → `loyalty_points.id` → `loyalty_tiers.id`
+    *   **Purpose:** To segment users into Bronze, Silver, Gold, Platinum.
+*   **Metric: Top Spenders**
+    *   **Primary Table:** `payment_transactions`
+    *   **Aggregation:** Sum of `amount` grouped by `user_id`.
 
-### ⚡ Attributes / Functions
-*   **`useCustomerTiers`**:
-    *   **Tier Distribution**: How many users are in each tier?
-    *   **Revenue by Tier**: How much money does each tier spend?
-    *   **Top Performers**: Lists the top 5 customers by total spend.
+### ⚡ Related Functions (Hooks)
+| Function Name | Source File | Purpose |
+| :--- | :--- | :--- |
+| **`useCustomerTiers`** | `src/hooks/useCustomerTiers.tsx` | **Segments Customers:** This "Mega Hook" does three things:<br>1. Counts users per Tier (Distribution).<br>2. Sums revenue per Tier (Value Analysis).<br>3. Identifies "Top Performers" by lifetime spend. |
 
 ---
 
 ## 4. Product Usage
 **Path:** `/owner/product-usage`
-**Goal:** Monitor active users and engagement.
 
-### 🗄️ Database Tables
-*   **`customer_activities`**: The log of user actions, used for DAU/MAU.
-*   **`profile_customers`**: Used for total user counts.
-*   **`workspaces`** & **`business_types`**: Used to segment users by industry (e.g., Agency vs. SME).
+### 🗄️ Database Relationships
+*   **Metric: Active Users (DAU/MAU)**
+    *   **Primary Table:** `customer_activities`
+    *   **Joins:** none (Raw fetch).
+    *   **Logic:** The app fetches the last 5,000 activity logs and calculates DAU/MAU *in-memory* (Client-side logic) by counting unique user IDs.
+*   **Metric: Business Types (User Segments)**
+    *   **Primary Table:** `workspaces`
+    *   **Join:** `workspaces.business_type_id` → `business_types.id`
+    *   **Purpose:** To categorize users (e.g., "Agency", "SME") for the "User Segments" chart.
 
-### ⚡ Attributes / Functions
-*   **`useProductUsageMetrics`**: Calculcates **DAU** (Daily Active Users) and **MAU** (Monthly Active Users).
-*   **`useUserSegments`**: Shows the percentage of users in each Business Type.
+### ⚡ Related Functions (Hooks)
+| Function Name | Source File | Purpose |
+| :--- | :--- | :--- |
+| **`useProductUsageMetrics`** | `src/hooks/useOwnerMetrics.tsx` | **Tracks Engagement:** Calculates the DAU/MAU ratio to measure product stickiness. |
+| **`useUserSegments`** | `src/hooks/useOwnerMetrics.tsx` | **Profiles User Base:** Groups workspaces by their industry (Agency, SME, Enterprise) to show *who* is using the platform. |
 
 ---
 
 ## 5. Owner Discounts
 **Path:** `/owner/discounts`
-**Goal:** Manage promotional codes.
 
-### 🗄️ Database Tables
-*   **`discounts`**: Stores code details, usage limits, and expiration dates.
+### 🗄️ Database Relationships
+*   **Primary Table:** `discounts`
+*   **Connection:** `team_id` matches the Owner's workspace ID.
 
-### ⚡ Attributes / Functions
-*   **`useDiscounts`**: Handles Creating, Deleting, and Toggling discount codes. Provides status counts (Active, Expired).
+### ⚡ Related Functions (Hooks)
+| Function Name | Source File | Purpose |
+| :--- | :--- | :--- |
+| **`useDiscounts`** | `src/hooks/useDiscounts.tsx` | **Manages Promotions:** A complete CRUD hook. It lists all codes, handles creation of new codes, and allows toggling them Active/Inactive. It also computes "Expired" status on the client side. |
 
 ---
 
 ## 6. Executive Report
 **Path:** `/owner/executive-report`
-**Goal:** Generate and schedule PDF/Excel reports.
 
-### 🗄️ Database Tables
-*   **`reports`**: History of generated reports.
-*   **`scheduled_reports`**: Settings for automatic recurring reports.
+### 🗄️ Database Relationships
+*   **Primary Table:** `reports` (History) and `scheduled_reports` (Automation settings).
+*   **Connection:** Scoped by `team_id`.
 
-### ⚡ Attributes / Functions
-*   **`useReports`**: Manages manual report generation.
-*   **`useScheduledReports`**: Manages automated schedules.
+### ⚡ Related Functions (Hooks)
+| Function Name | Source File | Purpose |
+| :--- | :--- | :--- |
+| **`useReports`** | `src/hooks/useReports.tsx` | **Generates Reports:** Handles the "Generate Now" action and fetching the history of past reports. |
+| **`useScheduledReports`** | `src/hooks/useScheduledReports.tsx` | **Automates Reporting:** Manages the scheduler settings (e.g., "Send Weekly PDF to executive@example.com"). |
