@@ -29,6 +29,7 @@ import APIKeys from "./pages/APIKeys";
 import Analytics from "./pages/Analytics";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import Discounts from "./pages/Discounts";
 import NotFound from "./pages/NotFound";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminSignUp from "./pages/admin/AdminSignUp";
@@ -95,6 +96,7 @@ const App = () => (
 
                     <Route path="/analytics" element={<Analytics />} />
                     <Route path="/reports" element={<Reports />} />
+                    <Route path="/discounts" element={<Discounts />} />
                     <Route path="/settings" element={<Settings />} />
                     <Route path="/team" element={<TeamManagement />} />
                   </Route>

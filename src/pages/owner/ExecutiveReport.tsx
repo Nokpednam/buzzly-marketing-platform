@@ -5,6 +5,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -21,8 +23,12 @@ import {
   CheckCircle2,
   Presentation,
   FileSpreadsheet,
+  Trash2,
+  Users,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useReports } from "@/hooks/useReports";
+import { useScheduledReports } from "@/hooks/useScheduledReports";
 
 // Available metrics to include in report
 const availableMetrics = [
@@ -41,58 +47,10 @@ const availableMetrics = [
   { id: "features", label: "Feature Usage Stats", category: "Product" },
 ];
 
-// Recent reports
-const recentReports = [
-  {
-    id: 1,
-    name: "Q4 2024 Executive Summary",
-    date: "Dec 1, 2024",
-    format: "PDF",
-    status: "completed",
-  },
-  {
-    id: 2,
-    name: "November Performance Review",
-    date: "Nov 30, 2024",
-    format: "Slides",
-    status: "completed",
-  },
-  {
-    id: 3,
-    name: "Investor Update - November",
-    date: "Nov 28, 2024",
-    format: "PDF",
-    status: "completed",
-  },
-  {
-    id: 4,
-    name: "Weekly Metrics Report",
-    date: "Nov 25, 2024",
-    format: "Excel",
-    status: "completed",
-  },
-];
-
-// Scheduled reports
-const scheduledReports = [
-  {
-    id: 1,
-    name: "Weekly Performance Summary",
-    frequency: "Weekly",
-    nextRun: "Every Monday, 9:00 AM",
-    recipients: 3,
-  },
-  {
-    id: 2,
-    name: "Monthly Executive Report",
-    frequency: "Monthly",
-    nextRun: "1st of each month, 8:00 AM",
-    recipients: 5,
-  },
-];
-
 export default function ExecutiveReport() {
   const { toast } = useToast();
+  const { reports, isLoading: reportsLoading, deleteReport } = useReports();
+  const { scheduledReports, isLoading: scheduledLoading, toggleActive, deleteScheduledReport } = useScheduledReports();
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([
     "mrr",
     "churn",
@@ -297,53 +255,64 @@ export default function ExecutiveReport() {
           <Card>
             <CardHeader>
               <CardTitle>Recent Reports</CardTitle>
-              <CardDescription>
-                Previously generated reports
-              </CardDescription>
+              <CardDescription>Previously generated reports</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentReports.map((report) => (
-                  <div
-                    key={report.id}
-                    className="flex items-center justify-between rounded-lg border p-4"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                        {report.format === "PDF" && (
+              {reportsLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
+                </div>
+              ) : reports.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center rounded-lg border border-dashed">
+                  <FileText className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                  <p className="font-medium text-muted-foreground">No reports yet</p>
+                  <p className="text-sm text-muted-foreground">Generate your first report above</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {reports.map((report) => (
+                    <div
+                      key={report.id}
+                      className="flex items-center justify-between rounded-lg border p-4"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                           <FileText className="h-5 w-5 text-primary" />
-                        )}
-                        {report.format === "Slides" && (
-                          <Presentation className="h-5 w-5 text-primary" />
-                        )}
-                        {report.format === "Excel" && (
-                          <FileSpreadsheet className="h-5 w-5 text-primary" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium">{report.name}</p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          {report.date}
-                          <Badge variant="secondary">{report.format}</Badge>
+                        </div>
+                        <div>
+                          <p className="font-medium">{report.name}</p>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            {new Date(report.created_at).toLocaleDateString()}
+                            <Badge variant="secondary">{report.report_type ?? "General"}</Badge>
+                          </div>
                         </div>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="gap-1">
+                          <CheckCircle2 className="h-3 w-3 text-green-500" />
+                          {report.status ?? "completed"}
+                        </Badge>
+                        <Button variant="ghost" size="sm">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <Send className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => deleteReport.mutate(report.id)}
+                          disabled={deleteReport.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="gap-1">
-                        <CheckCircle2 className="h-3 w-3 text-green-500" />
-                        {report.status}
-                      </Badge>
-                      <Button variant="ghost" size="sm">
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -354,9 +323,7 @@ export default function ExecutiveReport() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Scheduled Reports</CardTitle>
-                <CardDescription>
-                  Automatically generated reports
-                </CardDescription>
+                <CardDescription>Automatically generated reports</CardDescription>
               </div>
               <Button>
                 <Calendar className="mr-2 h-4 w-4" />
@@ -364,36 +331,63 @@ export default function ExecutiveReport() {
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {scheduledReports.map((report) => (
-                  <div
-                    key={report.id}
-                    className="flex items-center justify-between rounded-lg border p-4"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
-                        <Clock className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="font-medium">{report.name}</p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Badge variant="secondary">{report.frequency}</Badge>
-                          <span>{report.nextRun}</span>
+              {scheduledLoading ? (
+                <div className="space-y-3">
+                  {[1, 2].map((i) => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
+                </div>
+              ) : scheduledReports.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center rounded-lg border border-dashed">
+                  <Clock className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                  <p className="font-medium text-muted-foreground">No scheduled reports</p>
+                  <p className="text-sm text-muted-foreground">Click "New Schedule" to set up automated reports</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {scheduledReports.map((report) => (
+                    <div
+                      key={report.id}
+                      className="flex items-center justify-between rounded-lg border p-4"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
+                          <Clock className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{report.name}</p>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Badge variant="secondary" className="capitalize">{report.frequency}</Badge>
+                            {report.next_run_at && (
+                              <span>Next: {new Date(report.next_run_at).toLocaleDateString()}</span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right text-sm">
-                        <p className="font-medium">{report.recipients}</p>
-                        <p className="text-muted-foreground">recipients</p>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right text-sm">
+                          <p className="font-medium flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {report.recipients.length} recipients
+                          </p>
+                          <Badge variant="outline" className="text-[10px] uppercase">{report.format}</Badge>
+                        </div>
+                        <Switch
+                          checked={report.is_active}
+                          onCheckedChange={(v) => toggleActive.mutate({ id: report.id, is_active: v })}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground hover:text-destructive"
+                          onClick={() => deleteScheduledReport.mutate(report.id)}
+                          disabled={deleteScheduledReport.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                      <Button variant="outline" size="sm">
-                        Edit
-                      </Button>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

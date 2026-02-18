@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -24,6 +25,10 @@ import {
   Globe,
   ShieldCheck,
   ChevronRight,
+  Wallet,
+  Star,
+  Trash2,
+  CheckCircle2,
 } from "lucide-react";
 
 // Import your custom sub-components
@@ -31,6 +36,10 @@ import { WorkspaceSettings } from "@/components/settings/WorkspaceSettings";
 import { PlatformConnectionsTab } from "@/components/settings/PlatformConnectionsTab";
 import { BillingTab } from "@/components/settings/BillingTab";
 import { LoyaltyTab } from "@/components/settings/LoyaltyTab";
+import { useUserPaymentMethods } from "@/hooks/useUserPaymentMethods";
+import { useBudgets } from "@/hooks/useBudgets";
+import { Plus, AlertTriangle } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 const settingsGroups = [
   {
@@ -52,6 +61,7 @@ const settingsGroups = [
     label: "Finance",
     items: [
       { id: "billing", label: "Billing & Plan", icon: CreditCard },
+      { id: "payment-methods", label: "Payment Methods", icon: Wallet },
       { id: "budget", label: "Budgeting", icon: DollarSign },
       { id: "loyalty", label: "Loyalty Points", icon: Crown },
     ],
@@ -369,48 +379,7 @@ export default function Settings() {
 
           {/* Budget Section */}
           <TabsContent value="budget" className="mt-0 focus-visible:ring-0">
-            <Card className="border-none shadow-sm bg-muted/20 rounded-3xl">
-              <CardHeader className="p-8">
-                <CardTitle className="text-xl font-black uppercase tracking-tight">Marketing Treasury</CardTitle>
-                <CardDescription>Set guardrails for your cross-platform ad spend.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-8 pt-0 space-y-10">
-                <div className="grid gap-6 md:grid-cols-2">
-                  <SettingInput label="Monthly Cap (THB)" id="monthlyBudget" type="number" defaultValue="500000" />
-                  <SettingInput label="Alert Trigger (%)" id="alertThreshold" type="number" defaultValue="80" />
-                </div>
-
-                <Separator className="bg-border/50" />
-
-                <div className="space-y-6">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-primary" /> Active Allocation
-                  </h4>
-                  <div className="grid gap-6">
-                    {[
-                      { name: "Meta Ads", value: 40, color: "bg-blue-500" },
-                      { name: "Google Ads", value: 30, color: "bg-emerald-500" },
-                      { name: "TikTok Shop", value: 20, color: "bg-black" },
-                      { name: "LINE OA", value: 10, color: "bg-green-500" },
-                    ].map((channel) => (
-                      <div key={channel.name} className="space-y-2">
-                        <div className="flex justify-between text-xs font-bold uppercase">
-                          <span>{channel.name}</span>
-                          <Badge variant="secondary" className="rounded-md px-1.5 py-0">{channel.value}%</Badge>
-                        </div>
-                        <div className="h-2 rounded-full bg-background shadow-inner">
-                          <div className={cn("h-full rounded-full transition-all duration-1000", channel.color)} style={{ width: `${channel.value}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex justify-end pt-4">
-                  <Button className="rounded-xl px-8 shadow-lg shadow-primary/20 bg-primary">Commit Budget</Button>
-                </div>
-              </CardContent>
-            </Card>
+            <BudgetSection />
           </TabsContent>
 
           {/* External Components */}
@@ -419,6 +388,11 @@ export default function Settings() {
           </TabsContent>
           <TabsContent value="loyalty" className="mt-0 focus-visible:ring-0">
             <LoyaltyTab />
+          </TabsContent>
+
+          {/* Payment Methods Section */}
+          <TabsContent value="payment-methods" className="mt-0 focus-visible:ring-0">
+            <PaymentMethodsSection />
           </TabsContent>
         </div>
       </Tabs>
@@ -452,5 +426,223 @@ function NotificationSwitch({ title, desc, checked, onCheckedChange }: any) {
       </div>
       <Switch checked={checked} onCheckedChange={onCheckedChange} />
     </div>
+  );
+}
+
+function BudgetSection() {
+  const { budgets, isLoading, totalBudget, totalSpent, totalRemaining, alertBudgets, deleteBudget } = useBudgets();
+
+  const getSpendPercent = (budget: any) =>
+    budget.amount > 0 ? Math.min((budget.spent_amount / budget.amount) * 100, 100) : 0;
+
+  const isAlert = (budget: any) =>
+    budget.amount > 0 && (budget.spent_amount / budget.amount) * 100 >= budget.alert_threshold_percent;
+
+  return (
+    <Card className="border-none shadow-sm bg-muted/20 rounded-3xl">
+      <CardHeader className="p-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" /> Marketing Treasury
+            </CardTitle>
+            <CardDescription>ติดตามงบประมาณแคมเปญจากฐานข้อมูลจริง</CardDescription>
+          </div>
+          {alertBudgets.length > 0 && (
+            <Badge className="bg-destructive/10 text-destructive border-destructive/20 gap-1">
+              <AlertTriangle className="h-3 w-3" /> {alertBudgets.length} Alert{alertBudgets.length > 1 ? "s" : ""}
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="p-8 pt-0 space-y-6">
+        {/* Summary Stats */}
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: "Total Budget", value: `฿${totalBudget.toLocaleString()}`, color: "text-foreground" },
+            { label: "Total Spent", value: `฿${totalSpent.toLocaleString()}`, color: "text-amber-600" },
+            { label: "Remaining", value: `฿${totalRemaining.toLocaleString()}`, color: "text-emerald-600" },
+          ].map((stat) => (
+            <div key={stat.label} className="p-4 rounded-2xl bg-background border text-center">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{stat.label}</p>
+              <p className={`text-lg font-black tracking-tight mt-1 ${stat.color}`}>{stat.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <Separator className="bg-border/50" />
+
+        {/* Budget List */}
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)}
+          </div>
+        ) : budgets.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center rounded-2xl border border-dashed">
+            <DollarSign className="h-10 w-10 text-muted-foreground/30 mb-3" />
+            <p className="font-bold text-muted-foreground">ยังไม่มีงบประมาณ</p>
+            <p className="text-sm text-muted-foreground mt-1">เพิ่มงบประมาณผ่าน Supabase หรือ API เพื่อติดตามการใช้จ่าย</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {budgets.map((budget) => {
+              const pct = getSpendPercent(budget);
+              const alert = isAlert(budget);
+              return (
+                <div
+                  key={budget.id}
+                  className={cn(
+                    "p-5 rounded-2xl border bg-background transition-all",
+                    alert && "border-destructive/30 bg-destructive/5"
+                  )}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-sm">{budget.name}</p>
+                      {budget.campaign_name && (
+                        <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{budget.campaign_name}</Badge>
+                      )}
+                      <Badge variant="outline" className="text-[10px] h-4 px-1.5 capitalize">{budget.budget_type}</Badge>
+                      {alert && (
+                        <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] h-4 px-1.5 gap-1">
+                          <AlertTriangle className="h-2.5 w-2.5" /> Alert
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        ฿{budget.spent_amount.toLocaleString()} / ฿{budget.amount.toLocaleString()}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive"
+                        onClick={() => deleteBudget.mutate(budget.id)}
+                        disabled={deleteBudget.isPending}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                  <Progress
+                    value={pct}
+                    className={cn("h-2", alert && "[&>div]:bg-destructive")}
+                  />
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[10px] text-muted-foreground">{pct.toFixed(1)}% used</span>
+                    <span className="text-[10px] text-muted-foreground">Alert at {budget.alert_threshold_percent}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PaymentMethodsSection() {
+  const { paymentMethods, isLoading, setDefault, removeMethod } = useUserPaymentMethods();
+
+  const getCardIcon = (brand: string | null) => {
+    if (!brand) return "💳";
+    const b = brand.toLowerCase();
+    if (b.includes("visa")) return "💳";
+    if (b.includes("master")) return "💳";
+    if (b.includes("amex")) return "💳";
+    return "🏦";
+  };
+
+  return (
+    <Card className="border-none shadow-sm bg-muted/20 rounded-3xl">
+      <CardHeader className="p-8">
+        <CardTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+          <Wallet className="h-5 w-5 text-primary" /> Payment Methods
+        </CardTitle>
+        <CardDescription>
+          วิธีชำระเงินที่บันทึกไว้สำหรับการต่ออายุและอัปเกรดแผน
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-8 pt-0 space-y-4">
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2].map((i) => (
+              <Skeleton key={i} className="h-20 w-full rounded-2xl" />
+            ))}
+          </div>
+        ) : paymentMethods.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center rounded-2xl border border-dashed">
+            <CreditCard className="h-10 w-10 text-muted-foreground/30 mb-3" />
+            <p className="font-bold text-muted-foreground">ยังไม่มีวิธีชำระเงิน</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              วิธีชำระเงินจะปรากฏที่นี่หลังจากคุณชำระเงินครั้งแรก
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {paymentMethods.map((method) => (
+              <div
+                key={method.id}
+                className={cn(
+                  "flex items-center justify-between p-5 rounded-2xl border bg-background transition-all",
+                  method.is_default && "border-primary/40 bg-primary/5 ring-1 ring-primary/20"
+                )}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="text-3xl">{getCardIcon(method.card_brand)}</div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-sm">
+                        {method.card_brand
+                          ? `${method.card_brand} •••• ${method.card_last_four}`
+                          : method.bank_name
+                            ? `${method.bank_name} •••• ${method.account_last_four}`
+                            : method.payment_method?.name ?? "Payment Method"}
+                      </p>
+                      {method.is_default && (
+                        <Badge className="bg-primary/10 text-primary text-[10px] h-4 px-1.5">
+                          <CheckCircle2 className="h-2.5 w-2.5 mr-1" /> Default
+                        </Badge>
+                      )}
+                    </div>
+                    {method.card_exp_month && method.card_exp_year && (
+                      <p className="text-xs text-muted-foreground">
+                        Expires {String(method.card_exp_month).padStart(2, "0")}/{method.card_exp_year}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {!method.is_default && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl h-8 text-xs"
+                      onClick={() => setDefault.mutate(method.id)}
+                      disabled={setDefault.isPending}
+                    >
+                      <Star className="h-3 w-3 mr-1" /> Set Default
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-xl text-muted-foreground hover:text-destructive"
+                    onClick={() => removeMethod.mutate(method.id)}
+                    disabled={removeMethod.isPending}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground pt-2">
+          วิธีชำระเงินจะถูกเพิ่มโดยอัตโนมัติเมื่อคุณชำระเงินผ่านหน้า Billing
+        </p>
+      </CardContent>
+    </Card>
   );
 }

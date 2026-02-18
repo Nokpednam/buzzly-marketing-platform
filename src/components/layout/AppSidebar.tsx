@@ -18,6 +18,7 @@ import {
   Sparkles,
   UsersRound,
   ArrowUpRight,
+  Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ const navGroups = [
     items: [
       { title: "Team Management", url: "/team", icon: UsersRound, requiresPlan: "team" as const },
       { title: "Reports", url: "/reports", icon: FileText, requiresPlan: "pro" as const },
+      { title: "Discounts", url: "/discounts", icon: Tag, requiresPlan: "pro" as const },
     ]
   },
   {

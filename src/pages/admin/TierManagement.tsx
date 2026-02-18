@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select";
 import {
   Dialog,
@@ -34,7 +35,6 @@ import {
 import {
   AlertTriangle,
   Search,
-  Filter,
   History,
   Award,
   AlertCircle,
@@ -46,61 +46,49 @@ import {
   TrendingUp,
   TrendingDown,
   ArrowUpDown,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { tierColors, tierIcons } from "@/hooks/useLoyaltyTier";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
+import {
+  useTierHistory,
+  usePointsTransactions,
+  useSuspiciousActivities,
+  useCustomerSearch,
+  useManualTierOverride,
+  type CustomerSearchResult,
+} from "@/hooks/useTierManagement";
 
-// Fallback constants in case of import failure
+// Fallback constants
 const defaultTierColors: Record<string, { bg: string; text: string; border: string }> = {
   Bronze: { bg: "bg-amber-700/20", text: "text-amber-700", border: "border-amber-700" },
   Silver: { bg: "bg-slate-400/20", text: "text-slate-500", border: "border-slate-400" },
   Gold: { bg: "bg-yellow-500/20", text: "text-yellow-600", border: "border-yellow-500" },
   Platinum: { bg: "bg-slate-300/20", text: "text-slate-600", border: "border-slate-400" },
 };
-
 const defaultTierIcons: Record<string, string> = {
-  Bronze: "🥉",
-  Silver: "🥈",
-  Gold: "🥇",
-  Platinum: "💎",
+  Bronze: "🥉", Silver: "🥈", Gold: "🥇", Platinum: "💎",
 };
-
-// Mock data
-const mockTierHistory = [
-  { id: 1, userId: "u1", userName: "คุณสมชาย ใจดี", previousTier: "Gold", newTier: "Platinum", reason: "Points threshold reached", changedBy: "System", isManual: false, createdAt: new Date(2026, 0, 15) },
-  { id: 2, userId: "u2", userName: "คุณวิภา สุขใจ", previousTier: "Silver", newTier: "Gold", reason: "Spend threshold reached", changedBy: "System", isManual: false, createdAt: new Date(2026, 0, 14) },
-  { id: 3, userId: "u3", userName: "คุณธนา รวยดี", previousTier: "Gold", newTier: "Silver", reason: "Manual adjustment - suspected fraud", changedBy: "Admin", isManual: true, createdAt: new Date(2026, 0, 13) },
-  { id: 4, userId: "u4", userName: "คุณมานี มีทรัพย์", previousTier: "Bronze", newTier: "Silver", reason: "Membership duration", changedBy: "System", isManual: false, createdAt: new Date(2026, 0, 12) },
-];
-
-const mockPointsTransactions = [
-  { id: 1, userId: "u1", userName: "คุณสมชาย ใจดี", type: "earn", amount: 500, balance: 12500, description: "Purchase order #12345", createdAt: new Date(2026, 0, 15, 14, 30) },
-  { id: 2, userId: "u1", userName: "คุณสมชาย ใจดี", type: "spend", amount: -200, balance: 12300, description: "Redeem voucher", createdAt: new Date(2026, 0, 15, 10, 15) },
-  { id: 3, userId: "u2", userName: "คุณวิภา สุขใจ", type: "bonus", amount: 1000, balance: 9250, description: "Birthday bonus", createdAt: new Date(2026, 0, 14, 9, 0) },
-  { id: 4, userId: "u3", userName: "คุณธนา รวยดี", type: "adjustment", amount: -5000, balance: 4750, description: "Fraud investigation - points removed", createdAt: new Date(2026, 0, 13, 16, 45) },
-  { id: 5, userId: "u4", userName: "คุณมานี มีทรัพย์", type: "earn", amount: 150, balance: 3900, description: "Purchase order #12340", createdAt: new Date(2026, 0, 12, 11, 20) },
-];
-
-const mockSuspiciousActivities = [
-  { id: 1, userId: "u5", userName: "คุณศราวุธ มีพิรุธ", type: "rapid_points_gain", severity: "high", description: "ได้รับ 10,000 points ใน 1 ชั่วโมง", isResolved: false, createdAt: new Date(2026, 0, 15, 18, 0) },
-  { id: 2, userId: "u6", userName: "คุณนารี ขยันแลก", type: "multiple_redemptions", severity: "medium", description: "แลก voucher 5 ครั้งใน 10 นาที", isResolved: false, createdAt: new Date(2026, 0, 15, 12, 30) },
-  { id: 3, userId: "u3", userName: "คุณธนา รวยดี", type: "account_sharing", severity: "critical", description: "เข้าใช้งานจาก 3 IP พร้อมกัน", isResolved: true, createdAt: new Date(2026, 0, 13, 16, 0), resolvedAt: new Date(2026, 0, 13, 17, 0) },
-];
-
-const mockCustomerSearch = [
-  { id: "u1", name: "คุณสมชาย ใจดี", email: "somchai@example.com", tier: "Platinum", points: 12500, totalSpend: 250000, memberSince: new Date(2024, 5, 1) },
-  { id: "u2", name: "คุณวิภา สุขใจ", email: "wipa@example.com", tier: "Gold", points: 9250, totalSpend: 185000, memberSince: new Date(2024, 8, 15) },
-];
 
 export default function TierManagement() {
   const { toast } = useToast();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCustomer, setSelectedCustomer] = useState<typeof mockCustomerSearch[0] | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(null);
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
   const [overrideTier, setOverrideTier] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
+
+  // Real DB hooks
+  const { data: tierHistory = [], isLoading: historyLoading } = useTierHistory();
+  const { data: pointsTransactions = [], isLoading: txLoading } = usePointsTransactions();
+  const { data: suspiciousActivities = [], isLoading: alertsLoading, resolveActivity, suspendCustomer } = useSuspiciousActivities();
+  const { query: searchQuery, setQuery: setSearchQuery, data: searchResults = [], isFetching: searchLoading } = useCustomerSearch();
+  const manualOverride = useManualTierOverride();
+
+  const safeTierIcons = tierIcons || defaultTierIcons;
+  const safeTierColors = tierColors || defaultTierColors;
+  const safeLocale = th || undefined;
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -111,36 +99,27 @@ export default function TierManagement() {
     }
   };
 
-  const handleInspect = (activityId: number) => {
-    toast({
-      title: "ตรวจสอบกิจกรรม",
-      description: `กำลังเปิดรายละเอียดกิจกรรม ID: ${activityId}`,
-    });
-  };
-
-  const handleSuspend = (activityId: number) => {
-    toast({
-      title: "ระงับบัญชีผู้ใช้",
-      description: `ได้ทำการระงับบัญชีสำหรับกิจกรรม ID: ${activityId} เรียบร้อยแล้ว`,
-      variant: "destructive",
-    });
-  };
-
   const getTransactionTypeColor = (type: string) => {
     switch (type) {
       case "earn": return "text-green-600";
       case "bonus": return "text-blue-600";
       case "spend": return "text-orange-600";
       case "adjustment": return "text-destructive";
-      case "expire": return "text-muted-foreground";
       default: return "text-foreground";
     }
   };
 
-  // Robustly handle missing imports by falling back to local defaults
-  const safeTierIcons = tierIcons || defaultTierIcons;
-  const safeTierColors = tierColors || defaultTierColors;
-  const safeLocale = th || undefined;
+  const handleManualOverride = async () => {
+    if (!selectedCustomer || !overrideTier || !overrideReason.trim()) return;
+    await manualOverride.mutateAsync({
+      userId: selectedCustomer.id,
+      newTierName: overrideTier,
+      reason: overrideReason,
+    });
+    setOverrideDialogOpen(false);
+    setOverrideTier("");
+    setOverrideReason("");
+  };
 
   return (
     <div className="space-y-6 p-6">
@@ -154,51 +133,52 @@ export default function TierManagement() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            ค้นหาลูกค้า
+            <Search className="h-5 w-5" /> ค้นหาลูกค้า
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-4">
-            <div className="flex-1">
+            <div className="flex-1 relative">
               <Input
                 placeholder="ค้นหาด้วยชื่อ, อีเมล หรือ ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+              {searchLoading && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
             </div>
-            <Button>ค้นหา</Button>
           </div>
 
-          {searchQuery && (
+          {searchQuery.length >= 2 && (
             <div className="mt-4 space-y-2">
-              {mockCustomerSearch.filter(customer =>
-                customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                customer.id.toLowerCase().includes(searchQuery.toLowerCase())
-              ).map((customer) => (
-                <div
-                  key={customer.id}
-                  className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
-                  onClick={() => setSelectedCustomer(customer)}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="text-2xl">{safeTierIcons[customer.tier]}</div>
-                    <div>
-                      <p className="font-medium">{customer.name}</p>
-                      <p className="text-sm text-muted-foreground">{customer.email}</p>
+              {searchResults.length === 0 && !searchLoading ? (
+                <p className="text-sm text-muted-foreground text-center py-4">ไม่พบลูกค้าที่ตรงกัน</p>
+              ) : (
+                searchResults.map((customer) => (
+                  <div
+                    key={customer.id}
+                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 cursor-pointer"
+                    onClick={() => setSelectedCustomer(customer)}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="text-2xl">{safeTierIcons[customer.loyalty_tier ?? ""] ?? "👤"}</div>
+                      <div>
+                        <p className="font-medium">{customer.full_name ?? "ไม่ระบุชื่อ"}</p>
+                        <p className="text-sm text-muted-foreground">{customer.email}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Badge className={safeTierColors[customer.loyalty_tier ?? ""]?.bg ?? "bg-muted"}>
+                        {customer.loyalty_tier ?? "—"}
+                      </Badge>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {(customer.loyalty_points_balance ?? 0).toLocaleString()} pts
+                      </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <Badge className={safeTierColors[customer.tier]?.bg}>
-                      {customer.tier}
-                    </Badge>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {customer.points.toLocaleString()} pts
-                    </p>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           )}
         </CardContent>
@@ -210,40 +190,37 @@ export default function TierManagement() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
-                {safeTierIcons[selectedCustomer.tier]} {selectedCustomer.name}
+                {safeTierIcons[selectedCustomer.loyalty_tier ?? ""] ?? "👤"} {selectedCustomer.full_name ?? "ไม่ระบุชื่อ"}
               </CardTitle>
               <CardDescription>{selectedCustomer.email}</CardDescription>
             </div>
             <Dialog open={overrideDialogOpen} onOpenChange={setOverrideDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline">
-                  <Edit className="h-4 w-4 mr-2" />
-                  Manual Override
+                  <Edit className="h-4 w-4 mr-2" /> Manual Override
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Manual Tier Override</DialogTitle>
                   <DialogDescription>
-                    เปลี่ยน Tier ของลูกค้า {selectedCustomer.name} ด้วยตนเอง
+                    เปลี่ยน Tier ของลูกค้า {selectedCustomer.full_name} ด้วยตนเอง
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
                     <Label>Current Tier</Label>
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">{safeTierIcons[selectedCustomer.tier]}</span>
-                      <Badge className={safeTierColors[selectedCustomer.tier]?.bg}>
-                        {selectedCustomer.tier}
+                      <span className="text-xl">{safeTierIcons[selectedCustomer.loyalty_tier ?? ""] ?? "—"}</span>
+                      <Badge className={safeTierColors[selectedCustomer.loyalty_tier ?? ""]?.bg ?? "bg-muted"}>
+                        {selectedCustomer.loyalty_tier ?? "ไม่มี"}
                       </Badge>
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label>New Tier</Label>
                     <Select value={overrideTier} onValueChange={setOverrideTier}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="เลือก Tier ใหม่" />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="เลือก Tier ใหม่" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Bronze">🥉 Bronze</SelectItem>
                         <SelectItem value="Silver">🥈 Silver</SelectItem>
@@ -262,10 +239,12 @@ export default function TierManagement() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setOverrideDialogOpen(false)}>
-                    ยกเลิก
-                  </Button>
-                  <Button onClick={() => setOverrideDialogOpen(false)}>
+                  <Button variant="outline" onClick={() => setOverrideDialogOpen(false)}>ยกเลิก</Button>
+                  <Button
+                    onClick={handleManualOverride}
+                    disabled={!overrideTier || !overrideReason.trim() || manualOverride.isPending}
+                  >
+                    {manualOverride.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                     บันทึกการเปลี่ยนแปลง
                   </Button>
                 </DialogFooter>
@@ -275,101 +254,122 @@ export default function TierManagement() {
           <CardContent>
             <div className="grid grid-cols-4 gap-4">
               <div className="text-center p-4 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold">{selectedCustomer.points.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{(selectedCustomer.loyalty_points_balance ?? 0).toLocaleString()}</p>
                 <p className="text-sm text-muted-foreground">Points</p>
               </div>
               <div className="text-center p-4 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold">${selectedCustomer.totalSpend.toLocaleString()}</p>
+                <p className="text-2xl font-bold">฿{(selectedCustomer.total_spend ?? 0).toLocaleString()}</p>
                 <p className="text-sm text-muted-foreground">Total Spend</p>
               </div>
               <div className="text-center p-4 rounded-lg bg-muted/50">
                 <p className="text-2xl font-bold">
-                  {Math.floor((Date.now() - selectedCustomer.memberSince.getTime()) / (1000 * 60 * 60 * 24 * 30))} เดือน
+                  {selectedCustomer.created_at
+                    ? Math.floor((Date.now() - new Date(selectedCustomer.created_at).getTime()) / (1000 * 60 * 60 * 24 * 30))
+                    : 0} เดือน
                 </p>
                 <p className="text-sm text-muted-foreground">Member Duration</p>
               </div>
               <div className="text-center p-4 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold">{safeTierIcons[selectedCustomer.tier]}</p>
-                <p className="text-sm text-muted-foreground">{selectedCustomer.tier}</p>
+                <p className="text-2xl font-bold">{safeTierIcons[selectedCustomer.loyalty_tier ?? ""] ?? "—"}</p>
+                <p className="text-sm text-muted-foreground">{selectedCustomer.loyalty_tier ?? "ไม่มี"}</p>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Tabs for different views - Partially restored for testing */}
+      {/* Tabs */}
       <Tabs defaultValue="history" className="space-y-4">
         <TabsList>
           <TabsTrigger value="history" className="flex items-center gap-2">
-            <History className="h-4 w-4" />
-            ประวัติการเปลี่ยน Tier
+            <History className="h-4 w-4" /> ประวัติการเปลี่ยน Tier
           </TabsTrigger>
           <TabsTrigger value="transactions" className="flex items-center gap-2">
-            <ArrowUpDown className="h-4 w-4" />
-            ธุรกรรม Points
+            <ArrowUpDown className="h-4 w-4" /> ธุรกรรม Points
           </TabsTrigger>
           <TabsTrigger value="alerts" className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" />
-            Suspicious Activities
+            <AlertTriangle className="h-4 w-4" /> Suspicious Activities
+            {suspiciousActivities.filter(a => !a.is_resolved).length > 0 && (
+              <Badge className="bg-destructive text-destructive-foreground text-[10px] h-4 px-1 ml-1">
+                {suspiciousActivities.filter(a => !a.is_resolved).length}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
+        {/* Tab 1: Tier History */}
         <TabsContent value="history">
           <Card>
             <CardHeader>
               <CardTitle>ประวัติการเปลี่ยน Tier</CardTitle>
+              <CardDescription>บันทึกการเปลี่ยน Tier ทั้งหมดในระบบ</CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>วันที่</TableHead>
-                    <TableHead>ลูกค้า</TableHead>
-                    <TableHead>Tier เดิม</TableHead>
-                    <TableHead>Tier ใหม่</TableHead>
-                    <TableHead>เหตุผล</TableHead>
-                    <TableHead>โดย</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mockTierHistory.map((history) => (
-                    <TableRow key={history.id}>
-                      <TableCell className="text-sm">
-                        {format(history.createdAt, "d MMM yyyy", { locale: safeLocale })}
-                      </TableCell>
-                      <TableCell className="font-medium">{history.userName}</TableCell>
-                      <TableCell>
-                        <Badge className={safeTierColors[history.previousTier]?.bg}>
-                          {safeTierIcons[history.previousTier] || "?"} {history.previousTier}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="flex items-center gap-1">
-                          {history.previousTier < history.newTier ? (
-                            <TrendingUp className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <TrendingDown className="h-4 w-4 text-destructive" />
-                          )}
-                          <Badge className={safeTierColors[history.newTier]?.bg}>
-                            {safeTierIcons[history.newTier] || "?"} {history.newTier}
-                          </Badge>
-                        </span>
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate">{history.reason}</TableCell>
-                      <TableCell>
-                        <Badge variant={history.isManual ? "destructive" : "secondary"}>
-                          {history.changedBy}
-                        </Badge>
-                      </TableCell>
+              {historyLoading ? (
+                <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+              ) : tierHistory.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">ยังไม่มีประวัติการเปลี่ยน Tier</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>วันที่</TableHead>
+                      <TableHead>ลูกค้า</TableHead>
+                      <TableHead>Tier เดิม</TableHead>
+                      <TableHead>Tier ใหม่</TableHead>
+                      <TableHead>เหตุผล</TableHead>
+                      <TableHead>โดย</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {tierHistory.map((history) => {
+                      const prevTierName = history.previous_tier?.name ?? "—";
+                      const newTierName = history.new_tier?.name ?? "—";
+                      const customerName = history.customer?.full_name ?? history.customer?.email ?? history.user_id.slice(0, 8);
+                      const changerName = history.is_manual_override
+                        ? (history.changer?.full_name ?? "Admin")
+                        : "System";
+
+                      return (
+                        <TableRow key={history.id}>
+                          <TableCell className="text-sm">
+                            {format(new Date(history.created_at), "d MMM yyyy", { locale: safeLocale })}
+                          </TableCell>
+                          <TableCell className="font-medium">{customerName}</TableCell>
+                          <TableCell>
+                            <Badge className={safeTierColors[prevTierName]?.bg ?? "bg-muted"}>
+                              {safeTierIcons[prevTierName] ?? "?"} {prevTierName}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="flex items-center gap-1">
+                              {prevTierName < newTierName ? (
+                                <TrendingUp className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <TrendingDown className="h-4 w-4 text-destructive" />
+                              )}
+                              <Badge className={safeTierColors[newTierName]?.bg ?? "bg-muted"}>
+                                {safeTierIcons[newTierName] ?? "?"} {newTierName}
+                              </Badge>
+                            </span>
+                          </TableCell>
+                          <TableCell className="max-w-[200px] truncate">{history.change_reason ?? "—"}</TableCell>
+                          <TableCell>
+                            <Badge variant={history.is_manual_override ? "destructive" : "secondary"}>
+                              {changerName}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Points Transactions Tab */}
+        {/* Tab 2: Points Transactions */}
         <TabsContent value="transactions">
           <Card>
             <CardHeader>
@@ -377,120 +377,132 @@ export default function TierManagement() {
               <CardDescription>ประวัติการได้รับ/ใช้คะแนนทั้งหมด</CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>วันเวลา</TableHead>
-                    <TableHead>ลูกค้า</TableHead>
-                    <TableHead>ประเภท</TableHead>
-                    <TableHead className="text-right">จำนวน</TableHead>
-                    <TableHead className="text-right">ยอดคงเหลือ</TableHead>
-                    <TableHead>รายละเอียด</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mockPointsTransactions.map((tx) => (
-                    <TableRow key={tx.id}>
-                      <TableCell className="text-sm">
-                        {format(tx.createdAt, "d MMM yyyy HH:mm", { locale: safeLocale })}
-                      </TableCell>
-                      <TableCell className="font-medium">{tx.userName}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="capitalize">
-                          {tx.type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className={cn("text-right font-medium", getTransactionTypeColor(tx.type))}>
-                        {tx.amount > 0 ? "+" : ""}{tx.amount.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right">{tx.balance.toLocaleString()}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{tx.description}</TableCell>
+              {txLoading ? (
+                <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+              ) : pointsTransactions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">ยังไม่มีธุรกรรม Points</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>วันเวลา</TableHead>
+                      <TableHead>ลูกค้า</TableHead>
+                      <TableHead>ประเภท</TableHead>
+                      <TableHead className="text-right">จำนวน</TableHead>
+                      <TableHead className="text-right">ยอดคงเหลือ</TableHead>
+                      <TableHead>รายละเอียด</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {pointsTransactions.map((tx) => {
+                      const customerName = tx.customer?.full_name ?? tx.customer?.email ?? tx.user_id.slice(0, 8);
+                      return (
+                        <TableRow key={tx.id}>
+                          <TableCell className="text-sm">
+                            {format(new Date(tx.created_at), "d MMM yyyy HH:mm", { locale: safeLocale })}
+                          </TableCell>
+                          <TableCell className="font-medium">{customerName}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="capitalize">{tx.transaction_type}</Badge>
+                          </TableCell>
+                          <TableCell className={cn("text-right font-medium", getTransactionTypeColor(tx.transaction_type))}>
+                            {tx.points > 0 ? "+" : ""}{tx.points.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right">{(tx.balance_after ?? 0).toLocaleString()}</TableCell>
+                          <TableCell className="max-w-[200px] truncate">{tx.description ?? "—"}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Suspicious Activities Tab */}
+        {/* Tab 3: Suspicious Activities */}
         <TabsContent value="alerts">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-orange-500" />
-                Suspicious Activities ({mockSuspiciousActivities.length})
+                Suspicious Activities ({suspiciousActivities.filter(a => !a.is_resolved).length} unresolved)
               </CardTitle>
               <CardDescription>กิจกรรมที่น่าสงสัยและต้องตรวจสอบ</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {mockSuspiciousActivities.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className={cn(
-                      "flex items-center justify-between p-4 rounded-lg border",
-                      activity.isResolved ? "bg-muted/30" : "bg-destructive/5 border-destructive/20"
-                    )}
-                  >
-                    <div className="flex items-center gap-4">
-
-                      <div className={cn(
-                        "flex h-10 w-10 items-center justify-center rounded-full",
-                        activity.isResolved ? "bg-green-500/20" : "bg-destructive/20"
-                      )}>
-                        {activity.isResolved ? (
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <AlertCircle className="h-5 w-5 text-destructive" />
+              {alertsLoading ? (
+                <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}</div>
+              ) : suspiciousActivities.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3 opacity-50" />
+                  ไม่มีกิจกรรมที่น่าสงสัย
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {suspiciousActivities.map((activity) => {
+                    const customerName = activity.customer?.full_name ?? activity.customer?.email ?? activity.user_id.slice(0, 8);
+                    return (
+                      <div
+                        key={activity.id}
+                        className={cn(
+                          "flex items-center justify-between p-4 rounded-lg border",
+                          activity.is_resolved ? "bg-muted/30" : "bg-destructive/5 border-destructive/20"
                         )}
-                      </div>
-
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium">{activity.userName}</p>
-                          <Badge className={getSeverityColor(activity.severity)}>
-                            {activity.severity}
-                          </Badge>
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={cn(
+                            "flex h-10 w-10 items-center justify-center rounded-full",
+                            activity.is_resolved ? "bg-green-500/20" : "bg-destructive/20"
+                          )}>
+                            {activity.is_resolved ? (
+                              <CheckCircle className="h-5 w-5 text-green-600" />
+                            ) : (
+                              <AlertCircle className="h-5 w-5 text-destructive" />
+                            )}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{customerName}</p>
+                              <Badge className={getSeverityColor(activity.severity)}>{activity.severity}</Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">{activity.description ?? activity.activity_type}</p>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                              <Clock className="h-3 w-3" />
+                              {format(new Date(activity.created_at), "d MMM yyyy HH:mm", { locale: safeLocale })}
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">{activity.description}</p>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-
-                          <Clock className="h-3 w-3" />
-                          {format(activity.createdAt, "d MMM yyyy HH:mm", { locale: safeLocale })}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          {!activity.is_resolved && (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => resolveActivity.mutate({ activityId: activity.id })}
+                                disabled={resolveActivity.isPending}
+                              >
+                                <Eye className="h-4 w-4 mr-1" /> แก้ไขแล้ว
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => suspendCustomer.mutate(activity.user_id)}
+                                disabled={suspendCustomer.isPending}
+                              >
+                                <XCircle className="h-4 w-4 mr-1" /> ระงับ
+                              </Button>
+                            </>
+                          )}
+                          {activity.is_resolved && (
+                            <Badge variant="outline" className="text-green-600 border-green-600">แก้ไขแล้ว</Badge>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {!activity.isResolved && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleInspect(activity.id)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            ตรวจสอบ
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleSuspend(activity.id)}
-                          >
-                            <XCircle className="h-4 w-4 mr-1" />
-                            ระงับ
-                          </Button>
-                        </>
-                      )}
-                      {activity.isResolved && (
-                        <Badge variant="outline" className="text-green-600 border-green-600">
-                          แก้ไขแล้ว
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -20,6 +20,9 @@ import {
   MousePointer2,
   DollarSign,
   Activity,
+  TrendingDown,
+  ShoppingCart,
+  Users,
 } from "lucide-react";
 import {
   AreaChart,
@@ -32,6 +35,8 @@ import {
 } from "recharts";
 import { usePlatformConnections } from "@/hooks/usePlatformConnections";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +61,35 @@ export default function Dashboard() {
 
   const { data: metrics, isLoading, refetch } = useDashboardMetrics(dateRange);
 
+  // Revenue metrics from revenue_metrics table
+  const { data: revenueMetrics } = useQuery({
+    queryKey: ["revenue-metrics-dashboard"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      // Get team ID
+      const { data: ws } = await supabase
+        .from("workspaces")
+        .select("id")
+        .eq("owner_id", user.id)
+        .maybeSingle();
+
+      const teamId = ws?.id ?? null;
+      if (!teamId) return null;
+
+      const { data } = await supabase
+        .from("revenue_metrics")
+        .select("gross_revenue, net_revenue, profit, profit_margin, revenue_growth_percent, total_orders, new_customers, metric_date")
+        .eq("team_id", teamId)
+        .order("metric_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      return data;
+    },
+  });
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await refetch();
@@ -70,7 +104,7 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 animate-in fade-in duration-700">
-      
+
       {/* 1. DYNAMIC HEADER */}
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between border-b pb-8">
         <div className="space-y-1">
@@ -106,30 +140,30 @@ export default function Dashboard() {
         <NoDataState />
       ) : (
         <div className="space-y-8">
-          
+
           {/* 2. CORE METRICS BENTO GRID */}
           <div className="grid gap-6 md:grid-cols-3">
-            <SummaryCard 
-              title="Awareness Flow" 
-              icon={Eye} 
+            <SummaryCard
+              title="Awareness Flow"
+              icon={Eye}
               primaryLabel="Total Impressions"
               primaryValue={formatValue(metrics.totalImpressions, "number")}
               secondaryLabel="Engagement (Clicks)"
               secondaryValue={formatValue(metrics.totalClicks, "number")}
               color="blue"
             />
-            <SummaryCard 
-              title="Efficiency Rate" 
-              icon={Target} 
+            <SummaryCard
+              title="Efficiency Rate"
+              icon={Target}
               primaryLabel="Total Conversions"
               primaryValue={formatValue(metrics.totalConversions, "number")}
               secondaryLabel="Avg. CTR"
               secondaryValue={formatValue(metrics.avgCtr, "percent")}
               color="emerald"
             />
-            <SummaryCard 
-              title="Economic Impact" 
-              icon={Wallet} 
+            <SummaryCard
+              title="Economic Impact"
+              icon={Wallet}
               primaryLabel="ROAS"
               primaryValue={formatValue(metrics.avgRoas, "multiplier")}
               secondaryLabel="Total Ad Spend"
@@ -160,25 +194,25 @@ export default function Dashboard() {
                   <AreaChart data={metrics.trendData}>
                     <defs>
                       <linearGradient id="colorImp" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                       </linearGradient>
                       <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
-                    <XAxis 
-                      dataKey="date" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{fontSize: 11, fontWeight: 600}}
+                    <XAxis
+                      dataKey="date"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 11, fontWeight: 600 }}
                       tickFormatter={(val) => new Date(val).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     />
-                    <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11}} />
-                    <Tooltip 
-                      contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} 
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
                     />
                     <Area type="monotone" dataKey="impressions" stroke="hsl(var(--primary))" strokeWidth={3} fill="url(#colorImp)" />
                     <Area type="monotone" dataKey="clicks" stroke="hsl(var(--chart-2))" strokeWidth={3} fill="url(#colorClicks)" />
@@ -195,6 +229,62 @@ export default function Dashboard() {
             <KPIItem label="Total Investment" value={formatValue(metrics.totalSpend, "currency")} icon={DollarSign} />
             <KPIItem label="Coverage" value={`${metrics.trendData.length} Days`} icon={BarChart3} />
           </div>
+
+          {/* 5. REVENUE METRICS SECTION */}
+          {revenueMetrics && (
+            <Card className="border-none shadow-sm bg-muted/20 rounded-3xl overflow-hidden">
+              <CardHeader className="p-8 pb-4">
+                <CardTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-emerald-500" /> Revenue Overview
+                </CardTitle>
+                <CardDescription>
+                  ข้อมูลรายได้จริงจากฐานข้อมูล · อัปเดตล่าสุด: {revenueMetrics.metric_date}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-8 pt-0">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <RevenueKPI
+                    label="Gross Revenue"
+                    value={`฿${Number(revenueMetrics.gross_revenue ?? 0).toLocaleString()}`}
+                    icon={DollarSign}
+                    color="text-emerald-600"
+                  />
+                  <RevenueKPI
+                    label="Net Revenue"
+                    value={`฿${Number(revenueMetrics.net_revenue ?? 0).toLocaleString()}`}
+                    icon={Wallet}
+                    color="text-blue-600"
+                  />
+                  <RevenueKPI
+                    label="Profit Margin"
+                    value={`${Number(revenueMetrics.profit_margin ?? 0).toFixed(1)}%`}
+                    icon={revenueMetrics.profit_margin && revenueMetrics.profit_margin > 0 ? TrendingUp : TrendingDown}
+                    color={revenueMetrics.profit_margin && revenueMetrics.profit_margin > 0 ? "text-green-600" : "text-destructive"}
+                  />
+                  <RevenueKPI
+                    label="Revenue Growth"
+                    value={`${Number(revenueMetrics.revenue_growth_percent ?? 0) > 0 ? "+" : ""}${Number(revenueMetrics.revenue_growth_percent ?? 0).toFixed(1)}%`}
+                    icon={revenueMetrics.revenue_growth_percent && revenueMetrics.revenue_growth_percent > 0 ? TrendingUp : TrendingDown}
+                    color={revenueMetrics.revenue_growth_percent && revenueMetrics.revenue_growth_percent > 0 ? "text-green-600" : "text-destructive"}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <RevenueKPI
+                    label="Total Orders"
+                    value={(revenueMetrics.total_orders ?? 0).toLocaleString()}
+                    icon={ShoppingCart}
+                    color="text-purple-600"
+                  />
+                  <RevenueKPI
+                    label="New Customers"
+                    value={(revenueMetrics.new_customers ?? 0).toLocaleString()}
+                    icon={Users}
+                    color="text-amber-600"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>
@@ -248,6 +338,20 @@ function KPIItem({ label, value, icon: Icon }: any) {
         <p className="text-lg font-black tracking-tight">{value}</p>
       </div>
     </Card>
+  );
+}
+
+function RevenueKPI({ label, value, icon: Icon, color }: { label: string; value: string; icon: any; color: string }) {
+  return (
+    <div className="flex items-center gap-3 p-4 rounded-2xl bg-background border shadow-sm">
+      <div className={cn("h-9 w-9 rounded-xl bg-muted flex items-center justify-center shrink-0", color)}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
+        <p className={cn("text-base font-black tracking-tight", color)}>{value}</p>
+      </div>
+    </div>
   );
 }
 

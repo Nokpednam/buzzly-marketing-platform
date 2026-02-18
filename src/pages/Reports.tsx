@@ -34,6 +34,7 @@ import {
   ArrowRight,
   Sparkles,
   FileCheck,
+  Loader2,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -42,15 +43,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PlanRestrictedPage } from "@/components/PlanRestrictedPage";
-
-// --- Mock Data ---
-const reports = [
-  { id: 1, name: "Monthly Performance Summary", type: "Performance", format: "PDF", createdAt: "Feb 10, 2026", size: "2.4 MB", status: "ready" },
-  { id: 2, name: "Q4 Campaign Analysis", type: "Campaign", format: "Excel", createdAt: "Feb 08, 2026", size: "5.1 MB", status: "ready" },
-  { id: 3, name: "Email Marketing Metrics", type: "Email", format: "PDF", createdAt: "Feb 05, 2026", size: "1.8 MB", status: "ready" },
-];
+import { useReports } from "@/hooks/useReports";
+import { format } from "date-fns";
+import { th } from "date-fns/locale";
 
 const reportTemplates = [
   { id: "campaign", name: "Campaign Performance", description: "Conversion & CTR deep dive", icon: BarChart3, color: "text-blue-500", bg: "bg-blue-500/10" },
@@ -60,18 +58,44 @@ const reportTemplates = [
 ];
 
 function ReportsContent() {
+  const { reports, isLoading, createReport, deleteReport } = useReports();
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewType, setPreviewType] = useState("campaign");
+  const [previewReport, setPreviewReport] = useState<string | null>(null);
+  const [filterFormat, setFilterFormat] = useState("all");
 
-  const handleQuickGenerate = (typeId: string) => {
-    setPreviewType(typeId);
+  // Custom report form state
+  const [newReportName, setNewReportName] = useState("");
+  const [newReportType, setNewReportType] = useState("campaign");
+  const [newReportFormat, setNewReportFormat] = useState("pdf");
+
+  const handleQuickGenerate = (typeId: string, reportName?: string) => {
+    setPreviewReport(reportName ?? typeId);
     setIsPreviewOpen(true);
   };
 
+  const handleSaveReport = async () => {
+    if (!newReportName.trim()) return;
+    await createReport.mutateAsync({
+      name: newReportName,
+      report_type: newReportType,
+      file_format: newReportFormat,
+    });
+    setIsGenerateOpen(false);
+    setNewReportName("");
+  };
+
+  const handleDelete = async (reportId: string) => {
+    await deleteReport.mutateAsync(reportId);
+  };
+
+  const filteredReports = reports.filter((r) => {
+    if (filterFormat === "all") return true;
+    return r.file_format?.toLowerCase() === filterFormat;
+  });
+
   return (
     <div className="max-w-7xl mx-auto space-y-8 p-4 md:p-8">
-      
       {/* 1. HEADER SECTION */}
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b pb-8">
         <div className="space-y-1">
@@ -82,17 +106,23 @@ function ReportsContent() {
           <p className="text-muted-foreground">Transform your marketing data into actionable stakeholder insights.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="rounded-xl px-6 h-11 border-primary/20 hover:bg-primary/5 text-primary">
+          <Button
+            variant="outline"
+            className="rounded-xl px-6 h-11 border-primary/20 hover:bg-primary/5 text-primary"
+            onClick={() => { }}
+          >
             <Clock className="h-4 w-4 mr-2" /> Schedule Automation
           </Button>
-          <Button onClick={() => setIsGenerateOpen(true)} className="rounded-xl px-6 h-11 shadow-lg shadow-primary/20 bg-primary">
+          <Button
+            onClick={() => setIsGenerateOpen(true)}
+            className="rounded-xl px-6 h-11 shadow-lg shadow-primary/20 bg-primary"
+          >
             <Plus className="h-4 w-4 mr-2" /> Custom Report
           </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
         {/* LEFT: TEMPLATE GALLERY (4 COL) */}
         <div className="lg:col-span-4 space-y-6">
           <div className="flex items-center justify-between">
@@ -101,10 +131,10 @@ function ReportsContent() {
           </div>
           <div className="grid grid-cols-1 gap-4">
             {reportTemplates.map((template) => (
-              <Card 
-                key={template.id} 
+              <Card
+                key={template.id}
                 className="group cursor-pointer border-none bg-muted/30 transition-all hover:bg-muted/50 hover:ring-1 ring-primary/20 overflow-hidden"
-                onClick={() => handleQuickGenerate(template.id)}
+                onClick={() => handleQuickGenerate(template.id, template.name)}
               >
                 <CardContent className="p-4 flex items-center gap-4">
                   <div className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm bg-background ${template.color}`}>
@@ -119,7 +149,7 @@ function ReportsContent() {
               </Card>
             ))}
           </div>
-          
+
           <Card className="bg-primary text-primary-foreground border-none rounded-3xl overflow-hidden relative">
             <div className="absolute top-0 right-0 p-4 opacity-10"><BarChart3 className="h-20 w-20" /></div>
             <CardContent className="p-6 relative">
@@ -138,7 +168,7 @@ function ReportsContent() {
                 <FileCheck className="h-5 w-5 text-primary" />
                 <CardTitle className="text-lg">Recent Archives</CardTitle>
               </div>
-              <Select defaultValue="all">
+              <Select value={filterFormat} onValueChange={setFilterFormat}>
                 <SelectTrigger className="w-32 bg-background">
                   <SelectValue placeholder="All Files" />
                 </SelectTrigger>
@@ -150,87 +180,196 @@ function ReportsContent() {
               </Select>
             </CardHeader>
             <CardContent className="px-0">
-              <div className="space-y-3">
-                {reports.map((report) => (
-                  <div 
-                    key={report.id} 
-                    className="flex items-center justify-between p-4 rounded-2xl bg-background border hover:border-primary/50 transition-all hover:shadow-md group"
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-20 w-full rounded-2xl" />
+                  ))}
+                </div>
+              ) : filteredReports.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <FileText className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                  <p className="font-bold text-muted-foreground">ยังไม่มีรายงาน</p>
+                  <p className="text-sm text-muted-foreground mt-1">คลิก "Custom Report" เพื่อสร้างรายงานแรกของคุณ</p>
+                  <Button
+                    size="sm"
+                    className="mt-4 rounded-xl"
+                    onClick={() => setIsGenerateOpen(true)}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${report.format === 'PDF' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
-                        {report.format === 'PDF' ? <FileText className="h-5 w-5" /> : <FileSpreadsheet className="h-5 w-5" />}
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-sm group-hover:text-primary transition-colors">{report.name}</h4>
-                        <div className="flex items-center gap-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-0.5">
-                          <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {report.createdAt}</span>
-                          <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {report.size}</span>
+                    <Plus className="h-4 w-4 mr-2" /> สร้างรายงาน
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredReports.map((report) => (
+                    <div
+                      key={report.id}
+                      className="flex items-center justify-between p-4 rounded-2xl bg-background border hover:border-primary/50 transition-all hover:shadow-md group"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${report.file_format === "pdf" ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"}`}>
+                          {report.file_format === "pdf" ? <FileText className="h-5 w-5" /> : <FileSpreadsheet className="h-5 w-5" />}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm group-hover:text-primary transition-colors">{report.name}</h4>
+                          <div className="flex items-center gap-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-0.5">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {report.created_at
+                                ? format(new Date(report.created_at), "d MMM yyyy", { locale: th })
+                                : "—"}
+                            </span>
+                            <Badge variant="outline" className="text-[9px] py-0 h-4">
+                              {report.report_type}
+                            </Badge>
+                            <Badge
+                              className={`text-[9px] py-0 h-4 ${report.status === "ready"
+                                  ? "bg-green-500/10 text-green-600"
+                                  : "bg-yellow-500/10 text-yellow-600"
+                                }`}
+                            >
+                              {report.status}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="rounded-full h-9 w-9"
+                          onClick={() => handleQuickGenerate(report.id, report.name)}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {report.file_url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl px-4 h-9 gap-2"
+                            asChild
+                          >
+                            <a href={report.file_url} target="_blank" rel="noopener noreferrer">
+                              <Download className="h-3.5 w-3.5" /> Download
+                            </a>
+                          </Button>
+                        )}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="rounded-full">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="rounded-xl">
+                            <DropdownMenuItem>
+                              <Share2 className="mr-2 h-4 w-4" /> Share with Team
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => handleDelete(report.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" /> Move to Trash
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={() => handleQuickGenerate(report.id.toString())}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" className="rounded-xl px-4 h-9 gap-2">
-                        <Download className="h-3.5 w-3.5" /> Download
-                      </Button>
-                      <ReportActions />
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* --- PREVIEW DIALOG (Redesigned for Professionalism) --- */}
+      {/* --- CREATE REPORT DIALOG --- */}
+      <Dialog open={isGenerateOpen} onOpenChange={setIsGenerateOpen}>
+        <DialogContent className="sm:max-w-[480px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black">สร้างรายงานใหม่</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>ชื่อรายงาน</Label>
+              <Input
+                placeholder="เช่น Monthly Performance Q1 2026"
+                value={newReportName}
+                onChange={(e) => setNewReportName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>ประเภทรายงาน</Label>
+              <Select value={newReportType} onValueChange={setNewReportType}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {reportTemplates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>รูปแบบไฟล์</Label>
+              <Select value={newReportFormat} onValueChange={setNewReportFormat}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pdf">PDF</SelectItem>
+                  <SelectItem value="excel">Excel</SelectItem>
+                  <SelectItem value="csv">CSV</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsGenerateOpen(false)}>
+              ยกเลิก
+            </Button>
+            <Button
+              onClick={handleSaveReport}
+              disabled={!newReportName.trim() || createReport.isPending}
+              className="rounded-xl"
+            >
+              {createReport.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
+              สร้างรายงาน
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* --- PREVIEW DIALOG --- */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="sm:max-w-[850px] p-0 border-none shadow-2xl rounded-3xl overflow-hidden bg-muted/20">
           <div className="h-[80vh] overflow-y-auto p-6 md:p-12">
-            {/* The "Paper" Report */}
             <div className="bg-background shadow-2xl rounded-sm p-12 min-h-full border">
               <div className="flex justify-between items-start mb-12 border-b pb-8">
                 <div>
                   <div className="bg-primary text-primary-foreground text-[10px] font-black px-2 py-1 rounded w-fit mb-4 tracking-widest">BUZZLY REPORT</div>
-                  <h2 className="text-3xl font-black uppercase tracking-tighter">Performance Summary</h2>
-                  <p className="text-muted-foreground font-serif italic">Generated for the period of Feb 1 - Feb 11, 2026</p>
+                  <h2 className="text-3xl font-black uppercase tracking-tighter">{previewReport ?? "Performance Summary"}</h2>
+                  <p className="text-muted-foreground font-serif italic">
+                    Generated on {format(new Date(), "d MMMM yyyy", { locale: th })}
+                  </p>
                 </div>
                 <div className="text-right text-[10px] font-bold text-muted-foreground uppercase leading-loose">
-                  Ref: #BZY-2026-0042<br />
+                  Ref: #BZY-{Date.now().toString().slice(-6)}<br />
                   Data: Aggregated Channels<br />
                   Status: Finalized
                 </div>
               </div>
-
               <div className="grid grid-cols-3 gap-8 mb-12">
                 <Metric label="Total Impressions" value="1.42M" change="+12%" />
                 <Metric label="Conv. Rate" value="3.82%" change="+0.4%" />
                 <Metric label="Ad Spend" value="$12,400" change="-5%" />
               </div>
-
-              <div className="space-y-4 mb-12">
-                <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Channel Breakdown</h4>
-                <div className="border rounded-xl overflow-hidden">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-muted/50 border-b">
-                      <tr>
-                        <th className="p-3 font-bold">Platform</th>
-                        <th className="p-3 font-bold">Reach</th>
-                        <th className="p-3 font-bold">Engagement</th>
-                        <th className="p-3 font-bold">ROAS</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      <tr><td className="p-3 font-medium">Facebook</td><td className="p-3 text-muted-foreground">420K</td><td className="p-3 text-muted-foreground">4.2%</td><td className="p-3 font-bold">3.2x</td></tr>
-                      <tr><td className="p-3 font-medium">Instagram</td><td className="p-3 text-muted-foreground">610K</td><td className="p-3 text-muted-foreground">5.8%</td><td className="p-3 font-bold">4.1x</td></tr>
-                      <tr><td className="p-3 font-medium">TikTok</td><td className="p-3 text-muted-foreground">290K</td><td className="p-3 text-muted-foreground">8.2%</td><td className="p-3 font-bold">2.8x</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
               <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10">
                 <h4 className="text-sm font-bold flex items-center gap-2 mb-2">
                   <Sparkles className="h-4 w-4 text-primary" /> Key Strategic Insight
@@ -256,9 +395,7 @@ function ReportsContent() {
   );
 }
 
-// --- Helpers ---
-
-function Metric({ label, value, change }: any) {
+function Metric({ label, value, change }: { label: string; value: string; change: string }) {
   return (
     <div className="space-y-1">
       <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{label}</p>
@@ -267,20 +404,6 @@ function Metric({ label, value, change }: any) {
         <span className="text-[10px] font-bold text-green-500">{change}</span>
       </div>
     </div>
-  );
-}
-
-function ReportActions() {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full"><MoreHorizontal className="h-4 w-4" /></Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="rounded-xl">
-        <DropdownMenuItem><Share2 className="mr-2 h-4 w-4" /> Share with Team</DropdownMenuItem>
-        <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Move to Trash</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 

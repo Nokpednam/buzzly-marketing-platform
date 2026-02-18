@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export type WorkspaceMemberRole = "owner" | "admin" | "member" | "viewer";
@@ -20,94 +20,210 @@ export interface WorkspaceMember {
   workspaceName: string;
 }
 
-// Mock data - will be replaced with DB integration when schema is updated
-const mockMembers: WorkspaceMember[] = [
-  {
-    id: "wm-1",
-    workspace_id: "ws-1",
-    user_id: "user-1",
-    email: "owner@shop.com",
-    fullName: "เจ้าของร้าน ABC",
-    role: "owner",
-    status: "active",
-    invitedBy: null,
-    inviterName: "ระบบ",
-    joinedAt: "2024-01-01T08:00:00Z",
-    invitedAt: "2024-01-01T08:00:00Z",
-    workspaceName: "ร้านขายของ ABC",
-  },
-  {
-    id: "wm-2",
-    workspace_id: "ws-1",
-    user_id: "user-2",
-    email: "admin@shop.com",
-    fullName: "ผู้ช่วยดูแลร้าน",
-    role: "admin",
-    status: "active",
-    invitedBy: "user-1",
-    inviterName: "เจ้าของร้าน ABC",
-    joinedAt: "2024-02-15T10:30:00Z",
-    invitedAt: "2024-02-14T09:00:00Z",
-    workspaceName: "ร้านขายของ ABC",
-  },
-];
+async function getWorkspaceId(): Promise<string | null> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  // Try as owner first
+  const { data: ws } = await supabase
+    .from("workspaces")
+    .select("id")
+    .eq("owner_id", user.id)
+    .maybeSingle();
+
+  if (ws) return ws.id;
+
+  // Fallback: member
+  const { data: member } = await supabase
+    .from("workspace_members")
+    .select("team_id")
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .maybeSingle();
+
+  return member?.team_id ?? null;
+}
 
 export function useWorkspaceMembers() {
-  const [localMembers, setLocalMembers] = useState<WorkspaceMember[]>(mockMembers);
+  const queryClient = useQueryClient();
 
-  const { isLoading } = useQuery({
-    queryKey: ["workspace-members"],
-    queryFn: async () => mockMembers,
+  const { data: members = [], isLoading, error } = useQuery({
+    queryKey: ["workspace-members-list"],
+    queryFn: async () => {
+      const workspaceId = await getWorkspaceId();
+      if (!workspaceId) return [];
+
+      // Fetch workspace info
+      const { data: wsData } = await supabase
+        .from("workspaces")
+        .select("name")
+        .eq("id", workspaceId)
+        .maybeSingle();
+
+      const workspaceName = wsData?.name ?? "Workspace";
+
+      // Fetch members
+      const { data: membersData, error: membersError } = await supabase
+        .from("workspace_members")
+        .select("*")
+        .eq("team_id", workspaceId)
+        .order("joined_at", { ascending: true });
+
+      if (membersError) throw membersError;
+
+      // Fetch customer profiles for each member
+      const userIds = (membersData ?? [])
+        .map((m) => m.user_id)
+        .filter(Boolean) as string[];
+
+      const profileMap = new Map<
+        string,
+        { full_name: string | null; email: string | null }
+      >();
+
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("customer")
+          .select("id, full_name, email")
+          .in("id", userIds);
+
+        (profiles ?? []).forEach((p) => profileMap.set(p.id, p));
+      }
+
+      // Fetch inviter names
+      const inviterIds = [
+        ...new Set(
+          (membersData ?? [])
+            .map((m: any) => m.invited_by)
+            .filter(Boolean) as string[]
+        ),
+      ];
+
+      const inviterMap = new Map<string, string>();
+      if (inviterIds.length > 0) {
+        const { data: inviters } = await supabase
+          .from("customer")
+          .select("id, full_name, email")
+          .in("id", inviterIds);
+
+        (inviters ?? []).forEach((p) =>
+          inviterMap.set(p.id, p.full_name ?? p.email ?? "Unknown")
+        );
+      }
+
+      return (membersData ?? []).map((m: any): WorkspaceMember => {
+        const profile = m.user_id ? profileMap.get(m.user_id) : null;
+        return {
+          id: m.id,
+          workspace_id: m.team_id,
+          user_id: m.user_id ?? null,
+          email: profile?.email ?? m.email ?? "",
+          fullName: profile?.full_name ?? null,
+          role: (m.role as WorkspaceMemberRole) ?? "member",
+          status: (m.status as WorkspaceMemberStatus) ?? "active",
+          invitedBy: m.invited_by ?? null,
+          inviterName: m.invited_by
+            ? (inviterMap.get(m.invited_by) ?? "Unknown")
+            : "ระบบ",
+          joinedAt: m.joined_at ?? null,
+          invitedAt: m.created_at ?? new Date().toISOString(),
+          workspaceName,
+        };
+      });
+    },
   });
 
-  const inviteMember = {
-    mutateAsync: async ({ email, role }: { email: string; role: WorkspaceMemberRole }) => {
-      const newMember: WorkspaceMember = {
-        id: `wm-${Date.now()}`,
-        workspace_id: "ws-1",
-        user_id: null,
-        email,
-        fullName: null,
-        role,
-        status: "pending",
-        invitedBy: "current-user",
-        inviterName: "คุณ",
-        joinedAt: null,
-        invitedAt: new Date().toISOString(),
-        workspaceName: "ร้านขายของ ABC",
-      };
-      setLocalMembers(prev => [...prev, newMember]);
-      toast.success("ส่งคำเชิญสำเร็จ");
-      return newMember;
-    },
-    isPending: false,
-  };
+  const inviteMember = useMutation({
+    mutationFn: async ({
+      email,
+      role,
+    }: {
+      email: string;
+      role: WorkspaceMemberRole;
+    }) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
 
-  const suspendMember = {
-    mutateAsync: async (id: string) => {
-      setLocalMembers(prev => prev.map(m => m.id === id ? { ...m, status: "suspended" as const } : m));
+      const workspaceId = await getWorkspaceId();
+      if (!workspaceId) throw new Error("No workspace found");
+
+      const { error } = await supabase.from("team_invitations").insert({
+        team_id: workspaceId,
+        email,
+        role,
+        invited_by: user.id,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workspace-members-list"] });
+      toast.success("ส่งคำเชิญสำเร็จ");
+    },
+    onError: (error: Error) => {
+      toast.error("ไม่สามารถส่งคำเชิญได้", { description: error.message });
+    },
+  });
+
+  const suspendMember = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("workspace_members")
+        .update({ status: "suspended" })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workspace-members-list"] });
       toast.success("ระงับสมาชิกสำเร็จ");
     },
-  };
+    onError: (error: Error) => {
+      toast.error("เกิดข้อผิดพลาด", { description: error.message });
+    },
+  });
 
-  const reactivateMember = {
-    mutateAsync: async (id: string) => {
-      setLocalMembers(prev => prev.map(m => m.id === id ? { ...m, status: "active" as const } : m));
+  const reactivateMember = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("workspace_members")
+        .update({ status: "active" })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workspace-members-list"] });
       toast.success("เปิดใช้งานสมาชิกอีกครั้ง");
     },
-  };
+    onError: (error: Error) => {
+      toast.error("เกิดข้อผิดพลาด", { description: error.message });
+    },
+  });
 
-  const removeMember = {
-    mutateAsync: async (id: string) => {
-      setLocalMembers(prev => prev.filter(m => m.id !== id));
+  const removeMember = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("workspace_members")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workspace-members-list"] });
       toast.success("นำสมาชิกออกสำเร็จ");
     },
-  };
+    onError: (error: Error) => {
+      toast.error("เกิดข้อผิดพลาด", { description: error.message });
+    },
+  });
 
   return {
-    members: localMembers,
+    members,
     isLoading,
-    error: null,
+    error,
     inviteMember,
     suspendMember,
     reactivateMember,
