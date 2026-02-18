@@ -93,21 +93,7 @@ interface TeamInvitation {
   } | null;
 }
 
-interface WorkspaceMemberData {
-  id: string;
-  workspace_id: string;
-  user_id: string;
-  status: string | null;
-  joined_at: string | null;
-  profile?: {
-    full_name: string | null;
-    email: string | null;
-  } | null;
-  team?: {
-    id: string;
-    name: string;
-  } | null;
-}
+
 
 export default function AdminMembers() {
   const { toast } = useToast();
@@ -123,7 +109,7 @@ export default function AdminMembers() {
     queryKey: ["admin-all-members"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("team_members")
+        .from("workspace_members")
         .select("id, team_id, user_id, role, status, joined_at")
         .order("joined_at", { ascending: false });
 
@@ -135,7 +121,7 @@ export default function AdminMembers() {
 
       const [profilesRes, teamsRes] = await Promise.all([
         supabase.from("customer").select("id, full_name, email").in("id", userIds),
-        supabase.from("teams").select("id, name").in("id", teamIds)
+        supabase.from("workspaces").select("id, name").in("id", teamIds)
       ]);
 
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
@@ -165,7 +151,7 @@ export default function AdminMembers() {
       const inviterIds = [...new Set(data.map(i => i.invited_by))];
 
       const [teamsRes, profilesRes] = await Promise.all([
-        supabase.from("teams").select("id, name").in("id", teamIds),
+        supabase.from("workspaces").select("id, name").in("id", teamIds),
         supabase.from("customer").select("id, full_name").in("id", inviterIds)
       ]);
 
@@ -180,42 +166,13 @@ export default function AdminMembers() {
     },
   });
 
-  // Fetch workspace members (member chains)
-  const { data: workspaceMembers, isLoading: loadingWorkspaceMembers, refetch: refetchWorkspaceMembers } = useQuery({
-    queryKey: ["admin-workspace-members"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("workspace_members")
-        .select("id, workspace_id, user_id, status, joined_at")
-        .order("joined_at", { ascending: false });
 
-      if (error) throw error;
-
-      // Fetch profiles and workspaces
-      const userIds = data.map(m => m.user_id);
-      const workspaceIds = [...new Set(data.map(m => m.workspace_id))];
-
-      const [profilesRes, teamsRes] = await Promise.all([
-        supabase.from("customer").select("id, full_name, email").in("id", userIds),
-        supabase.from("teams").select("id, name").in("id", workspaceIds)
-      ]);
-
-      const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
-      const teamMap = new Map((teamsRes.data || []).map(t => [t.id, t]));
-
-      return data.map(m => ({
-        ...m,
-        profile: profileMap.get(m.user_id) || null,
-        team: teamMap.get(m.workspace_id) || null
-      })) as WorkspaceMemberData[];
-    },
-  });
 
   // Update member mutation
   const updateMemberMutation = useMutation({
     mutationFn: async ({ id, role, status }: { id: string; role: TeamRole; status: MemberStatus }) => {
       const { error } = await supabase
-        .from("team_members")
+        .from("workspace_members")
         .update({ role, status })
         .eq("id", id);
       if (error) throw error;
@@ -234,7 +191,7 @@ export default function AdminMembers() {
   const deleteMemberMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("team_members")
+        .from("workspace_members")
         .delete()
         .eq("id", id);
       if (error) throw error;
@@ -277,11 +234,7 @@ export default function AdminMembers() {
     inv.teams?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredWorkspaceMembers = workspaceMembers?.filter((wm) =>
-    wm.profile?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    wm.profile?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    wm.team?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+
 
   const pendingInvitations = filteredInvitations?.filter((inv) => inv.status === "pending");
   const acceptedInvitations = filteredInvitations?.filter((inv) => inv.status === "accepted");
@@ -334,7 +287,6 @@ export default function AdminMembers() {
   const handleRefresh = () => {
     refetchMembers();
     refetchInvitations();
-    refetchWorkspaceMembers();
   };
 
   return (
@@ -389,16 +341,7 @@ export default function AdminMembers() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Workspace Connections
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{workspaceMembers?.length || 0}</div>
-          </CardContent>
-        </Card>
+
       </div>
 
       {/* Search & Tabs */}
@@ -426,10 +369,6 @@ export default function AdminMembers() {
               <TabsTrigger value="invitations">
                 <Mail className="h-4 w-4 mr-2" />
                 Invitations ({allInvitations?.length || 0})
-              </TabsTrigger>
-              <TabsTrigger value="chains">
-                <LinkIcon className="h-4 w-4 mr-2" />
-                Member Chains ({workspaceMembers?.length || 0})
               </TabsTrigger>
             </TabsList>
 
@@ -592,64 +531,7 @@ export default function AdminMembers() {
               )}
             </TabsContent>
 
-            {/* Member Chains Tab */}
-            <TabsContent value="chains">
-              {loadingWorkspaceMembers ? (
-                <div className="text-center py-8 text-muted-foreground">Loading workspace members...</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Member</TableHead>
-                      <TableHead>Workspace</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Joined</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredWorkspaceMembers?.map((wm) => (
-                      <TableRow key={wm.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                              <Users className="h-4 w-4 text-primary" />
-                            </div>
-                            <div>
-                              <div className="font-medium">
-                                {wm.profile?.full_name || "Unknown User"}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {wm.profile?.email || wm.user_id}
-                              </div>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <LinkIcon className="h-4 w-4 text-muted-foreground" />
-                            <span>{wm.team?.name || "Unknown Workspace"}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{getStatusBadge(wm.status)}</TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
-                          {wm.joined_at
-                            ? format(new Date(wm.joined_at), "MMM d, yyyy")
-                            : "-"
-                          }
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {filteredWorkspaceMembers?.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                          No workspace members found
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              )}
-            </TabsContent>
+
           </Tabs>
         </CardContent>
       </Card>

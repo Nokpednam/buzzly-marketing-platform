@@ -173,17 +173,17 @@ export function useTeamManagement() {
 
       setCurrentUserId(user.id);
 
-      // Fetch user's team (first one they're a member of or own)
+      // Fetch user's workspace (first one they're a member of or own)
       const { data: teamData } = await supabase
-        .from("teams")
+        .from("workspaces")
         .select("*")
         .limit(1)
         .maybeSingle();
 
       if (!teamData) {
-        // Create a default team for the user
+        // Create a default workspace for the user
         const { data: newTeam, error: createError } = await supabase
-          .from("teams")
+          .from("workspaces")
           .insert({
             name: "My Workspace",
             description: "Default workspace",
@@ -198,9 +198,9 @@ export function useTeamManagement() {
           return;
         }
 
-        // Add owner as team member
+        // Add owner as workspace member
         await supabase
-          .from("team_members")
+          .from("workspace_members")
           .insert({
             team_id: newTeam.id,
             user_id: user.id,
@@ -215,7 +215,7 @@ export function useTeamManagement() {
 
         // Get current user's role
         const { data: memberData } = await supabase
-          .from("team_members")
+          .from("workspace_members")
           .select("role")
           .eq("team_id", teamData.id)
           .eq("user_id", user.id)
@@ -243,7 +243,7 @@ export function useTeamManagement() {
     if (!team) return;
 
     const { data, error } = await supabase
-      .from("team_members")
+      .from("workspace_members")
       .select("*")
       .eq("team_id", team.id)
       .order("joined_at", { ascending: true });
@@ -445,7 +445,7 @@ export function useTeamManagement() {
       const member = members.find(m => m.id === memberId);
 
       const { error } = await supabase
-        .from("team_members")
+        .from("workspace_members")
         .update({ role: newRole })
         .eq("id", memberId);
 
@@ -488,7 +488,7 @@ export function useTeamManagement() {
       const updateData = { custom_permissions: JSON.parse(JSON.stringify(permissions)) };
 
       const { error } = await supabase
-        .from("team_members")
+        .from("workspace_members")
         .update(updateData)
         .eq("id", memberId);
 
@@ -528,7 +528,7 @@ export function useTeamManagement() {
       const member = members.find(m => m.id === memberId);
 
       const { error } = await supabase
-        .from("team_members")
+        .from("workspace_members")
         .update({ status: "suspended" as MemberStatus })
         .eq("id", memberId);
 
@@ -568,7 +568,7 @@ export function useTeamManagement() {
       const member = members.find(m => m.id === memberId);
 
       const { error } = await supabase
-        .from("team_members")
+        .from("workspace_members")
         .update({ status: "active" as MemberStatus })
         .eq("id", memberId);
 
@@ -608,7 +608,7 @@ export function useTeamManagement() {
       const member = members.find(m => m.id === memberId);
 
       const { error } = await supabase
-        .from("team_members")
+        .from("workspace_members")
         .delete()
         .eq("id", memberId);
 

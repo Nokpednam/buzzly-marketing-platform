@@ -15,37 +15,37 @@ export function useWorkspaceInfo() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return null;
 
-            // 1. Try fetching team owned by user
-            const { data: teamData } = await supabase
-                .from('teams')
+            // 1. Try fetching workspace owned by user
+            const { data: workspaceData } = await supabase
+                .from('workspaces')
                 .select('id, name, logo_url')
                 .eq('owner_id', user.id)
                 .maybeSingle();
 
-            if (teamData) {
+            if (workspaceData) {
                 return {
-                    id: teamData.id,
-                    name: teamData.name,
-                    logo_url: teamData.logo_url,
+                    id: workspaceData.id,
+                    name: workspaceData.name,
+                    logo_url: workspaceData.logo_url,
                     plan: 'Team Plan', // Determining plan logic can be complex, simplifying for display
                 };
             }
 
-            // 2. Try fetching team where user is a member
+            // 2. Try fetching workspace where user is a member
             const { data: memberData } = await supabase
-                .from('team_members')
-                .select('team_id, teams(id, name, logo_url)')
+                .from('workspace_members')
+                .select('team_id, workspaces(id, name, logo_url)')
                 .eq('user_id', user.id)
                 .eq('status', 'active')
                 .maybeSingle();
 
-            if (memberData?.teams) {
+            if (memberData?.workspaces) {
                 // Supabase types can be tricky with joins, casting as any for simplicity here or defining proper types
-                const team = memberData.teams as any;
+                const workspace = memberData.workspaces as any;
                 return {
-                    id: team.id,
-                    name: team.name,
-                    logo_url: team.logo_url,
+                    id: workspace.id,
+                    name: workspace.name,
+                    logo_url: workspace.logo_url,
                     plan: 'Team Plan',
                 };
             }
