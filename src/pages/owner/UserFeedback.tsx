@@ -148,7 +148,7 @@ export default function UserFeedback() {
             sub: "Stars",
             icon: Star,
             gradient: "from-amber-500 to-orange-600",
-            text: "text-amber-100"
+            text: "text-amber-50"
           },
           {
             label: "NPS Score",
@@ -156,7 +156,7 @@ export default function UserFeedback() {
             sub: "Net Promoter Score",
             icon: ThumbsUp,
             gradient: "from-emerald-600 to-teal-700",
-            text: "text-emerald-100"
+            text: "text-emerald-50"
           },
           {
             label: "Total Reviews",
@@ -164,7 +164,7 @@ export default function UserFeedback() {
             sub: "Responses",
             icon: MessageSquare,
             gradient: "from-blue-600 to-cyan-600",
-            text: "text-blue-100"
+            text: "text-blue-50"
           },
           {
             label: "Negative Reviews",
@@ -172,7 +172,7 @@ export default function UserFeedback() {
             sub: "Requires Attention",
             icon: AlertTriangle,
             gradient: "from-rose-500 to-red-600",
-            text: "text-rose-100"
+            text: "text-rose-50"
           }
         ].map((stat, i) => (
           <Card key={i} className={`bg-gradient-to-br ${stat.gradient} border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden`}>
@@ -180,18 +180,18 @@ export default function UserFeedback() {
               <stat.icon className="h-24 w-24 text-white transform rotate-12 translate-x-8 translate-y-[-10px]" />
             </div>
             <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
-              <CardTitle className={`text-sm font-medium ${stat.text}`}>
+              <CardTitle className={`text-sm font-medium ${stat.text} opacity-90`}>
                 {stat.label}
               </CardTitle>
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white backdrop-blur-sm">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white backdrop-blur-md shadow-inner ring-1 ring-white/20">
                 <stat.icon className="h-5 w-5" />
               </div>
             </CardHeader>
             <CardContent className="relative z-10">
-              <div className="text-4xl font-bold tracking-tight text-white shadow-sm">
+              <div className="text-4xl font-semibold tracking-tight text-white drop-shadow-sm tabular-nums">
                 {stat.value}
               </div>
-              <p className={`text-xs mt-1 ${stat.text} opacity-80 font-medium`}>{stat.sub}</p>
+              <p className={`text-xs mt-1 ${stat.text} opacity-80 font-medium tracking-wide`}>{stat.sub}</p>
             </CardContent>
           </Card>
         ))}
@@ -217,7 +217,7 @@ export default function UserFeedback() {
                 <div className="flex items-center justify-center py-8">
                   <div className="relative">
                     <div className="text-center">
-                      <p className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-br from-primary to-primary/60 tracking-tighter">
+                      <p className="text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-br from-primary via-primary to-primary/50 tracking-tighter drop-shadow-sm tabular-nums pb-2 px-2">
                         {feedbackMetrics?.npsScore !== undefined && feedbackMetrics.npsScore >= 0 ? "+" : ""}
                         {feedbackMetrics?.npsScore || 0}
                       </p>
