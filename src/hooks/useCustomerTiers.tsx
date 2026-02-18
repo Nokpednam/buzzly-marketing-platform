@@ -89,7 +89,9 @@ async function fetchCustomerTiersData(): Promise<CustomerTiersData> {
 
     customers.forEach((c) => {
         const lp = c.loyalty_points as any;
-        if (lp && lp.status === "active") {
+        // Relaxed check: Count if ANY loyalty record exists, effectively all customers in the system
+        // Only exclude if explicitly 'banned' or 'archived' if those statuses existed, but 'active' check was too strict
+        if (lp) {
             const tName = lp.loyalty_tiers?.name || "Bronze";
             tierCounts.set(tName, (tierCounts.get(tName) || 0) + 1);
             totalCustomers++;
@@ -107,9 +109,11 @@ async function fetchCustomerTiersData(): Promise<CustomerTiersData> {
     const userSpendMap = new Map<string, number>();
     let totalRevenue = 0;
     txs.forEach((tx) => {
-        userSpendMap.set(tx.user_id, (userSpendMap.get(tx.user_id) || 0) + tx.amount);
-        totalRevenue += tx.amount;
+        userSpendMap.set(tx.user_id, (userSpendMap.get(tx.user_id) || 0) + (Number(tx.amount) || 0));
+        totalRevenue += (Number(tx.amount) || 0);
     });
+
+    // Safety check for avgSpend
     const avgSpendAll = totalCustomers > 0 ? Math.round(totalRevenue / totalCustomers) : 0;
 
     const userTierNameMap = new Map<string, string>();
@@ -127,7 +131,9 @@ async function fetchCustomerTiersData(): Promise<CustomerTiersData> {
     const revenueByTier: RevenueByTier[] = masterTiers.map((t) => {
         const rev = tierRevenueMap.get(t.name) || 0;
         const count = tierCounts.get(t.name) || 1;
-        return { name: t.name, revenue: rev, avgSpend: Math.round(rev / Math.max(count, 1)) };
+        // Prevent division by zero if count is somehow 0 (though we set default 1 above, logic holds)
+        // If revenue is 0, avgSpend is 0.
+        return { name: t.name, revenue: rev, avgSpend: count > 0 ? Math.round(rev / count) : 0 };
     });
 
     // C. Top performers
@@ -136,7 +142,7 @@ async function fetchCustomerTiersData(): Promise<CustomerTiersData> {
             const lp = c.loyalty_points as any;
             return {
                 id: c.user_id,
-                name: `${c.first_name} ${c.last_name}`,
+                name: `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Unknown Customer",
                 tier: lp?.loyalty_tiers?.name || "Bronze",
                 points: lp?.total_points_earned || 0,
                 totalSpend: userSpendMap.get(c.user_id) || 0,

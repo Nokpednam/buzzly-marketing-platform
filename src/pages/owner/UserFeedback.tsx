@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,7 +15,9 @@ import {
   Frown,
   Loader2,
   Database,
-  Activity
+  Activity,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import {
   PieChart,
@@ -35,9 +38,17 @@ import { Briefcase, Building2 } from "lucide-react";
 
 export default function UserFeedback() {
   const navigate = useNavigate();
-  const { data: feedbackMetrics, isLoading } = useFeedbackMetrics();
-  const { data: feedbackList } = useFeedbackList();
+  const [page, setPage] = useState(1);
+  const limit = 10;
 
+  const { data: feedbackMetrics, isLoading: isLoadingMetrics } = useFeedbackMetrics();
+  const { data: feedbackData, isLoading: isLoadingList, isPlaceholderData } = useFeedbackList(page, limit);
+
+  const feedbackList = feedbackData?.data || [];
+  const totalCount = feedbackData?.count || 0;
+  const totalPages = Math.ceil(totalCount / limit);
+
+  const isLoading = isLoadingMetrics || (isLoadingList && !isPlaceholderData);
   const hasData = (feedbackMetrics?.totalReviews || 0) > 0;
 
   const npsBreakdown = [
@@ -61,20 +72,8 @@ export default function UserFeedback() {
     },
   ];
 
-  // Sentiment trend (based on current data) - Simulated history for visual completeness until we have real history hook
-  const sentimentTrend = [
-    { month: "Jan", positive: 55, neutral: 30, negative: 15 },
-    { month: "Feb", positive: 58, neutral: 28, negative: 14 },
-    { month: "Mar", positive: 60, neutral: 27, negative: 13 },
-    { month: "Apr", positive: 59, neutral: 28, negative: 13 },
-    { month: "May", positive: 61, neutral: 26, negative: 13 },
-    {
-      month: "Jun",
-      positive: feedbackMetrics?.sentimentBreakdown?.find(s => s.sentiment === "Positive")?.percentage || 62,
-      neutral: feedbackMetrics?.sentimentBreakdown?.find(s => s.sentiment === "Neutral")?.percentage || 26,
-      negative: feedbackMetrics?.sentimentBreakdown?.find(s => s.sentiment === "Negative")?.percentage || 12
-    },
-  ];
+  // Output real sentiment trend from DB
+  const sentimentTrend = feedbackMetrics?.sentimentTrend || [];
 
   const getSentimentIcon = (sentiment: string) => {
     switch (sentiment.toLowerCase()) {
@@ -90,7 +89,7 @@ export default function UserFeedback() {
   };
 
   // Loading state
-  if (isLoading) {
+  if (isLoading && page === 1) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <div className="relative">
@@ -428,6 +427,58 @@ export default function UserFeedback() {
                 </div>
               )}
           </div>
+
+          {/* Pagination Controls */}
+          {totalCount > 0 && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-muted-foreground">
+                Showing <span className="font-medium">{Math.min((page - 1) * limit + 1, totalCount)}</span> to{" "}
+                <span className="font-medium">{Math.min(page * limit, totalCount)}</span> of{" "}
+                <span className="font-medium">{totalCount}</span> results
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1 || isLoadingList}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1 mx-2">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let p = i + 1;
+                    if (totalPages > 5 && page > 3) {
+                      p = page - 2 + i;
+                      if (p > totalPages) p = i + 1 + (totalPages - 5);
+                    }
+
+                    return (
+                      <Button
+                        key={p}
+                        variant={page === p ? "default" : "ghost"}
+                        size="sm"
+                        className="w-8 h-8 p-0"
+                        onClick={() => setPage(p)}
+                      >
+                        {p}
+                      </Button>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages || isLoadingList}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

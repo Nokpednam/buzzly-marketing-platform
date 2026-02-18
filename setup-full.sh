@@ -237,10 +237,13 @@ run_mock_sql() {
 
 run_mock_sql "supabase/migrations/20260218200002_mock_campaigns.sql"      "Ad Accounts, Campaigns, Budgets"
 run_mock_sql "supabase/migrations/20260218200003_mock_ad_insights.sql"    "Ad Insights (30 days)"
+run_mock_sql "supabase/migrations/20260218200004_mock_social_email.sql"    "Social Posts & Email Campaigns"
 run_mock_sql "supabase/migrations/20260218200006_mock_crm_system.sql"     "Prospects, Audit Logs, Suspicious Activities"
 run_mock_sql "supabase/migrations/20260218200007_mock_billing_reports.sql" "Discounts, Invoices, Reports"
 run_mock_sql "supabase/migrations/20260218200008_mock_team_activity_logs.sql" "Team Activity Logs"
 run_mock_sql "supabase/migrations/20260218200009_mock_funnel_activities.sql" "Funnel Stages + Customer Activities"
+run_mock_sql "supabase/migrations/20260218200005_mock_loyalty_analytics.sql" "Loyalty, Analytics (Tier History)"
+run_mock_sql "supabase/migrations/20260218200010_mock_owner_pages.sql" "Owner Pages (Subscriptions, Cohorts, Tiers)"
 
 echo "✅ Mock data re-seeded."
 echo ""
