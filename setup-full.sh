@@ -150,7 +150,7 @@ BEGIN
         crypt(admin_password, gen_salt('bf')),
         NOW(),
         '{"provider":"email","providers":["email"]}'::jsonb,
-        '{"display_name":"Admin User"}'::jsonb,
+        '{"display_name":"Admin User", "is_employee_signup": true}'::jsonb,
         NOW(),
         NOW(),
         '', '', '', ''

@@ -90,23 +90,27 @@ CREATE FUNCTION public.assign_admin_role_on_approval() RETURNS trigger
 DECLARE
     v_admin_role_id UUID;
 BEGIN
-    -- Check if approval_status changed to 'approved'
+    -- Check if approval_status changed to 'approved' AND role is not already set
     IF NEW.approval_status = 'approved' AND (OLD.approval_status IS NULL OR OLD.approval_status != 'approved') THEN
-        -- Get the Admin role ID (case-insensitive)
-        SELECT id INTO v_admin_role_id 
-        FROM public.role_employees 
-        WHERE role_name ILIKE 'admin' 
-        LIMIT 1;
-        
-        -- If admin role exists, assign it
-        IF v_admin_role_id IS NOT NULL THEN
-            NEW.role_employees_id := v_admin_role_id;
-            NEW.status := 'active';
+        -- Only assign default admin role if NO role is currently assigned
+        IF NEW.role_employees_id IS NULL THEN
+            -- Get the Admin role ID (case-insensitive)
+            SELECT id INTO v_admin_role_id 
+            FROM public.role_employees 
+            WHERE role_name ILIKE 'admin' 
+            LIMIT 1;
             
-            RAISE NOTICE 'Admin role (%) assigned to employee: %', v_admin_role_id, NEW.email;
-        ELSE
-            RAISE WARNING 'Admin role not found in role_employees table';
+            -- If admin role exists, assign it
+            IF v_admin_role_id IS NOT NULL THEN
+                NEW.role_employees_id := v_admin_role_id;
+                RAISE NOTICE 'Admin role (%) assigned to employee: %', v_admin_role_id, NEW.email;
+            ELSE
+                RAISE WARNING 'Admin role not found in role_employees table';
+            END IF;
         END IF;
+
+        -- Always ensure status is active when approved
+        NEW.status := 'active';
     END IF;
     
     RETURN NEW;

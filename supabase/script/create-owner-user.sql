@@ -61,7 +61,7 @@ BEGIN
         NULL,
         NULL,
         '{"provider":"email","providers":["email"]}'::jsonb,
-        '{"display_name":"Owner Account"}'::jsonb,
+        '{"display_name":"Owner Account", "is_employee_signup": true}'::jsonb,
         false,
         NOW(),
         NOW(),
