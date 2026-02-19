@@ -165,7 +165,32 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
 
   useEffect(() => {
     fetchPlatforms();
+
+    // Re-fetch platforms when workspace is created or user signs in
+    // This ensures API Keys page loads without manual page refresh
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(() => {
+      fetchPlatforms();
+    });
+
+    // Watch for workspace creation via realtime
+    const workspaceSub = supabase
+      .channel('workspace-changes')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'workspaces',
+      }, () => {
+        // Small delay to allow RLS propagation
+        setTimeout(() => fetchPlatforms(), 500);
+      })
+      .subscribe();
+
+    return () => {
+      authSub.unsubscribe();
+      supabase.removeChannel(workspaceSub);
+    };
   }, []);
+
 
   // Connect platform (simulate OAuth + DB Write)
   const connectPlatform = async (id: string, token: string = ""): Promise<boolean> => {

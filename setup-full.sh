@@ -252,56 +252,10 @@ echo ""
 # 5.6: Re-assign marketing data to workspace so RLS works
 # ---------------------------------------------------------
 echo "Step 5.6: Linking ad_accounts & insights to workspaces (RLS fix)..."
-DB_CONTAINER=$(docker ps --filter "name=supabase_db" --format "{{.Names}}" | head -n 1)
-
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres << 'SQL_EOF'
-DO $$
-DECLARE
-  v_ws_record RECORD;
-  v_aa_id     uuid;
-  v_max_date  date;
-  v_days_diff integer;
-  v_count     integer;
-BEGIN
-  -- For each workspace, ensure its ad_accounts link to valid insights
-  -- First, shift all ad_insights dates to be current (so date filters work)
-  SELECT MAX(date) INTO v_max_date FROM public.ad_insights;
-  IF v_max_date IS NOT NULL AND v_max_date < CURRENT_DATE THEN
-    v_days_diff := (CURRENT_DATE - v_max_date)::integer;
-    UPDATE public.ad_insights SET date = date + v_days_diff;
-    RAISE NOTICE 'Shifted ad_insights dates forward by % days.', v_days_diff;
-  END IF;
-
-  -- For each workspace that has ad_accounts, re-assign orphaned insights to one of its accounts
-  FOR v_ws_record IN
-    SELECT DISTINCT aa.team_id, aa.id as aa_id
-    FROM public.ad_accounts aa
-    ORDER BY aa.team_id, aa.id
-  LOOP
-    -- Pick the first ad_account for this workspace
-    SELECT id INTO v_aa_id
-    FROM public.ad_accounts
-    WHERE team_id = v_ws_record.team_id
-    LIMIT 1;
-
-    -- Reassign insights that have no valid ad_account
-    UPDATE public.ad_insights
-    SET ad_account_id = v_aa_id
-    WHERE ad_account_id IS NULL
-       OR ad_account_id NOT IN (SELECT id FROM public.ad_accounts);
-
-    EXIT; -- Only need one pass for orphaned data
-  END LOOP;
-
-  GET DIAGNOSTICS v_count = ROW_COUNT;
-  RAISE NOTICE 'Reassigned % orphaned ad_insights.', v_count;
-  RAISE NOTICE '✅ Marketing data linkage complete.';
-END;
-$$;
-SQL_EOF
-
+run_sql_script "supabase/script/fix-marketing-linkage.sql" "Marketing Data Linkage Fix"
 echo "✅ Marketing data linked to workspaces."
 echo ""
+
 echo "========================================="
 echo "✅✅ SETUP COMPLETE SUCCESSFULLY! ✅✅"
 echo "========================================="
