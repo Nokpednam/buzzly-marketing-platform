@@ -319,8 +319,10 @@ export function useSubscription() {
         .eq("id", userId);
 
       if (profileError) {
-        // Log ไว้แต่ไม่ throw error เพราะถือว่า subscription สำเร็จแล้ว
-        console.error("Warning: Profile update failed, UI might not reflect changes immediately", profileError);
+        // Throw error เพื่อให้ createSubscription fail ชัดเจน แทนที่จะ silent fail
+        // หาก error นี้เกิดขึ้น ให้ตรวจสอบ RLS policy ของ customer table
+        console.error("Profile update failed (RLS or schema issue):", profileError);
+        throw profileError;
       }
 
       // 6. Refresh ข้อมูลหน้าจอใหม่

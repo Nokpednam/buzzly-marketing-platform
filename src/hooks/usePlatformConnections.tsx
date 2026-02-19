@@ -204,6 +204,25 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
         throw error;
       }
 
+      // Auto-create ad_account row for this platform+team (required for campaigns/insights data chain)
+      // If it already exists, just ensure it's active (idempotent)
+      const { error: adAccountError } = await supabase
+        .from('ad_accounts')
+        .upsert({
+          team_id: teamId,
+          platform_id: id,
+          account_name: `${platform?.name || 'Platform'} Account`,
+          is_active: true,
+        }, {
+          onConflict: 'team_id,platform_id',
+          ignoreDuplicates: false,
+        });
+
+      if (adAccountError) {
+        // Non-blocking: log but don't fail the connection
+        console.warn('Could not create ad_account (non-critical):', adAccountError.message);
+      }
+
       // Update local state ONLY on success
       setPlatforms((prev) =>
         prev.map((p) =>
