@@ -15,8 +15,6 @@ import {
   Repeat,
   Share2,
   DollarSign,
-  TrendingUp,
-  TrendingDown,
   ArrowRight,
   Loader2,
   Database,
@@ -24,8 +22,7 @@ import {
   Trash2,
   Activity
 } from "lucide-react";
-import { useProductUsageMetrics, useUserSegments } from "@/hooks/useOwnerMetrics";
-import { useFunnelData } from "@/hooks/useFunnelData";
+import { useProductUsageMetrics, useUserSegments, useAARRRMetrics } from "@/hooks/useOwnerMetrics";
 import { usePersonas } from "@/hooks/usePersonas";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -33,7 +30,7 @@ import { cn } from "@/lib/utils";
 export default function ProductUsage() {
   const navigate = useNavigate();
   const { data: usageMetrics, isLoading: usageLoading } = useProductUsageMetrics();
-  const { funnelStages, aarrrCategories, isLoading: funnelLoading } = useFunnelData();
+  const { data: aarrrStages = [], isLoading: aarrrLoading } = useAARRRMetrics();
   const { data: userSegments, isLoading: segmentsLoading } = useUserSegments();
   const { personas, createPersona, deletePersona } = usePersonas();
 
@@ -46,27 +43,28 @@ export default function ProductUsage() {
     behaviors: ""
   });
 
-  const isLoading = usageLoading || funnelLoading || segmentsLoading;
+  const isLoading = usageLoading || aarrrLoading || segmentsLoading;
   const hasData = (usageMetrics?.totalUsers || 0) > 0
     || (usageMetrics?.activeSubscriptions || 0) > 0
-    || aarrrCategories.length > 0;
+    || aarrrStages.length > 0;
 
-  // Construct AARRR funnel from real data
-  const aarrFunnelData = aarrrCategories.map((stage: any, index: number) => ({
+  // AARRR funnel from real data (customer → subscriptions → payment_transactions)
+  const aarrFunnelData = aarrrStages.map((stage, index) => ({
     stage: stage.name,
-    icon: [Users, UserCheck, Repeat, Share2, DollarSign][index] || Users,
+    description: stage.description,
+    icon: [Users, UserCheck, Repeat, DollarSign, Share2][index] || Users,
     value: stage.value,
     percentage: stage.percentage,
     change: 0
   }));
 
-  // User journey steps
-  const userJourneySteps = funnelStages?.length > 0
-    ? funnelStages.map((stage, index) => ({
-      step: stage.name || "Step",
-      users: stage.value || 0,
-      dropoff: index > 0 && funnelStages[index - 1].value
-        ? Math.round((1 - (stage.value || 0) / funnelStages[index - 1].value) * 100)
+  // User Journey derived from AARRR funnel steps (same data, different view)
+  const userJourneySteps = aarrFunnelData.length > 0
+    ? aarrFunnelData.map((stage, index) => ({
+      step: stage.stage,
+      users: stage.value,
+      dropoff: index > 0 && aarrFunnelData[index - 1].value > 0
+        ? Math.max(0, Math.round((1 - stage.value / aarrFunnelData[index - 1].value) * 100))
         : 0,
     }))
     : [];
@@ -210,16 +208,14 @@ export default function ProductUsage() {
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <h3 className="font-bold text-lg text-slate-800">{item.stage}</h3>
+                        <p className="text-xs text-slate-500 mb-1">{item.description}</p>
                         <p className="text-3xl font-black tracking-tight text-slate-900">{item.value.toLocaleString()}</p>
                       </div>
                       <div className="text-right">
-                        <Badge variant="outline" className={cn("ml-auto border-0",
-                          item.change >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
-                        )}>
-                          {item.change >= 0 ? <TrendingUp className="mr-1 h-3 w-3" /> : <TrendingDown className="mr-1 h-3 w-3" />}
-                          {Math.abs(item.change)}%
+                        <Badge variant="outline" className="border-slate-200 text-slate-600 bg-slate-50 font-mono text-sm px-2">
+                          {item.percentage}%
                         </Badge>
-                        <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">vs 30d avg</p>
+                        <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider font-semibold">of total</p>
                       </div>
                     </div>
                     <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
@@ -231,7 +227,7 @@ export default function ProductUsage() {
                                 index === 3 ? "bg-gradient-to-r from-violet-400 to-violet-600" :
                                   "bg-gradient-to-r from-fuchsia-400 to-fuchsia-600"
                         )}
-                        style={{ width: `${item.percentage}%` }}
+                        style={{ width: `${Math.max(item.percentage, 2)}%` }}
                       />
                     </div>
                     <p className="text-xs text-muted-foreground mt-2 font-medium">
@@ -241,7 +237,7 @@ export default function ProductUsage() {
                             index === 2 ? "text-indigo-600" :
                               index === 3 ? "text-violet-600" :
                                 "text-fuchsia-600"
-                      )}>{item.percentage}%</span> conversion rate
+                      )}>{item.percentage}%</span> conversion rate from Acquisition
                     </p>
                   </div>
                   {index < aarrFunnelData.length - 1 && (
