@@ -29,6 +29,8 @@ import {
   Bar,
   Area,
   AreaChart,
+  Legend,
+  ReferenceLine,
 } from "recharts";
 import { useSubscriptionMetrics, useCohortAnalysis, useSurvivalAnalysis } from "@/hooks/useOwnerMetrics";
 import { cn } from "@/lib/utils";
@@ -47,10 +49,14 @@ export default function BusinessPerformance() {
   const currentMrr = subscriptionMetrics?.currentMrr || 0;
   const hasData = currentMrr > 0 || (cohortData && cohortData.length > 0);
 
-  // NOTE: This trend data is currently simulated based on the current MRR.
-  // Real historical trend data would require a more complex query from payment_transactions or a dedicated trends table.
   const mrrData = subscriptionMetrics?.monthlyData || [];
+  const growthData = subscriptionMetrics?.growthData || [];
   const breakdown = subscriptionMetrics?.breakdown || { newMrr: 0, expansion: 0, churn: 0 };
+
+  // Short month label for charts ("Mar 2025" → "Mar")
+  const mrrDataShort = mrrData.map(d => ({ ...d, label: d.month.split(' ')[0] }));
+  const growthDataShort = growthData.map(d => ({ ...d, label: d.month.split(' ')[0] }));
+
 
   // KPI data safely mapped
   const kpis = [
@@ -197,7 +203,7 @@ export default function BusinessPerformance() {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <XAxis dataKey="label" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tickFormatter={(v) => `฿${v / 1000}k`} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} axisLine={false} tickLine={false} />
                   <Tooltip
                     formatter={(v: number) => [`฿${v.toLocaleString()}`, "MRR"]}
@@ -241,8 +247,8 @@ export default function BusinessPerformance() {
               <CardHeader><CardTitle>Growth Trend</CardTitle></CardHeader>
               <CardContent className="h-[180px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={mrrData?.slice(-6) || []}>
-                    <XAxis dataKey="month" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <BarChart data={mrrDataShort?.slice(-6) || []}>
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                     <Bar dataKey="growth" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={30} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -252,54 +258,105 @@ export default function BusinessPerformance() {
         </TabsContent>
 
         <TabsContent value="growth" className="space-y-6">
+          {/* KPI Cards */}
           <div className="grid gap-6 md:grid-cols-3">
-            {[
-              {
-                icon: TrendingUp,
-                val: `${(subscriptionMetrics?.mrrGrowth || 0) >= 0 ? '+' : ''}${subscriptionMetrics?.mrrGrowth || 0}%`,
-                label: "MoM Growth",
-                color: (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "text-emerald-500" : "text-red-500",
-                bg: (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "bg-emerald-500/10" : "bg-red-500/10"
-              },
-              {
-                icon: Users,
-                val: (() => {
-                  // NRR = (Prev MRR + Expansion - Churn) / Prev MRR * 100
+            <Card className="glass-panel p-8 text-center transition-all hover:shadow-md">
+              <div className={cn("mx-auto h-12 w-12 rounded-full flex items-center justify-center mb-4",
+                (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "bg-emerald-500/10" : "bg-red-500/10")}>
+                <TrendingUp className={cn("h-6 w-6", (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "text-emerald-500" : "text-red-500")} />
+              </div>
+              <p className={cn("text-4xl font-bold", (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "text-emerald-500" : "text-red-500")}>
+                {(subscriptionMetrics?.mrrGrowth || 0) >= 0 ? '+' : ''}{subscriptionMetrics?.mrrGrowth || 0}%
+              </p>
+              <p className="text-xs font-bold text-muted-foreground uppercase mt-2 tracking-widest">MoM MRR Growth</p>
+            </Card>
+
+            <Card className="glass-panel p-8 text-center transition-all hover:shadow-md">
+              <div className="mx-auto h-12 w-12 rounded-full flex items-center justify-center mb-4 bg-blue-500/10">
+                <Users className="h-6 w-6 text-blue-500" />
+              </div>
+              <p className="text-4xl font-bold text-blue-500">
+                {(() => {
                   const prev = subscriptionMetrics?.previousMrr || 0;
-                  const expansion = subscriptionMetrics?.breakdown?.expansion || 0;
+                  const exp = subscriptionMetrics?.breakdown?.expansion || 0;
                   const churn = subscriptionMetrics?.breakdown?.churn || 0;
-                  if (prev <= 0) return "N/A";
-                  const nrr = Math.round(((prev + expansion - churn) / prev) * 100);
-                  return `${nrr}%`;
-                })(),
-                label: "Net Revenue Retention",
-                color: "text-blue-500",
-                bg: "bg-blue-500/10"
-              },
-              {
-                icon: UserMinus,
-                val: (() => {
-                  // Churn % = Churn MRR / Prev MRR * 100
+                  if (prev <= 0) return 'N/A';
+                  return `${Math.round(((prev + exp - churn) / prev) * 100)}%`;
+                })()}
+              </p>
+              <p className="text-xs font-bold text-muted-foreground uppercase mt-2 tracking-widest">Net Revenue Retention</p>
+            </Card>
+
+            <Card className="glass-panel p-8 text-center transition-all hover:shadow-md">
+              <div className="mx-auto h-12 w-12 rounded-full flex items-center justify-center mb-4 bg-red-500/10">
+                <UserMinus className="h-6 w-6 text-red-500" />
+              </div>
+              <p className="text-4xl font-bold text-red-500">
+                {(() => {
                   const prev = subscriptionMetrics?.previousMrr || 0;
                   const churn = subscriptionMetrics?.breakdown?.churn || 0;
-                  if (prev <= 0) return "0.0%";
+                  if (prev <= 0) return '0.0%';
                   return `${((churn / prev) * 100).toFixed(1)}%`;
-                })(),
-                label: "MRR Churn Rate",
-                color: "text-red-500",
-                bg: "bg-red-500/10"
-              }
-            ].map((inc, i) => (
-              <Card key={i} className="glass-panel p-8 text-center transition-all hover:shadow-md">
-                <div className={cn("mx-auto h-12 w-12 rounded-full flex items-center justify-center mb-4", inc.bg)}>
-                  <inc.icon className={cn("h-6 w-6", inc.color)} />
-                </div>
-                <p className={cn("text-4xl font-bold", inc.color)}>{inc.val}</p>
-                <p className="text-xs font-bold text-muted-foreground uppercase mt-2 tracking-widest">{inc.label}</p>
-              </Card>
-            ))}
+                })()}
+              </p>
+              <p className="text-xs font-bold text-muted-foreground uppercase mt-2 tracking-widest">MRR Churn Rate</p>
+            </Card>
           </div>
+
+          {/* Subscriber Growth Chart */}
+          <Card className="glass-panel p-6">
+            <CardHeader className="px-0 pt-0">
+              <CardTitle>Monthly Subscriber Growth</CardTitle>
+              <CardDescription>New subscriptions vs churned subscribers per month</CardDescription>
+            </CardHeader>
+            <CardContent className="px-0 pb-0 h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={growthDataShort} barGap={4}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <ReferenceLine y={0} stroke="hsl(var(--border))" strokeWidth={1.5} />
+                  <Tooltip
+                    formatter={(v: number, name: string) => [Math.abs(v), name === 'newSubs' ? 'New Subscribers' : 'Churned']}
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
+                  />
+                  <Legend formatter={(v) => v === 'newSubs' ? 'New Subscribers' : 'Churned'} />
+                  <Bar dataKey="newSubs" name="newSubs" fill="hsl(142, 76%, 45%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="churned" name="churned" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Cumulative Active Subscribers */}
+          <Card className="glass-panel p-6">
+            <CardHeader className="px-0 pt-0">
+              <CardTitle>Cumulative Active Subscribers</CardTitle>
+              <CardDescription>Total paying subscribers growing over time</CardDescription>
+            </CardHeader>
+            <CardContent className="px-0 pb-0 h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={growthDataShort}>
+                  <defs>
+                    <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    formatter={(v: number) => [v, 'Active Subscribers']}
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
+                  />
+                  <Area type="monotone" dataKey="totalActive" stroke="hsl(var(--primary))" strokeWidth={3} fill="url(#colorActive)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
         </TabsContent>
+
 
         <TabsContent value="cohort" className="space-y-6">
           <Card className="glass-panel">
