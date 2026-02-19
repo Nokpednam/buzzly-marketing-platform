@@ -47,14 +47,20 @@ export default function BusinessPerformance() {
 
   const isLoading = subLoading || cohortLoading || survivalLoading;
   const currentMrr = subscriptionMetrics?.currentMrr || 0;
-  const hasData = currentMrr > 0 || (cohortData && cohortData.length > 0);
+  const hasData = (subscriptionMetrics?.activeSubscriptions || 0) > 0 ||
+    currentMrr > 0 ||
+    (cohortData && cohortData.length > 0);
 
   const mrrData = subscriptionMetrics?.monthlyData || [];
   const growthData = subscriptionMetrics?.growthData || [];
   const breakdown = subscriptionMetrics?.breakdown || { newMrr: 0, expansion: 0, churn: 0 };
 
-  // Short month label for charts ("Mar 2025" → "Mar")
-  const mrrDataShort = mrrData.map(d => ({ ...d, label: d.month.split(' ')[0] }));
+  // Combined chart data: MRR + subscriber count per month, short label for XAxis
+  const mrrChartData = mrrData.map((d, i) => ({
+    ...d,
+    label: d.month.split(' ')[0],          // "Mar" etc. — used as XAxis key
+    subs: growthData[i]?.totalActive ?? 0, // co-plot active subscriber count
+  }));
   const growthDataShort = growthData.map(d => ({ ...d, label: d.month.split(' ')[0] }));
 
 
@@ -188,68 +194,147 @@ export default function BusinessPerformance() {
         </TabsList>
 
         <TabsContent value="revenue" className="space-y-6">
+          {/* Main MRR Area Chart */}
           <Card className="glass-panel p-6">
             <CardHeader className="px-0 pt-0">
-              <CardTitle>Monthly Recurring Revenue (MRR)</CardTitle>
-              <CardDescription>Past 12 months performance</CardDescription>
+              <div className="flex items-start justify-between flex-wrap gap-4">
+                <div>
+                  <CardTitle className="text-xl">Monthly Recurring Revenue</CardTitle>
+                  <CardDescription>12-month MRR trend with active subscriber count</CardDescription>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-primary">฿{currentMrr.toLocaleString()}</p>
+                  <p className={cn("text-sm font-semibold mt-0.5",
+                    (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "text-emerald-500" : "text-red-500")}>
+                    {(subscriptionMetrics?.mrrGrowth || 0) >= 0 ? '▲' : '▼'}&nbsp;
+                    {Math.abs(subscriptionMetrics?.mrrGrowth || 0)}% vs last month
+                  </p>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent className="px-0 pb-0 h-[350px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={mrrData || []}>
-                  <defs>
-                    <linearGradient id="colorMrr" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tickFormatter={(v) => `฿${v / 1000}k`} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <Tooltip
-                    formatter={(v: number) => [`฿${v.toLocaleString()}`, "MRR"]}
-                    contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
-                  />
-                  <Area type="monotone" dataKey="mrr" stroke="hsl(var(--primary))" strokeWidth={3} fill="url(#colorMrr)" />
-                </AreaChart>
-              </ResponsiveContainer>
+            <CardContent className="px-0 pb-0 h-[340px]">
+              {mrrChartData.every(d => d.mrr === 0) ? (
+                <div className="h-full flex flex-col items-center justify-center text-muted-foreground gap-3">
+                  <Database className="h-10 w-10 opacity-30" />
+                  <p className="text-sm font-medium">No transaction data yet</p>
+                  <p className="text-xs opacity-60">Run the SQL fix file in Supabase SQL Editor:</p>
+                  <code className="text-xs bg-muted px-3 py-1.5 rounded-md font-mono border border-border/50">
+                    supabase/snippets/fix_payment_transactions_sync.sql
+                  </code>
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={mrrChartData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="mrrGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.02} />
+                      </linearGradient>
+                      <linearGradient id="subsGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(142,76%,45%)" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="hsl(142,76%,45%)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" vertical={false} />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }}
+                      axisLine={false} tickLine={false} interval={0}
+                    />
+                    <YAxis
+                      yAxisId="mrr"
+                      tickFormatter={(v) => v >= 1000 ? `฿${(v / 1000).toFixed(0)}k` : `฿${v}`}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      axisLine={false} tickLine={false} width={58}
+                    />
+                    <YAxis
+                      yAxisId="subs" orientation="right"
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      axisLine={false} tickLine={false} width={38}
+                    />
+                    <Tooltip
+                      formatter={(v: number, name: string) => [
+                        name === 'mrr' ? `฿${v.toLocaleString()}` : `${v} users`,
+                        name === 'mrr' ? 'MRR' : 'Active Subscribers'
+                      ]}
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))", borderRadius: "10px",
+                        border: "1px solid hsl(var(--border))", boxShadow: "0 4px 20px rgba(0,0,0,0.12)"
+                      }}
+                      labelStyle={{ fontWeight: 700, marginBottom: 4 }}
+                    />
+                    <Legend
+                      formatter={(v) => v === 'mrr' ? 'MRR (฿)' : 'Active Subscribers'}
+                      wrapperStyle={{ paddingTop: 12, fontSize: 12 }}
+                    />
+                    <Area
+                      yAxisId="mrr" type="monotone" dataKey="mrr" name="mrr"
+                      stroke="hsl(var(--primary))" strokeWidth={2.5}
+                      fill="url(#mrrGrad)" dot={false} activeDot={{ r: 5, strokeWidth: 2 }}
+                    />
+                    <Area
+                      yAxisId="subs" type="monotone" dataKey="subs" name="subs"
+                      stroke="hsl(142,76%,45%)" strokeWidth={2} strokeDasharray="5 3"
+                      fill="url(#subsGrad)" dot={false} activeDot={{ r: 4 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
 
+          {/* Breakdown + Growth Bar */}
           <div className="grid gap-6 md:grid-cols-2">
             <Card className="glass-panel">
               <CardHeader><CardTitle>Revenue Breakdown</CardTitle></CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>New MRR</span>
-                    <span className="text-emerald-500 font-bold">฿{breakdown.newMrr.toLocaleString()}</span>
+              <CardContent className="space-y-5">
+                {[
+                  { label: 'New MRR', value: breakdown.newMrr, barColor: 'bg-emerald-500', textColor: 'text-emerald-600' },
+                  { label: 'Expansion', value: breakdown.expansion, barColor: 'bg-blue-500', textColor: 'text-blue-600' },
+                  { label: 'Churn', value: breakdown.churn, barColor: 'bg-red-500', textColor: 'text-red-600' },
+                ].map(item => (
+                  <div key={item.label} className="space-y-1.5">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-medium text-muted-foreground">{item.label}</span>
+                      <span className={cn("font-bold tabular-nums", item.textColor)}>฿{item.value.toLocaleString()}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={cn("h-full rounded-full transition-all duration-700", item.barColor)}
+                        style={{ width: `${currentMrr > 0 ? Math.min(100, (item.value / currentMrr) * 100) : 0}%` }}
+                      />
+                    </div>
                   </div>
-                  <Progress value={currentMrr > 0 ? (breakdown.newMrr / currentMrr) * 100 : 0} className="h-1.5" />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Expansion</span>
-                    <span className="text-blue-500 font-bold">฿{breakdown.expansion.toLocaleString()}</span>
-                  </div>
-                  <Progress value={currentMrr > 0 ? (breakdown.expansion / currentMrr) * 100 : 0} className="h-1.5" />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Churn</span>
-                    <span className="text-red-500 font-bold">฿{breakdown.churn.toLocaleString()}</span>
-                  </div>
-                  <Progress value={currentMrr > 0 ? (breakdown.churn / currentMrr) * 100 : 0} className="h-1.5" />
+                ))}
+                <div className="pt-3 border-t border-border/50 flex justify-between text-sm font-bold">
+                  <span>Net MRR Change</span>
+                  <span className={cn(
+                    (breakdown.newMrr + breakdown.expansion - breakdown.churn) >= 0 ? 'text-emerald-600' : 'text-red-600'
+                  )}>
+                    {(breakdown.newMrr + breakdown.expansion - breakdown.churn) >= 0 ? '+' : ''}
+                    ฿{(breakdown.newMrr + breakdown.expansion - breakdown.churn).toLocaleString()}
+                  </span>
                 </div>
               </CardContent>
             </Card>
 
             <Card className="glass-panel">
-              <CardHeader><CardTitle>Growth Trend</CardTitle></CardHeader>
-              <CardContent className="h-[180px]">
+              <CardHeader>
+                <CardTitle>MoM Growth %</CardTitle>
+                <CardDescription>Month-over-month MRR change rate</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[220px] px-2">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={mrrDataShort?.slice(-6) || []}>
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <Bar dataKey="growth" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={30} />
+                  <BarChart data={mrrChartData.slice(-6)} barSize={28}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" vertical={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                    <Tooltip
+                      formatter={(v: number) => [`${v >= 0 ? '+' : ''}${v}%`, 'MRR Growth']}
+                      contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "10px", border: "1px solid hsl(var(--border))" }}
+                    />
+                    <ReferenceLine y={0} stroke="hsl(var(--border))" strokeWidth={1.5} />
+                    <Bar dataKey="growth" radius={[5, 5, 0, 0]} fill="hsl(var(--primary))" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>

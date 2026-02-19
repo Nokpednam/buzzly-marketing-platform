@@ -1,42 +1,48 @@
 -- ============================================================
--- FIX: Payment Transactions Sync with Subscriptions Lifecycle
+-- TARGETED FIX: Regenerate payment_transactions from EXISTING subscriptions
 -- ============================================================
--- คำอธิบาย:
---   ปัญหาเดิมคือ payment_transactions ถูก generate ผิด (bug ใน Part B ของ
---   20260218200010_mock_owner_pages.sql: ใช้ v_user.id ซึ่งเป็น uuid[] array)
---   ทำให้ทุก transaction insert ค่า NULL → Revenue Trends chart เห็นแค่เดือนเดียว
+-- ทำไมต้องแบบนี้:
+--   Survival Probability, Growth Analysis, Cohort ทำงานได้ → subscriptions มีข้อมูลถูกต้อง
+--   Revenue Trends ว่าง → payment_transactions ว่าง
+--   วิธีนี้ไม่แตะ subscriptions เลย ใช้ subscription.user_id ที่ valid อยู่แล้ว
 --
---   Script นี้จะ:
---   1. ลบ payment_transactions ทั้งหมดที่มีอยู่
---   2. Generate ใหม่โดยอิงจาก subscriptions จริงใน DB
---      - ทุก subscription ที่ active/cancelled จะมี monthly payment
---        ตั้งแต่ created_at ยัน cancelled_at (หรือ NOW())
---      - ใช้ price_monthly จาก subscription_plans จริงๆ
---   3. แสดง summary ของข้อมูลที่ generate ได้ per month
---
---   ผลลัพธ์: Revenue Trends จะสอดคล้องกับ Survival Probability data
+-- ผลลัพธ์: Revenue Trends จะแสดง 12 เดือน aligned กับ Survival Probability
 -- ============================================================
 
 DO $$
 DECLARE
-  v_sub           record;
-  v_currency_id   uuid := 'c0000002-0000-0000-0000-000000000002'; -- THB
-  v_start_date    timestamptz;
-  v_end_date      timestamptz;
-  v_cursor_date   date;
-  v_tx_date       timestamptz;
-  v_amount        numeric;
-  v_plan_price    numeric;
-  v_count         int := 0;
+  v_sub     record;
+  v_thb     uuid;
+  v_cursor  date;
+  v_end_dt  timestamptz;
+  v_tx_dt   timestamptz;
+  v_price   numeric;
+  v_amount  numeric;
+  v_count   int := 0;
+  v_skipped int := 0;
 BEGIN
-  -- Step 1: Clear old broken transactions
-  DELETE FROM public.payment_transactions;
-  RAISE NOTICE 'Cleared all old payment_transactions.';
+  -- Get THB currency ID
+  SELECT id INTO v_thb FROM public.currencies WHERE code = 'THB' LIMIT 1;
+  IF v_thb IS NULL THEN
+    SELECT id INTO v_thb FROM public.currencies ORDER BY created_at LIMIT 1;
+  END IF;
+  RAISE NOTICE 'Using currency_id: %', v_thb;
 
-  -- Step 2: Loop through every non-free subscription and create monthly payments
+  -- Step 1: Clear existing transactions
+  DELETE FROM public.payment_transactions;
+  RAISE NOTICE 'Cleared old payment_transactions.';
+
+  -- Step 2: Set THB-scale pricing on plans (so Revenue Trends shows realistic THB amounts)
+  UPDATE public.subscription_plans SET price_monthly = 990.00,  price_yearly = 9900.00
+  WHERE slug = 'pro';
+  UPDATE public.subscription_plans SET price_monthly = 2490.00, price_yearly = 24900.00
+  WHERE slug = 'team';
+  RAISE NOTICE 'Updated subscription_plans to THB pricing.';
+
+  -- Step 3: Loop through ALL existing subscriptions and generate historical payments
   FOR v_sub IN
     SELECT
-      s.id              AS sub_id,
+      s.id           AS sub_id,
       s.user_id,
       s.created_at,
       s.cancelled_at,
@@ -46,46 +52,45 @@ BEGIN
       COALESCE(sp.price_yearly, sp.price_monthly * 12) AS price_yearly
     FROM public.subscriptions s
     JOIN public.subscription_plans sp ON sp.id = s.plan_id
-    WHERE sp.price_monthly > 0   -- exclude Free plan
+    WHERE sp.price_monthly > 0
+    ORDER BY s.created_at
   LOOP
-    -- Date range: from subscription start to end (cancelled_at or NOW)
-    v_start_date := date_trunc('month', v_sub.created_at);
-    
-    IF v_sub.status = 'cancelled' AND v_sub.cancelled_at IS NOT NULL THEN
-      v_end_date := v_sub.cancelled_at;
-    ELSE
-      v_end_date := NOW();
-    END IF;
+    -- Subscription window: created_at → cancelled_at (or NOW)
+    v_cursor := date_trunc('month', v_sub.created_at)::date;
+    v_end_dt := CASE
+      WHEN v_sub.status = 'cancelled' AND v_sub.cancelled_at IS NOT NULL
+      THEN v_sub.cancelled_at
+      ELSE NOW()
+    END;
 
-    -- Price per transaction based on billing cycle
-    IF v_sub.billing_cycle = 'yearly' THEN
-      v_plan_price := v_sub.price_yearly;
-    ELSE
-      v_plan_price := v_sub.price_monthly;
-    END IF;
+    -- Price: yearly billing = one upfront payment, monthly = recurring
+    v_price := CASE
+      WHEN v_sub.billing_cycle = 'yearly' THEN v_sub.price_yearly
+      ELSE v_sub.price_monthly
+    END;
 
-    -- Walk through months and insert a transaction per billing cycle
-    v_cursor_date := v_start_date::date;
+    -- Skip if price is still near USD values (plan wasn't updated yet — failsafe)
+    IF v_price < 100 THEN
+      v_skipped := v_skipped + 1;
+      CONTINUE;
+    END IF;
 
     LOOP
-      EXIT WHEN v_cursor_date > v_end_date::date;
+      EXIT WHEN v_cursor > v_end_dt::date;
 
-      -- Random day within the billing month (±5 days from 1st for realism)
-      v_tx_date := v_cursor_date
-                   + (floor(random() * 5))::int * INTERVAL '1 day'
-                   + (floor(random() * 22) || ' hours')::interval;
+      -- Random time within the billing period (realistic: 1–5 days from month start)
+      v_tx_dt := v_cursor::timestamptz
+               + (floor(random() * 5))::int * INTERVAL '1 day'
+               + (floor(random() * 22) + 1 || ' hours')::interval;
 
-      -- Clamp to subscription window
-      IF v_tx_date < v_sub.created_at THEN
-        v_tx_date := v_sub.created_at + '1 hour'::interval;
+      -- Clamp timestamp to subscription window
+      IF v_tx_dt < v_sub.created_at THEN
+        v_tx_dt := v_sub.created_at + INTERVAL '30 minutes';
       END IF;
-      IF v_tx_date > LEAST(v_end_date, NOW()) THEN
-        EXIT;
-      END IF;
+      IF v_tx_dt > LEAST(v_end_dt, NOW()) THEN EXIT; END IF;
 
-      -- Add ±3% variance for realism
-      v_amount := v_plan_price * (0.97 + random() * 0.06);
-      v_amount := round(v_amount::numeric, 2);
+      -- ±3% variance for realism
+      v_amount := round((v_price * (0.97 + random() * 0.06))::numeric, 2);
 
       INSERT INTO public.payment_transactions (
         id, user_id, subscription_id, amount, currency_id,
@@ -95,36 +100,34 @@ BEGIN
         v_sub.user_id,
         v_sub.sub_id,
         v_amount,
-        v_currency_id,
+        v_thb,
         'completed',
         'stripe',
         'subscription_payment',
-        v_tx_date
+        v_tx_dt
       ) ON CONFLICT DO NOTHING;
 
       v_count := v_count + 1;
 
-      -- Yearly billing = 1 transaction only, Monthly = advance 1 month
-      IF v_sub.billing_cycle = 'yearly' THEN
-        EXIT;
-      ELSE
-        v_cursor_date := (v_cursor_date + INTERVAL '1 month')::date;
-      END IF;
+      -- Yearly: 1 payment only; Monthly: advance to next month
+      IF v_sub.billing_cycle = 'yearly' THEN EXIT; END IF;
+      v_cursor := (v_cursor + INTERVAL '1 month')::date;
     END LOOP;
-
   END LOOP;
 
-  RAISE NOTICE '✅ Fix complete: % payment_transactions inserted (linked to real subscriptions lifecycle).', v_count;
+  RAISE NOTICE '✅ Done: % transactions inserted, % skipped (low price = plan not updated yet).', v_count, v_skipped;
+  RAISE NOTICE 'If skipped > 0, run the UPDATE subscription_plans statements separately first, then re-run this script.';
 END $$;
 
-
 -- ============================================================
--- VERIFICATION: Monthly MRR breakdown (should span multiple months)
+-- VERIFY: Should show 12+ months with growing MRR
+-- Expected: Mar 2025 → Feb 2026, MRR growing each month
 -- ============================================================
 SELECT
   to_char(date_trunc('month', created_at), 'Mon YYYY') AS month,
   COUNT(*)                                              AS tx_count,
-  SUM(amount)::numeric(12,2)                           AS total_mrr_thb
+  ROUND(SUM(amount))                                    AS total_mrr_thb,
+  COUNT(DISTINCT user_id)                               AS paying_users
 FROM public.payment_transactions
 WHERE status = 'completed'
 GROUP BY date_trunc('month', created_at)
