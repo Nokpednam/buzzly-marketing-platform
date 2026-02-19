@@ -49,7 +49,7 @@ export function useSubscriptionMetrics() {
       const now = new Date();
       const last12Months = subMonths(now, 11);
 
-      // 1. Fetch active subscriptions for current MRR
+      // 1. Fetch active subscriptions count
       const { data: activeSubs, error: subError } = await supabase
         .from("subscriptions")
         .select(`
@@ -66,60 +66,78 @@ export function useSubscriptionMetrics() {
 
       if (subError) throw subError;
 
-      // 2. Fetch transactions for historical trend
+      // 2. Fetch all completed transactions for the last 12 months
+      //    (these are now linked to real subscription lifecycles)
       const { data: txs, error: txError } = await supabase
         .from("payment_transactions")
-        .select("*")
+        .select("id, amount, created_at, subscription_id")
         .gte("created_at", last12Months.toISOString())
-        .eq("status", "completed");
+        .eq("status", "completed")
+        .order("created_at", { ascending: true });
 
       if (txError) throw txError;
 
-      // Calculate Current MRR (Point-in-time)
-      const currentMrr = activeSubs?.reduce((sum, sub: any) => {
-        return sum + Number(sub.subscription_plans?.price_monthly || 0);
-      }, 0) || 0;
-
-      // Process Monthly Data from Transactions
-      const monthlyMap = new Map<string, number>();
-
-      // Initialize last 12 months
+      // Build monthly MRR map from actual transaction data
+      // Initialize all 12 months to 0 (so months with no txs still appear)
+      const monthlyMap = new Map<string, { key: Date; mrr: number }>();
       for (let i = 11; i >= 0; i--) {
         const m = subMonths(now, i);
-        monthlyMap.set(format(m, "MMM"), 0);
+        const label = format(m, "MMM yyyy");
+        monthlyMap.set(label, { key: startOfMonth(m), mrr: 0 });
       }
 
       txs?.forEach(tx => {
-        const m = format(new Date(tx.created_at), "MMM");
-        if (monthlyMap.has(m)) {
-          monthlyMap.set(m, (monthlyMap.get(m) || 0) + Number(tx.amount));
+        const txDate = new Date(tx.created_at);
+        const label = format(txDate, "MMM yyyy");
+        if (monthlyMap.has(label)) {
+          const entry = monthlyMap.get(label)!;
+          entry.mrr += Number(tx.amount);
+          monthlyMap.set(label, entry);
         }
       });
 
-      const monthlyData = Array.from(monthlyMap.entries()).map(([month, mrr], i, arr) => {
-        const prevMrr = i > 0 ? arr[i - 1][1] : 0;
-        const growth = prevMrr > 0 ? ((mrr - prevMrr) / prevMrr) * 100 : 0;
+      const monthlyEntries = Array.from(monthlyMap.entries());
+      const monthlyData = monthlyEntries.map(([label, entry], i, arr) => {
+        const prevMrr = i > 0 ? arr[i - 1][1].mrr : 0;
+        const growth = prevMrr > 0 ? ((entry.mrr - prevMrr) / prevMrr) * 100 : 0;
         return {
-          month,
-          mrr,
+          month: label,   // "Jan 2025" format for better readability on chart
+          mrr: Math.round(entry.mrr),
           growth: Math.round(growth * 10) / 10
         };
       });
 
-      // Calculate Breakdown for Current Month
+      // Current MRR: use the LATEST month's actual transaction total
+      // (more accurate than summing subscription prices since it reflects real billing)
+      const latestMonthMrr = monthlyData[monthlyData.length - 1]?.mrr || 0;
+      const prevMonthMrr = monthlyData[monthlyData.length - 2]?.mrr || 0;
+
+      // Fall back to subscription-based estimate if no transactions yet this month
+      const subscriptionBasedMrr = activeSubs?.reduce((sum, sub: any) => {
+        return sum + Number(sub.subscription_plans?.price_monthly || 0);
+      }, 0) || 0;
+
+      const currentMrr = latestMonthMrr > 0 ? latestMonthMrr : subscriptionBasedMrr;
+      const mrrGrowth = prevMonthMrr > 0
+        ? Math.round(((currentMrr - prevMonthMrr) / prevMonthMrr) * 100 * 10) / 10
+        : monthlyData[monthlyData.length - 1]?.growth || 0;
+
+      // Breakdown for current month
       const currentMonthStart = startOfMonth(now);
+      const newSubsThisMonth = activeSubs?.filter(sub =>
+        new Date(sub.created_at) >= currentMonthStart
+      ) || [];
 
-      // New MRR: Transactions from subscriptions created this month
-      const newMrr = activeSubs?.filter(sub => new Date(sub.created_at) >= currentMonthStart)
-        .reduce((sum, sub: any) => sum + Number(sub.subscription_plans?.price_monthly || 0), 0) || 0;
+      const newMrr = newSubsThisMonth.reduce((sum, sub: any) =>
+        sum + Number(sub.subscription_plans?.price_monthly || 0), 0
+      );
 
-      // Expansion/Churn (Estimated from transactions)
-      const expansion = Math.round(currentMrr * 0.05);
-      const churn = Math.round(currentMrr * 0.02);
+      // Estimate churn & expansion from MoM change
+      const rawChurn = Math.max(0, prevMonthMrr - currentMrr + newMrr);
+      const rawExpansion = Math.max(0, currentMrr - prevMonthMrr - newMrr);
 
-      // Calculate Active Subscriptions Growth
-      // Approximation: Growth = (New Subs This Month / (Total - New Subs)) * 100
-      const newSubsCount = activeSubs?.filter(sub => new Date(sub.created_at) >= currentMonthStart).length || 0;
+      // Active subscriptions growth
+      const newSubsCount = newSubsThisMonth.length;
       const prevSubsCount = (activeSubs?.length || 0) - newSubsCount;
       const activeSubscriptionsGrowth = prevSubsCount > 0
         ? Math.round((newSubsCount / prevSubsCount) * 100 * 10) / 10
@@ -127,16 +145,16 @@ export function useSubscriptionMetrics() {
 
       return {
         currentMrr,
-        previousMrr: monthlyData[monthlyData.length - 2]?.mrr || 0,
-        mrrGrowth: monthlyData[monthlyData.length - 1]?.growth || 0,
+        previousMrr: prevMonthMrr,
+        mrrGrowth,
         activeSubscriptions: activeSubs?.length || 0,
         activeSubscriptionsGrowth,
         arr: currentMrr * 12,
         monthlyData,
         breakdown: {
-          newMrr,
-          expansion,
-          churn
+          newMrr: Math.round(newMrr),
+          expansion: Math.round(rawExpansion),
+          churn: Math.round(rawChurn)
         }
       };
     },

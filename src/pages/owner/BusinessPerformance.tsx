@@ -261,11 +261,31 @@ export default function BusinessPerformance() {
                 color: (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "text-emerald-500" : "text-red-500",
                 bg: (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "bg-emerald-500/10" : "bg-red-500/10"
               },
-              { icon: Users, val: "100%", label: "NRR", color: "text-blue-500", bg: "bg-blue-500/10" },
+              {
+                icon: Users,
+                val: (() => {
+                  // NRR = (Prev MRR + Expansion - Churn) / Prev MRR * 100
+                  const prev = subscriptionMetrics?.previousMrr || 0;
+                  const expansion = subscriptionMetrics?.breakdown?.expansion || 0;
+                  const churn = subscriptionMetrics?.breakdown?.churn || 0;
+                  if (prev <= 0) return "N/A";
+                  const nrr = Math.round(((prev + expansion - churn) / prev) * 100);
+                  return `${nrr}%`;
+                })(),
+                label: "Net Revenue Retention",
+                color: "text-blue-500",
+                bg: "bg-blue-500/10"
+              },
               {
                 icon: UserMinus,
-                val: "2.0%",
-                label: "Est. Churn",
+                val: (() => {
+                  // Churn % = Churn MRR / Prev MRR * 100
+                  const prev = subscriptionMetrics?.previousMrr || 0;
+                  const churn = subscriptionMetrics?.breakdown?.churn || 0;
+                  if (prev <= 0) return "0.0%";
+                  return `${((churn / prev) * 100).toFixed(1)}%`;
+                })(),
+                label: "MRR Churn Rate",
                 color: "text-red-500",
                 bg: "bg-red-500/10"
               }
