@@ -1,22 +1,25 @@
 -- ============================================================
--- Mock Data Part 10: Owner Pages Realistic Data (v2 - Robust)
+-- Mock Data Part 10: Owner Pages Realistic Data (v2.1 - Fix Duplicates)
 -- Fixes: /owner/business-performance (all tabs) and /owner/customer-tiers
 --
--- Part A: Subscriptions (1 per user max) -> Survival Analysis
--- Part B: Payment Transactions (12 months MRR, THB) -> Revenue Trends
--- Part C: Loyalty Points Backfill -> Customer Tiers page
--- Part D: Cohort Analysis (percentage-based retention) -> Cohort tab
+-- CHANGES:
+-- Uses UPDATE-or-DELETE pattern to handle existing subscriptions from
+-- unified-seed.sql instead of INSERTing duplicates.
+-- Ensures strict 1-user-1-subscription rule.
 -- ============================================================
 
 -- ============================================================
 -- PART A: Subscriptions with realistic cancelled_at
--- ONE subscription per user max.
--- ~60% of users get a subscription (Pro/Team mix).
--- Some are active, some are cancelled/churned.
+-- Logic:
+-- 1. Loop through all users
+-- 2. Randomly decide if they should have a sub (60%)
+-- 3. If YES: Update existing sub (to preserve ID/FKs) or Insert new
+-- 4. If NO: Delete existing sub (and cascading dependencies if needed)
 -- ============================================================
 DO $$
 DECLARE
   v_user        record;
+  v_sub_id      uuid;
   v_plan_pro    uuid := '5b000002-0000-0000-0000-000000000002';
   v_plan_team   uuid := '5b000003-0000-0000-0000-000000000003';
   v_plan_id     uuid;
@@ -28,23 +31,36 @@ DECLARE
   v_cancelled_at timestamptz;
   v_cancel_days int;
   v_cycle       text;
-  v_count_active int := 0;
-  v_count_churn  int := 0;
+  v_count_upd   int := 0;
+  v_count_new   int := 0;
+  v_count_del   int := 0;
 BEGIN
-  -- Loop through ALL users to ensure 1:1 mapping
+  -- Loop through ALL users
   FOR v_user IN SELECT id FROM auth.users ORDER BY created_at LOOP
     v_rnd := random();
+    
+    -- Check if subscription already exists for this user (from unified-seed)
+    SELECT id INTO v_sub_id FROM public.subscriptions WHERE user_id = v_user.id LIMIT 1;
 
-    -- 40% chance user has NO subscription (Freemium)
+    -- DECISION: 40% chance user has NO subscription (Freemium)
     IF v_rnd < 0.4 THEN
-      CONTINUE; 
+      IF v_sub_id IS NOT NULL THEN
+        -- Delete dependencies first to satisfy FKs (Invoices, Transactions)
+        DELETE FROM public.invoices WHERE subscription_id = v_sub_id;
+        DELETE FROM public.payment_transactions WHERE subscription_id = v_sub_id;
+        
+        -- Delete the subscription
+        DELETE FROM public.subscriptions WHERE id = v_sub_id;
+        v_count_del := v_count_del + 1;
+      END IF;
+      CONTINUE; -- Next user
     END IF;
 
+    -- DECISION: User GETS a subscription
     -- Determine Plan (60% Pro, 40% Team)
     v_plan_id := CASE WHEN random() < 0.6 THEN v_plan_pro ELSE v_plan_team END;
     
-    -- Determine Lifecycle
-    -- 80% Active, 20% Churned
+    -- Determine Lifecycle (80% Active, 20% Churned)
     IF random() < 0.8 THEN
       v_status := 'active';
       v_cancelled_at := NULL;
@@ -65,41 +81,51 @@ BEGIN
 
     -- If cancelled, set cancelled_at
     IF v_status = 'cancelled' THEN
-      -- Cancelled 30-300 days after creation (but before now)
       v_cancel_days := (floor(random() * (v_days_ago - 30)) + 30)::int;
-      -- Ensure cancellation is not in future relative to creation
       IF v_cancel_days < 1 THEN v_cancel_days := 1; END IF;
-      
       v_cancelled_at := v_created_at + (v_cancel_days || ' days')::interval;
-      -- If calculate cancel date is in future, cap it at NOW
       IF v_cancelled_at > NOW() THEN v_cancelled_at := NOW(); END IF;
-
-      v_count_churn := v_count_churn + 1;
-    ELSE
-      v_count_active := v_count_active + 1;
     END IF;
 
-    INSERT INTO public.subscriptions (
-      id, user_id, plan_id, status, billing_cycle,
-      current_period_start, current_period_end,
-      cancel_at_period_end, cancelled_at, created_at, updated_at
-    ) VALUES (
-      gen_random_uuid(),
-      v_user.id,
-      v_plan_id,
-      v_status,
-      v_cycle,
-      v_created_at,
-      v_period_end,
-      false,
-      v_cancelled_at,
-      v_created_at,
-      v_created_at
-    ) ON CONFLICT DO NOTHING;
+    IF v_sub_id IS NOT NULL THEN
+      -- UPDATE Existing
+      UPDATE public.subscriptions SET
+        plan_id = v_plan_id,
+        status = v_status,
+        billing_cycle = v_cycle,
+        current_period_start = v_created_at,
+        current_period_end = v_period_end,
+        cancel_at_period_end = false,
+        cancelled_at = v_cancelled_at,
+        created_at = v_created_at,
+        updated_at = NOW()
+      WHERE id = v_sub_id;
+      v_count_upd := v_count_upd + 1;
+    ELSE
+      -- INSERT New
+      INSERT INTO public.subscriptions (
+        id, user_id, plan_id, status, billing_cycle,
+        current_period_start, current_period_end,
+        cancel_at_period_end, cancelled_at, created_at, updated_at
+      ) VALUES (
+        gen_random_uuid(),
+        v_user.id,
+        v_plan_id,
+        v_status,
+        v_cycle,
+        v_created_at,
+        v_period_end,
+        false,
+        v_cancelled_at,
+        v_created_at,
+        v_created_at
+      );
+      v_count_new := v_count_new + 1;
+    END IF;
 
   END LOOP;
 
-  RAISE NOTICE 'Part A: Subscriptions seeded (% active, % cancelled).', v_count_active, v_count_churn;
+  RAISE NOTICE 'Part A: Subscriptions finalized. Updated: %, New: %, Deleted: %', v_count_upd, v_count_new, v_count_del;
 END $$;
 
 -- ============================================================
@@ -107,6 +133,8 @@ END $$;
 -- Realistic SaaS growth: ฿80,000 → ฿150,000 over 12 months
 -- Pro plan = ฿999/mo, Team plan = ฿2,499/mo
 -- ~30-55 transactions per month
+--
+-- NOTE: We wipe existing transactions to ensure clean MRR data
 -- ============================================================
 DO $$
 DECLARE
@@ -119,6 +147,9 @@ DECLARE
   i             int;
   v_tx_date     timestamptz;
 BEGIN
+  -- Clear all existing transactions (from unified-seed) to avoid pollution
+  DELETE FROM public.payment_transactions;
+
   SELECT ARRAY(SELECT id FROM auth.users ORDER BY created_at LIMIT 100) INTO v_users;
 
   IF v_users IS NULL OR array_length(v_users, 1) IS NULL THEN
@@ -167,9 +198,6 @@ END $$;
 
 -- ============================================================
 -- PART C: Loyalty Points Backfill
--- For every profile_customer without loyalty_point_id:
---   1. Create loyalty_points record with realistic tier
---   2. Update profile_customers.loyalty_point_id
 -- Distribution: Bronze 55%, Silver 25%, Gold 15%, Platinum 5%
 -- ============================================================
 DO $$
@@ -245,7 +273,6 @@ END $$;
 -- ============================================================
 -- PART D: Cohort Analysis — Replace with percentage-based retention
 -- Deletes existing rows and re-inserts with realistic % retention
--- month_1: 72–90%, month_2: 52–72%, month_3: 38–58%
 -- ============================================================
 DO $$
 DECLARE
@@ -306,13 +333,10 @@ END $$;
 
 -- ============================================================
 -- PART E: Also fix existing cohort_analysis rows from old seed
--- (file 5 stored absolute counts like month_1: 120 instead of %)
--- Convert any remaining rows where month_1 > 100 to percentages
 -- ============================================================
 DO $$
 DECLARE
   v_row   record;
-  v_rd    jsonb;
   v_m1    numeric;
   v_m2    numeric;
   v_m3    numeric;
@@ -340,4 +364,4 @@ BEGIN
   RAISE NOTICE 'Part E: Converted absolute-count cohort rows to percentages.';
 END $$;
 
-DO $$ BEGIN RAISE NOTICE '✅ Part 10 (v2): Owner Pages Mock Data seeded successfully!'; END $$;
+DO $$ BEGIN RAISE NOTICE '✅ Part 10 (v2.1): Owner Pages Mock Data seeded successfully (Clean Update)!'; END $$;
