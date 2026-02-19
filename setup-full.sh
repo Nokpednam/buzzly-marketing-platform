@@ -256,9 +256,25 @@ run_sql_script "supabase/script/fix-marketing-linkage.sql" "Marketing Data Linka
 echo "✅ Marketing data linked to workspaces."
 echo ""
 
+# ---------------------------------------------------------
+# 5.7: Seed Business Performance — Payment Transactions
+# ---------------------------------------------------------
+echo "Step 5.7: Seeding Revenue Trends data (payment_transactions)..."
+echo "   → Generates 12 months of realistic transaction history"
+echo "   → Prices updated to THB (฿990 Pro / ฿2,490 Team)"
+run_mock_sql "supabase/snippets/fix_payment_transactions_sync.sql" "Revenue Trends: 12-month payment transactions"
+echo "✅ Payment transactions seeded — Revenue Trends chart ready."
+echo ""
+
 echo "========================================="
 echo "✅✅ SETUP COMPLETE SUCCESSFULLY! ✅✅"
 echo "========================================="
-echo "Owner Login: hachikonoluna@gmail.com / owner123"
-echo "Admin Login: admin@buzzly.co / admin123"
-
+echo "Owner Login : hachikonoluna@gmail.com / owner123"
+echo "Admin Login : admin@buzzly.co / admin123"
+echo ""
+echo "📊 Business Performance page is fully seeded:"
+echo "   • Revenue Trends    — 12 months of MRR data"
+echo "   • Growth Analysis   — subscriber growth charts"
+echo "   • Cohort Retention  — month-by-month cohorts"
+echo "   • Survival Probability — Kaplan-Meier curve"
+echo ""

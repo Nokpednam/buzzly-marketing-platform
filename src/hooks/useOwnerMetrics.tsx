@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
+import { format, subMonths, subDays, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 
 export interface MRRMetrics {
   currentMrr: number;
@@ -9,7 +9,8 @@ export interface MRRMetrics {
   activeSubscriptions: number;
   activeSubscriptionsGrowth: number;
   arr: number;
-  monthlyData: { month: string; mrr: number; growth: number }[];
+  monthlyData: { month: string; mrr: number; growth: number; activeAt: number }[];
+  rawTransactions: { date: string; amount: number; userId: string }[];
   growthData: { month: string; newSubs: number; churned: number; net: number; totalActive: number }[];
   breakdown: {
     newMrr: number;
@@ -64,24 +65,26 @@ export function useSubscriptionMetrics() {
         .gte("created_at", last13Months.toISOString());
       if (allSubsErr) throw allSubsErr;
 
-      // 3. Fetch completed transactions (last 12 months)
+      // 3. Fetch completed transactions (last 12 months) — include user_id for per-month active count
       const { data: txs, error: txError } = await supabase
         .from("payment_transactions")
-        .select("id, amount, created_at")
+        .select("id, amount, created_at, user_id")
         .gte("created_at", subMonths(now, 11).toISOString())
         .eq("status", "completed")
         .order("created_at", { ascending: true });
       if (txError) throw txError;
 
-      // Build monthly MRR map
-      const monthlyMap = new Map<string, { mrr: number }>();
+      // Build monthly MRR map — track unique paying users per month for correlated active count
+      const monthlyMap = new Map<string, { mrr: number; users: Set<string> }>();
       for (let i = 11; i >= 0; i--) {
-        monthlyMap.set(format(subMonths(now, i), "MMM yyyy"), { mrr: 0 });
+        monthlyMap.set(format(subMonths(now, i), "MMM yyyy"), { mrr: 0, users: new Set() });
       }
-      txs?.forEach(tx => {
+      txs?.forEach((tx: any) => {
         const label = format(new Date(tx.created_at), "MMM yyyy");
         if (monthlyMap.has(label)) {
-          monthlyMap.get(label)!.mrr += Number(tx.amount);
+          const entry = monthlyMap.get(label)!;
+          entry.mrr += Number(tx.amount);
+          entry.users.add(tx.user_id); // unique paying users = active subscribers that month
         }
       });
 
@@ -89,8 +92,20 @@ export function useSubscriptionMetrics() {
       const monthlyData = monthlyEntries.map(([month, entry], i, arr) => {
         const prevMrr = i > 0 ? arr[i - 1][1].mrr : 0;
         const growth = prevMrr > 0 ? ((entry.mrr - prevMrr) / prevMrr) * 100 : 0;
-        return { month, mrr: Math.round(entry.mrr), growth: Math.round(growth * 10) / 10 };
+        return {
+          month,
+          mrr: Math.round(entry.mrr),
+          growth: Math.round(growth * 10) / 10,
+          activeAt: entry.users.size, // paying subscribers = directly correlated to MRR
+        };
       });
+
+      // Raw daily transactions for 7D/1M time range views in the component
+      const rawTransactions = (txs || []).map((tx: any) => ({
+        date: format(new Date(tx.created_at), 'yyyy-MM-dd'),
+        amount: Number(tx.amount),
+        userId: tx.user_id,
+      }));
 
       // Build monthly subscriber growth data
       const growthMap = new Map<string, { newSubs: number; churned: number }>();
@@ -148,6 +163,7 @@ export function useSubscriptionMetrics() {
         arr: currentMrr * 12,
         monthlyData,
         growthData,
+        rawTransactions,
         breakdown: {
           newMrr: Math.round(newMrr),
           expansion: Math.round(rawExpansion),

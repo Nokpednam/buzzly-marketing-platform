@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,9 @@ import {
   Legend,
   ReferenceLine,
 } from "recharts";
+import { useNavigate } from "react-router-dom";
 import { useSubscriptionMetrics, useCohortAnalysis, useSurvivalAnalysis } from "@/hooks/useOwnerMetrics";
+import { subDays, format as fnsFormat } from "date-fns";
 import { cn } from "@/lib/utils";
 
 export default function BusinessPerformance() {
@@ -53,14 +55,59 @@ export default function BusinessPerformance() {
 
   const mrrData = subscriptionMetrics?.monthlyData || [];
   const growthData = subscriptionMetrics?.growthData || [];
+  const rawTransactions = subscriptionMetrics?.rawTransactions || [];
   const breakdown = subscriptionMetrics?.breakdown || { newMrr: 0, expansion: 0, churn: 0 };
 
-  // Combined chart data: MRR + subscriber count per month, short label for XAxis
-  const mrrChartData = mrrData.map((d, i) => ({
+  // Time range toggle state
+  type TimeRange = '7d' | '1m' | '3m' | '6m' | '1y';
+  const [timeRange, setTimeRange] = useState<TimeRange>('1y');
+  const TIME_RANGE_OPTIONS: { key: TimeRange; label: string }[] = [
+    { key: '7d', label: '7D' },
+    { key: '1m', label: '1M' },
+    { key: '3m', label: '3M' },
+    { key: '6m', label: '6M' },
+    { key: '1y', label: '1Y' },
+  ];
+
+  // Monthly chart data with activeAt coming from same txs source as MRR (always correlated)
+  const mrrChartData = mrrData.map((d) => ({
     ...d,
-    label: d.month.split(' ')[0],          // "Mar" etc. — used as XAxis key
-    subs: growthData[i]?.totalActive ?? 0, // co-plot active subscriber count
+    label: d.month.split(' ')[0], // "Mar", "Apr" etc.
+    subs: d.activeAt,             // unique paying users — directly correlated to MRR
   }));
+
+  // Dynamic chart data based on selected time range
+  const chartData = useMemo(() => {
+    if (timeRange === '7d' || timeRange === '1m') {
+      const daysBack = timeRange === '7d' ? 7 : 30;
+      const dailyMap = new Map<string, { mrr: number; users: Set<string> }>();
+      for (let i = daysBack - 1; i >= 0; i--) {
+        const key = fnsFormat(subDays(new Date(), i), 'MMM dd');
+        dailyMap.set(key, { mrr: 0, users: new Set() });
+      }
+      const cutoff = subDays(new Date(), daysBack);
+      rawTransactions
+        .filter(tx => new Date(tx.date) >= cutoff)
+        .forEach(tx => {
+          const key = fnsFormat(new Date(tx.date), 'MMM dd');
+          if (dailyMap.has(key)) {
+            const e = dailyMap.get(key)!;
+            e.mrr += tx.amount;
+            e.users.add(tx.userId);
+          }
+        });
+      return Array.from(dailyMap.entries()).map(([label, e]) => ({
+        label,
+        mrr: Math.round(e.mrr),
+        subs: e.users.size,
+        growth: 0,
+        activeAt: e.users.size,
+      }));
+    }
+    const sliceMap: Record<string, number> = { '3m': 3, '6m': 6, '1y': 12 };
+    return mrrChartData.slice(-(sliceMap[timeRange] ?? 12));
+  }, [timeRange, mrrChartData, rawTransactions]);
+
   const growthDataShort = growthData.map(d => ({ ...d, label: d.month.split(' ')[0] }));
 
 
@@ -197,19 +244,42 @@ export default function BusinessPerformance() {
           {/* Main MRR Area Chart */}
           <Card className="glass-panel p-6">
             <CardHeader className="px-0 pt-0">
-              <div className="flex items-start justify-between flex-wrap gap-4">
+              <div className="flex items-start justify-between flex-wrap gap-3">
                 <div>
                   <CardTitle className="text-xl">Monthly Recurring Revenue</CardTitle>
-                  <CardDescription>12-month MRR trend with active subscriber count</CardDescription>
+                  <CardDescription>
+                    {timeRange === '7d' ? 'Last 7 days — daily view' :
+                      timeRange === '1m' ? 'Last 30 days — daily view' :
+                        timeRange === '3m' ? 'Last 3 months' :
+                          timeRange === '6m' ? 'Last 6 months' : '12-month trend'}
+                    {' '}· MRR (฿) &amp; Active Subscribers
+                  </CardDescription>
                 </div>
-                <div className="text-right">
-                  <p className="text-3xl font-bold text-primary">฿{currentMrr.toLocaleString()}</p>
-                  <p className={cn("text-sm font-semibold mt-0.5",
-                    (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "text-emerald-500" : "text-red-500")}>
-                    {(subscriptionMetrics?.mrrGrowth || 0) >= 0 ? '▲' : '▼'}&nbsp;
-                    {Math.abs(subscriptionMetrics?.mrrGrowth || 0)}% vs last month
-                  </p>
+                {/* Time Range Toggle */}
+                <div className="flex items-center gap-1 bg-muted/60 rounded-xl p-1">
+                  {TIME_RANGE_OPTIONS.map(opt => (
+                    <button
+                      key={opt.key}
+                      onClick={() => setTimeRange(opt.key)}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200",
+                        timeRange === opt.key
+                          ? "bg-background text-primary shadow-sm ring-1 ring-border/50"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
+              </div>
+              <div className="flex items-baseline gap-3 mt-2">
+                <p className="text-3xl font-bold text-primary">฿{currentMrr.toLocaleString()}</p>
+                <p className={cn("text-sm font-semibold",
+                  (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "text-emerald-500" : "text-red-500")}>
+                  {(subscriptionMetrics?.mrrGrowth || 0) >= 0 ? '▲' : '▼'}&nbsp;
+                  {Math.abs(subscriptionMetrics?.mrrGrowth || 0)}% vs last month
+                </p>
               </div>
             </CardHeader>
             <CardContent className="px-0 pb-0 h-[340px]">
@@ -224,7 +294,7 @@ export default function BusinessPerformance() {
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={mrrChartData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+                  <AreaChart data={chartData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
                     <defs>
                       <linearGradient id="mrrGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
@@ -238,8 +308,9 @@ export default function BusinessPerformance() {
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" vertical={false} />
                     <XAxis
                       dataKey="label"
-                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 500 }}
-                      axisLine={false} tickLine={false} interval={0}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: timeRange === '1m' ? 10 : 12, fontWeight: 500 }}
+                      axisLine={false} tickLine={false}
+                      interval={timeRange === '7d' ? 0 : timeRange === '1m' ? 4 : 0}
                     />
                     <YAxis
                       yAxisId="mrr"
@@ -320,21 +391,46 @@ export default function BusinessPerformance() {
 
             <Card className="glass-panel">
               <CardHeader>
-                <CardTitle>MoM Growth %</CardTitle>
-                <CardDescription>Month-over-month MRR change rate</CardDescription>
+                <CardTitle>
+                  {timeRange === '7d' ? 'Daily Revenue' :
+                    timeRange === '1m' ? 'Daily Revenue (30d)' : 'MoM Growth %'}
+                </CardTitle>
+                <CardDescription>
+                  {timeRange === '7d' || timeRange === '1m'
+                    ? 'Revenue per day in selected period'
+                    : 'Month-over-month MRR change rate'}
+                </CardDescription>
               </CardHeader>
               <CardContent className="h-[220px] px-2">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={mrrChartData.slice(-6)} barSize={28}>
+                  <BarChart data={chartData} barSize={timeRange === '1m' ? 12 : 28}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                      axisLine={false} tickLine={false}
+                      interval={timeRange === '7d' ? 0 : timeRange === '1m' ? 4 : 0}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                      axisLine={false} tickLine={false}
+                      tickFormatter={(v) => timeRange === '7d' || timeRange === '1m'
+                        ? (v >= 1000 ? `฿${(v / 1000).toFixed(0)}k` : `฿${v}`)
+                        : `${v}%`}
+                    />
                     <Tooltip
-                      formatter={(v: number) => [`${v >= 0 ? '+' : ''}${v}%`, 'MRR Growth']}
+                      formatter={(v: number) =>
+                        timeRange === '7d' || timeRange === '1m'
+                          ? [`฿${v.toLocaleString()}`, 'Revenue']
+                          : [`${v >= 0 ? '+' : ''}${v}%`, 'MRR Growth']}
                       contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "10px", border: "1px solid hsl(var(--border))" }}
                     />
                     <ReferenceLine y={0} stroke="hsl(var(--border))" strokeWidth={1.5} />
-                    <Bar dataKey="growth" radius={[5, 5, 0, 0]} fill="hsl(var(--primary))" />
+                    <Bar
+                      dataKey={timeRange === '7d' || timeRange === '1m' ? 'mrr' : 'growth'}
+                      radius={[5, 5, 0, 0]}
+                      fill="hsl(var(--primary))"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>

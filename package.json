@@ -9,6 +9,8 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
+    "seed": "tsx scripts/seed-business-data.ts",
+    "seed:check": "tsx scripts/seed-business-data.ts --check",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
