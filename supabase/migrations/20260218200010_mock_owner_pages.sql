@@ -2,74 +2,82 @@
 -- Mock Data Part 10: Owner Pages Realistic Data (v2 - Robust)
 -- Fixes: /owner/business-performance (all tabs) and /owner/customer-tiers
 --
--- Part A: Subscriptions (80 active + 20 cancelled) → Survival Analysis
--- Part B: Payment Transactions (12 months MRR, THB) → Revenue Trends
--- Part C: Loyalty Points Backfill → Customer Tiers page
--- Part D: Cohort Analysis (percentage-based retention) → Cohort tab
+-- Part A: Subscriptions (1 per user max) -> Survival Analysis
+-- Part B: Payment Transactions (12 months MRR, THB) -> Revenue Trends
+-- Part C: Loyalty Points Backfill -> Customer Tiers page
+-- Part D: Cohort Analysis (percentage-based retention) -> Cohort tab
 -- ============================================================
 
 -- ============================================================
 -- PART A: Subscriptions with realistic cancelled_at
--- 80 active (Pro/Team plans) + 20 cancelled (churn simulation)
--- Uses ON CONFLICT DO NOTHING for idempotency
+-- ONE subscription per user max.
+-- ~60% of users get a subscription (Pro/Team mix).
+-- Some are active, some are cancelled/churned.
 -- ============================================================
 DO $$
 DECLARE
-  v_users       uuid[];
-  v_user_id     uuid;
+  v_user        record;
   v_plan_pro    uuid := '5b000002-0000-0000-0000-000000000002';
   v_plan_team   uuid := '5b000003-0000-0000-0000-000000000003';
-  v_created_at  timestamptz;
-  v_days_ago    int;
-  i             int;
-  v_cancel_days int;
   v_plan_id     uuid;
+  v_created_at  timestamptz;
+  v_period_end  timestamptz;
+  v_days_ago    int;
+  v_rnd         float;
+  v_status      text;
+  v_cancelled_at timestamptz;
+  v_cancel_days int;
+  v_cycle       text;
+  v_count_active int := 0;
+  v_count_churn  int := 0;
 BEGIN
-  -- Collect up to 100 auth users
-  SELECT ARRAY(SELECT id FROM auth.users ORDER BY created_at LIMIT 100) INTO v_users;
+  -- Loop through ALL users to ensure 1:1 mapping
+  FOR v_user IN SELECT id FROM auth.users ORDER BY created_at LOOP
+    v_rnd := random();
 
-  IF v_users IS NULL OR array_length(v_users, 1) IS NULL THEN
-    RAISE WARNING 'Part A: No auth.users found, skipping subscriptions seed.';
-    RETURN;
-  END IF;
+    -- 40% chance user has NO subscription (Freemium)
+    IF v_rnd < 0.4 THEN
+      CONTINUE; 
+    END IF;
 
-  -- Seed 80 active subscriptions (Pro/Team mix, spread over 12 months)
-  FOR i IN 1..80 LOOP
-    v_user_id   := v_users[1 + ((i - 1) % array_length(v_users, 1))];
-    v_days_ago  := (floor(random() * 365) + 1)::int;
-    v_created_at := NOW() - (v_days_ago || ' days')::interval;
-
-    -- 60% Pro, 40% Team
+    -- Determine Plan (60% Pro, 40% Team)
     v_plan_id := CASE WHEN random() < 0.6 THEN v_plan_pro ELSE v_plan_team END;
+    
+    -- Determine Lifecycle
+    -- 80% Active, 20% Churned
+    IF random() < 0.8 THEN
+      v_status := 'active';
+      v_cancelled_at := NULL;
+    ELSE
+      v_status := 'cancelled';
+    END IF;
 
-    INSERT INTO public.subscriptions (
-      id, user_id, plan_id, status, billing_cycle,
-      current_period_start, current_period_end,
-      cancel_at_period_end, cancelled_at, created_at, updated_at
-    ) VALUES (
-      gen_random_uuid(),
-      v_user_id,
-      v_plan_id,
-      'active',
-      CASE WHEN random() < 0.7 THEN 'monthly' ELSE 'yearly' END,
-      v_created_at,
-      v_created_at + INTERVAL '1 month',
-      false,
-      NULL,
-      v_created_at,
-      v_created_at
-    ) ON CONFLICT DO NOTHING;
-  END LOOP;
-
-  -- Seed 20 cancelled subscriptions (simulate churn)
-  -- cancelled_at is 30–300 days after creation
-  FOR i IN 1..20 LOOP
-    v_user_id    := v_users[1 + ((i + 79) % array_length(v_users, 1))];
-    v_days_ago   := (floor(random() * 300) + 60)::int;   -- created 60-360 days ago
+    -- Created date (1-365 days ago)
+    v_days_ago   := (floor(random() * 365) + 1)::int;
     v_created_at := NOW() - (v_days_ago || ' days')::interval;
-    v_cancel_days := (floor(random() * (v_days_ago - 30)) + 30)::int;
 
-    v_plan_id := CASE WHEN random() < 0.7 THEN v_plan_pro ELSE v_plan_team END;
+    -- Billing Cycle
+    v_cycle := CASE WHEN random() < 0.7 THEN 'monthly' ELSE 'yearly' END;
+    v_period_end := CASE 
+      WHEN v_cycle = 'yearly' THEN v_created_at + INTERVAL '1 year'
+      ELSE                         v_created_at + INTERVAL '1 month'
+    END;
+
+    -- If cancelled, set cancelled_at
+    IF v_status = 'cancelled' THEN
+      -- Cancelled 30-300 days after creation (but before now)
+      v_cancel_days := (floor(random() * (v_days_ago - 30)) + 30)::int;
+      -- Ensure cancellation is not in future relative to creation
+      IF v_cancel_days < 1 THEN v_cancel_days := 1; END IF;
+      
+      v_cancelled_at := v_created_at + (v_cancel_days || ' days')::interval;
+      -- If calculate cancel date is in future, cap it at NOW
+      IF v_cancelled_at > NOW() THEN v_cancelled_at := NOW(); END IF;
+
+      v_count_churn := v_count_churn + 1;
+    ELSE
+      v_count_active := v_count_active + 1;
+    END IF;
 
     INSERT INTO public.subscriptions (
       id, user_id, plan_id, status, billing_cycle,
@@ -77,20 +85,21 @@ BEGIN
       cancel_at_period_end, cancelled_at, created_at, updated_at
     ) VALUES (
       gen_random_uuid(),
-      v_user_id,
+      v_user.id,
       v_plan_id,
-      'cancelled',
-      'monthly',
+      v_status,
+      v_cycle,
       v_created_at,
-      v_created_at + INTERVAL '1 month',
+      v_period_end,
       false,
-      v_created_at + (v_cancel_days || ' days')::interval,
+      v_cancelled_at,
       v_created_at,
       v_created_at
     ) ON CONFLICT DO NOTHING;
+
   END LOOP;
 
-  RAISE NOTICE 'Part A: Subscriptions seeded (80 active + 20 cancelled).';
+  RAISE NOTICE 'Part A: Subscriptions seeded (% active, % cancelled).', v_count_active, v_count_churn;
 END $$;
 
 -- ============================================================
@@ -142,7 +151,7 @@ BEGIN
         payment_gateway, transaction_type, created_at
       ) VALUES (
         gen_random_uuid(),
-        v_user_id,
+        v_user.id,
         v_amount,
         v_currency_id,
         'completed',
