@@ -166,28 +166,18 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
   useEffect(() => {
     fetchPlatforms();
 
-    // Re-fetch platforms when workspace is created or user signs in
-    // This ensures API Keys page loads without manual page refresh
-    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange(() => {
+    // Re-fetch when workspace is created (dispatched from useWorkspace.createWorkspace)
+    // Using window events is more reliable than realtime for same-session state updates
+    const onWorkspaceCreated = () => {
+      // Retry a few times to handle any auth token propagation delay
       fetchPlatforms();
-    });
-
-    // Watch for workspace creation via realtime
-    const workspaceSub = supabase
-      .channel('workspace-changes')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'workspaces',
-      }, () => {
-        // Small delay to allow RLS propagation
-        setTimeout(() => fetchPlatforms(), 500);
-      })
-      .subscribe();
+      setTimeout(() => fetchPlatforms(), 800);
+      setTimeout(() => fetchPlatforms(), 2000);
+    };
+    window.addEventListener('workspace-created', onWorkspaceCreated);
 
     return () => {
-      authSub.unsubscribe();
-      supabase.removeChannel(workspaceSub);
+      window.removeEventListener('workspace-created', onWorkspaceCreated);
     };
   }, []);
 
@@ -246,6 +236,20 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       if (adAccountError) {
         // Non-blocking: log but don't fail the connection
         console.warn('Could not create ad_account (non-critical):', adAccountError.message);
+      } else {
+        // Seed 30 days of demo insights so dashboard shows data immediately
+        // This is idempotent - won't duplicate if already seeded
+        const { data: newAccount } = await supabase
+          .from('ad_accounts')
+          .select('id')
+          .eq('team_id', teamId)
+          .eq('platform_id', id)
+          .maybeSingle();
+
+        if (newAccount?.id) {
+          // Cast to any: seed_demo_insights exists in DB but not yet in generated types
+          await (supabase as any).rpc('seed_demo_insights', { p_ad_account_id: newAccount.id });
+        }
       }
 
       // Update local state ONLY on success
