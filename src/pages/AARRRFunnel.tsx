@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// --- เพิ่ม Import ตัวเช็คสิทธิ์ ---
+import { PlanRestrictedPage } from "@/components/PlanRestrictedPage"; 
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,11 +34,11 @@ const MOCK_AARRR_DATA = [
   { id: "revenue", name: "Revenue", letter: "R", icon: DollarSign, color: "text-orange-500", bg: "bg-orange-500/10", fill: "bg-orange-500", description: "Paid subscribers", value: 850, prevValue: 720 },
 ];
 
-export default function InteractiveAARRR() {
-  const [sortBy, setSortBy] = useState("flow"); // flow, value, name, conversion
+// 1. แยกเนื้อหาหลักออกมาเป็น Component ย่อย
+function AARRRDashboardContent() {
+  const [sortBy, setSortBy] = useState("flow");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
-  // 1. Calculate base metrics (Calculated once to derive conversion rates)
   const processedStages = useMemo(() => {
     return MOCK_AARRR_DATA.map((stage, index) => {
       const nextStage = MOCK_AARRR_DATA[index + 1];
@@ -52,21 +54,17 @@ export default function InteractiveAARRR() {
     });
   }, []);
 
-  // 2. Handle Sorting for the Cards section
   const sortedStages = useMemo(() => {
     let result = [...processedStages];
-    
-    if (sortBy === "flow") return result; // Default AARRR order
+    if (sortBy === "flow") return result;
 
     result.sort((a, b) => {
       let comparison = 0;
       if (sortBy === "value") comparison = a.value - b.value;
       if (sortBy === "name") comparison = a.name.localeCompare(b.name);
       if (sortBy === "conversion") comparison = a.conversionRate - b.conversionRate;
-      
       return sortOrder === "desc" ? comparison * -1 : comparison;
     });
-
     return result;
   }, [processedStages, sortBy, sortOrder]);
 
@@ -117,7 +115,7 @@ export default function InteractiveAARRR() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-        {/* LEFT: STATIC FLOW (The Funnel) */}
+        {/* LEFT: STATIC FLOW */}
         <div className="lg:col-span-7">
           <div className="sticky top-6">
             <div className="flex items-center justify-between mb-6">
@@ -163,7 +161,7 @@ export default function InteractiveAARRR() {
           </div>
         </div>
 
-        {/* RIGHT: INTERACTIVE CARDS (Sortable) */}
+        {/* RIGHT: INTERACTIVE CARDS */}
         <div className="lg:col-span-5 space-y-4">
           <h2 className="text-lg font-bold">Deep Dive</h2>
           {sortedStages.map((stage) => (
@@ -209,5 +207,14 @@ export default function InteractiveAARRR() {
         </div>
       </div>
     </div>
+  );
+}
+
+// 2. ส่วนที่ Export พร้อมการเช็ค Subscription
+export default function InteractiveAARRR() {
+  return (
+    <PlanRestrictedPage requiredFeature="advancedAnalytics">
+      <AARRRDashboardContent />
+    </PlanRestrictedPage>
   );
 }
