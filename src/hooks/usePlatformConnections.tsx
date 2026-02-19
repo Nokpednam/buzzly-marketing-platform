@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { Facebook, Instagram } from "lucide-react";
+import { FacebookLogo, InstagramLogo, TikTokLogo, ShopeeLogo, GoogleLogo } from "@/components/icons/PlatformIcons";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,11 +22,11 @@ export interface Platform {
 
 // Icon mapping for platforms
 const platformIcons: Record<string, React.ComponentType<{ className?: string }> | null> = {
-  facebook: Facebook,
-  instagram: Instagram,
-  tiktok: null,
-  shopee: null,
-  google: null,
+  facebook: FacebookLogo,
+  instagram: InstagramLogo,
+  tiktok: TikTokLogo,
+  shopee: ShopeeLogo,
+  google: GoogleLogo,
 };
 
 const platformEmojis: Record<string, string> = {

@@ -406,7 +406,7 @@ export default function TierManagement() {
                             <Badge variant="outline" className="capitalize">{tx.transaction_type}</Badge>
                           </TableCell>
                           <TableCell className={cn("text-right font-medium", getTransactionTypeColor(tx.transaction_type))}>
-                            {tx.points > 0 ? "+" : ""}{tx.points.toLocaleString()}
+                            {(tx.points_amount ?? 0) > 0 ? "+" : ""}{(tx.points_amount ?? 0).toLocaleString()}
                           </TableCell>
                           <TableCell className="text-right">{(tx.balance_after ?? 0).toLocaleString()}</TableCell>
                           <TableCell className="max-w-[200px] truncate">{tx.description ?? "—"}</TableCell>
