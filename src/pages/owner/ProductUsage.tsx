@@ -47,7 +47,9 @@ export default function ProductUsage() {
   });
 
   const isLoading = usageLoading || funnelLoading || segmentsLoading;
-  const hasData = (usageMetrics?.totalUsers || 0) > 0 || aarrrCategories.length > 0;
+  const hasData = (usageMetrics?.totalUsers || 0) > 0
+    || (usageMetrics?.activeSubscriptions || 0) > 0
+    || aarrrCategories.length > 0;
 
   // Construct AARRR funnel from real data
   const aarrFunnelData = aarrrCategories.map((stage: any, index: number) => ({

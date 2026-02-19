@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -112,46 +112,50 @@ export default function BusinessPerformance() {
 
 
   // KPI data safely mapped
-  const kpis = [
-    {
-      title: "Monthly Recurring Revenue",
-      value: `฿${(currentMrr || 0).toLocaleString()}`,
-      change: subscriptionMetrics?.mrrGrowth || 0,
-      trend: (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "up" as const : "down" as const,
-      icon: DollarSign,
-      gradient: "from-emerald-600 to-teal-700",
-      text: "text-emerald-100"
-    },
-    {
-      title: "Active Subscriptions",
-      value: (subscriptionMetrics?.activeSubscriptions ?? 0).toString(),
-      change: subscriptionMetrics?.activeSubscriptionsGrowth || 0,
-      trend: "up" as const,
-      icon: Users,
-      gradient: "from-blue-600 to-indigo-700",
-      text: "text-blue-100"
-    },
-    {
-      title: "Annual Run Rate",
-      value: `฿${(((subscriptionMetrics?.arr ?? 0)) / 1000).toFixed(1)}K`,
-      change: subscriptionMetrics?.mrrGrowth || 0,
-      trend: (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "up" as const : "down" as const,
-      icon: Target,
-      gradient: "from-purple-600 to-fuchsia-700",
-      text: "text-purple-100"
-    },
-    {
-      title: "Avg Revenue/User",
-      value: (subscriptionMetrics?.activeSubscriptions && subscriptionMetrics.activeSubscriptions > 0)
-        ? `฿${Math.round((currentMrr || 0) / subscriptionMetrics.activeSubscriptions)}`
-        : "฿0",
-      change: 0,
-      trend: "up" as const,
-      icon: Activity,
-      gradient: "from-cyan-500 to-sky-600",
-      text: "text-cyan-100"
-    },
-  ];
+  const kpis: {
+    title: string; value: string; change: number; trend: 'up' | 'down';
+    icon: React.ElementType; gradient: string; text: string; linkTo?: string;
+  }[] = [
+      {
+        title: "Monthly Recurring Revenue",
+        value: `฿${(currentMrr || 0).toLocaleString()}`,
+        change: subscriptionMetrics?.mrrGrowth || 0,
+        trend: (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "up" as const : "down" as const,
+        icon: DollarSign,
+        gradient: "from-emerald-600 to-teal-700",
+        text: "text-emerald-100"
+      },
+      {
+        title: "Active Subscriptions",
+        value: (subscriptionMetrics?.activeSubscriptions ?? 0).toString(),
+        change: subscriptionMetrics?.activeSubscriptionsGrowth || 0,
+        trend: "up" as const,
+        icon: Users,
+        gradient: "from-blue-600 to-indigo-700",
+        text: "text-blue-100",
+        linkTo: "/owner/product-usage",
+      },
+      {
+        title: "Annual Run Rate",
+        value: `฿${(((subscriptionMetrics?.arr ?? 0)) / 1000).toFixed(1)}K`,
+        change: subscriptionMetrics?.mrrGrowth || 0,
+        trend: (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "up" as const : "down" as const,
+        icon: Target,
+        gradient: "from-purple-600 to-fuchsia-700",
+        text: "text-purple-100"
+      },
+      {
+        title: "Avg Revenue/User",
+        value: (subscriptionMetrics?.activeSubscriptions && subscriptionMetrics.activeSubscriptions > 0)
+          ? `฿${Math.round((currentMrr || 0) / subscriptionMetrics.activeSubscriptions)}`
+          : "฿0",
+        change: 0,
+        trend: "up" as const,
+        icon: Activity,
+        gradient: "from-cyan-500 to-sky-600",
+        text: "text-cyan-100"
+      },
+    ];
 
   // Loading state
   if (isLoading) {
@@ -207,7 +211,11 @@ export default function BusinessPerformance() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
-          <Card key={kpi.title} className={`bg-gradient-to-br ${kpi.gradient} border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden`}>
+          <Card
+            key={kpi.title}
+            onClick={() => kpi.linkTo && navigate(kpi.linkTo)}
+            className={`bg-gradient-to-br ${kpi.gradient} border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden ${kpi.linkTo ? 'cursor-pointer' : ''}`}
+          >
             <div className="absolute top-0 right-0 p-4 opacity-10">
               <kpi.icon className="h-24 w-24 text-white transform rotate-12 translate-x-8 translate-y-[-10px]" />
             </div>
