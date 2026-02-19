@@ -87,6 +87,11 @@ export async function logToDatabase(options: LogOptions): Promise<void> {
         // Extract error details if error object is provided
         const errorDetails = error ? extractErrorDetails(error) : { message, stackTrace: null };
 
+        // Combine message if different to preserve context
+        const finalMessage = (message && message !== errorDetails.message)
+            ? `${message}: ${errorDetails.message}`
+            : errorDetails.message;
+
         // Get user ID if not provided
         const finalUserId = userId || await getCurrentUserId();
 
@@ -107,7 +112,7 @@ export async function logToDatabase(options: LogOptions): Promise<void> {
             .from('error_logs')
             .insert({
                 level,
-                message: errorDetails.message,
+                message: finalMessage,
                 stack_trace: errorDetails.stackTrace,
                 user_id: finalUserId,
                 request_id: finalRequestId,

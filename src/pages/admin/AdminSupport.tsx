@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAdminErrorLogs, useAdminLogStats, ErrorLog } from "@/hooks/useAdminSupport";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +58,7 @@ export default function AdminSupport() {
   const [selectedLog, setSelectedLog] = useState<ErrorLog | null>(null);
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Test Error Function
   const handleSimulateError = () => {
@@ -66,7 +68,8 @@ export default function AdminSupport() {
       logError("Manual Test Error Verification", err, {
         component: "AdminSupport",
         action: "simulate_error",
-        source: "admin_ui"
+        source: "admin_ui",
+        service: "Admin Console"
       });
 
       toast({
@@ -75,7 +78,12 @@ export default function AdminSupport() {
       });
 
       // Wait a bit for DB insertion then refetch
-      setTimeout(() => refetch(), 1500);
+      setTimeout(() => {
+        // Invalidate both logs and stats to ensure everything is up to date
+        queryClient.invalidateQueries({ queryKey: ["admin-error-logs"] });
+        queryClient.invalidateQueries({ queryKey: ["admin-error-stats"] });
+        refetch();
+      }, 1500);
     }
   };
 
@@ -395,7 +403,7 @@ export default function AdminSupport() {
 
       {/* Error Detail Dialog */}
       <Dialog open={!!selectedLog} onOpenChange={(open) => !open && setSelectedLog(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 gap-0">
+        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col p-0 gap-0">
           <DialogHeader className="p-6 pb-4 border-b">
             <div className="flex items-start justify-between">
               <div className="space-y-1">
@@ -416,7 +424,7 @@ export default function AdminSupport() {
           </DialogHeader>
 
           {selectedLog && (
-            <ScrollArea className="flex-1 p-6">
+            <div className="flex-1 p-6 overflow-y-auto">
               <div className="space-y-6">
 
                 {/* Context Grid */}
@@ -476,7 +484,7 @@ export default function AdminSupport() {
                       <Code className="h-4 w-4 text-muted-foreground" />
                       Stack Trace
                     </h3>
-                    <div className="p-4 bg-slate-950 text-slate-50 rounded-lg font-mono text-xs whitespace-pre overflow-x-auto shadow-inner">
+                    <div className="p-4 bg-slate-950 text-slate-50 rounded-lg font-mono text-xs whitespace-pre-wrap break-all shadow-inner">
                       {selectedLog.stack_trace}
                     </div>
                   </div>
@@ -495,7 +503,7 @@ export default function AdminSupport() {
                   </div>
                 )}
               </div>
-            </ScrollArea>
+            </div>
           )}
         </DialogContent>
       </Dialog>
