@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { Facebook, Instagram } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 export type PlatformStatus = "connected" | "disconnected" | "error";
 
@@ -52,6 +53,7 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [loading, setLoading] = useState(true);
   const [teamId, setTeamId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const connectedPlatforms = platforms.filter((p) => p.status === "connected");
 
@@ -268,6 +270,17 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       );
 
       toast.success(`${platform?.name} เชื่อมต่อสำเร็จ!`);
+
+      // Invalidate ALL downstream React Query caches so every page
+      // (Dashboard, Campaigns, Analytics) refreshes immediately without a manual page refresh
+      await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      await queryClient.invalidateQueries({ queryKey: ["ad-accounts"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+      await queryClient.invalidateQueries({ queryKey: ["ad-insights"] });
+      await queryClient.invalidateQueries({ queryKey: ["revenue-metrics-dashboard"] });
+      // Also refetch platforms so connected count in Dashboard header is current
+      await fetchPlatforms();
+
       return true;
     } catch (error: any) {
       toast.error(`เชื่อมต่อล้มเหลว: ${error.message}`);
@@ -305,6 +318,8 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       );
 
       toast.success(`${platform?.name} ถูกยกเลิกการเชื่อมต่อ`);
+      await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
       return true;
     } catch (error: any) {
       toast.error(`ยกเลิกการเชื่อมต่อล้มเหลว: ${error.message}`);
