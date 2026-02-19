@@ -152,9 +152,9 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
 
   const formatPrice = (price: number) => {
     if (price === 0) return "ฟรี";
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("th-TH", {
       style: "currency",
-      currency: "USD",
+      currency: "THB",
       minimumFractionDigits: 0,
     }).format(price);
   };

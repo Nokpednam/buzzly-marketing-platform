@@ -289,7 +289,7 @@ export function useSubscription() {
       const { data: currency } = await supabase
         .from("currencies")
         .select("id")
-        .eq("code", "USD") // ใช้ USD
+        .eq("code", "THB") // ใช้ THB
         .maybeSingle(); // ใช้ maybeSingle เพื่อกัน error ถ้าไม่เจอ
 
       const { error: txnError } = await supabase
@@ -307,6 +307,34 @@ export function useSubscription() {
         });
 
       if (txnError) throw txnError;
+
+      // 4.5 สร้าง Invoice อัตโนมัติ
+      const invoiceNumber = `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}-${Date.now().toString().slice(-6)}`;
+      const { error: invoiceError } = await supabase
+        .from("invoices")
+        .insert({
+          user_id: userId,
+          subscription_id: subscription.id,
+          invoice_number: invoiceNumber,
+          status: "paid",
+          subtotal: chargeAmount,
+          tax_amount: 0,
+          discount_amount: 0,
+          total: chargeAmount,
+          currency_id: currency?.id,
+          due_date: now.toISOString(),
+          paid_at: now.toISOString(),
+          line_items: [{
+            description: `${newPlan.name} Plan - ${billingCycle === "yearly" ? "รายปี" : "รายเดือน"}`,
+            quantity: 1,
+            unit_price: chargeAmount,
+            total: chargeAmount,
+          }],
+        });
+
+      if (invoiceError) {
+        console.error("Warning: Invoice creation failed", invoiceError);
+      }
 
       // 5. อัปเดต Profile (แก้ปัญหา UI เด้งกลับเป็น Free)
       const { error: profileError } = await supabase
