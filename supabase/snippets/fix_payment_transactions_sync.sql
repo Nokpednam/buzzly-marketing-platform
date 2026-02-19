@@ -120,9 +120,87 @@ BEGIN
 END $$;
 
 -- ============================================================
--- VERIFY: Should show 12+ months with growing MRR
--- Expected: Mar 2025 → Feb 2026, MRR growing each month
+-- Step 4: Sync customer records — every paying user MUST have one
+-- Goal: COUNT(customer) = COUNT(DISTINCT payment_transactions.user_id)
 -- ============================================================
+DO $$
+DECLARE
+  v_inserted int := 0;
+  v_updated  int := 0;
+  v_rec      record;
+BEGIN
+  FOR v_rec IN
+    SELECT
+      pt.user_id,
+      au.email,
+      COALESCE(
+        (au.raw_user_meta_data->>'full_name'),
+        (au.raw_user_meta_data->>'display_name'),
+        split_part(au.email, '@', 1)
+      )                                    AS full_name,
+      -- plan_type: latest sub plan slug
+      (SELECT sp.slug
+       FROM public.subscriptions s2
+       JOIN public.subscription_plans sp ON sp.id = s2.plan_id
+       WHERE s2.user_id = pt.user_id
+       ORDER BY s2.created_at DESC LIMIT 1) AS plan_type,
+      MIN(pt2.created_at)                  AS member_since,
+      MAX(pt2.created_at)                  AS last_active,
+      SUM(pt2.amount)                      AS total_spend
+    FROM (SELECT DISTINCT user_id FROM public.payment_transactions WHERE status = 'completed') pt
+    JOIN auth.users au ON au.id = pt.user_id
+    JOIN public.payment_transactions pt2 ON pt2.user_id = pt.user_id AND pt2.status = 'completed'
+    GROUP BY pt.user_id, au.email, au.raw_user_meta_data
+  LOOP
+    IF EXISTS (SELECT 1 FROM public.customer WHERE id = v_rec.user_id) THEN
+      -- Update existing: refresh spend + last_active + plan
+      UPDATE public.customer SET
+        total_spend_amount = v_rec.total_spend,
+        last_active        = v_rec.last_active,
+        plan_type          = COALESCE(v_rec.plan_type, plan_type),
+        updated_at         = NOW()
+      WHERE id = v_rec.user_id;
+      v_updated := v_updated + 1;
+    ELSE
+      -- Insert missing customer
+      INSERT INTO public.customer (
+        id, email, full_name, plan_type, status,
+        created_at, updated_at, last_active,
+        member_since, total_spend_amount,
+        loyalty_points_balance
+      ) VALUES (
+        v_rec.user_id,
+        v_rec.email,
+        v_rec.full_name,
+        COALESCE(v_rec.plan_type, 'pro'),
+        'active',
+        v_rec.member_since,
+        NOW(),
+        v_rec.last_active,
+        v_rec.member_since,
+        v_rec.total_spend,
+        0
+      ) ON CONFLICT (id) DO NOTHING;
+      v_inserted := v_inserted + 1;
+    END IF;
+  END LOOP;
+
+  RAISE NOTICE '✅ Customer sync: % inserted, % updated. Total customers now = unique paying users.', v_inserted, v_updated;
+END $$;
+
+-- ============================================================
+-- VERIFY: Counts must match   customer ≈ unique paying users
+-- ============================================================
+SELECT
+  'payment_transactions' AS source,
+  COUNT(DISTINCT user_id) AS unique_users,
+  COUNT(*)                AS total_records
+FROM public.payment_transactions WHERE status = 'completed'
+UNION ALL
+SELECT 'customer' AS source, COUNT(*) AS unique_users, COUNT(*) AS total_records
+FROM public.customer;
+
+-- Monthly MRR breakdown
 SELECT
   to_char(date_trunc('month', created_at), 'Mon YYYY') AS month,
   COUNT(*)                                              AS tx_count,
