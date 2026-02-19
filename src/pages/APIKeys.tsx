@@ -141,7 +141,9 @@ export default function APIKeys() {
                     {/* Platform Brand Section */}
                     <div className="p-6 md:w-64 bg-muted/20 flex flex-col items-center md:items-start justify-center border-b md:border-b-0 md:border-r space-y-3">
                       <div className="h-16 w-16 rounded-2xl bg-background shadow-xl flex items-center justify-center p-3 relative group-hover:scale-105 transition-transform">
-                        {platform.icon_url ? (
+                        {platform.icon ? (
+                          <platform.icon className="h-full w-full" />
+                        ) : platform.icon_url ? (
                           <img src={platform.icon_url} alt={platform.name} className="h-full w-full object-contain" />
                         ) : (
                           <Key className="h-8 w-8 text-muted-foreground/40" />
