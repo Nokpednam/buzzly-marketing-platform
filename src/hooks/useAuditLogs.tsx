@@ -38,7 +38,31 @@ export function useAuditLogs(category?: string) {
         .limit(200);
 
       if (category && category !== "all") {
-        query = query.eq("category", category);
+        let categories: string[] = [category];
+
+        // Map UI categories to DB categories
+        switch (category) {
+          case "authentication":
+            categories = ["authentication", "auth", "login"];
+            break;
+          case "data":
+            categories = ["data", "report", "export", "import"];
+            break;
+          case "security":
+            categories = ["security", "subscription", "discount", "user_role_changed"];
+            break;
+          case "settings":
+            categories = ["settings", "workspace", "api_key"];
+            break;
+          case "campaign":
+            categories = ["campaign"];
+            break;
+          case "integration":
+            categories = ["integration"];
+            break;
+        }
+
+        query = query.in("category", categories);
       }
 
       const { data, error } = await query;
@@ -50,21 +74,45 @@ export function useAuditLogs(category?: string) {
       const userIds = [...new Set(logs.map(log => log.user_id).filter(Boolean))] as string[];
 
       // Get user emails and roles from employees table
+      // Get user emails and roles from employees table
       const { data: employees } = await supabase
         .from('employees')
         .select('user_id, email, role_employees(role_name)')
         .in('user_id', userIds);
 
+      const foundEmployeeIds = new Set((employees || []).map(e => e.user_id));
+      const missingUserIds = userIds.filter(id => !foundEmployeeIds.has(id));
+
+      // Get user details from customer table for missing IDs
+      let customers: any[] = [];
+      if (missingUserIds.length > 0) {
+        const { data } = await supabase
+          .from('customer')
+          .select('id, email, full_name')
+          .in('id', missingUserIds);
+        customers = data || [];
+      }
+
       // Create a map of user_id -> { email, role }
-      const userMap = new Map(
-        (employees || []).map(emp => [
-          emp.user_id,
-          {
+      const userMap = new Map();
+
+      // Add employees
+      (employees || []).forEach(emp => {
+        if (emp.user_id) {
+          userMap.set(emp.user_id, {
             email: emp.email,
             role: (emp.role_employees as any)?.role_name || 'Employee'
-          }
-        ])
-      );
+          });
+        }
+      });
+
+      // Add customers
+      customers.forEach(cust => {
+        userMap.set(cust.id, {
+          email: cust.email,
+          role: 'Customer'
+        });
+      });
 
       return logs.map((log: any) => {
         const userInfo = log.user_id ? userMap.get(log.user_id) : null;

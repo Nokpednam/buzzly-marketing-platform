@@ -247,8 +247,18 @@ run_mock_sql "supabase/migrations/20260218200010_mock_owner_pages.sql" "Owner Pa
 
 echo "✅ Mock data re-seeded."
 echo ""
+
+# ---------------------------------------------------------
+# 5.6: Re-assign marketing data to workspace so RLS works
+# ---------------------------------------------------------
+echo "Step 5.6: Linking ad_accounts & insights to workspaces (RLS fix)..."
+run_sql_script "supabase/script/fix-marketing-linkage.sql" "Marketing Data Linkage Fix"
+echo "✅ Marketing data linked to workspaces."
+echo ""
+
 echo "========================================="
 echo "✅✅ SETUP COMPLETE SUCCESSFULLY! ✅✅"
 echo "========================================="
 echo "Owner Login: hachikonoluna@gmail.com / owner123"
 echo "Admin Login: admin@buzzly.co / admin123"
+

@@ -29,7 +29,7 @@ describe('useAuditLogs', () => {
     });
 
     describe('useAuditLogs Data Fetching', () => {
-        it('should fetch audit logs and map user details correctly', async () => {
+        it('should fetch audit logs and map user details correctly (employees and customers)', async () => {
             const mockLogs = [
                 {
                     id: '1',
@@ -42,45 +42,70 @@ describe('useAuditLogs', () => {
                     action_type: { action_name: 'Login' },
                     metadata: {}
                 },
+                {
+                    id: '2',
+                    user_id: 'customer1',
+                    action_type_id: 'action2',
+                    description: 'Customer action',
+                    category: 'data',
+                    status: 'success',
+                    created_at: '2024-01-02',
+                    action_type: { action_name: 'Export' },
+                    metadata: {}
+                },
             ];
 
             const mockEmployees = [
                 {
                     user_id: 'user1',
-                    email: 'test@example.com',
+                    email: 'employee@example.com',
                     role_employees: { role_name: 'Admin' }
                 }
             ];
 
-            // Mock implementation for chained calls
-            const mockSelect = vi.fn();
-            const mockOrder = vi.fn();
-            const mockLimit = vi.fn();
-            const mockEq = vi.fn();
-            const mockIn = vi.fn();
+            const mockCustomers = [
+                {
+                    id: 'customer1',
+                    email: 'customer@example.com',
+                    full_name: 'John Customer'
+                }
+            ];
 
-            vi.mocked(supabase.from).mockImplementation((table: string) => {
+            // Mock query chain
+            const mockQueryBuilder = {
+                select: vi.fn(),
+                order: vi.fn().mockReturnThis(),
+                limit: vi.fn().mockReturnThis(),
+                eq: vi.fn().mockReturnThis(),
+                in: vi.fn().mockReturnThis(),
+                then: (onfulfilled: any) => Promise.resolve({ data: mockLogs, error: null }).then(onfulfilled)
+            };
+
+            // Mock employees query
+            const mockEmployeesQuery = {
+                select: vi.fn().mockReturnThis(),
+                in: vi.fn().mockResolvedValue({ data: mockEmployees, error: null })
+            };
+
+            // Mock customers query
+            const mockCustomersQuery = {
+                select: vi.fn().mockReturnThis(),
+                in: vi.fn().mockResolvedValue({ data: mockCustomers, error: null })
+            };
+
+            vi.mocked(supabase.from).mockImplementation((table) => {
                 if (table === 'audit_logs_enhanced') {
-                    // Setup chain for audit_logs_enhanced
-                    mockLimit.mockResolvedValue({ data: mockLogs, error: null });
-                    mockOrder.mockReturnValue({ limit: mockLimit });
-                    mockSelect.mockReturnValue({ order: mockOrder });
-                    mockEq.mockReturnValue({ select: mockSelect }); // In case eq is called
-
-                    return {
-                        select: mockSelect,
-                    } as any;
+                    // Start of chain
+                    mockQueryBuilder.select.mockReturnThis();
+                    return mockQueryBuilder as any;
                 }
                 if (table === 'employees') {
-                    // Setup chain for employees
-                    mockIn.mockResolvedValue({ data: mockEmployees, error: null });
-                    mockSelect.mockReturnValue({ in: mockIn });
-
-                    return {
-                        select: mockSelect,
-                    } as any;
+                    return mockEmployeesQuery as any;
                 }
-                return {} as any;
+                if (table === 'customer') {
+                    return mockCustomersQuery as any;
+                }
+                return { select: vi.fn().mockReturnThis() } as any;
             });
 
             const { result } = renderHook(() => useAuditLogs(), { wrapper });
@@ -90,34 +115,41 @@ describe('useAuditLogs', () => {
             });
 
             const logs = result.current.data;
-            expect(logs).toHaveLength(1);
-            expect(logs![0].user_email).toBe('test@example.com');
+            expect(logs).toHaveLength(2);
+
+            // Employee
+            expect(logs![0].user_email).toBe('employee@example.com');
             expect(logs![0].user_role).toBe('Admin');
-            expect(logs![0].action_name).toBe('Login');
+
+            // Customer
+            expect(logs![1].user_email).toBe('customer@example.com');
+            expect(logs![1].user_role).toBe('Customer');
         });
 
-        it('should use correct query key with category', async () => {
-            // Simplified test: just check if the hook runs without error
-            // The actual query construction is hard to mock perfectly without a full query builder mock
+        it('should use correct query key and mapping for category', async () => {
+            const mockLogs = [
+                { category: 'auth', status: 'success' }
+            ];
 
-            const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null });
-            const mockOrder = vi.fn().mockReturnValue({ limit: mockLimit });
-            const mockSelect = vi.fn().mockReturnValue({ order: mockOrder });
+            const mockQueryBuilder = {
+                select: vi.fn().mockReturnThis(),
+                order: vi.fn().mockReturnThis(),
+                limit: vi.fn().mockReturnThis(),
+                eq: vi.fn().mockReturnThis(),
+                in: vi.fn().mockReturnThis(),
+                then: (onfulfilled: any) => Promise.resolve({ data: mockLogs, error: null }).then(onfulfilled)
+            };
 
-            // Initial setup for the default query
-            vi.mocked(supabase.from).mockReturnValue({
-                select: mockSelect
-            } as any);
+            vi.mocked(supabase.from).mockReturnValue(mockQueryBuilder as any);
 
             const { result } = renderHook(() => useAuditLogs('authentication'), { wrapper });
 
             await waitFor(() => {
-                // If it tries to fetch, it means queryKey changed and triggered a fetch
-                expect(result.current.isLoading).toBeDefined();
+                expect(result.current.isSuccess).toBe(true);
             });
 
-            // We verify the hook handles the category parameter by checking strict equality on the result
-            // (If the key didn't include category, it might return cached data from previous test if any)
+            // Verify .in was called with mapped categories
+            expect(mockQueryBuilder.in).toHaveBeenCalledWith('category', expect.arrayContaining(['authentication', 'auth', 'login']));
         });
     });
 
@@ -151,6 +183,7 @@ describe('useAuditLogs', () => {
 
             const stats = result.current.data;
             expect(stats).toEqual({
+                total: 6,
                 totalLogins: 3,
                 successfulLogins: 2,
                 failedLogins: 1,
@@ -180,6 +213,7 @@ describe('useAuditLogs', () => {
 
             const stats = result.current.data;
             expect(stats).toEqual({
+                total: 0,
                 totalLogins: 0,
                 successfulLogins: 0,
                 failedLogins: 0,

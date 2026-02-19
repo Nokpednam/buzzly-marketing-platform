@@ -185,6 +185,10 @@ export function useWorkspace() {
         industries_id: '',
       });
 
+      // Notify usePlatformConnections (on any page) to re-fetch with new teamId
+      // This allows instant platform connection without a manual page refresh
+      window.dispatchEvent(new CustomEvent('workspace-created'));
+
       toast({
         title: 'สร้าง Workspace สำเร็จ',
         description: `Workspace "${name}" ถูกสร้างแล้ว`,

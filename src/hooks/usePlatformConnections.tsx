@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { Facebook, Instagram } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 export type PlatformStatus = "connected" | "disconnected" | "error";
 
@@ -52,6 +53,7 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [loading, setLoading] = useState(true);
   const [teamId, setTeamId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const connectedPlatforms = platforms.filter((p) => p.status === "connected");
 
@@ -165,7 +167,22 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
 
   useEffect(() => {
     fetchPlatforms();
+
+    // Re-fetch when workspace is created (dispatched from useWorkspace.createWorkspace)
+    // Using window events is more reliable than realtime for same-session state updates
+    const onWorkspaceCreated = () => {
+      // Retry a few times to handle any auth token propagation delay
+      fetchPlatforms();
+      setTimeout(() => fetchPlatforms(), 800);
+      setTimeout(() => fetchPlatforms(), 2000);
+    };
+    window.addEventListener('workspace-created', onWorkspaceCreated);
+
+    return () => {
+      window.removeEventListener('workspace-created', onWorkspaceCreated);
+    };
   }, []);
+
 
   // Connect platform (simulate OAuth + DB Write)
   const connectPlatform = async (id: string, token: string = ""): Promise<boolean> => {
@@ -204,6 +221,39 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
         throw error;
       }
 
+      // Auto-create ad_account row for this platform+team (required for campaigns/insights data chain)
+      // If it already exists, just ensure it's active (idempotent)
+      const { error: adAccountError } = await supabase
+        .from('ad_accounts')
+        .upsert({
+          team_id: teamId,
+          platform_id: id,
+          account_name: `${platform?.name || 'Platform'} Account`,
+          is_active: true,
+        }, {
+          onConflict: 'team_id,platform_id',
+          ignoreDuplicates: false,
+        });
+
+      if (adAccountError) {
+        // Non-blocking: log but don't fail the connection
+        console.warn('Could not create ad_account (non-critical):', adAccountError.message);
+      } else {
+        // Seed 30 days of demo insights so dashboard shows data immediately
+        // This is idempotent - won't duplicate if already seeded
+        const { data: newAccount } = await supabase
+          .from('ad_accounts')
+          .select('id')
+          .eq('team_id', teamId)
+          .eq('platform_id', id)
+          .maybeSingle();
+
+        if (newAccount?.id) {
+          // Cast to any: seed_demo_insights exists in DB but not yet in generated types
+          await (supabase as any).rpc('seed_demo_insights', { p_ad_account_id: newAccount.id });
+        }
+      }
+
       // Update local state ONLY on success
       setPlatforms((prev) =>
         prev.map((p) =>
@@ -220,6 +270,17 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       );
 
       toast.success(`${platform?.name} เชื่อมต่อสำเร็จ!`);
+
+      // Invalidate ALL downstream React Query caches so every page
+      // (Dashboard, Campaigns, Analytics) refreshes immediately without a manual page refresh
+      await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      await queryClient.invalidateQueries({ queryKey: ["ad-accounts"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+      await queryClient.invalidateQueries({ queryKey: ["ad-insights"] });
+      await queryClient.invalidateQueries({ queryKey: ["revenue-metrics-dashboard"] });
+      // Also refetch platforms so connected count in Dashboard header is current
+      await fetchPlatforms();
+
       return true;
     } catch (error: any) {
       toast.error(`เชื่อมต่อล้มเหลว: ${error.message}`);
@@ -257,6 +318,8 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       );
 
       toast.success(`${platform?.name} ถูกยกเลิกการเชื่อมต่อ`);
+      await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
       return true;
     } catch (error: any) {
       toast.error(`ยกเลิกการเชื่อมต่อล้มเหลว: ${error.message}`);

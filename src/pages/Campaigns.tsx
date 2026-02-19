@@ -1,6 +1,7 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -101,11 +102,25 @@ export default function Campaigns() {
       toast.error("ไม่สามารถคัดลอกแคมเปญได้");
     }
   };
-  const [adAccounts, setAdAccounts] = useState<
-    Array<{ id: string; account_name: string }>
-  >([]);
   const [selectedAdAccount, setSelectedAdAccount] = useState<string>("");
-  const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
+
+  // Use React Query so this auto-refetches when a platform is connected
+  const { data: adAccounts = [] } = useQuery({
+    queryKey: ["ad-accounts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ad_accounts")
+        .select("id, account_name")
+        .eq("is_active", true)
+        .order("account_name");
+      if (error) throw error;
+      if (data?.length > 0 && !selectedAdAccount) {
+        setSelectedAdAccount(data[0].id);
+      }
+      return data || [];
+    },
+    staleTime: 30_000,
+  });
 
   const [formData, setFormData] = useState({
     name: "",
@@ -116,27 +131,6 @@ export default function Campaigns() {
     status: "draft",
     adAccountId: "",
   });
-
-  useEffect(() => {
-    const fetchAdAccounts = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("ad_accounts")
-          .select("id, account_name")
-          .eq("is_active", true)
-          .order("account_name");
-        if (error) throw error;
-        setAdAccounts(data || []);
-        if (data?.length > 0) setSelectedAdAccount(data[0].id);
-      } catch (error) {
-        console.error("Error fetching ad accounts:", error);
-        toast.error("ไม่สามารถโหลดบัญชีโฆษณา");
-      } finally {
-        setIsLoadingAccounts(false);
-      }
-    };
-    fetchAdAccounts();
-  }, []);
 
   const campaigns = useMemo(() => {
     return dbCampaigns.map((c) => ({

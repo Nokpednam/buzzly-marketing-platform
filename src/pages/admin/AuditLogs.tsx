@@ -77,13 +77,25 @@ const getActionBadge = (action: string | undefined, status: string | null) => {
 const getCategoryBadge = (category: string | null) => {
   switch (category) {
     case "authentication":
-      return <Badge variant="outline" className="text-xs">Auth</Badge>;
+    case "auth":
+      return <Badge variant="outline" className="text-xs border-green-500/30 text-green-600">Auth</Badge>;
     case "data":
-      return <Badge variant="outline" className="text-xs">Data</Badge>;
+    case "report":
+    case "export":
+    case "import":
+      return <Badge variant="outline" className="text-xs border-blue-500/30 text-blue-600">Data</Badge>;
     case "security":
-      return <Badge variant="outline" className="text-xs">Security</Badge>;
+    case "subscription":
+    case "discount":
+      return <Badge variant="outline" className="text-xs border-red-500/30 text-red-600">Security</Badge>;
     case "settings":
-      return <Badge variant="outline" className="text-xs">Settings</Badge>;
+    case "workspace":
+    case "api_key":
+      return <Badge variant="outline" className="text-xs border-purple-500/30 text-purple-600">Settings</Badge>;
+    case "campaign":
+      return <Badge variant="outline" className="text-xs border-pink-500/30 text-pink-600">Campaign</Badge>;
+    case "integration":
+      return <Badge variant="outline" className="text-xs border-orange-500/30 text-orange-600">Integration</Badge>;
     default:
       return <Badge variant="outline" className="text-xs">{category || "Other"}</Badge>;
   }
@@ -213,9 +225,11 @@ export default function AuditLogs() {
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
                 <SelectItem value="authentication">Authentication</SelectItem>
-                <SelectItem value="data">Data</SelectItem>
-                <SelectItem value="security">Security</SelectItem>
-                <SelectItem value="settings">Settings</SelectItem>
+                <SelectItem value="data">Data & Reports</SelectItem>
+                <SelectItem value="security">Security & Roles</SelectItem>
+                <SelectItem value="settings">Settings & Workspace</SelectItem>
+                <SelectItem value="campaign">Marketing Campaigns</SelectItem>
+                <SelectItem value="integration">Integrations</SelectItem>
               </SelectContent>
             </Select>
           </div>
