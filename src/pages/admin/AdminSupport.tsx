@@ -462,8 +462,10 @@ export default function AdminSupport() {
                     <FileText className="h-4 w-4 text-muted-foreground" />
                     Error Message
                   </h3>
-                  <div className="p-4 bg-muted/50 border rounded-lg font-mono text-sm whitespace-pre-wrap break-all text-destructive-foreground bg-destructive/5 border-destructive/20">
-                    {selectedLog.message}
+                  <div className="p-4 rounded-lg border border-destructive/30 bg-destructive/10">
+                    <p className="font-mono text-sm break-all text-destructive leading-relaxed">
+                      {selectedLog.message || <span className="text-muted-foreground italic">No message provided</span>}
+                    </p>
                   </div>
                 </div>
 

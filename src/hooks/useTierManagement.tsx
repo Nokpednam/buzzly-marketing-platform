@@ -25,8 +25,8 @@ export interface PointsTransaction {
     id: string;
     user_id: string;
     transaction_type: string;
-    points: number;
-    balance_after: number;
+    points_amount: number | null;
+    balance_after: number | null;
     description: string | null;
     reference_id: string | null;
     created_at: string;
