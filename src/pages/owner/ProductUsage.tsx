@@ -151,9 +151,9 @@ export default function ProductUsage() {
       {/* Quick Stats - Tech Panels */}
       <div className="grid gap-6 md:grid-cols-4">
         {[
-          { label: "Total Users", value: usageMetrics?.totalUsers?.toLocaleString() || 0, icon: Users, gradient: "from-blue-600 to-blue-700", text: "text-blue-100" },
-          { label: "Monthly Active", value: usageMetrics?.mau?.toLocaleString() || 0, icon: UserCheck, gradient: "from-violet-600 to-purple-700", text: "text-purple-100" },
-          { label: "Daily Active", value: usageMetrics?.dau?.toLocaleString() || 0, icon: Activity, gradient: "from-cyan-500 to-blue-600", text: "text-cyan-100" },
+          { label: "Total Users", value: usageMetrics?.totalUsers?.toLocaleString() || "0", icon: Users, gradient: "from-blue-600 to-blue-700", text: "text-blue-100" },
+          { label: "Active Subscriptions", value: usageMetrics?.activeSubscriptions?.toLocaleString() || "0", icon: UserCheck, gradient: "from-violet-600 to-purple-700", text: "text-purple-100" },
+          { label: "Daily Active", value: usageMetrics?.dau?.toLocaleString() || "0", icon: Activity, gradient: "from-cyan-500 to-blue-600", text: "text-cyan-100" },
           { label: "DAU/MAU Ratio", value: `${usageMetrics?.dauMauRatio || 0}%`, icon: Repeat, gradient: "from-fuchsia-600 to-pink-700", text: "text-pink-100" }
         ].map((stat, i) => (
           <Card key={i} className={`bg-gradient-to-br ${stat.gradient} border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden`}>

@@ -285,55 +285,75 @@ export function useProductUsageMetrics() {
   return useQuery({
     queryKey: ["owner-product-usage"],
     queryFn: async () => {
-      // Get user counts from profile_customers
-      const { count: totalUsers, error: usersError } = await supabase
-        .from("profile_customers")
+      const now = new Date();
+      const last30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      // Get total customers count from `customer` table
+      const { count: totalCustomers, error: customersError } = await supabase
+        .from("customer")
         .select("*", { count: "exact", head: true });
 
-      if (usersError) throw usersError;
+      if (customersError) {
+        console.warn("Error counting customers:", customersError.message);
+      }
 
-      // Get customer activities for engagement metrics
-      // Increased limit to getting better statistics
+      // Get active subscription count (paid customers) from subscriptions table
+      const { count: activeSubsCount, error: subsError } = await supabase
+        .from("subscriptions")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "active");
+
+      if (subsError) {
+        console.warn("Error counting subscriptions:", subsError.message);
+      }
+
+      // Get customer activities for DAU/MAU calculation
       const { data: activities, error: activitiesError } = await supabase
         .from("customer_activities")
         .select("profile_customer_id, created_at")
         .order("created_at", { ascending: false })
         .limit(5000);
 
-      if (activitiesError) throw activitiesError;
+      let dau = 0;
+      let mau = 0;
 
-      // Calculate DAU/MAU
-      const now = new Date();
-      const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const last30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      if (!activitiesError && activities && activities.length > 0) {
+        // Unique users for DAU
+        const dauSet = new Set<string>();
+        activities.forEach(a => {
+          if (a.profile_customer_id && a.created_at && new Date(a.created_at) > last24h) {
+            dauSet.add(a.profile_customer_id);
+          }
+        });
+        dau = dauSet.size;
 
-      // Unique users for DAU
-      const dauSet = new Set();
-      activities.forEach(a => {
-        if (a.profile_customer_id && a.created_at && new Date(a.created_at) > last24h) {
-          dauSet.add(a.profile_customer_id);
-        }
-      });
-      const dau = dauSet.size;
+        // Unique users for MAU
+        const mauSet = new Set<string>();
+        activities.forEach(a => {
+          if (a.profile_customer_id && a.created_at && new Date(a.created_at) > last30d) {
+            mauSet.add(a.profile_customer_id);
+          }
+        });
+        mau = mauSet.size;
+      } else {
+        // Fallback: count recently active subscriptions as MAU if no activities
+        mau = activeSubsCount || 0;
+      }
 
-      // Unique users for MAU
-      const mauSet = new Set();
-      activities.forEach(a => {
-        if (a.profile_customer_id && a.created_at && new Date(a.created_at) > last30d) {
-          mauSet.add(a.profile_customer_id);
-        }
-      });
-      const mau = mauSet.size;
+      const totalUsers = totalCustomers || 0;
 
       return {
-        totalUsers: totalUsers || 0,
+        totalUsers,
+        activeSubscriptions: activeSubsCount || 0,
         dau,
-        mau,
+        mau: mau || activeSubsCount || 0,
         dauMauRatio: mau > 0 ? Math.round((dau / mau) * 100) : 0,
       };
     },
   });
 }
+
 
 export function useUserSegments() {
   return useQuery({
