@@ -21,11 +21,13 @@ import {
     XCircle,
     Percent,
     DollarSign,
-    AlertCircle,
-    Sparkles,
     TrendingUp,
     Users,
     Zap,
+    Send,
+    Archive,
+    AlertCircle,
+    Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,12 +35,15 @@ export default function OwnerDiscounts() {
     const {
         discounts,
         isLoading,
+        draftDiscounts,
+        liveDiscounts,
         activeDiscounts,
         expiredDiscounts,
         exhaustedDiscounts,
         createDiscount,
         deleteDiscount,
         toggleActive,
+        publishDiscount,
     } = useDiscounts();
 
     const [open, setOpen] = useState(false);
@@ -77,20 +82,22 @@ export default function OwnerDiscounts() {
     };
 
     const getStatus = (d: (typeof discounts)[0]) => {
+        if (!d.published_at) return { label: "Draft", color: "bg-slate-500/10 text-slate-600 border-slate-500/20", icon: Archive };
         if (!d.is_active) return { label: "Inactive", color: "bg-muted text-muted-foreground border-border", icon: XCircle };
         if (d.end_date && new Date(d.end_date) < new Date())
             return { label: "Expired", color: "bg-destructive/10 text-destructive border-destructive/20", icon: Clock };
-        if (d.usage_limit !== null && d.usage_count >= d.usage_limit)
-            return { label: "Exhausted", color: "bg-amber-500/10 text-amber-600 border-amber-500/20", icon: AlertCircle };
-        return { label: "Active", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", icon: CheckCircle2 };
+        if (d.usage_limit !== null && d.collections_count >= d.usage_limit)
+            return { label: "Fully Collected", color: "bg-amber-500/10 text-amber-600 border-amber-500/20", icon: AlertCircle };
+        return { label: "Live", color: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20", icon: CheckCircle2 };
     };
 
     const getUsagePercent = (d: (typeof discounts)[0]) => {
         if (!d.usage_limit) return 0;
-        return Math.min((d.usage_count / d.usage_limit) * 100, 100);
+        return Math.min((d.collections_count / d.usage_limit) * 100, 100);
     };
 
     const totalUsage = discounts.reduce((sum, d) => sum + d.usage_count, 0);
+    const totalCollected = discounts.reduce((sum, d) => sum + d.collections_count, 0);
 
     return (
         <div className="space-y-8 animate-in fade-in duration-700">
@@ -258,8 +265,8 @@ export default function OwnerDiscounts() {
                         text: "text-emerald-100",
                     },
                     {
-                        label: "Total Uses",
-                        value: totalUsage,
+                        label: "Total Collected",
+                        value: totalCollected,
                         icon: Users,
                         gradient: "from-blue-600 to-indigo-700",
                         text: "text-blue-100",
@@ -313,103 +320,156 @@ export default function OwnerDiscounts() {
                             </div>
                             <p className="font-bold text-lg text-muted-foreground">ยังไม่มีโค้ดส่วนลด</p>
                             <p className="text-sm text-muted-foreground mt-1">
-                                สร้างโค้ดส่วนลดแรกสำหรับ Subscription Plan ของคุณ
+                                สร้างโค้ดงส่วนลดแรกสำหรับ Subscription Plan ของคุณ
                             </p>
                         </div>
                     ) : (
-                        <div className="space-y-3">
-                            {discounts.map((discount) => {
-                                const status = getStatus(discount);
-                                const usagePct = getUsagePercent(discount);
-                                const StatusIcon = status.icon;
-                                return (
-                                    <div
-                                        key={discount.id}
-                                        className="p-5 rounded-2xl border bg-background hover:border-primary/30 hover:shadow-md transition-all duration-200"
-                                    >
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                {/* Code Badge */}
-                                                <button
-                                                    onClick={() => copyCode(discount.code)}
-                                                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/5 border border-primary/20 hover:bg-primary/10 transition-colors group flex-shrink-0"
-                                                >
-                                                    <span className="font-mono font-black text-primary text-sm tracking-widest">
-                                                        {discount.code}
-                                                    </span>
-                                                    <Copy className="h-3 w-3 text-primary/50 group-hover:text-primary transition-colors" />
-                                                </button>
-
-                                                {/* Info */}
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                        {discount.name && (
-                                                            <p className="font-bold text-sm">{discount.name}</p>
-                                                        )}
-                                                        <Badge className={cn("text-[10px] h-5 px-2 gap-1 border", status.color)}>
-                                                            <StatusIcon className="h-2.5 w-2.5" /> {status.label}
-                                                        </Badge>
-                                                        <Badge variant="outline" className="text-[10px] h-5 px-2 gap-1 font-bold">
-                                                            {discount.discount_type === "percent" ? (
-                                                                <><Percent className="h-2.5 w-2.5" /> {discount.discount_value}% off</>
-                                                            ) : (
-                                                                <><DollarSign className="h-2.5 w-2.5" /> ฿{discount.discount_value} off</>
-                                                            )}
-                                                        </Badge>
-                                                        {discount.min_order_value > 0 && (
-                                                            <Badge variant="secondary" className="text-[10px] h-5 px-2">
-                                                                Min ฿{discount.min_order_value.toLocaleString()}
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                    {discount.description && (
-                                                        <p className="text-xs text-muted-foreground mt-1 truncate">{discount.description}</p>
-                                                    )}
-                                                    {(discount.start_date || discount.end_date) && (
-                                                        <p className="text-xs text-muted-foreground mt-0.5">
-                                                            {discount.start_date && `From ${new Date(discount.start_date).toLocaleDateString()}`}
-                                                            {discount.start_date && discount.end_date && " — "}
-                                                            {discount.end_date && `Until ${new Date(discount.end_date).toLocaleDateString()}`}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            </div>
-
-                                            {/* Actions */}
-                                            <div className="flex items-center gap-3 flex-shrink-0">
-                                                <div className="text-right">
-                                                    <p className="text-xs font-bold">
-                                                        {discount.usage_count}
-                                                        {discount.usage_limit ? ` / ${discount.usage_limit}` : ""} uses
-                                                    </p>
-                                                    {discount.usage_limit && (
-                                                        <div className="w-20 mt-1">
-                                                            <Progress value={usagePct} className="h-1.5" />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <Switch
-                                                    checked={discount.is_active}
-                                                    onCheckedChange={(v) => toggleActive.mutate({ id: discount.id, is_active: v })}
-                                                />
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                                                    onClick={() => deleteDiscount.mutate(discount.id)}
-                                                    disabled={deleteDiscount.isPending}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </div>
+                        <div className="space-y-8">
+                            {/* Drafts Section */}
+                            {draftDiscounts.length > 0 && (
+                                <div className="space-y-4">
+                                    <h3 className="font-bold text-lg flex items-center gap-2">
+                                        <Archive className="h-5 w-5 text-slate-500" />
+                                        Draft Campaigns
+                                        <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                                            {draftDiscounts.length}
+                                        </Badge>
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {draftDiscounts.map(renderDiscountCard)}
                                     </div>
-                                );
-                            })}
+                                </div>
+                            )}
+
+                            {/* Live Section */}
+                            {liveDiscounts.length > 0 && (
+                                <div className="space-y-4">
+                                    <h3 className="font-bold text-lg flex items-center gap-2">
+                                        <Zap className="h-5 w-5 text-emerald-500" />
+                                        Live Campaigns
+                                        <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
+                                            {liveDiscounts.length}
+                                        </Badge>
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {liveDiscounts.map(renderDiscountCard)}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </CardContent>
             </Card>
         </div>
     );
+
+    function renderDiscountCard(discount: (typeof discounts)[0]) {
+        const status = getStatus(discount);
+        const usagePct = getUsagePercent(discount);
+        const StatusIcon = status.icon;
+
+        return (
+            <div
+                key={discount.id}
+                className="p-5 rounded-2xl border bg-background hover:border-primary/30 hover:shadow-md transition-all duration-200"
+            >
+                <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                        {/* Code Badge */}
+                        <button
+                            onClick={() => copyCode(discount.code)}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary/5 border border-primary/20 hover:bg-primary/10 transition-colors group flex-shrink-0"
+                        >
+                            <span className="font-mono font-black text-primary text-sm tracking-widest">
+                                {discount.code}
+                            </span>
+                            <Copy className="h-3 w-3 text-primary/50 group-hover:text-primary transition-colors" />
+                        </button>
+
+                        {/* Info */}
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {discount.name && (
+                                    <p className="font-bold text-sm">{discount.name}</p>
+                                )}
+                                <Badge className={cn("text-[10px] h-5 px-2 gap-1 border", status.color)}>
+                                    <StatusIcon className="h-2.5 w-2.5" /> {status.label}
+                                </Badge>
+                                <Badge variant="outline" className="text-[10px] h-5 px-2 gap-1 font-bold">
+                                    {discount.discount_type === "percent" ? (
+                                        <><Percent className="h-2.5 w-2.5" /> {discount.discount_value}% off</>
+                                    ) : (
+                                        <><DollarSign className="h-2.5 w-2.5" /> ฿{discount.discount_value} off</>
+                                    )}
+                                </Badge>
+                                {discount.min_order_value > 0 && (
+                                    <Badge variant="secondary" className="text-[10px] h-5 px-2">
+                                        Min ฿{discount.min_order_value.toLocaleString()}
+                                    </Badge>
+                                )}
+                            </div>
+                            {discount.description && (
+                                <p className="text-xs text-muted-foreground mt-1 truncate">{discount.description}</p>
+                            )}
+                            {(discount.start_date || discount.end_date) && (
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    {discount.start_date && `From ${new Date(discount.start_date).toLocaleDateString()}`}
+                                    {discount.start_date && discount.end_date && " — "}
+                                    {discount.end_date && `Until ${new Date(discount.end_date).toLocaleDateString()}`}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="text-right">
+                            <p className="text-xs font-bold text-muted-foreground">
+                                <span className="text-emerald-600">{discount.collections_count}</span> collected
+                            </p>
+                            <p className="text-[10px] font-medium text-muted-foreground mt-0.5">
+                                {discount.usage_count} used
+                                {discount.usage_limit ? ` / ${discount.usage_limit} limit` : ""}
+                            </p>
+                            {discount.usage_limit && (
+                                <div className="w-24 mt-1.5">
+                                    <Progress value={usagePct} className="h-1.5" />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="w-px h-8 bg-border mx-2" />
+
+                        {!discount.published_at ? (
+                            <Button
+                                onClick={() => publishDiscount.mutate(discount.id)}
+                                disabled={publishDiscount.isPending}
+                                className="h-10 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm shadow-primary/20"
+                            >
+                                <Send className="h-4 w-4 mr-2" />
+                                Release Code
+                            </Button>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <Switch
+                                    checked={discount.is_active}
+                                    onCheckedChange={(v) => toggleActive.mutate({ id: discount.id, is_active: v })}
+                                />
+                            </div>
+                        )}
+
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => deleteDiscount.mutate(discount.id)}
+                            disabled={deleteDiscount.isPending}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 }

@@ -623,38 +623,51 @@ export function useFeedbackList(page: number = 1, limit: number = 10) {
         throw error;
       }
 
-      // 2. Collect User IDs to fetch workspace info
-      // Note: user_id might be null in old data, filter boolean
+      // 2. Collect User IDs to fetch workspace and profile info
       const userIds = Array.from(new Set(feedback?.map((f: any) => f.user_id).filter(Boolean)));
 
       let workspacesMap: Record<string, { name: string; type: string }> = {};
+      let profilesMap: Record<string, { name: string; img: string }> = {};
 
       if (userIds.length > 0) {
-        // Fetch workspace members for these users
-        // Since we can't easily join deep without exact paths, fetch separately
-        const { data: members, error: wError } = await supabase
-          .from("workspace_members")
-          .select(`
-            user_id,
-            workspaces (
-              name,
-              business_types (
-                name
+        // Parallel fetch workspaces and profiles
+        const [{ data: members }, { data: profiles }] = await Promise.all([
+          supabase
+            .from("workspace_members")
+            .select(`
+              user_id,
+              workspaces (
+                name,
+                business_types (
+                  name
+                )
               )
-            )
-          `)
-          .in("user_id", userIds);
+            `)
+            .in("user_id", userIds),
+          supabase
+            .from("profile_customers")
+            .select("user_id, first_name, last_name, profile_img")
+            .in("user_id", userIds)
+        ]);
 
-        if (!wError && members) {
+        if (members) {
           members.forEach((m: any) => {
-            if (m.user_id && m.workspaces) {
-              // Just take the first workspace found for simplicity
-              if (!workspacesMap[m.user_id]) {
-                workspacesMap[m.user_id] = {
-                  name: m.workspaces.name,
-                  type: m.workspaces.business_types?.name || "Uncategorized"
-                };
-              }
+            if (m.user_id && m.workspaces && !workspacesMap[m.user_id]) {
+              workspacesMap[m.user_id] = {
+                name: m.workspaces.name,
+                type: m.workspaces.business_types?.name || "Uncategorized"
+              };
+            }
+          });
+        }
+
+        if (profiles) {
+          profiles.forEach((p: any) => {
+            if (p.user_id) {
+              profilesMap[p.user_id] = {
+                name: `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Anonymous",
+                img: p.profile_img || ""
+              };
             }
           });
         }
@@ -672,11 +685,8 @@ export function useFeedbackList(page: number = 1, limit: number = 10) {
       };
 
       const mappedData = feedback?.map((f: any) => {
-        // Profile info from customer_activities -> profile_customers
-        // Fallback to "Anonymous" if missing
-        const profile = f.customer_activities?.profile_customers;
-        const fullName = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "Anonymous User";
         const wsInfo = f.user_id ? workspacesMap[f.user_id] : null;
+        const profile = f.user_id ? profilesMap[f.user_id] : null;
 
         return {
           id: f.id,
@@ -684,8 +694,8 @@ export function useFeedbackList(page: number = 1, limit: number = 10) {
           created_at: f.created_at,
           rating: getScoreByName(f.rating?.name),
           customer: {
-            name: fullName || "Anonymous",
-            avatarUrl: profile?.profile_img || "",
+            name: profile?.name || "Anonymous User",
+            avatarUrl: profile?.img || "",
           },
           workspace: {
             name: wsInfo?.name || "Unknown Workspace",

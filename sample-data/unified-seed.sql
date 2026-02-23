@@ -84,7 +84,11 @@ BEGIN
             v_user_ids[i], '00000000-0000-0000-0000-000000000000', v_emails[i], v_password_hash,
             v_created_at, v_created_at, v_created_at,
             '{"provider":"email","providers":["email"]}'::jsonb,
-            jsonb_build_object('full_name', v_full_names[i]),
+            jsonb_build_object(
+                'full_name', v_full_names[i],
+                'first_name', split_part(v_full_names[i], ' ', 1),
+                'last_name', split_part(v_full_names[i], ' ', 2)
+            ),
             'authenticated', 'authenticated'
         ) ON CONFLICT (id) DO NOTHING;
 

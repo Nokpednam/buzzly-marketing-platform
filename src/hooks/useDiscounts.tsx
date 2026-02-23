@@ -18,6 +18,8 @@ export interface Discount {
     is_active: boolean;
     description: string | null;
     created_by: string | null;
+    published_at: string | null;
+    collections_count: number;
     created_at: string;
     updated_at: string;
 }
@@ -63,7 +65,10 @@ export function useDiscounts() {
 
             const { data, error } = await (supabase as any)
                 .from("discounts")
-                .select("*")
+                .select(`
+                    *,
+                    customer_coupons (count)
+                `)
                 .eq("team_id", teamId)
                 .order("created_at", { ascending: false });
 
@@ -74,6 +79,7 @@ export function useDiscounts() {
                 discount_value: Number(d.discount_value),
                 min_order_value: Number(d.min_order_value ?? 0),
                 max_discount_amount: d.max_discount_amount ? Number(d.max_discount_amount) : null,
+                collections_count: d.customer_coupons?.[0]?.count ?? 0,
             })) as Discount[];
         },
     });
@@ -163,18 +169,39 @@ export function useDiscounts() {
         },
     });
 
+    const publishDiscount = useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await (supabase as any)
+                .from("discounts")
+                .update({ published_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+                .eq("id", id);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["discounts"] });
+            toast.success("Discount published! Notifications sent to customers.");
+        },
+        onError: (err: any) => {
+            toast.error(err.message ?? "Failed to publish discount");
+        },
+    });
+
     // Computed stats
-    const activeDiscounts = discounts.filter((d) => d.is_active);
-    const expiredDiscounts = discounts.filter(
+    const draftDiscounts = discounts.filter((d) => !d.published_at);
+    const liveDiscounts = discounts.filter((d) => d.published_at);
+    const activeDiscounts = liveDiscounts.filter((d) => d.is_active);
+    const expiredDiscounts = liveDiscounts.filter(
         (d) => d.end_date && new Date(d.end_date) < new Date()
     );
-    const exhaustedDiscounts = discounts.filter(
-        (d) => d.usage_limit !== null && d.usage_count >= d.usage_limit
+    const exhaustedDiscounts = liveDiscounts.filter(
+        (d) => d.usage_limit !== null && d.collections_count >= d.usage_limit
     );
 
     return {
         discounts,
         isLoading,
+        draftDiscounts,
+        liveDiscounts,
         activeDiscounts,
         expiredDiscounts,
         exhaustedDiscounts,
@@ -182,5 +209,6 @@ export function useDiscounts() {
         updateDiscount,
         deleteDiscount,
         toggleActive,
+        publishDiscount,
     };
 }

@@ -29,11 +29,29 @@ export interface TopPerformer {
     points: number;
 }
 
+export interface NearUpgradeCustomer {
+    id: string;
+    name: string;
+    currentTier: string;
+    nextTier: string;
+    spendNeeded: number;
+}
+
+export interface ChurnRiskCustomer {
+    id: string;
+    name: string;
+    tier: string;
+    daysInactive: number;
+}
+
 export interface CustomerTiersData {
     tierDistribution: TierDistribution[];
     revenueByTier: RevenueByTier[];
     tierMovement: TierMovement[];
     topPerformers: TopPerformer[];
+    nearUpgradeCustomers: NearUpgradeCustomer[];
+    churnRiskCustomers: ChurnRiskCustomer[];
+    pointsBurnRate: number;
     totalCustomers: number;
     totalRevenue: number;
     avgSpendAll: number;
@@ -47,7 +65,7 @@ const TIER_COLORS: Record<string, string> = {
     Platinum: "#6366F1",
 };
 
-async function fetchCustomerTiersData(): Promise<CustomerTiersData> {
+async function fetchCustomerTiersData(timePeriod: string): Promise<CustomerTiersData> {
     const [tiersRes, customersRes, txsRes] = await Promise.all([
         supabase.from("loyalty_tiers").select("*").order("min_points"),
         supabase.from("profile_customers").select(`
@@ -71,7 +89,16 @@ async function fetchCustomerTiersData(): Promise<CustomerTiersData> {
 
     const tiers = tiersRes.data ?? [];
     const customers = customersRes.data ?? [];
-    const txs = txsRes.data ?? [];
+    const allTxs = txsRes.data ?? [];
+
+    const now = new Date();
+    let filterStartDate = new Date(0);
+    if (timePeriod === "7d") filterStartDate = new Date(now.setDate(now.getDate() - 7));
+    else if (timePeriod === "30d") filterStartDate = new Date(now.setDate(now.getDate() - 30));
+    else if (timePeriod === "90d") filterStartDate = new Date(now.setDate(now.getDate() - 90));
+    else if (timePeriod === "1y") filterStartDate = new Date(now.setFullYear(now.getFullYear() - 1));
+
+    const txs = allTxs.filter(tx => new Date(tx.created_at) >= filterStartDate);
 
     // Deduplicate tiers by name
     const uniqueTiers = new Map<string, (typeof tiers)[0]>();
@@ -137,36 +164,121 @@ async function fetchCustomerTiersData(): Promise<CustomerTiersData> {
     });
 
     // C. Top performers
-    const topPerformers: TopPerformer[] = customers
-        .map((c) => {
-            const lp = c.loyalty_points as any;
-            return {
-                id: c.user_id,
-                name: `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Unknown Customer",
-                tier: lp?.loyalty_tiers?.name || "Bronze",
-                points: lp?.total_points_earned || 0,
-                totalSpend: userSpendMap.get(c.user_id) || 0,
-            };
-        })
+    const sortedCustomers = customers.map((c) => {
+        const lp = c.loyalty_points as any;
+        return {
+            id: c.user_id,
+            name: `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Unknown Customer",
+            tier: lp?.loyalty_tiers?.name || "Bronze",
+            points: lp?.total_points_earned || 0,
+            balance: lp?.point_balance || 0, // Added for burn rate
+            totalSpend: userSpendMap.get(c.user_id) || 0,
+        };
+    });
+
+    const topPerformers: TopPerformer[] = [...sortedCustomers]
         .sort((a, b) => b.totalSpend - a.totalSpend)
         .slice(0, 5);
 
-    // D. Tier movement (last 6 months)
-    const endDate = new Date();
-    const startDate = subMonths(endDate, 6);
-    const trendsMap = new Map<string, { up: number; down: number }>();
-    for (let i = 5; i >= 0; i--) {
-        const d = subMonths(endDate, i);
-        trendsMap.set(format(d, "MMM", { locale: th }), { up: 0, down: 0 });
-    }
-
+    // E. Near Upgrade Customers
     const sortedLogicTiers = [...masterTiers].sort(
         (a, b) => a.min_spend_amount - b.min_spend_amount
     );
+    const nearUpgradeCustomers: NearUpgradeCustomer[] = [];
+    sortedCustomers.forEach(c => {
+        let currentTierIndex = sortedLogicTiers.findIndex(t => t.name === c.tier) || 0;
+        if (currentTierIndex >= 0 && currentTierIndex < sortedLogicTiers.length - 1) {
+            const nextTier = sortedLogicTiers[currentTierIndex + 1];
+            const spendNeeded = nextTier.min_spend_amount - c.totalSpend;
+            // E.g., any customer needing > 0 to hit the next tier
+            if (spendNeeded > 0) {
+                nearUpgradeCustomers.push({
+                    id: c.id,
+                    name: c.name,
+                    currentTier: c.tier,
+                    nextTier: nextTier.name,
+                    spendNeeded,
+                });
+            }
+        }
+    });
+
+    // F. Churn Risk Customers
+    const churnRiskCustomers: ChurnRiskCustomer[] = [];
+    const userLastTxMap = new Map<string, Date>();
+    allTxs.forEach(tx => {
+        const txDate = new Date(tx.created_at);
+        const lastTxDate = userLastTxMap.get(tx.user_id);
+        if (!lastTxDate || txDate > lastTxDate) {
+            userLastTxMap.set(tx.user_id, txDate);
+        }
+    });
+
+    sortedCustomers.forEach(c => {
+        if (c.tier === "Platinum" || c.tier === "Gold") {
+            const lastTxDate = userLastTxMap.get(c.id);
+            if (lastTxDate) {
+                const daysInactive = Math.floor((new Date().getTime() - lastTxDate.getTime()) / (1000 * 3600 * 24));
+                if (daysInactive >= 60) {
+                    churnRiskCustomers.push({
+                        id: c.id,
+                        name: c.name,
+                        tier: c.tier,
+                        daysInactive,
+                    });
+                }
+            }
+        }
+    });
+    // Sort logic for insights
+    nearUpgradeCustomers.sort((a, b) => a.spendNeeded - b.spendNeeded).splice(5); // Only keep top 5 closest
+    churnRiskCustomers.sort((a, b) => b.daysInactive - a.daysInactive).splice(5); // Only keep 5 most inactive VIPs
+
+    // G. Points Burn Rate
+    let totalPointsEarned = 0;
+    let totalPointsBalance = 0;
+    sortedCustomers.forEach(c => {
+        totalPointsEarned += c.points;
+        totalPointsBalance += c.balance;
+    });
+    const pointsBurnRate = totalPointsEarned > 0 ? ((totalPointsEarned - totalPointsBalance) / totalPointsEarned) * 100 : 0;
+
+    // D. Tier movement (Dynamic based on timePeriod)
+    const endDate = new Date();
+    const trendsMap = new Map<string, { up: number; down: number }>();
+
+    let chartStartDate = new Date();
+
+    if (timePeriod === "7d") {
+        chartStartDate = new Date(endDate.getTime() - 7 * 24 * 3600 * 1000);
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(endDate.getTime() - i * 24 * 3600 * 1000);
+            trendsMap.set(format(d, "d MMM", { locale: th }), { up: 0, down: 0 });
+        }
+    } else if (timePeriod === "30d") {
+        chartStartDate = new Date(endDate.getTime() - 30 * 24 * 3600 * 1000);
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date(endDate.getTime() - i * 24 * 3600 * 1000);
+            trendsMap.set(format(d, "d MMM", { locale: th }), { up: 0, down: 0 });
+        }
+    } else if (timePeriod === "90d") {
+        chartStartDate = subMonths(endDate, 3);
+        for (let i = 2; i >= 0; i--) {
+            const d = subMonths(endDate, i);
+            trendsMap.set(format(d, "MMM yy", { locale: th }), { up: 0, down: 0 });
+        }
+    } else { // 1y
+        chartStartDate = subMonths(endDate, 12);
+        for (let i = 11; i >= 0; i--) {
+            const d = subMonths(endDate, i);
+            trendsMap.set(format(d, "MMM yy", { locale: th }), { up: 0, down: 0 });
+        }
+    }
+
     const defaultLogicTier = sortedLogicTiers[0];
     const replayUserSpend = new Map<string, number>();
 
-    txs.forEach((tx) => {
+    allTxs.forEach((tx) => {
         const txDate = new Date(tx.created_at);
         const currentSpend = replayUserSpend.get(tx.user_id) || 0;
         const newSpend = currentSpend + tx.amount;
@@ -179,8 +291,13 @@ async function fetchCustomerTiersData(): Promise<CustomerTiersData> {
             if (newSpend >= t.min_spend_amount) newTier = t;
         }
 
-        if (newTier.min_spend_amount > oldTier.min_spend_amount && txDate >= startDate) {
-            const key = format(txDate, "MMM", { locale: th });
+        if (newTier.min_spend_amount > oldTier.min_spend_amount && txDate >= chartStartDate) {
+            let key = "";
+            if (timePeriod === "7d" || timePeriod === "30d") {
+                key = format(txDate, "d MMM", { locale: th });
+            } else {
+                key = format(txDate, "MMM yy", { locale: th });
+            }
             if (trendsMap.has(key)) trendsMap.get(key)!.up++;
         }
     });
@@ -194,6 +311,9 @@ async function fetchCustomerTiersData(): Promise<CustomerTiersData> {
         revenueByTier,
         tierMovement,
         topPerformers,
+        nearUpgradeCustomers,
+        churnRiskCustomers,
+        pointsBurnRate: Math.round(pointsBurnRate),
         totalCustomers,
         totalRevenue,
         avgSpendAll,
@@ -201,10 +321,10 @@ async function fetchCustomerTiersData(): Promise<CustomerTiersData> {
     };
 }
 
-export function useCustomerTiers() {
+export function useCustomerTiers(timePeriod: string = "30d") {
     return useQuery({
-        queryKey: ["customer-tiers"],
-        queryFn: fetchCustomerTiersData,
+        queryKey: ["customer-tiers", timePeriod],
+        queryFn: () => fetchCustomerTiersData(timePeriod),
         staleTime: 5 * 60 * 1000, // 5 minutes
     });
 }
