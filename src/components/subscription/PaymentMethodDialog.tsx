@@ -95,47 +95,80 @@ export function PaymentMethodDialog({
     setIsApplyingDiscount(true);
 
     try {
-      const { data, error } = await supabase
-        .from("discounts")
-        .select("*")
-        .eq("code", discountCode.toUpperCase())
-        .eq("is_active", true)
-        .maybeSingle();
+      // Use RPC function (SECURITY DEFINER) to bypass RLS on discounts table.
+      // This ensures customers who collected a coupon can validate it even
+      // though they are not workspace members.
+      const { data, error } = await (supabase as any).rpc(
+        "validate_collected_discount",
+        { p_code: discountCode.trim() }
+      );
 
       if (error) throw error;
 
-      if (data) {
-        if (data.end_date && new Date(data.end_date) < new Date()) {
-          toast({
+      const result = data as {
+        error?: string;
+        id?: string;
+        code?: string;
+        discount_type?: "percent" | "fixed";
+        discount_value?: number;
+        min_order_value?: number;
+        max_discount_amount?: number | null;
+      };
+
+      if (result.error) {
+        const errorMessages: Record<string, { title: string; description: string }> = {
+          not_authenticated: {
+            title: "กรุณาเข้าสู่ระบบ",
+            description: "โปรดเข้าสู่ระบบก่อนใช้โค้ดส่วนลด",
+          },
+          invalid_code: {
+            title: "โค้ดส่วนลดไม่ถูกต้อง",
+            description: "กรุณาตรวจสอบและลองใหม่อีกครั้ง",
+          },
+          not_collected: {
+            title: "คุณยังไม่ได้เก็บโค้ดนี้",
+            description: "ไปเก็บโค้ดได้จากหน้าการแจ้งเตือนก่อนนำมาใช้",
+          },
+          already_used: {
+            title: "โค้ดส่วนลดนี้ถูกใช้แล้ว",
+            description: "โค้ดนี้ถูกใช้ไปแล้วในการชำระเงินครั้งก่อน",
+          },
+          expired: {
             title: "โค้ดส่วนลดหมดอายุแล้ว",
             description: "โปรดลองใช้โค้ดอื่น",
-            variant: "destructive",
-          });
-        } else if (data.usage_limit && data.usage_count >= data.usage_limit) {
-          toast({
+          },
+          exhausted: {
             title: "โค้ดส่วนลดถูกใช้ครบตามจำนวนแล้ว",
             description: "โปรดลองใช้โค้ดอื่น",
-            variant: "destructive",
-          });
-        } else if (data.min_order_value && basePrice < data.min_order_value) {
-          toast({
-            title: "ยอดสั่งซื้อไม่ถึงเกณฑ์",
-            description: `ต้องมียอดสั่งซื้อขั้นต่ำขึ้นไป`,
-            variant: "destructive",
-          });
-        } else {
-          if (data.discount_type === "percent") {
-            setAppliedDiscount({ code: data.code, percent: data.discount_value, maxAmount: data.max_discount_amount });
-          } else {
-            setAppliedDiscount({ code: data.code, amount: data.discount_value });
-          }
-        }
-      } else {
+          },
+        };
+
+        const msg = errorMessages[result.error] ?? {
+          title: "เกิดข้อผิดพลาด",
+          description: "ไม่สามารถตรวจสอบโค้ดส่วนลดได้",
+        };
+        toast({ ...msg, variant: "destructive" });
+        return;
+      }
+
+      // Validate min order value on the frontend
+      if (result.min_order_value && basePrice < result.min_order_value) {
         toast({
-          title: "โค้ดส่วนลดไม่ถูกต้อง",
-          description: "กรุณาตรวจสอบและลองใหม่อีกครั้ง",
+          title: "ยอดสั่งซื้อไม่ถึงเกณฑ์",
+          description: `ต้องมียอดสั่งซื้อขั้นต่ำ ฿${result.min_order_value} ขึ้นไป`,
           variant: "destructive",
         });
+        return;
+      }
+
+      if (result.discount_type === "percent") {
+        setAppliedDiscount({
+          code: result.code!,
+          percent: result.discount_value,
+          maxAmount: result.max_discount_amount ?? null,
+        });
+      } else {
+        setAppliedDiscount({ code: result.code!, amount: result.discount_value });
       }
     } catch (err) {
       console.error("Discount error:", err);

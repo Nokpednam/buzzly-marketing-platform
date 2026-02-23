@@ -40,17 +40,24 @@ export interface CreateDiscountInput {
 async function getTeamId(): Promise<string | null> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
-    const { data } = await supabase
+
+    // 1. Check if user owns a workspace
+    const { data: workspace } = await supabase
         .from("workspaces")
         .select("id")
         .eq("owner_id", user.id)
         .maybeSingle();
-    if (data) return data.id;
+
+    if (workspace?.id) return workspace.id;
+
+    // 2. Check if user is a member of a workspace
     const { data: member } = await supabase
         .from("workspace_members")
         .select("team_id")
         .eq("user_id", user.id)
+        .eq("status", "active")
         .maybeSingle();
+
     return member?.team_id ?? null;
 }
 

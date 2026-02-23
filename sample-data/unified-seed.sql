@@ -103,7 +103,9 @@ BEGIN
             split_part(v_full_names[i], ' ', 2),
             (SELECT id FROM genders ORDER BY random() LIMIT 1),
             v_created_at
-        ) ON CONFLICT (user_id) DO NOTHING;
+        ) ON CONFLICT (user_id) DO UPDATE SET 
+            first_name = EXCLUDED.first_name,
+            last_name = EXCLUDED.last_name;
 
         -- 4. Insert into public.customer (Admin/CRM compatibility)
         INSERT INTO public.customer (

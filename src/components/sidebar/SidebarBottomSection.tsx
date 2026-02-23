@@ -26,8 +26,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { MessageSquarePlus, Ticket } from "lucide-react";
 import { auditAuth } from "@/lib/auditLogger";
-import { useCustomerCoupons, CustomerNotification } from "@/hooks/useCustomerCoupons";
+import { useCustomerCoupons } from "@/hooks/useCustomerCoupons";
 import { MyCouponsDialog } from "@/components/customer/MyCouponsDialog";
+import { NotificationCenterDialog } from "@/components/customer/NotificationCenterDialog";
 
 interface SidebarBottomSectionProps {
   collapsed?: boolean;
@@ -62,6 +63,7 @@ const planInfo: Record<PlanType, { name: string; upgradeText: string; showUpgrad
 export function SidebarBottomSection({ collapsed = false }: SidebarBottomSectionProps) {
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [upgradeHovered, setUpgradeHovered] = useState(false);
+  const [notifCenterOpen, setNotifCenterOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [recentTransactions, setRecentTransactions] = useState<PointsTransaction[]>([]);
@@ -203,7 +205,7 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
           </PopoverContent>
         </Popover>
 
-        {/* Notifications */}
+        {/* Notifications (collapsed) — mini popover → full center */}
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="ghost" className="w-full h-10 p-0 relative">
@@ -213,8 +215,8 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent side="right" align="end" className="w-80">
-            <NotificationsContent />
+          <PopoverContent side="right" align="end" className="w-72 p-0">
+            <MiniNotifPopover unreadCount={unreadCount} onViewAll={() => setNotifCenterOpen(true)} />
           </PopoverContent>
         </Popover>
 
@@ -277,12 +279,12 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
               <User className="mr-2 h-4 w-4" />
               Profile
             </DropdownMenuItem>
-            <MyCouponsDialog>
+            <NotificationCenterDialog defaultTab="coupons">
               <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                 <Ticket className="mr-2 h-4 w-4" />
                 My Coupons
               </DropdownMenuItem>
-            </MyCouponsDialog>
+            </NotificationCenterDialog>
             <DropdownMenuItem onClick={() => navigate("/settings")}>
               <Settings className="mr-2 h-4 w-4" />
               Settings
@@ -322,7 +324,7 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
           </PopoverContent>
         </Popover>
 
-        {/* Notifications & Logout */}
+        {/* Notifications — mini popover → full center */}
         <div className="flex items-center gap-1">
           <Popover>
             <PopoverTrigger asChild>
@@ -333,16 +335,16 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent side="top" align="end" className="w-80">
-              <NotificationsContent />
+            <PopoverContent side="top" align="end" className="w-72 p-0">
+              <MiniNotifPopover unreadCount={unreadCount} onViewAll={() => setNotifCenterOpen(true)} />
             </PopoverContent>
           </Popover>
-
-
         </div>
       </div>
 
       <PlanSelectionDialog open={planDialogOpen} onOpenChange={setPlanDialogOpen} />
+      {/* Full Notification Center — opened via "View all notifications" */}
+      <NotificationCenterDialog open={notifCenterOpen} onOpenChange={setNotifCenterOpen} />
     </div>
   );
 }
@@ -391,10 +393,7 @@ function TierPopoverContent({
         </div>
         <div className="grid grid-cols-2 gap-2">
           {tierBenefits.map((benefit) => (
-            <div
-              key={benefit.label}
-              className="flex flex-col p-2 rounded-lg bg-muted/50"
-            >
+            <div key={benefit.label} className="flex flex-col p-2 rounded-lg bg-muted/50">
               <span className="text-xs text-muted-foreground">{benefit.label}</span>
               <span className="text-sm font-semibold text-foreground">{benefit.value}</span>
             </div>
@@ -428,45 +427,37 @@ function TierPopoverContent({
         {recentTransactions.length > 0 ? (
           <div className="space-y-1.5 max-h-32 overflow-y-auto">
             {recentTransactions.map((tx) => (
-              <div
-                key={tx.id}
-                className="flex items-center justify-between text-xs p-2 rounded-lg bg-muted/30"
-              >
+              <div key={tx.id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-muted/30">
                 <div className="flex items-center gap-2">
-                  {tx.transaction_type === 'earned' ? (
-                    <ArrowUp className="h-3 w-3 text-primary" />
-                  ) : (
-                    <ArrowDown className="h-3 w-3 text-destructive" />
-                  )}
+                  {tx.transaction_type === 'earned'
+                    ? <ArrowUp className="h-3 w-3 text-primary" />
+                    : <ArrowDown className="h-3 w-3 text-destructive" />}
                   <span className="text-muted-foreground truncate max-w-[140px]">
                     {tx.description || tx.transaction_type}
                   </span>
                 </div>
-                <span className={cn(
-                  "font-medium",
-                  tx.transaction_type === 'earned' ? "text-primary" : "text-destructive"
-                )}>
+                <span className={cn("font-medium", tx.transaction_type === 'earned' ? "text-primary" : "text-destructive")}>
                   {tx.transaction_type === 'earned' ? '+' : '-'}{tx.points_amount} pts
                 </span>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground text-center py-2">
-            No recent activity
-          </p>
+          <p className="text-xs text-muted-foreground text-center py-2">No recent activity</p>
         )}
       </div>
     </div>
   );
 }
 
-// Notifications Content Component
-function NotificationsContent() {
-  const { notifications, markNotificationRead, collectCoupon } = useCustomerCoupons();
+// ── Mini Notification Popover ─────────────────────────────────────────────────
+function MiniNotifPopover({ unreadCount, onViewAll }: { unreadCount: number; onViewAll: () => void }) {
+  const { notifications, markNotificationRead, collectCoupon, collectedCoupons } = useCustomerCoupons();
+  const collectedDiscountIds = new Set(collectedCoupons.map((c) => c.discount_id));
   const [collectingId, setCollectingId] = useState<string | null>(null);
+  const recent = notifications.slice(0, 4);
 
-  const handleCollect = async (notif: CustomerNotification) => {
+  const handleCollect = async (notif: { id: string; related_id: string | null }) => {
     if (!notif.related_id) return;
     setCollectingId(notif.id);
     try {
@@ -476,68 +467,75 @@ function NotificationsContent() {
     }
   };
 
-  const handleRead = (notif: CustomerNotification) => {
-    if (!notif.is_read) {
-      markNotificationRead.mutate(notif.id);
-    }
-  };
-
   return (
-    <div className="space-y-3">
-      <h4 className="font-medium text-sm">Notifications</h4>
-      <div className="space-y-2 max-h-80 overflow-y-auto">
-        {notifications.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-4">No notifications yet</p>
-        ) : (
-          notifications.map((notif) => (
-            <div
-              key={notif.id}
-              className={cn(
-                "flex items-start gap-3 p-2 rounded-lg transition-colors",
-                !notif.is_read ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/50"
-              )}
-              onClick={() => handleRead(notif)}
-            >
-              <div className={cn(
-                "h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0",
-                notif.type === 'discount' ? "bg-emerald-500/10" : "bg-primary/10"
-              )}>
-                {notif.type === 'discount' ? (
-                  <Ticket className="h-4 w-4 text-emerald-600" />
-                ) : (
-                  <Zap className="h-4 w-4 text-primary" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium flex items-center gap-2">
-                  {notif.title}
-                  {!notif.is_read && <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">{notif.message}</p>
-                {notif.type === 'discount' && notif.related_id && (
-                  <Button
-                    size="sm"
-                    variant={notif.is_read ? "secondary" : "default"}
-                    className="w-full mt-2 h-7 text-xs font-bold"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCollect(notif);
-                    }}
-                    disabled={collectingId === notif.id || notif.is_read}
-                  >
-                    {notif.is_read ? "Collected" : collectingId === notif.id ? "Collecting..." : "Collect Coupon"}
-                  </Button>
-                )}
-              </div>
-            </div>
-          ))
+    <div className="flex flex-col">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
+        <span className="text-sm font-bold">Notifications</span>
+        {unreadCount > 0 && (
+          <span className="text-[10px] font-bold bg-primary text-primary-foreground rounded-full px-2 py-0.5">
+            {unreadCount} new
+          </span>
         )}
       </div>
-      <Button variant="ghost" size="sm" className="w-full text-xs">
-        View all notifications
-      </Button>
 
-      <div className="pt-2 mt-2 border-t border-border">
+      <div className="divide-y divide-border/40">
+        {recent.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-6">No notifications yet</p>
+        ) : (
+          recent.map((notif) => {
+            const alreadyCollected = notif.related_id ? collectedDiscountIds.has(notif.related_id) : false;
+            return (
+              <div
+                key={notif.id}
+                className={cn(
+                  "flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors",
+                  !notif.is_read ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/40"
+                )}
+                onClick={() => { if (!notif.is_read) markNotificationRead.mutate(notif.id); }}
+              >
+                <div className={cn(
+                  "h-7 w-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5",
+                  notif.type === "discount" ? "bg-emerald-500/10" : "bg-primary/10"
+                )}>
+                  {notif.type === "discount"
+                    ? <Ticket className="h-3.5 w-3.5 text-emerald-600" />
+                    : <Zap className="h-3.5 w-3.5 text-primary" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-semibold truncate">{notif.title}</p>
+                    {!notif.is_read && <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{notif.message}</p>
+                  {notif.type === "discount" && notif.related_id && !alreadyCollected && (
+                    <Button
+                      size="sm"
+                      className="mt-1.5 h-6 text-[11px] font-bold w-full"
+                      onClick={(e) => { e.stopPropagation(); handleCollect(notif); }}
+                      disabled={collectingId === notif.id}
+                    >
+                      {collectingId === notif.id ? "Collecting..." : "Collect Coupon"}
+                    </Button>
+                  )}
+                  {alreadyCollected && (
+                    <p className="text-[10px] text-emerald-600 mt-1 font-medium">✓ Collected</p>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <div className="p-2 border-t border-border/60 space-y-1.5">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full h-8 text-xs font-semibold text-primary hover:text-primary hover:bg-primary/5"
+          onClick={onViewAll}
+        >
+          View all notifications →
+        </Button>
         <FeedbackDialog>
           <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-2">
             <MessageSquarePlus className="h-3.5 w-3.5" />

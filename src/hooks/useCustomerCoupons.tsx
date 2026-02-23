@@ -99,43 +99,28 @@ export function useCustomerCoupons() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error("Not authenticated");
 
-            // 1. Check if discount has available usage
-            const { data: discount, error: fetchErr } = await (supabase as any)
-                .from("discounts")
-                .select("usage_limit, id")
-                .eq("id", discountId)
-                .single();
-
-            if (fetchErr || !discount) throw new Error("Discount not found");
-
-            // Check usage limit by counting existing collections
-            if (discount.usage_limit) {
-                const { count, error: countErr } = await (supabase as any)
-                    .from("customer_coupons")
-                    .select("*", { count: 'exact', head: true })
-                    .eq("discount_id", discountId);
-
-                if (countErr) throw countErr;
-                if ((count || 0) >= discount.usage_limit) {
-                    throw new Error("Sorry, this coupon is fully collected out!");
-                }
-            }
-
-            // 2. Insert collection
+            // Insert collection record directly.
+            // The DB unique constraint on (customer_id, discount_id) prevents double-collect.
+            // We skip the pre-flight SELECT because RLS might block customers from seeing
+            // certain discount fields before collection.
             const { error: insertErr } = await (supabase as any)
                 .from("customer_coupons")
                 .insert({
                     customer_id: user.id,
-                    discount_id: discountId
+                    discount_id: discountId,
                 });
 
-            // 23505 is PostgreSQL unique violation code
-            if (insertErr?.code === '23505') {
+            // 23505 = already collected
+            if (insertErr?.code === "23505") {
                 throw new Error("You have already collected this coupon.");
+            }
+            // 23503 = foreign key violation (discount doesn't exist)
+            if (insertErr?.code === "23503") {
+                throw new Error("This discount is no longer available.");
             }
             if (insertErr) throw insertErr;
 
-            // 3. Mark notification as read optionally
+            // Mark notification as read
             if (notificationId) {
                 await (supabase as any)
                     .from("customer_notifications")

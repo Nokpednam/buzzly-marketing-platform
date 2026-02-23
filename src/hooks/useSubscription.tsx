@@ -168,9 +168,10 @@ export function useSubscription() {
   const createSubscription = async (
     planId: string,
     paymentMethodId: string,
-    billingCycle: BillingCycle
+    billingCycle: BillingCycle,
+    discountCode?: string
   ): Promise<{ success: boolean; subscriptionId?: string; error?: string }> => {
-    console.log("Creating subscription:", { planId, billingCycle, userId });
+    console.log("Creating subscription:", { planId, billingCycle, userId, discountCode });
     if (!userId) {
       return { success: false, error: "กรุณาเข้าสู่ระบบก่อน" };
     }
@@ -260,6 +261,43 @@ export function useSubscription() {
         newCreditBalance = 0;
       }
 
+      // --- Apply Discount if provided (atomic: validate + mark used + increment count) ---
+      let appliedDiscountAmount = 0;
+      if (discountCode) {
+        // apply_collected_discount is SECURITY DEFINER and uses FOR UPDATE to prevent
+        // double-spend race conditions. It also marks used_at and increments usage_count.
+        const { data: discountResult, error: discountErr } = await (supabase as any).rpc(
+          "apply_collected_discount",
+          { p_code: discountCode }
+        );
+
+        if (discountErr) {
+          console.error("Error applying discount:", discountErr);
+        } else if (discountResult && !discountResult.error) {
+          const d = discountResult as {
+            discount_type: "percent" | "fixed";
+            discount_value: number;
+            min_order_value: number;
+            max_discount_amount: number | null;
+          };
+          let rawDiscount = 0;
+          if (d.discount_type === "percent") {
+            rawDiscount = (chargeAmount * d.discount_value) / 100;
+            if (d.max_discount_amount) {
+              rawDiscount = Math.min(rawDiscount, d.max_discount_amount);
+            }
+          } else {
+            rawDiscount = d.discount_value;
+          }
+          appliedDiscountAmount = Math.min(rawDiscount, chargeAmount);
+          chargeAmount = chargeAmount - appliedDiscountAmount;
+        } else if (discountResult?.error) {
+          // Discount code was validated in dialog but something changed server-side (e.g. race).
+          // Log but do NOT abort the payment — customer already confirmed.
+          console.warn("Discount could not be applied at payment time:", discountResult.error);
+        }
+      }
+
       // 3. สร้าง Subscription ใหม่ (เริ่มนับ 1 ใหม่ทันทีตามกฎข้อ 3)
       const now = new Date();
       const periodEnd = new Date(now);
@@ -317,9 +355,9 @@ export function useSubscription() {
           subscription_id: subscription.id,
           invoice_number: invoiceNumber,
           status: "paid",
-          subtotal: chargeAmount,
+          subtotal: chargeAmount + appliedDiscountAmount,
           tax_amount: 0,
-          discount_amount: 0,
+          discount_amount: appliedDiscountAmount,
           total: chargeAmount,
           currency_id: currency?.id,
           due_date: now.toISOString(),
@@ -327,14 +365,17 @@ export function useSubscription() {
           line_items: [{
             description: `${newPlan.name} Plan - ${billingCycle === "yearly" ? "รายปี" : "รายเดือน"}`,
             quantity: 1,
-            unit_price: chargeAmount,
-            total: chargeAmount,
+            unit_price: chargeAmount + appliedDiscountAmount,
+            total: chargeAmount + appliedDiscountAmount,
           }],
         });
 
       if (invoiceError) {
         console.error("Warning: Invoice creation failed", invoiceError);
       }
+
+      // Note: discount used_at and usage_count are already updated atomically
+      // inside the apply_collected_discount RPC above.
 
       // 5. อัปเดต Profile (แก้ปัญหา UI เด้งกลับเป็น Free)
       const { error: profileError } = await supabase
