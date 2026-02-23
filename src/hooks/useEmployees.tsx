@@ -114,7 +114,8 @@ export function useEmployees() {
           email: newEmployee.email,
           role_employees_id: newEmployee.role_employees_id,
           status: "active",
-          approval_status: "pending",
+          approval_status: "approved",
+
         })
         .select()
         .single();

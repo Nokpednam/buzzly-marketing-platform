@@ -104,144 +104,27 @@ export default function AdminSignUp() {
       if (authError) {
         // 2. Handle Existing Users
         if (authError.message.includes("already registered") || authError.message.includes("User already registered")) {
-          // Attempt to Sign In to verify ownership
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email: formData.email,
-            password: formData.password,
+          // Tell the user they are already registered and should log in
+          toast({
+            title: "อีเมลนี้เคยสมัครสมาชิกไปแล้ว",
+            description: "มีบัญชีของคุณในระบบอยู่ก่อนแล้ว กรุณากลับไปที่หน้าเข้าสู่ระบบ (Login) ด้วยอีเมลและรหัสผ่านเดิม หากติดปัญหาให้ติดต่อแอดมิน",
+            variant: "default",
           });
 
-          if (signInError) {
-            throw new Error("อีเมลนี้มีอยู่ในระบบแล้ว แต่รหัสผ่านไม่ถูกต้อง หรือเกิดข้อผิดพลาดในการเข้าสู่ระบบ");
-          }
-
-          if (signInData.user) {
-            // Check if already has an employee record
-            const { data: existingEmployee } = await supabase
-              .from('employees')
-              .select('id, approval_status')
-              .eq('user_id', signInData.user.id)
-              .maybeSingle();
-
-            if (existingEmployee) {
-              toast({
-                title: "ลงทะเบียนแล้ว",
-                description: `สถานะบัญชีของคุณคือ: ${existingEmployee.approval_status || 'ไม่ระบุ'}`,
-              });
-              await supabase.auth.signOut();
-              navigate("/admin/login");
-              return;
-            }
-
-            // Get default Admin role
-            const { data: defaultRole } = await supabase
-              .from('role_employees')
-              .select('id')
-              .ilike('role_name', 'admin')
-              .limit(1)
-              .single();
-
-            // create employee record manually (RLS policy allows this for authenticated user)
-            const { data: newEmployee, error: insertError } = await supabase
-              .from('employees')
-              .insert({
-                user_id: signInData.user.id,
-                email: formData.email,
-                status: 'active',
-                approval_status: 'pending',
-                role_employees_id: defaultRole?.id || null,
-              })
-              .select()
-              .single(); // Use .single() to get the inserted row
-
-            if (insertError) throw insertError;
-
-            if (newEmployee) {
-              // Create profile
-              const { error: profileError } = await supabase
-                .from('employees_profile')
-                .insert({
-                  employees_id: newEmployee.id,
-                  first_name: formData.firstName,
-                  last_name: formData.lastName,
-                  aptitude: formData.aptitude,
-                  birthday_at: formData.birthday ? formData.birthday : null,
-                });
-
-              if (profileError) {
-                console.error("Error creating profile:", profileError);
-                // continue mostly success
-              }
-            }
-
-            // Log employee registration (existing user)
-            await auditSecurity.employeeRegistered(
-              signInData.user.id,
-              formData.email,
-              `${formData.firstName} ${formData.lastName}`.trim() || formData.email
-            );
-
-            toast({
-              title: "ลงทะเบียนสำเร็จ!",
-              description: "ส่งคำขอเป็นพนักงานเรียบร้อยแล้ว รอการอนุมัติจาก Admin",
-            });
-
-            await supabase.auth.signOut();
-            setTimeout(() => {
-              navigate("/admin/login", { replace: true });
-            }, 1000);
-            return;
-          }
+          setTimeout(() => {
+            navigate("/admin/login", { replace: true });
+          }, 2000);
+          return;
         }
 
         throw authError; // Throw other errors
       }
 
-      // 3. Success for New User - Manually create employee record
+      // 3. Success for New User - Handle employees and profile creation
       if (authData.user) {
         try {
-          // Get default Admin role (changed from 'employee')
-          const { data: defaultRole } = await supabase
-            .from('role_employees')
-            .select('id')
-            .ilike('role_name', 'admin')
-            .limit(1)
-            .single();
-
-          // Create employee record manually (trigger may fail silently)
-          const { data: newEmployee, error: insertError } = await supabase
-            .from('employees')
-            .insert({
-              user_id: authData.user.id,
-              email: formData.email,
-              status: 'active',
-              approval_status: 'pending',
-              role_employees_id: defaultRole?.id || null,
-            })
-            .select()
-            .single();
-
-          if (insertError) {
-            console.error("Error creating employee:", insertError);
-            throw new Error(`ไม่สามารถสร้างบัญชี employee: ${insertError.message}`);
-          }
-
-          if (newEmployee) {
-            // Create employee profile
-            const { error: profileError } = await supabase
-              .from('employees_profile')
-              .insert({
-                employees_id: newEmployee.id,
-                first_name: formData.firstName,
-                last_name: formData.lastName,
-                aptitude: formData.aptitude,
-                birthday_at: formData.birthday ? formData.birthday : null,
-              });
-
-            if (profileError) {
-              console.error("Error creating profile:", profileError);
-              // Continue - profile creation is not critical
-            }
-          }
+          // Note: The actual employee record creation and profile linking is now handled
+          // entirely by the `handle_new_user` database trigger in Supabase.
 
           // Log employee registration
           await auditSecurity.employeeRegistered(
@@ -252,18 +135,16 @@ export default function AdminSignUp() {
 
           toast({
             title: "ลงทะเบียนสำเร็จ!",
-            description: "บัญชีของคุณอยู่ระหว่างรอการอนุมัติจาก Admin กรุณารอการยืนยัน",
+            description: "บัญชีของคุณได้รับการตั้งค่าเรียบร้อยแล้ว กรุณารอการอนุมัติหากคุณเป็นพนักงานใหม่ หรือเข้าสู่ระบบได้เลยหากได้รับอนุมัติแล้ว",
           });
 
           await supabase.auth.signOut();
 
           setTimeout(() => {
             navigate("/admin/login", { replace: true });
-          }, 1000);
+          }, 1500);
         } catch (employeeError: any) {
-          // If employee creation fails, clean up the auth user
-          await supabase.auth.admin.deleteUser(authData.user.id);
-          throw new Error(employeeError.message || "ไม่สามารถสร้างบัญชี employee ได้");
+          throw new Error(employeeError.message || "เกิดข้อผิดพลาดหลังการสมัคร");
         }
       }
     } catch (error: any) {

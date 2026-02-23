@@ -11,6 +11,7 @@ interface Team {
   logo_url: string | null;
   workspace_url: string | null;
   status: string | null;
+  timezone: string | null;
   business_type_id: string | null;
   industries_id: string | null;
   created_at: string;
@@ -37,6 +38,7 @@ interface WorkspaceData {
   description: string;
   logo_url: string;
   workspace_url: string;
+  timezone: string;
   business_type_id: string;
   industries_id: string;
 }
@@ -52,6 +54,7 @@ export function useWorkspace() {
     description: '',
     logo_url: '',
     workspace_url: '',
+    timezone: 'Asia/Bangkok',
     business_type_id: '',
     industries_id: '',
   });
@@ -109,6 +112,7 @@ export function useWorkspace() {
             description: workspaceData.description || '',
             logo_url: workspaceData.logo_url || '',
             workspace_url: workspaceData.workspace_url || '',
+            timezone: workspaceData.timezone || 'Asia/Bangkok',
             business_type_id: workspaceData.business_type_id || '',
             industries_id: workspaceData.industries_id || '',
           });
@@ -130,6 +134,7 @@ export function useWorkspace() {
               description: workspace.description || '',
               logo_url: workspace.logo_url || '',
               workspace_url: workspace.workspace_url || '',
+              timezone: workspace.timezone || 'Asia/Bangkok',
               business_type_id: workspace.business_type_id || '',
               industries_id: workspace.industries_id || '',
             });
@@ -181,6 +186,7 @@ export function useWorkspace() {
         description: '',
         logo_url: '',
         workspace_url: '',
+        timezone: 'Asia/Bangkok',
         business_type_id: '',
         industries_id: '',
       });
@@ -219,6 +225,7 @@ export function useWorkspace() {
         description: data.description || null,
         logo_url: data.logo_url || null,
         workspace_url: data.workspace_url || null,
+        timezone: data.timezone || null,
         business_type_id: data.business_type_id || null,
         industries_id: data.industries_id || null,
       };

@@ -121,7 +121,7 @@ const SignUp = () => {
             last_name: formData.lastName,
             full_name: formData.displayName || `${formData.firstName} ${formData.lastName}`,
             phone: formData.phone,
-            gender_id: formData.genderId,
+            gender: formData.genderId,
             salary_range: formData.salaryRange
           }
         },
