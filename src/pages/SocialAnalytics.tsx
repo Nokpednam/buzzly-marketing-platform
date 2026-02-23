@@ -45,6 +45,7 @@ import {
   Legend,
 } from "recharts";
 import { usePlatformConnections, Platform } from "@/hooks/usePlatformConnections";
+import { useSocialPosts } from "@/hooks/useSocialPosts";
 import { SocialPostsList } from "@/components/social/SocialPostsList";
 import { AdsList } from "@/components/social/AdsList";
 import { AdGroupsList } from "@/components/social/AdGroupsList";
@@ -85,21 +86,20 @@ export default function SocialAnalytics() {
     { id: "ag-4", name: "Year End Sale" },
   ]);
 
-  // Derived comparison logic (Mocked for UI demonstration)
+  const { posts } = useSocialPosts(dateRange);
+
+  // Derived comparison logic using real post data
   const compareChartData = useMemo(() => {
-    const mockPosts = [
-      { id: "sp-1", title: "เปิดตัวคอลเลคชันใหม่", impressions: 45200, reach: 38500, likes: 1250, engagement_rate: 8.5 },
-      { id: "sp-2", title: "Behind the scenes", impressions: 28300, reach: 24100, likes: 2100, engagement_rate: 12.3 },
-      { id: "sp-3", title: "Tutorial: 5 วิธีแต่งตัว", impressions: 125000, reach: 98000, likes: 8900, engagement_rate: 18.5 },
-    ];
-    return mockPosts.filter(p => selectedPosts.includes(p.id)).map(p => ({
-      name: p.title.substring(0, 12) + "...",
-      impressions: p.impressions,
-      reach: p.reach,
-      likes: p.likes,
-      engagement: p.engagement_rate,
-    }));
-  }, [selectedPosts]);
+    return posts
+      .filter((p) => selectedPosts.includes(p.id))
+      .map((p) => ({
+        name: (p.content || "Untitled").substring(0, 12) + "...",
+        impressions: p.impressions || 0,
+        reach: p.reach || 0,
+        likes: p.likes || 0,
+        engagement: p.engagement_rate ? Number(p.engagement_rate) : 0,
+      }));
+  }, [selectedPosts, posts]);
 
   if (connectedPlatforms.length === 0) {
     return (
@@ -168,8 +168,8 @@ export default function SocialAnalytics() {
                 <div
                   key={platform.id}
                   className={`flex items-center gap-3 px-3 py-1.5 rounded-full transition-all border ${activePlatforms.includes(platform.id)
-                      ? 'bg-background border-primary/20 shadow-sm'
-                      : 'bg-transparent border-transparent grayscale opacity-50'
+                    ? 'bg-background border-primary/20 shadow-sm'
+                    : 'bg-transparent border-transparent grayscale opacity-50'
                     }`}
                 >
                   <Switch
