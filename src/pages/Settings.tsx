@@ -90,7 +90,8 @@ export default function Settings() {
     lastName: "",
     email: "",
     phoneNumber: "",
-    timezone: "Asia/Bangkok",
+    birthday: "",
+    genderId: "",
   });
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -138,7 +139,8 @@ export default function Settings() {
           lastName: profileCustomer?.last_name || "",
           email: customer?.email || user.email || "",
           phoneNumber: customer?.phone_number || profileCustomer?.phone_number || "",
-          timezone: (profileCustomer as any)?.timezone || "Asia/Bangkok",
+          birthday: profileCustomer?.birthday_at ? profileCustomer.birthday_at.split('T')[0] : "",
+          genderId: (profileCustomer as any)?.gender || "",
         });
       } catch (error) {
         console.error('Error fetching profile:', error);
@@ -177,6 +179,8 @@ export default function Settings() {
           first_name: profileData.firstName,
           last_name: profileData.lastName,
           phone_number: profileData.phoneNumber,
+          birthday_at: profileData.birthday ? new Date(profileData.birthday).toISOString().split('T')[0] : null,
+          gender: profileData.genderId || null,
         } as any)
         .eq('user_id', user.id);
 
@@ -283,16 +287,16 @@ export default function Settings() {
               </CardHeader>
               <CardContent className="p-8 pt-0 space-y-8">
                 <div className="flex flex-col sm:flex-row items-center gap-8 bg-background p-6 rounded-2xl border shadow-sm">
-                  <div className="relative group">
-                    <div className="h-24 w-24 rounded-full bg-primary flex items-center justify-center text-3xl font-black text-white shadow-xl group-hover:opacity-80 transition-opacity">
-                      TF
+                  <div className="relative group shrink-0">
+                    <div className="h-24 w-24 rounded-full bg-primary flex items-center justify-center text-3xl font-black text-white shadow-xl group-hover:opacity-80 transition-opacity uppercase">
+                      {(profileData.firstName?.charAt(0) || "") + (profileData.lastName?.charAt(0) || "") || profileData.email?.charAt(0) || "U"}
                     </div>
                     <button className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 rounded-full text-white">
                       <Camera className="h-6 w-6" />
                     </button>
                   </div>
                   <div className="text-center sm:text-left space-y-1">
-                    <h4 className="font-bold">Thomas Fletcher</h4>
+                    <h4 className="font-bold">{profileData.firstName || profileData.lastName ? `${profileData.firstName} ${profileData.lastName}` : "Unnamed User"}</h4>
                     <p className="text-xs text-muted-foreground">JPG, PNG or GIF. Max 2MB.</p>
                     <div className="pt-2 flex gap-2">
                       <Button size="sm" variant="outline" className="rounded-lg h-8">Upload New</Button>
@@ -302,28 +306,68 @@ export default function Settings() {
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-2">
-                  <SettingInput label="First Name" id="firstName" defaultValue="Thomas" />
-                  <SettingInput label="Last Name" id="lastName" defaultValue="Fletcher" />
-                  <SettingInput label="Email Address" id="email" type="email" defaultValue="thomas@company.com" />
-                  <SettingInput label="Phone Number" id="phone" defaultValue="+66 89 123 4567" />
+                  <SettingInput
+                    label="First Name"
+                    id="firstName"
+                    value={profileData.firstName}
+                    onChange={(e: any) => setProfileData(p => ({ ...p, firstName: e.target.value }))}
+                  />
+                  <SettingInput
+                    label="Last Name"
+                    id="lastName"
+                    value={profileData.lastName}
+                    onChange={(e: any) => setProfileData(p => ({ ...p, lastName: e.target.value }))}
+                  />
+                  <SettingInput
+                    label="Email Address"
+                    id="email"
+                    type="email"
+                    value={profileData.email}
+                    disabled
+                  />
+                  <SettingInput
+                    label="Phone Number"
+                    id="phone"
+                    value={profileData.phoneNumber}
+                    onChange={(e: any) => setProfileData(p => ({ ...p, phoneNumber: e.target.value }))}
+                  />
 
                   <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground">Timezone</Label>
-                    <Select defaultValue="asia-bangkok">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground ml-1">Birthday</Label>
+                    <Input
+                      type="date"
+                      value={profileData.birthday}
+                      onChange={(e) => setProfileData(p => ({ ...p, birthday: e.target.value }))}
+                      className="h-12 rounded-xl bg-background border-none shadow-none ring-1 ring-border focus-visible:ring-primary focus-visible:ring-2"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground ml-1">Gender</Label>
+                    <Select value={profileData.genderId} onValueChange={(v) => setProfileData(p => ({ ...p, genderId: v }))}>
                       <SelectTrigger className="h-12 rounded-xl bg-background border-none shadow-none ring-1 ring-border">
-                        <Globe className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <SelectValue placeholder="Select timezone" />
+                        <SelectValue placeholder="Select Gender" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-none shadow-xl">
-                        <SelectItem value="asia-bangkok">Asia/Bangkok (GMT+7)</SelectItem>
-                        <SelectItem value="utc">UTC (GMT+0)</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="non-binary">Non-binary</SelectItem>
+                        <SelectItem value="lgbtq+">LGBTQ+</SelectItem>
+                        <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+
                 </div>
 
                 <div className="flex justify-end pt-4">
-                  <Button className="rounded-xl px-8 shadow-lg shadow-primary/20 bg-primary">Save Changes</Button>
+                  <Button
+                    onClick={handleSaveProfile}
+                    disabled={isLoadingProfile || isSavingProfile}
+                    className="rounded-xl px-8 shadow-lg shadow-primary/20 bg-primary"
+                  >
+                    {isSavingProfile ? "Saving..." : "Save Changes"}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -407,8 +451,8 @@ export default function Settings() {
             <PaymentMethodsSection />
           </TabsContent>
         </div>
-      </Tabs>
-    </div>
+      </Tabs >
+    </div >
   );
 }
 

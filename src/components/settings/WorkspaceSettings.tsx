@@ -91,8 +91,8 @@ export function WorkspaceSettings() {
                 placeholder="เช่น My Store, ร้านค้าของฉัน"
               />
             </div>
-            <Button 
-              onClick={handleCreateWorkspace} 
+            <Button
+              onClick={handleCreateWorkspace}
               disabled={!newWorkspaceName.trim() || isCreating}
             >
               {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -120,9 +120,9 @@ export function WorkspaceSettings() {
           <div className="flex items-center gap-6">
             <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-accent text-2xl font-bold text-accent-foreground border-2 border-dashed border-border overflow-hidden">
               {workspace.logo_url ? (
-                <img 
-                  src={workspace.logo_url} 
-                  alt="Logo" 
+                <img
+                  src={workspace.logo_url}
+                  alt="Logo"
                   className="h-full w-full object-cover"
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
@@ -207,6 +207,27 @@ export function WorkspaceSettings() {
                 onChange={(e) => setWorkspace({ ...workspace, workspace_url: e.target.value })}
                 placeholder="https://example.com"
               />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="timezone" className="flex items-center gap-2">
+                <Globe className="h-4 w-4 text-muted-foreground" />
+                Timezone
+              </Label>
+              <Select
+                value={workspace.timezone}
+                onValueChange={(value) => setWorkspace({ ...workspace, timezone: value })}
+              >
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Select timezone" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Asia/Bangkok">Asia/Bangkok (GMT+7)</SelectItem>
+                  <SelectItem value="UTC">UTC (GMT+0)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
