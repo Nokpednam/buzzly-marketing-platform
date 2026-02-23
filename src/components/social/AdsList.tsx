@@ -60,88 +60,9 @@ import {
   Eye,
   Calendar,
   Link2,
+  Loader2,
 } from "lucide-react";
-
-// Types matching DB schema
-export interface Ad {
-  id: string;
-  ad_group_id: string | null;
-  creative_type_id: string | null;
-  name: string;
-  status: string | null;
-  creative_url: string | null;
-  platform_ad_id: string | null;
-  ad_copy: string | null;
-  preview_url: string | null;
-  headline: string | null;
-  call_to_action: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-// Mock data matching DB schema
-const mockAds: Ad[] = [
-  {
-    id: "ad-1",
-    ad_group_id: "ag-1",
-    creative_type_id: "ct-1",
-    name: "Summer Sale - Image Ad",
-    status: "active",
-    creative_url: "/placeholder.svg",
-    platform_ad_id: "fb-ad-123",
-    ad_copy: "ลดราคาสูงสุด 50% สำหรับคอลเลคชันซัมเมอร์! ช้อปเลยวันนี้ก่อนหมดโปร",
-    preview_url: "https://facebook.com/ads/123",
-    headline: "Summer Sale 50% Off",
-    call_to_action: "Shop Now",
-    created_at: "2024-06-01T08:00:00Z",
-    updated_at: "2024-06-15T10:00:00Z",
-  },
-  {
-    id: "ad-2",
-    ad_group_id: "ag-1",
-    creative_type_id: "ct-2",
-    name: "Product Demo Video",
-    status: "active",
-    creative_url: "/placeholder.svg",
-    platform_ad_id: "ig-ad-456",
-    ad_copy: "ดูวิธีใช้งานผลิตภัณฑ์ของเราที่จะทำให้ชีวิตคุณง่ายขึ้น",
-    preview_url: "https://instagram.com/ads/456",
-    headline: "ดูวิธีใช้งาน",
-    call_to_action: "Learn More",
-    created_at: "2024-06-05T09:00:00Z",
-    updated_at: "2024-06-14T11:00:00Z",
-  },
-  {
-    id: "ad-3",
-    ad_group_id: "ag-2",
-    creative_type_id: "ct-3",
-    name: "Carousel - New Arrivals",
-    status: "paused",
-    creative_url: "/placeholder.svg",
-    platform_ad_id: "fb-ad-789",
-    ad_copy: "สินค้าใหม่เข้าแล้ว! ดูคอลเลคชันล่าสุดของเรา",
-    preview_url: "https://facebook.com/ads/789",
-    headline: "New Arrivals",
-    call_to_action: "Shop Now",
-    created_at: "2024-06-10T10:00:00Z",
-    updated_at: "2024-06-13T09:00:00Z",
-  },
-  {
-    id: "ad-4",
-    ad_group_id: null,
-    creative_type_id: "ct-1",
-    name: "Brand Awareness Campaign",
-    status: "draft",
-    creative_url: "/placeholder.svg",
-    platform_ad_id: null,
-    ad_copy: "รู้จักกับแบรนด์ของเรา - คุณภาพที่คุณไว้วางใจได้",
-    preview_url: null,
-    headline: "Your Trusted Brand",
-    call_to_action: "Learn More",
-    created_at: "2024-06-16T08:00:00Z",
-    updated_at: "2024-06-16T08:00:00Z",
-  },
-];
+import { useAds, Ad } from "@/hooks/useAds";
 
 const creativeTypes = [
   { id: "ct-1", name: "Image", icon: Image },
@@ -164,12 +85,12 @@ interface AdsListProps {
 }
 
 export function AdsList({ adGroups }: AdsListProps) {
-  const [ads, setAds] = useState<Ad[]>(mockAds);
+  const { ads, isLoading, createAd, updateAd, deleteAd } = useAds();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
-  
+
   const [formData, setFormData] = useState({
     name: "",
     ad_group_id: "__none__",
@@ -193,8 +114,7 @@ export function AdsList({ adGroups }: AdsListProps) {
   };
 
   const handleAdd = () => {
-    const newAd: Ad = {
-      id: `ad-${Date.now()}`,
+    createAd.mutate({
       ad_group_id: formData.ad_group_id === "__none__" ? null : formData.ad_group_id,
       creative_type_id: formData.creative_type_id,
       name: formData.name,
@@ -205,50 +125,43 @@ export function AdsList({ adGroups }: AdsListProps) {
       preview_url: null,
       headline: formData.headline,
       call_to_action: formData.call_to_action,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setAds([newAd, ...ads]);
+    });
     setAddDialogOpen(false);
     resetForm();
   };
 
   const handleEdit = () => {
     if (!selectedAd) return;
-    setAds(
-      ads.map((a) =>
-        a.id === selectedAd.id
-          ? {
-              ...a,
-              name: formData.name,
-              ad_group_id: formData.ad_group_id === "__none__" ? null : formData.ad_group_id,
-              creative_type_id: formData.creative_type_id,
-              headline: formData.headline,
-              ad_copy: formData.ad_copy,
-              call_to_action: formData.call_to_action,
-              status: formData.status,
-              updated_at: new Date().toISOString(),
-            }
-          : a
-      )
-    );
+    updateAd.mutate({
+      id: selectedAd.id,
+      updates: {
+        name: formData.name,
+        ad_group_id: formData.ad_group_id === "__none__" ? null : formData.ad_group_id,
+        creative_type_id: formData.creative_type_id,
+        headline: formData.headline,
+        ad_copy: formData.ad_copy,
+        call_to_action: formData.call_to_action,
+        status: formData.status,
+        updated_at: new Date().toISOString(),
+      }
+    });
     setEditDialogOpen(false);
     setSelectedAd(null);
     resetForm();
   };
 
   const handleDelete = (id: string) => {
-    setAds(ads.filter((a) => a.id !== id));
+    deleteAd.mutate(id);
   };
 
-  const handleToggleStatus = (id: string) => {
-    setAds(
-      ads.map((a) =>
-        a.id === id
-          ? { ...a, status: a.status === "active" ? "paused" : "active" }
-          : a
-      )
-    );
+  const handleToggleStatus = (id: string, currentStatus: string | null) => {
+    updateAd.mutate({
+      id,
+      updates: {
+        status: currentStatus === "active" ? "paused" : "active",
+        updated_at: new Date().toISOString(),
+      }
+    });
   };
 
   const openEditDialog = (ad: Ad) => {
@@ -331,7 +244,13 @@ export function AdsList({ adGroups }: AdsListProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {ads.length === 0 ? (
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+              ) : ads.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     ยังไม่มีโฆษณา
@@ -430,7 +349,7 @@ export function AdsList({ adGroups }: AdsListProps) {
                                 แก้ไข
                               </DropdownMenuItem>
                               {(ad.status === "active" || ad.status === "paused") && (
-                                <DropdownMenuItem onClick={() => handleToggleStatus(ad.id)}>
+                                <DropdownMenuItem onClick={() => handleToggleStatus(ad.id, ad.status)}>
                                   {ad.status === "active" ? (
                                     <>
                                       <Pause className="h-4 w-4 mr-2" />
@@ -717,7 +636,7 @@ export function AdsList({ adGroups }: AdsListProps) {
               </DialogTitle>
               <DialogDescription>รายละเอียดโฆษณาทั้งหมด</DialogDescription>
             </DialogHeader>
-            
+
             {selectedAd && (
               <div className="space-y-4 py-4">
                 {/* Status Badge */}

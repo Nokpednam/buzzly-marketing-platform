@@ -155,8 +155,6 @@ export default function Email() {
             </div>
           </CardContent>
         </Card>
-        {/* Placeholder for Scheduled - stats doesn't have it yet, we can add later or just remove for now. 
-            The hook doesn't export scheduledCount. Let's omit or mock it 0. */}
         <Card className="border-0 shadow-sm">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -168,7 +166,7 @@ export default function Email() {
                 {isLoading ? (
                   <Skeleton className="h-7 w-20 mt-1" />
                 ) : (
-                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-2xl font-bold">{stats.scheduledCount}</p>
                 )}
                 <p className="text-xs text-muted-foreground">Upcoming</p>
               </div>

@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   CreditCard,
   QrCode,
@@ -61,13 +62,28 @@ export function PaymentMethodDialog({
   const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
   const [appliedDiscount, setAppliedDiscount] = useState<{
     code: string;
-    percent: number;
+    percent?: number;
+    amount?: number;
+    maxAmount?: number | null;
   } | null>(null);
 
   if (!selectedPlan) return null;
 
   const basePrice = billingCycle === "yearly" ? selectedPlan.price_yearly : selectedPlan.price_monthly;
-  const discountAmount = appliedDiscount ? (basePrice * appliedDiscount.percent) / 100 : 0;
+
+  let rawDiscount = 0;
+  if (appliedDiscount) {
+    if (appliedDiscount.percent) {
+      rawDiscount = (basePrice * appliedDiscount.percent) / 100;
+      if (appliedDiscount.maxAmount) {
+        rawDiscount = Math.min(rawDiscount, appliedDiscount.maxAmount);
+      }
+    } else {
+      rawDiscount = appliedDiscount.amount || 0;
+    }
+  }
+
+  const discountAmount = Math.min(rawDiscount, basePrice);
   const finalPrice = basePrice - discountAmount;
   const monthlySavings = billingCycle === "yearly"
     ? selectedPlan.price_monthly * 12 - selectedPlan.price_yearly
@@ -77,23 +93,60 @@ export function PaymentMethodDialog({
     if (!discountCode.trim()) return;
 
     setIsApplyingDiscount(true);
-    // Mock discount validation - in real app, validate against database
-    await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Mock: Accept "SAVE20" for 20% off
-    if (discountCode.toUpperCase() === "SAVE20") {
-      setAppliedDiscount({ code: discountCode.toUpperCase(), percent: 20 });
-    } else if (discountCode.toUpperCase() === "WELCOME10") {
-      setAppliedDiscount({ code: discountCode.toUpperCase(), percent: 10 });
-    } else {
-      // Invalid discount code
+    try {
+      const { data, error } = await supabase
+        .from("discounts")
+        .select("*")
+        .eq("code", discountCode.toUpperCase())
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        if (data.end_date && new Date(data.end_date) < new Date()) {
+          toast({
+            title: "โค้ดส่วนลดหมดอายุแล้ว",
+            description: "โปรดลองใช้โค้ดอื่น",
+            variant: "destructive",
+          });
+        } else if (data.usage_limit && data.usage_count >= data.usage_limit) {
+          toast({
+            title: "โค้ดส่วนลดถูกใช้ครบตามจำนวนแล้ว",
+            description: "โปรดลองใช้โค้ดอื่น",
+            variant: "destructive",
+          });
+        } else if (data.min_order_value && basePrice < data.min_order_value) {
+          toast({
+            title: "ยอดสั่งซื้อไม่ถึงเกณฑ์",
+            description: `ต้องมียอดสั่งซื้อขั้นต่ำขึ้นไป`,
+            variant: "destructive",
+          });
+        } else {
+          if (data.discount_type === "percent") {
+            setAppliedDiscount({ code: data.code, percent: data.discount_value, maxAmount: data.max_discount_amount });
+          } else {
+            setAppliedDiscount({ code: data.code, amount: data.discount_value });
+          }
+        }
+      } else {
+        toast({
+          title: "โค้ดส่วนลดไม่ถูกต้อง",
+          description: "กรุณาตรวจสอบและลองใหม่อีกครั้ง",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error("Discount error:", err);
       toast({
-        title: "โค้ดส่วนลดไม่ถูกต้อง",
-        description: "กรุณาตรวจสอบและลองใหม่อีกครั้ง",
+        title: "เกิดข้อผิดพลาด",
+        description: "ไม่สามารถตรวจสอบโค้ดส่วนลดได้ในขณะนี้",
         variant: "destructive",
       });
+    } finally {
+      setIsApplyingDiscount(false);
     }
-    setIsApplyingDiscount(false);
   };
 
   const handleConfirm = async () => {
@@ -218,12 +271,9 @@ export function PaymentMethodDialog({
           </div>
           {appliedDiscount && (
             <p className="text-xs text-emerald-600 dark:text-emerald-400">
-              ✓ ใช้โค้ด {appliedDiscount.code} ลด {appliedDiscount.percent}% สำเร็จ
+              ✓ ใช้โค้ด {appliedDiscount.code}ลดสำเร็จ
             </p>
           )}
-          <p className="text-xs text-muted-foreground">
-            ลองใช้โค้ด: SAVE20 หรือ WELCOME10
-          </p>
         </div>
 
         {/* Payment Methods */}

@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useWorkspaceMembers } from "./useWorkspaceMembers";
+import { useWorkspace } from "./useWorkspace";
 
 // Map to social_posts structure but expose as AdPost (Email)
 export interface AdPost {
@@ -40,17 +40,19 @@ export interface AdPostUpdate {
 
 export function useAdPosts() {
     const queryClient = useQueryClient();
-    const { teamId } = useWorkspaceMembers();
+    const { workspace } = useWorkspace();
+    const teamId = workspace?.id;
 
     const { data: adPosts = [], isLoading, error } = useQuery({
         queryKey: ["ad-posts", teamId],
         queryFn: async () => {
             if (!teamId) return [];
 
+            // @ts-ignore
             const { data, error } = await supabase
                 .from("social_posts") // Query social_posts
                 .select("*")
-                .eq("team_id", teamId)
+                .eq("team_id", teamId as string)
                 .eq("post_channel", "email") // Filter for Email
                 .order("created_at", { ascending: false });
 
@@ -171,6 +173,7 @@ export function useAdPosts() {
         avgClickRate: adPosts.length
             ? (adPosts.reduce((acc, p) => acc + (p.recipient_count ? (p.click_count / p.recipient_count) : 0), 0) / adPosts.length) * 100
             : 0,
+        scheduledCount: adPosts.filter(p => p.status === "scheduled").length,
     };
 
     return {
