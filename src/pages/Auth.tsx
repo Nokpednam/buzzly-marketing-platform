@@ -50,7 +50,19 @@ export default function Auth() {
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (employeeData && employeeData.status === 'active' && employeeData.approval_status === 'approved') {
+    if (employeeData) {
+      if (employeeData.status !== 'active') {
+        await supabase.auth.signOut();
+        toast({ title: "บัญชีถูกระงับ", description: "บัญชีของคุณถูกระงับการใช้งานชั่วคราว กรุณาติดต่อแอดมิน", variant: "destructive" });
+        return;
+      }
+
+      if (employeeData.approval_status !== 'approved') {
+        await supabase.auth.signOut();
+        toast({ title: "ไม่สามารถเข้าสู่ระบบได้", description: "บัญชีพนักงานของคุณยังไม่อนุมัติ หรือถูกปฏิเสธ", variant: "destructive" });
+        return;
+      }
+
       const roleName = (employeeData.role_employees as any)?.role_name;
       if (roleName === "owner") { navigate("/owner/product-usage"); return; }
       if (["admin", "support", "developer"].includes(roleName)) { navigate("/admin/dashboard"); return; }
@@ -94,10 +106,24 @@ export default function Auth() {
         let isAdmin = false;
         let userRole = "";
 
-        if (employeeData && employeeData.status === 'active' && employeeData.approval_status === 'approved') {
-          // Safely access role_name, handling potentially deep nesting or nulls
+        if (employeeData) {
+          if (employeeData.status !== 'active') {
+            await auditAuth.loginFailed(email, "Employee account suspended");
+            await supabase.auth.signOut();
+            toast({ title: "บัญชีถูกระงับ", description: "บัญชีของคุณถูกระงับการใช้งานชั่วคราว กรุณาติดต่อแอดมิน", variant: "destructive" });
+            return;
+          }
+
+          if (employeeData.approval_status !== 'approved') {
+            await auditAuth.loginFailed(email, `Employee account ${employeeData.approval_status}`);
+            await supabase.auth.signOut();
+            toast({ title: "ไม่สามารถเข้าสู่ระบบได้", description: "บัญชีพนักงานของคุณยังไม่อนุมัติ หรือถูกปฏิเสธ", variant: "destructive" });
+            return;
+          }
+
+          // At this point we are sure it's an approved, active employee
           const roleEmployee = employeeData.role_employees as any;
-          const roleName = roleEmployee?.role_name;
+          const roleName = roleEmployee?.role_name || "";
 
           if (["owner", "admin", "support", "developer"].includes(roleName)) {
             isAdmin = true;
@@ -110,15 +136,6 @@ export default function Auth() {
               title: "Welcome back!",
               description: `You have successfully signed in as ${userRole}.`,
             });
-
-            // Explicitly handle owner redirect
-            if (roleName === "owner") {
-              navigate("/owner/product-usage");
-              return;
-            } else {
-              navigate("/admin/dashboard");
-              return;
-            }
           }
         }
 
