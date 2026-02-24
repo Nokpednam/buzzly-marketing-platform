@@ -58,7 +58,7 @@ export default function Prospects() {
   } = useCustomerPersonas(workspace.id);
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cards" | "charts">("cards");
+  const [activeTab, setActiveTab] = useState<"cards" | "charts">("charts");
   const [searchQuery, setSearchQuery] = useState("");
 
   const stats = getPersonaStats();
@@ -76,13 +76,13 @@ export default function Prospects() {
   }
 
   const hasPersonas = personas && personas.length > 0;
-  const filteredPersonas = personas?.filter(p => 
-    p.name?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredPersonas = personas?.filter(p =>
+    p.persona_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 p-4 md:p-8">
-      
+
       {/* 1. MINIMALIST HEADER */}
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between border-b pb-8">
         <div className="space-y-1">
@@ -96,8 +96,8 @@ export default function Prospects() {
         <div className="flex items-center gap-3">
           <div className="relative hidden sm:block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search personas..." 
+            <Input
+              placeholder="Search personas..."
               className="pl-9 w-[200px] bg-muted/50 border-none rounded-xl"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -139,11 +139,11 @@ export default function Prospects() {
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-6">
           <div className="flex items-center justify-between">
             <TabsList className="bg-muted/50 p-1 rounded-xl">
-              <TabsTrigger value="cards" className="rounded-lg gap-2">
-                <LayoutGrid className="h-4 w-4" /> Gallery
-              </TabsTrigger>
               <TabsTrigger value="charts" className="rounded-lg gap-2">
                 <BarChart3 className="h-4 w-4" /> Analytics
+              </TabsTrigger>
+              <TabsTrigger value="cards" className="rounded-lg gap-2">
+                <LayoutGrid className="h-4 w-4" /> Gallery
               </TabsTrigger>
             </TabsList>
             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
@@ -158,12 +158,12 @@ export default function Prospects() {
                   key={persona.id}
                   persona={persona}
                   genderName={genders?.find((g) => g.id === persona.gender_id)?.name_gender}
-                  onEdit={() => {}}
+                  onEdit={() => { }}
                   onDelete={(id) => deletePersona.mutate(id)}
                 />
               ))}
               {/* Quick Add Placeholder */}
-              <button 
+              <button
                 onClick={() => setShowCreateDialog(true)}
                 className="group border-2 border-dashed rounded-3xl flex flex-col items-center justify-center p-8 hover:bg-primary/5 hover:border-primary/50 transition-all min-h-[300px]"
               >
@@ -178,7 +178,7 @@ export default function Prospects() {
           <TabsContent value="charts" className="space-y-8 animate-in fade-in duration-500">
             {/* Charts Bento Grid */}
             <div className="grid gap-6 lg:grid-cols-3">
-              
+
               {/* Demographics Card */}
               <Card className="lg:col-span-1 rounded-3xl overflow-hidden border-none shadow-sm bg-muted/30">
                 <CardHeader>
