@@ -57,9 +57,10 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { connectedPlatforms } = usePlatformConnections();
   const [dateRange, setDateRange] = React.useState("7d");
+  const [selectedPlatform, setSelectedPlatform] = React.useState<string>("all");
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
-  const { data: metrics, isLoading, refetch } = useDashboardMetrics(dateRange);
+  const { data: metrics, isLoading, refetch } = useDashboardMetrics(dateRange, selectedPlatform);
 
   // Revenue metrics from revenue_metrics table
   const { data: revenueMetrics } = useQuery({
@@ -112,7 +113,11 @@ export default function Dashboard() {
             <Activity className="h-4 w-4" /> Live Performance Monitor
           </div>
           <h1 className="text-4xl font-black tracking-tighter">MARKETING HUB</h1>
-          <p className="text-muted-foreground italic">Aggregated insights across {connectedPlatforms.length} connected platforms.</p>
+          <p className="text-muted-foreground italic">
+            {selectedPlatform === "all"
+              ? `Aggregated insights across ${connectedPlatforms.length} connected platforms.`
+              : `Insights for ${connectedPlatforms.find(p => p.id === selectedPlatform)?.name || "Platform"}.`}
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -125,6 +130,19 @@ export default function Dashboard() {
                 <SelectItem value="today">Today</SelectItem>
                 <SelectItem value="7d">Last 7 Days</SelectItem>
                 <SelectItem value="30d">Last 30 Days</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+              <SelectTrigger className="w-[140px] bg-background border-none shadow-none h-9 rounded-lg">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Platforms</SelectItem>
+                {connectedPlatforms.map(platform => (
+                  <SelectItem key={platform.id} value={platform.id}>
+                    {platform.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Button onClick={handleRefresh} variant="ghost" size="icon" className="h-9 w-9 rounded-lg" disabled={isRefreshing}>
