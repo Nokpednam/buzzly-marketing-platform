@@ -4,7 +4,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { useCustomerTiers } from "@/hooks/useCustomerTiers";
+import { useDiscounts } from "@/hooks/useDiscounts";
 import { useToast } from "@/hooks/use-toast";
 import { tierColors, tierIcons } from "@/hooks/useLoyaltyTier";
 import {
@@ -14,7 +19,7 @@ import {
 } from "recharts";
 import {
   Users, TrendingUp, TrendingDown, DollarSign,
-  Award, ArrowUpRight, ArrowDownRight, Clock, MapPin, Zap, AlertTriangle, Send
+  Award, ArrowUpRight, ArrowDownRight, Clock, MapPin, Zap, AlertTriangle, Send, Tag, Copy
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -50,11 +55,57 @@ export default function CustomerTiers() {
   const [timePeriod, setTimePeriod] = useState("30d");
   const { toast } = useToast();
 
-  const handleAction = (type: string, name: string) => {
+  // Promo Dispatch Modal State
+  const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<{ id: string, name: string } | null>(null);
+  const [promoTab, setPromoTab] = useState<"select" | "create">("select");
+  const [selectedCodeId, setSelectedCodeId] = useState<string>("");
+  const [newPromoForm, setNewPromoForm] = useState({
+    code: "",
+    discount_type: "percent" as "percent" | "fixed",
+    discount_value: 10,
+  });
+
+  const { draftDiscounts, ongoingDiscounts, createDiscount } = useDiscounts();
+  const availableDiscounts = [...ongoingDiscounts, ...draftDiscounts];
+
+  const handleOpenPromoModal = (customerId: string, customerName: string) => {
+    setSelectedCustomer({ id: customerId, name: customerName });
+    setIsPromoModalOpen(true);
+  };
+
+  const handleCopyAndSend = async () => {
+    let finalCode = "";
+
+    if (promoTab === "select") {
+      const selected = availableDiscounts.find(d => d.id === selectedCodeId);
+      if (!selected) return;
+      finalCode = selected.code;
+    } else {
+      if (!newPromoForm.code) return;
+      try {
+        const created = await createDiscount.mutateAsync({
+          code: newPromoForm.code,
+          discount_type: newPromoForm.discount_type,
+          discount_value: newPromoForm.discount_value,
+          description: `Created explicitly for ${selectedCustomer?.name}`,
+        });
+        finalCode = created.code;
+      } catch (error) {
+        return; // Error handled by mutation hook
+      }
+    }
+
+    navigator.clipboard.writeText(finalCode);
     toast({
-      title: "Action Initiated",
-      description: `${type} has been sent to ${name}.`,
+      title: "Code Copied & Ready!",
+      description: `Discount code \u00AB${finalCode}\u00BB is copied and ready to be sent to ${selectedCustomer?.name}`,
     });
+    setIsPromoModalOpen(false);
+
+    // reset form
+    setNewPromoForm({ code: "", discount_type: "percent", discount_value: 10 });
+    setSelectedCodeId("");
   };
 
   const { data, isLoading: loading } = useCustomerTiers(timePeriod);
@@ -246,7 +297,7 @@ export default function CustomerTiers() {
                             <p className="text-sm font-bold text-emerald-600">Needs ${cust.spendNeeded.toLocaleString()}</p>
                           </div>
                           <button
-                            onClick={() => handleAction("Promo Code", cust.name)}
+                            onClick={() => handleOpenPromoModal(cust.id, cust.name)}
                             className="h-8 px-3 rounded-md bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold uppercase tracking-wider flex items-center gap-1 transition-colors whitespace-nowrap">
                             <Send className="h-3 w-3" /> Send Promo
                           </button>
@@ -291,7 +342,7 @@ export default function CustomerTiers() {
                             {cust.daysInactive} days ago
                           </div>
                           <button
-                            onClick={() => handleAction("Re-engagement Email", cust.name)}
+                            onClick={() => handleOpenPromoModal(cust.id, cust.name)}
                             className="h-8 px-3 rounded-md bg-red-100 text-red-600 hover:bg-red-200 text-xs font-bold uppercase tracking-wider flex items-center gap-1 transition-colors whitespace-nowrap">
                             <Send className="h-3 w-3" /> Re-engage
                           </button>
@@ -488,6 +539,103 @@ export default function CustomerTiers() {
         </TabsContent>
 
       </Tabs>
+
+      {/* Promo Dispatch Modal */}
+      <Dialog open={isPromoModalOpen} onOpenChange={setIsPromoModalOpen}>
+        <DialogContent className="sm:max-w-[425px] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Tag className="h-5 w-5 text-primary" />
+              Send Promo to {selectedCustomer?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Select an existing active/draft code or generate a new one specifically for this customer.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Tabs value={promoTab} onValueChange={(v) => setPromoTab(v as "select" | "create")} className="w-full mt-2">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="select">Select Existing</TabsTrigger>
+              <TabsTrigger value="create">Create New</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="select" className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label>Available Discount Codes</Label>
+                <Select value={selectedCodeId} onValueChange={setSelectedCodeId}>
+                  <SelectTrigger className="font-medium">
+                    <SelectValue placeholder="Select a discount code..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableDiscounts.map(d => (
+                      <SelectItem key={d.id} value={d.id} className="font-mono text-sm">
+                        <span className="font-bold text-primary mr-2">{d.code}</span>
+                        <span className="text-muted-foreground">
+                          ({d.discount_type === 'percent' ? `${d.discount_value}%` : `฿${d.discount_value}`}) {d.published_at ? 'Live' : 'Draft'}
+                        </span>
+                      </SelectItem>
+                    ))}
+                    {availableDiscounts.length === 0 && (
+                      <SelectItem value="none" disabled>No active or draft codes available.</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="create" className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Label>New Promo Code</Label>
+                <Input
+                  placeholder="e.g. SPECIAL50"
+                  value={newPromoForm.code}
+                  onChange={e => setNewPromoForm(p => ({ ...p, code: e.target.value.toUpperCase() }))}
+                  className="font-mono uppercase tracking-widest font-bold text-primary"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Discount Type</Label>
+                  <Select value={newPromoForm.discount_type} onValueChange={v => setNewPromoForm(p => ({ ...p, discount_type: v as "percent" | "fixed" }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="percent">Percent (%)</SelectItem>
+                      <SelectItem value="fixed">Fixed (฿)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Value</Label>
+                  <Input
+                    type="number"
+                    value={newPromoForm.discount_value}
+                    onChange={e => setNewPromoForm(p => ({ ...p, discount_value: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <div className="flex justify-end gap-3 mt-4 pt-4 border-t border-border/50">
+            <Button variant="ghost" onClick={() => setIsPromoModalOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleCopyAndSend}
+              disabled={
+                (promoTab === "select" && !selectedCodeId) ||
+                (promoTab === "create" && (!newPromoForm.code || createDiscount.isPending))
+              }
+              className="gap-2 font-bold shadow-lg shadow-primary/20"
+            >
+              {createDiscount.isPending ? "Creating..." : (
+                <>
+                  <Copy className="h-4 w-4" />
+                  Copy & Send
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

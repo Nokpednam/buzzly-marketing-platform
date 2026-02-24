@@ -248,45 +248,64 @@ export default function UserFeedback() {
               </CardContent>
             </Card>
 
-            <Card className="glass-panel border-border/50 shadow-sm">
-              <CardHeader>
+            <Card className="glass-panel border-border/50 shadow-sm hover:shadow-md transition-all duration-300">
+              <CardHeader className="pb-2">
                 <CardTitle>NPS Distribution</CardTitle>
                 <CardDescription>Breakdown by customer segment</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-[300px]">
+                <div className="h-[280px] relative mt-2">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <p className="text-4xl font-bold tracking-tight text-foreground drop-shadow-sm">
+                      {feedbackMetrics?.npsScore !== undefined && feedbackMetrics.npsScore >= 0 ? "+" : ""}
+                      {feedbackMetrics?.npsScore || 0}
+                    </p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mt-1">NPS</p>
+                  </div>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={npsBreakdown.filter(n => n.count > 0)}
                         cx="50%"
                         cy="50%"
-                        innerRadius={80}
-                        outerRadius={120}
-                        paddingAngle={5}
+                        innerRadius={85}
+                        outerRadius={115}
+                        paddingAngle={4}
+                        cornerRadius={6}
+                        stroke="none"
                         dataKey="count"
                       >
                         {npsBreakdown.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
+                          <Cell key={`cell-${index}`} fill={entry.color} />
                         ))}
                       </Pie>
                       <Tooltip
+                        formatter={(value: number, name: string) => {
+                          const percentage = Math.round((value / (feedbackMetrics?.totalReviews || 1)) * 100);
+                          return [`${value} responses (${percentage}%)`, name];
+                        }}
                         contentStyle={{
                           backgroundColor: "hsl(var(--card))",
-                          borderColor: "hsl(var(--border))",
+                          border: "1px solid hsl(var(--border))",
                           borderRadius: "12px",
-                          boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)"
+                          boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                          padding: "12px 16px",
                         }}
-                        itemStyle={{ color: "hsl(var(--foreground))" }}
+                        itemStyle={{ color: "hsl(var(--foreground))", fontWeight: 600 }}
                       />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="flex justify-center gap-6 mt-4">
+                <div className="flex justify-center gap-6 mt-4 bg-muted/30 py-3 rounded-xl border border-border/50 mx-4">
                   {npsBreakdown.map((item, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                      <span className="text-sm text-muted-foreground">{item.type}</span>
+                    <div key={i} className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: item.color }} />
+                        <span className="text-sm font-medium text-foreground">{item.type}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground font-mono bg-background px-2 py-0.5 rounded-md border border-border/50">
+                        {item.percentage}% ({item.count})
+                      </span>
                     </div>
                   ))}
                 </div>

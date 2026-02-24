@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 export interface ScheduledReport {
     id: string;
@@ -49,11 +49,13 @@ async function getTeamId(): Promise<string | null> {
 
 export function useScheduledReports() {
     const queryClient = useQueryClient();
+    const { toast } = useToast();
 
     const { data: scheduledReports = [], isLoading } = useQuery({
         queryKey: ["scheduled-reports"],
         queryFn: async () => {
             const teamId = await getTeamId();
+            console.log("ScheduledReports - getTeamId returned:", teamId);
             if (!teamId) return [];
 
             const { data, error } = await (supabase as any)
@@ -64,6 +66,8 @@ export function useScheduledReports() {
         `)
                 .eq("team_id", teamId)
                 .order("created_at", { ascending: false });
+
+            console.log("ScheduledReports - Select Data:", data?.length, "Error:", error);
 
             if (error) throw error;
 
@@ -82,6 +86,8 @@ export function useScheduledReports() {
             if (!teamId) throw new Error("No team found");
             const { data: { user } } = await supabase.auth.getUser();
 
+            console.log("ScheduledReports - Creating...", { teamId, user: user?.id, input });
+
             const { data, error } = await (supabase as any)
                 .from("scheduled_reports")
                 .insert({
@@ -97,15 +103,18 @@ export function useScheduledReports() {
                 .select()
                 .single();
 
+            console.log("ScheduledReports - Insert Result:", data, "Error:", error);
+
             if (error) throw error;
             return data;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["scheduled-reports"] });
-            toast.success("Report schedule created");
+            toast({ title: "Success", description: "Report schedule created" });
         },
         onError: (err: any) => {
-            toast.error(err.message ?? "Failed to create schedule");
+            console.error("Schedule creation failed:", err);
+            toast({ variant: "destructive", title: "Error", description: err.message ?? "Failed to create schedule" });
         },
     });
 
@@ -119,10 +128,10 @@ export function useScheduledReports() {
         },
         onSuccess: (_, { is_active }) => {
             queryClient.invalidateQueries({ queryKey: ["scheduled-reports"] });
-            toast.success(is_active ? "Schedule activated" : "Schedule paused");
+            toast({ title: "Status Updated", description: is_active ? "Schedule activated" : "Schedule paused" });
         },
         onError: (err: any) => {
-            toast.error(err.message ?? "Failed to update schedule");
+            toast({ variant: "destructive", title: "Error", description: err.message ?? "Failed to update schedule" });
         },
     });
 
@@ -133,10 +142,10 @@ export function useScheduledReports() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["scheduled-reports"] });
-            toast.success("Schedule deleted");
+            toast({ title: "Deleted", description: "Schedule deleted successfully" });
         },
         onError: (err: any) => {
-            toast.error(err.message ?? "Failed to delete schedule");
+            toast({ variant: "destructive", title: "Error", description: err.message ?? "Failed to delete schedule" });
         },
     });
 
@@ -150,10 +159,10 @@ export function useScheduledReports() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["scheduled-reports"] });
-            toast.success("Recipients updated");
+            toast({ title: "Updated", description: "Recipients updated successfully" });
         },
         onError: (err: any) => {
-            toast.error(err.message ?? "Failed to update recipients");
+            toast({ variant: "destructive", title: "Error", description: err.message ?? "Failed to update recipients" });
         },
     });
 

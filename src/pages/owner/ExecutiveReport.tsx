@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -49,7 +51,7 @@ const availableMetrics = [
 export default function ExecutiveReport() {
   const { toast } = useToast();
   const { reports, isLoading: reportsLoading, deleteReport, createReport } = useReports();
-  const { scheduledReports, isLoading: scheduledLoading, toggleActive, deleteScheduledReport } = useScheduledReports();
+  const { scheduledReports, isLoading: scheduledLoading, toggleActive, deleteScheduledReport, createScheduledReport } = useScheduledReports();
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([
     "business",
     "product",
@@ -59,6 +61,15 @@ export default function ExecutiveReport() {
   ]);
   const [reportFormat, setReportFormat] = useState("pdf");
   const [dateRange, setDateRange] = useState("last-month");
+  const [activeTab, setActiveTab] = useState("generate");
+
+  // Schedule Report Modal State
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({
+    name: "Executive Summary",
+    frequency: "weekly" as "daily" | "weekly" | "monthly",
+    recipients: "",
+  });
 
   const reportRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -154,11 +165,47 @@ export default function ExecutiveReport() {
     }
   };
 
-  const handleScheduleReport = () => {
-    toast({
-      title: "Report Scheduled",
-      description: "Your report has been scheduled successfully.",
-    });
+  const handleScheduleReport = async () => {
+    if (!scheduleForm.name || !scheduleForm.recipients) {
+      toast({
+        variant: "destructive",
+        title: "Missing Information",
+        description: "Please provide a name and at least one recipient email.",
+      });
+      return;
+    }
+
+    const emailList = scheduleForm.recipients
+      .split(",")
+      .map(e => e.trim())
+      .filter(e => e.includes("@"));
+
+    if (emailList.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Invalid Emails",
+        description: "Please provide valid email addresses separated by commas.",
+      });
+      return;
+    }
+
+    try {
+      await createScheduledReport.mutateAsync({
+        name: scheduleForm.name,
+        frequency: scheduleForm.frequency,
+        recipients: emailList,
+        format: reportFormat as "pdf" | "csv" | "excel",
+      });
+      setIsScheduleModalOpen(false);
+      setActiveTab("scheduled");
+      setScheduleForm({
+        name: "Executive Summary",
+        frequency: "weekly",
+        recipients: "",
+      });
+    } catch (error) {
+      // Error is handled by the mutation hook
+    }
   };
 
   const groupedMetrics = availableMetrics.reduce((acc, metric) => {
@@ -187,7 +234,7 @@ export default function ExecutiveReport() {
         </p>
       </div>
 
-      <Tabs defaultValue="generate" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="generate">Generate Report</TabsTrigger>
           <TabsTrigger value="history">Report History</TabsTrigger>
@@ -302,7 +349,7 @@ export default function ExecutiveReport() {
                     <Button
                       variant="outline"
                       className="w-full"
-                      onClick={handleScheduleReport}
+                      onClick={() => setIsScheduleModalOpen(true)}
                     >
                       <Calendar className="mr-2 h-4 w-4" />
                       Schedule Report
@@ -415,7 +462,7 @@ export default function ExecutiveReport() {
                 <CardTitle>Scheduled Reports</CardTitle>
                 <CardDescription>Automatically generated reports</CardDescription>
               </div>
-              <Button>
+              <Button onClick={() => setIsScheduleModalOpen(true)}>
                 <Calendar className="mr-2 h-4 w-4" />
                 New Schedule
               </Button>
@@ -482,6 +529,60 @@ export default function ExecutiveReport() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Schedule Report Modal */}
+      <Dialog open={isScheduleModalOpen} onOpenChange={setIsScheduleModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Schedule Report Delivery</DialogTitle>
+            <DialogDescription>
+              Set up automated generation and delivery of this executive report.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Schedule Name</Label>
+              <Input
+                value={scheduleForm.name}
+                onChange={e => setScheduleForm(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g. Weekly Stakeholder Update"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Frequency</Label>
+              <Select
+                value={scheduleForm.frequency}
+                onValueChange={v => setScheduleForm(prev => ({ ...prev, frequency: v as any }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Recipients (comma-separated emails)</Label>
+              <Input
+                value={scheduleForm.recipients}
+                onChange={e => setScheduleForm(prev => ({ ...prev, recipients: e.target.value }))}
+                placeholder="CEO@buzzly.com, investors@buzzly.com"
+              />
+            </div>
+            <div className="pt-4 flex justify-end gap-2 border-t mt-2">
+              <Button variant="ghost" onClick={() => setIsScheduleModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleScheduleReport} disabled={!scheduleForm.name || !scheduleForm.recipients}>
+                Save Schedule
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
