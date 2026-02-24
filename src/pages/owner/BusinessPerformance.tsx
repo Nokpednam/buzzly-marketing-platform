@@ -39,6 +39,10 @@ import { cn } from "@/lib/utils";
 
 export default function BusinessPerformance() {
   const navigate = useNavigate();
+  // Time range toggle state
+  type TimeRange = '7d' | '1m' | '3m' | '6m' | '1y';
+  const [timeRange, setTimeRange] = useState<TimeRange>('1m');
+
   const { data: subscriptionMetrics, isLoading: subLoading, refetch: refetchSub } = useSubscriptionMetrics();
   const { data: cohortData, isLoading: cohortLoading, refetch: refetchCohort } = useCohortAnalysis();
   const { data: survivalData, isLoading: survivalLoading, refetch: refetchSurvival } = useSurvivalAnalysis();
@@ -47,8 +51,11 @@ export default function BusinessPerformance() {
     await Promise.all([refetchSub(), refetchCohort(), refetchSurvival()]);
   };
 
+  const timeRangeData = subscriptionMetrics?.timeRangeData?.[timeRange];
+  const currentMrr = timeRangeData?.currentMrr || 0;
+  const mrrGrowth = timeRangeData?.mrrGrowth || 0;
+
   const isLoading = subLoading || cohortLoading || survivalLoading;
-  const currentMrr = subscriptionMetrics?.currentMrr || 0;
   const hasData = (subscriptionMetrics?.activeSubscriptions || 0) > 0 ||
     currentMrr > 0 ||
     (cohortData && cohortData.length > 0);
@@ -56,11 +63,8 @@ export default function BusinessPerformance() {
   const mrrData = subscriptionMetrics?.monthlyData || [];
   const growthData = subscriptionMetrics?.growthData || [];
   const rawTransactions = subscriptionMetrics?.rawTransactions || [];
-  const breakdown = subscriptionMetrics?.breakdown || { newMrr: 0, expansion: 0, churn: 0 };
+  const breakdown = timeRangeData?.breakdown || { newMrr: 0, expansion: 0, churn: 0 };
 
-  // Time range toggle state
-  type TimeRange = '7d' | '1m' | '3m' | '6m' | '1y';
-  const [timeRange, setTimeRange] = useState<TimeRange>('1y');
   const TIME_RANGE_OPTIONS: { key: TimeRange; label: string }[] = [
     { key: '7d', label: '7D' },
     { key: '1m', label: '1M' },
@@ -119,8 +123,8 @@ export default function BusinessPerformance() {
       {
         title: "Monthly Recurring Revenue",
         value: `฿${(currentMrr || 0).toLocaleString()}`,
-        change: subscriptionMetrics?.mrrGrowth || 0,
-        trend: (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "up" as const : "down" as const,
+        change: mrrGrowth,
+        trend: mrrGrowth >= 0 ? "up" as const : "down" as const,
         icon: DollarSign,
         gradient: "from-emerald-600 to-teal-700",
         text: "text-emerald-100"
@@ -128,7 +132,7 @@ export default function BusinessPerformance() {
       {
         title: "Active Subscriptions",
         value: (subscriptionMetrics?.activeSubscriptions ?? 0).toString(),
-        change: subscriptionMetrics?.activeSubscriptionsGrowth || 0,
+        change: timeRangeData?.activeSubscriptionsGrowth || 0,
         trend: "up" as const,
         icon: Users,
         gradient: "from-blue-600 to-indigo-700",
@@ -137,9 +141,9 @@ export default function BusinessPerformance() {
       },
       {
         title: "Annual Run Rate",
-        value: `฿${(((subscriptionMetrics?.arr ?? 0)) / 1000).toFixed(1)}K`,
-        change: subscriptionMetrics?.mrrGrowth || 0,
-        trend: (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "up" as const : "down" as const,
+        value: `฿${(((timeRangeData?.arr ?? 0)) / 1000).toFixed(1)}K`,
+        change: mrrGrowth,
+        trend: mrrGrowth >= 0 ? "up" as const : "down" as const,
         icon: Target,
         gradient: "from-purple-600 to-fuchsia-700",
         text: "text-purple-100"
@@ -284,9 +288,9 @@ export default function BusinessPerformance() {
               <div className="flex items-baseline gap-3 mt-2">
                 <p className="text-3xl font-bold text-primary">฿{currentMrr.toLocaleString()}</p>
                 <p className={cn("text-sm font-semibold",
-                  (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "text-emerald-500" : "text-red-500")}>
-                  {(subscriptionMetrics?.mrrGrowth || 0) >= 0 ? '▲' : '▼'}&nbsp;
-                  {Math.abs(subscriptionMetrics?.mrrGrowth || 0)}% vs last month
+                  mrrGrowth >= 0 ? "text-emerald-500" : "text-red-500")}>
+                  {mrrGrowth >= 0 ? '▲' : '▼'}&nbsp;
+                  {Math.abs(mrrGrowth)}% vs last period
                 </p>
               </div>
             </CardHeader>
@@ -451,13 +455,13 @@ export default function BusinessPerformance() {
           <div className="grid gap-6 md:grid-cols-3">
             <Card className="glass-panel p-8 text-center transition-all hover:shadow-md">
               <div className={cn("mx-auto h-12 w-12 rounded-full flex items-center justify-center mb-4",
-                (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "bg-emerald-500/10" : "bg-red-500/10")}>
-                <TrendingUp className={cn("h-6 w-6", (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "text-emerald-500" : "text-red-500")} />
+                mrrGrowth >= 0 ? "bg-emerald-500/10" : "bg-red-500/10")}>
+                <TrendingUp className={cn("h-6 w-6", mrrGrowth >= 0 ? "text-emerald-500" : "text-red-500")} />
               </div>
-              <p className={cn("text-4xl font-bold", (subscriptionMetrics?.mrrGrowth || 0) >= 0 ? "text-emerald-500" : "text-red-500")}>
-                {(subscriptionMetrics?.mrrGrowth || 0) >= 0 ? '+' : ''}{subscriptionMetrics?.mrrGrowth || 0}%
+              <p className={cn("text-4xl font-bold", mrrGrowth >= 0 ? "text-emerald-500" : "text-red-500")}>
+                {mrrGrowth >= 0 ? '+' : ''}{mrrGrowth}%
               </p>
-              <p className="text-xs font-bold text-muted-foreground uppercase mt-2 tracking-widest">MoM MRR Growth</p>
+              <p className="text-xs font-bold text-muted-foreground uppercase mt-2 tracking-widest">Growth Rate</p>
             </Card>
 
             <Card className="glass-panel p-8 text-center transition-all hover:shadow-md">
@@ -466,9 +470,9 @@ export default function BusinessPerformance() {
               </div>
               <p className="text-4xl font-bold text-blue-500">
                 {(() => {
-                  const prev = subscriptionMetrics?.previousMrr || 0;
-                  const exp = subscriptionMetrics?.breakdown?.expansion || 0;
-                  const churn = subscriptionMetrics?.breakdown?.churn || 0;
+                  const prev = timeRangeData?.previousMrr || 0;
+                  const exp = breakdown.expansion || 0;
+                  const churn = breakdown.churn || 0;
                   if (prev <= 0) return 'N/A';
                   return `${Math.round(((prev + exp - churn) / prev) * 100)}%`;
                 })()}
@@ -482,8 +486,8 @@ export default function BusinessPerformance() {
               </div>
               <p className="text-4xl font-bold text-red-500">
                 {(() => {
-                  const prev = subscriptionMetrics?.previousMrr || 0;
-                  const churn = subscriptionMetrics?.breakdown?.churn || 0;
+                  const prev = timeRangeData?.previousMrr || 0;
+                  const churn = breakdown.churn || 0;
                   if (prev <= 0) return '0.0%';
                   return `${((churn / prev) * 100).toFixed(1)}%`;
                 })()}

@@ -2,21 +2,25 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subMonths, subDays, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 
-export interface MRRMetrics {
+export interface TimeRangeKPIs {
   currentMrr: number;
   previousMrr: number;
   mrrGrowth: number;
-  activeSubscriptions: number;
   activeSubscriptionsGrowth: number;
   arr: number;
-  monthlyData: { month: string; mrr: number; growth: number; activeAt: number }[];
-  rawTransactions: { date: string; amount: number; userId: string }[];
-  growthData: { month: string; newSubs: number; churned: number; net: number; totalActive: number }[];
   breakdown: {
     newMrr: number;
     expansion: number;
     churn: number;
   };
+}
+
+export interface MRRMetrics {
+  activeSubscriptions: number;
+  monthlyData: { month: string; mrr: number; growth: number; activeAt: number }[];
+  rawTransactions: { date: string; amount: number; userId: string }[];
+  growthData: { month: string; newSubs: number; churned: number; net: number; totalActive: number }[];
+  timeRangeData: Record<'7d' | '1m' | '3m' | '6m' | '1y', TimeRangeKPIs>;
 }
 
 
@@ -58,14 +62,17 @@ export function useSubscriptionMetrics() {
         .eq("status", "active");
       if (subError) throw subError;
 
-      // 2. Fetch ALL subscriptions (active + cancelled) for growth analysis
+      // 2. Fetch ALL subscriptions (active + cancelled) for growth analysis & historical MRR
       const { data: allSubs, error: allSubsErr } = await supabase
         .from("subscriptions")
-        .select("id, status, created_at, cancelled_at")
+        .select(`
+          id, status, created_at, cancelled_at, billing_cycle, user_id,
+          subscription_plans:plan_id (price_monthly, price_yearly)
+        `)
         .gte("created_at", last13Months.toISOString());
       if (allSubsErr) throw allSubsErr;
 
-      // 3. Fetch completed transactions (last 12 months) — include user_id for per-month active count
+      // 3. Fetch completed transactions (last 12 months) — for raw transactions list
       const { data: txs, error: txError } = await supabase
         .from("payment_transactions")
         .select("id, amount, created_at, user_id")
@@ -74,18 +81,38 @@ export function useSubscriptionMetrics() {
         .order("created_at", { ascending: true });
       if (txError) throw txError;
 
-      // Build monthly MRR map — track unique paying users per month for correlated active count
+      // Build monthly MRR map from Subscriptions lifecycle
       const monthlyMap = new Map<string, { mrr: number; users: Set<string> }>();
       for (let i = 11; i >= 0; i--) {
         monthlyMap.set(format(subMonths(now, i), "MMM yyyy"), { mrr: 0, users: new Set() });
       }
-      txs?.forEach((tx: any) => {
-        const label = format(new Date(tx.created_at), "MMM yyyy");
-        if (monthlyMap.has(label)) {
-          const entry = monthlyMap.get(label)!;
-          entry.mrr += Number(tx.amount);
-          entry.users.add(tx.user_id); // unique paying users = active subscribers that month
+
+      allSubs?.forEach((sub: any) => {
+        const createdDate = new Date(sub.created_at);
+        const cancelledDate = sub.cancelled_at ? new Date(sub.cancelled_at) : null;
+
+        let mrrValue = 0;
+        const pMonthly = Number(sub.subscription_plans?.price_monthly || 0);
+        const pYearly = Number(sub.subscription_plans?.price_yearly || 0);
+
+        if (sub.billing_cycle === 'yearly') {
+          mrrValue = pYearly > 0 ? pYearly / 12 : pMonthly;
+        } else {
+          mrrValue = pMonthly;
         }
+
+        // Add this MRR to every month the subscription was active at the end of the month
+        monthlyMap.forEach((entry, monthStr) => {
+          const monthDate = new Date(`01 ${monthStr}`);
+          const endOfM = endOfMonth(monthDate);
+
+          if (createdDate <= endOfM) {
+            if (!cancelledDate || cancelledDate > endOfM) {
+              entry.mrr += mrrValue;
+              entry.users.add(sub.user_id); // unique users (active subscribers that month)
+            }
+          }
+        });
       });
 
       const monthlyEntries = Array.from(monthlyMap.entries());
@@ -96,7 +123,7 @@ export function useSubscriptionMetrics() {
           month,
           mrr: Math.round(entry.mrr),
           growth: Math.round(growth * 10) / 10,
-          activeAt: entry.users.size, // paying subscribers = directly correlated to MRR
+          activeAt: entry.users.size,
         };
       });
 
@@ -115,7 +142,7 @@ export function useSubscriptionMetrics() {
       allSubs?.forEach((sub: any) => {
         const startLabel = format(new Date(sub.created_at), "MMM yyyy");
         if (growthMap.has(startLabel)) growthMap.get(startLabel)!.newSubs++;
-        if (sub.cancelled_at) {
+        if (sub.cancelled_at && sub.status === 'cancelled') {
           const churnLabel = format(new Date(sub.cancelled_at), "MMM yyyy");
           if (growthMap.has(churnLabel)) growthMap.get(churnLabel)!.churned++;
         }
@@ -133,42 +160,91 @@ export function useSubscriptionMetrics() {
         };
       });
 
-      // Current MRR (use latest month tx total, fallback to subscription-based)
-      const latestMrr = monthlyData[monthlyData.length - 1]?.mrr || 0;
-      const prevMrr = monthlyData[monthlyData.length - 2]?.mrr || 0;
-      const subBasedMrr = activeSubs?.reduce((s, sub: any) =>
-        s + Number(sub.subscription_plans?.price_monthly || 0), 0) || 0;
-      const currentMrr = latestMrr > 0 ? latestMrr : subBasedMrr;
-      const mrrGrowth = prevMrr > 0
-        ? Math.round(((currentMrr - prevMrr) / prevMrr) * 100 * 10) / 10
-        : monthlyData[monthlyData.length - 1]?.growth || 0;
+      // Calculate KPIs for all possible time ranges
+      const timeRanges: ('7d' | '1m' | '3m' | '6m' | '1y')[] = ['7d', '1m', '3m', '6m', '1y'];
+      const timeRangeData = {} as Record<'7d' | '1m' | '3m' | '6m' | '1y', TimeRangeKPIs>;
 
-      const currentMonthStart = startOfMonth(now);
-      const newThisMonth = activeSubs?.filter(s => new Date(s.created_at) >= currentMonthStart) || [];
-      const newMrr = newThisMonth.reduce((s, sub: any) =>
-        s + Number(sub.subscription_plans?.price_monthly || 0), 0);
-      const rawChurn = Math.max(0, prevMrr - currentMrr + newMrr);
-      const rawExpansion = Math.max(0, currentMrr - prevMrr - newMrr);
-      const newSubsCount = newThisMonth.length;
-      const prevSubsCount = (activeSubs?.length || 0) - newSubsCount;
-      const activeSubscriptionsGrowth = prevSubsCount > 0
-        ? Math.round((newSubsCount / prevSubsCount) * 100 * 10) / 10 : 0;
+      timeRanges.forEach(range => {
+        const startDate = range === '7d' ? subDays(now, 7)
+          : range === '1m' ? subMonths(now, 1)
+            : range === '3m' ? subMonths(now, 3)
+              : range === '6m' ? subMonths(now, 6)
+                : subMonths(now, 12);
+
+        let currentMrr = 0;
+        let prevMrr = 0;
+        let newMrr = 0;
+        let churn = 0;
+        let currentSubsCount = 0;
+        let prevSubsCount = 0;
+
+        allSubs?.forEach((sub: any) => {
+          const createdDate = new Date(sub.created_at);
+          const cancelledDate = sub.cancelled_at ? new Date(sub.cancelled_at) : null;
+          const status = sub.status;
+
+          let mrrValue = 0;
+          const pMonthly = Number(sub.subscription_plans?.price_monthly || 0);
+          const pYearly = Number(sub.subscription_plans?.price_yearly || 0);
+
+          if (sub.billing_cycle === 'yearly') {
+            mrrValue = pYearly > 0 ? pYearly / 12 : pMonthly;
+          } else {
+            mrrValue = pMonthly;
+          }
+
+          const wasActiveAtStart = createdDate <= startDate &&
+            (!cancelledDate || cancelledDate > startDate);
+
+          const isActiveAtEnd = createdDate <= now &&
+            (!cancelledDate || cancelledDate > now);
+
+          if (wasActiveAtStart) {
+            prevMrr += mrrValue;
+            prevSubsCount++;
+          }
+          if (isActiveAtEnd) {
+            currentMrr += mrrValue;
+            currentSubsCount++;
+          }
+
+          if (isActiveAtEnd && !wasActiveAtStart && createdDate >= startDate) {
+            newMrr += mrrValue;
+          } else if (wasActiveAtStart && (!isActiveAtEnd || (status === 'cancelled' && cancelledDate && cancelledDate >= startDate))) {
+            churn += mrrValue;
+          }
+        });
+
+        const expansion = Math.max(0, currentMrr - prevMrr - newMrr + churn);
+        let finalChurn = churn;
+        if (currentMrr - prevMrr < 0 && churn === 0) {
+          finalChurn = Math.max(0, prevMrr - currentMrr + newMrr);
+        }
+
+        const mrrGrowth = prevMrr > 0 ? Math.round(((currentMrr - prevMrr) / prevMrr) * 100 * 10) / 10 : (currentMrr > 0 ? 100 : 0);
+        const activeSubscriptionsGrowth = prevSubsCount > 0
+          ? Math.round(((currentSubsCount - prevSubsCount) / prevSubsCount) * 100 * 10) / 10 : (currentSubsCount > 0 ? 100 : 0);
+
+        timeRangeData[range] = {
+          currentMrr,
+          previousMrr: prevMrr,
+          mrrGrowth,
+          activeSubscriptionsGrowth,
+          arr: currentMrr * 12,
+          breakdown: {
+            newMrr: Math.round(newMrr),
+            expansion: Math.round(expansion),
+            churn: Math.round(finalChurn),
+          }
+        };
+      });
 
       return {
-        currentMrr,
-        previousMrr: prevMrr,
-        mrrGrowth,
         activeSubscriptions: activeSubs?.length || 0,
-        activeSubscriptionsGrowth,
-        arr: currentMrr * 12,
         monthlyData,
         growthData,
         rawTransactions,
-        breakdown: {
-          newMrr: Math.round(newMrr),
-          expansion: Math.round(rawExpansion),
-          churn: Math.round(rawChurn),
-        },
+        timeRangeData,
       };
     },
   });
