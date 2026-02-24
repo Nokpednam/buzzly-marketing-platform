@@ -6,9 +6,9 @@ interface EmployeeProtectedRouteProps {
   allowedRoles?: EmployeeRole[];
 }
 
-export function EmployeeProtectedRoute({ 
-  children, 
-  allowedRoles = ["owner", "admin", "support", "developer"] 
+export function EmployeeProtectedRoute({
+  children,
+  allowedRoles = ["owner", "admin", "support", "developer"]
 }: EmployeeProtectedRouteProps) {
   const { user, session, isEmployee, employeeRole, approvalStatus, loading } = useEmployeeAuth();
 
@@ -39,7 +39,7 @@ export function EmployeeProtectedRoute({
           <p className="text-muted-foreground">
             บัญชีของคุณอยู่ระหว่างรอการอนุมัติจาก Admin กรุณารอการยืนยัน
           </p>
-          <button 
+          <button
             onClick={() => window.location.href = "/admin/login"}
             className="text-primary hover:underline"
           >
@@ -64,7 +64,7 @@ export function EmployeeProtectedRoute({
           <p className="text-muted-foreground">
             การสมัครของคุณถูกปฏิเสธ กรุณาติดต่อ Admin สำหรับข้อมูลเพิ่มเติม
           </p>
-          <button 
+          <button
             onClick={() => window.location.href = "/"}
             className="text-primary hover:underline"
           >

@@ -21,6 +21,7 @@ import Prospects from "./pages/Prospects";
 import Campaigns from "./pages/Campaigns";
 import CampaignDetail from "./pages/CampaignDetail";
 import SocialAnalytics from "./pages/SocialAnalytics";
+import RewardsCenter from "./pages/RewardsCenter";
 
 import CustomerJourney from "./pages/CustomerJourney";
 import AARRRFunnel from "./pages/AARRRFunnel";
@@ -46,6 +47,9 @@ import OwnerDiscounts from "./pages/owner/OwnerDiscounts";
 import TeamManagement from "./pages/TeamManagement";
 import TierManagement from "./pages/admin/TierManagement";
 import EmployeeManagement from "./pages/admin/EmployeeManagement";
+import RewardsCampaigns from "./pages/admin/RewardsCampaigns";
+import RewardsManagement from "./pages/admin/RewardsManagement";
+import RedemptionRequests from "./pages/admin/RedemptionRequests";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -89,6 +93,7 @@ const App = () => (
                     <Route path="/campaigns" element={<Campaigns />} />
                     <Route path="/campaigns/:id" element={<CampaignDetail />} />
                     <Route path="/social-analytics" element={<SocialAnalytics />} />
+                    <Route path="/rewards" element={<RewardsCenter />} />
 
                     <Route path="/customer-journey" element={<CustomerJourney />} />
                     <Route path="/aarrr-funnel" element={<AARRRFunnel />} />
@@ -114,6 +119,9 @@ const App = () => (
                     <Route path="/admin/employees" element={<EmployeeManagement />} />
                     <Route path="/admin/support" element={<AdminSupport />} />
                     <Route path="/admin/tier-management" element={<TierManagement />} />
+                    <Route path="/admin/rewards-campaigns" element={<RewardsCampaigns />} />
+                    <Route path="/admin/rewards-management" element={<RewardsManagement />} />
+                    <Route path="/admin/redemption-requests" element={<RedemptionRequests />} />
                   </Route>
 
                   {/* Owner Employee Routes */}
