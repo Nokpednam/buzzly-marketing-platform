@@ -298,57 +298,126 @@ export function useManualTierOverride() {
             // Get current tier from profile_customers -> loyalty_points
             const { data: profile } = await supabase
                 .from("profile_customers")
-                .select(`
-                    id,
-                    loyalty_points (
-                        id,
-                        loyalty_tier_id
-                    )
-                `)
+                .select(`id, loyalty_points(id)`)
                 .eq("user_id", userId)
                 .maybeSingle();
 
-            const lpInfo = profile?.loyalty_points as any;
-            const lpRecord = Array.isArray(lpInfo) ? lpInfo[0] : lpInfo;
-
-            // Update loyalty_tier
-            if (lpRecord?.id && tierData?.id) {
+            if (profile?.loyalty_points) {
+                // Update existing
+                const lpInfo = Array.isArray(profile.loyalty_points) ? profile.loyalty_points[0] : profile.loyalty_points;
                 const { error: updateError } = await supabase
                     .from("loyalty_points")
-                    .update({ loyalty_tier_id: tierData.id })
-                    .eq("id", lpRecord.id);
+                    .update({ loyalty_tier_id: tierData?.id })
+                    .eq("id", lpInfo.id);
+
                 if (updateError) throw updateError;
-            } else if (profile?.id && tierData?.id) {
+            } else if (profile) {
+                // Insert new loyalty points record
                 const { error: insertError } = await supabase
                     .from("loyalty_points")
                     .insert({
                         profile_customer_id: profile.id,
-                        loyalty_tier_id: tierData.id,
+                        loyalty_tier_id: tierData?.id,
                         point_balance: 0,
-                        total_points_earned: 0
                     });
+
                 if (insertError) throw insertError;
             }
 
-            // Log to tier_history
+            // Record history
+            const lpInfo = profile?.loyalty_points ? (Array.isArray(profile.loyalty_points) ? profile.loyalty_points[0] : profile.loyalty_points) : null;
             if (tierData?.id) {
-                await supabase.from("tier_history").insert({
-                    user_id: userId,
-                    previous_tier_id: lpRecord?.loyalty_tier_id ?? null,
-                    new_tier_id: tierData.id,
-                    change_reason: reason,
-                    changed_by: adminUser?.id ?? null,
-                    is_manual_override: true,
-                });
+                const { error: historyError } = await supabase
+                    .from("tier_history")
+                    .insert({
+                        user_id: userId,
+                        previous_tier_id: lpInfo?.loyalty_tier_id ?? null,
+                        new_tier_id: tierData.id,
+                        change_reason: reason,
+                        changed_by: adminUser?.id ?? null,
+                        is_manual_override: true,
+                    });
+
+                if (historyError) throw historyError;
             }
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["tier-history"] });
             queryClient.invalidateQueries({ queryKey: ["customer-search"] });
-            toast.success("เปลี่ยน Tier สำเร็จ");
+            queryClient.invalidateQueries({ queryKey: ["tier-history"] });
+            toast.success("อัปเดต Tier สำเร็จ");
         },
         onError: (error: Error) => {
-            toast.error("ไม่สามารถเปลี่ยน Tier ได้", { description: error.message });
+            toast.error("อัปเดตไม่สำเร็จ", { description: error.message });
+        },
+    });
+}
+
+// ─── Manual Point Adjustment ──────────────────────────────────────────────────
+
+export function useManualPointAdjustment() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({
+            userId,
+            pointsToAdjust,
+            reason,
+        }: {
+            userId: string;
+            pointsToAdjust: number;
+            reason: string;
+        }) => {
+            if (pointsToAdjust === 0) throw new Error("คะแนนที่ปรับต้องไม่เป็น 0");
+
+            const { data: profile } = await supabase
+                .from("profile_customers")
+                .select(`id, loyalty_points(id, point_balance)`)
+                .eq("user_id", userId)
+                .maybeSingle();
+
+            if (!profile || !profile.loyalty_points) {
+                throw new Error("ไม่พบข้อมูลคะแนนสะสมของลูกค้ารายนี้");
+            }
+
+            const lpInfo = Array.isArray(profile.loyalty_points) ? profile.loyalty_points[0] : profile.loyalty_points;
+
+            // Adjust balance ensuring it does not drop below 0
+            const newBalance = Math.max(0, (lpInfo.point_balance || 0) + pointsToAdjust);
+
+            // Update balance
+            const { error: updateError } = await supabase
+                .from("loyalty_points")
+                .update({ point_balance: newBalance })
+                .eq("id", lpInfo.id);
+
+            if (updateError) throw updateError;
+
+            // Log point transaction
+            const {
+                data: { user: adminUser },
+            } = await supabase.auth.getUser();
+
+            const { error: txError } = await supabase
+                .from("points_transactions")
+                .insert({
+                    user_id: userId,
+                    loyalty_points_id: lpInfo.id,
+                    transaction_type: pointsToAdjust > 0 ? "bonus" : "adjustment",
+                    points_amount: Math.abs(pointsToAdjust),
+                    balance_after: newBalance,
+                    description: `Manual Adjustment: ${reason}`,
+                    created_by_user_id: adminUser?.id ?? null,
+                });
+
+            if (txError) throw txError;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["customer-search"] });
+            queryClient.invalidateQueries({ queryKey: ["points-transactions-admin"] });
+            toast.success("อัปเดตคะแนนสะสมสำเร็จ");
+        },
+        onError: (error: Error) => {
+            toast.error("แก้ไขคะแนนไม่สำเร็จ", { description: error.message });
         },
     });
 }

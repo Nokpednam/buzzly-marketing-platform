@@ -44,7 +44,7 @@ export function useEmployeeAuth() {
   const checkEmployeeAuth = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session?.user) {
         setState({
           user: null,
@@ -75,12 +75,12 @@ export function useEmployeeAuth() {
 
       if (employeeData && employeeData.status === 'active' && employeeData.approval_status === 'approved') {
         const roleName = (employeeData.role_employees as any)?.role_name as EmployeeRole;
-        
+
         // Update last_active periodically (once per hour to avoid spamming the database)
         const lastUpdateKey = `last_active_update_${employeeData.id}`;
         const lastUpdate = localStorage.getItem(lastUpdateKey);
         const now = Date.now();
-        
+
         if (!lastUpdate || now - parseInt(lastUpdate, 10) > 1000 * 60 * 60) {
           localStorage.setItem(lastUpdateKey, now.toString());
           supabase
@@ -91,7 +91,7 @@ export function useEmployeeAuth() {
               if (error) console.error("Error updating last_active:", error);
             });
         }
-        
+
         setState({
           user: session.user,
           session: session,
