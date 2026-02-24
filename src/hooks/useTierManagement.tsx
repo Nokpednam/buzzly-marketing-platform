@@ -91,7 +91,7 @@ export function useTierHistory() {
                 return (fallback ?? []) as TierHistoryEntry[];
             }
 
-            return (data ?? []) as TierHistoryEntry[];
+            return (data as unknown as TierHistoryEntry[]) ?? [];
         },
     });
 }
@@ -119,7 +119,7 @@ export function usePointsTransactions() {
                 return (fallback ?? []) as PointsTransaction[];
             }
 
-            return (data ?? []) as PointsTransaction[];
+            return (data as unknown as PointsTransaction[]) ?? [];
         },
     });
 }
@@ -148,7 +148,7 @@ export function useSuspiciousActivities() {
                 return (fallback ?? []) as SuspiciousActivity[];
             }
 
-            return (data ?? []) as SuspiciousActivity[];
+            return (data as unknown as SuspiciousActivity[]) ?? [];
         },
     });
 
