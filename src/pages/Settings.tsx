@@ -172,35 +172,42 @@ export default function Settings() {
         return;
       }
 
-      // Update profile_customers
+      // Upsert profile_customers (creates row if not exist, updates if exist)
       const { error: profileError } = await supabase
         .from('profile_customers')
-        .update({
+        .upsert({
+          user_id: user.id,
           first_name: profileData.firstName,
           last_name: profileData.lastName,
           phone_number: profileData.phoneNumber,
           birthday_at: profileData.birthday ? new Date(profileData.birthday).toISOString().split('T')[0] : null,
           gender: profileData.genderId || null,
-        } as any)
-        .eq('user_id', user.id);
+        } as any, {
+          onConflict: 'user_id',
+        });
 
       if (profileError) {
         console.error('Profile update error:', profileError);
         toast({
           title: "Error",
-          description: "Failed to update profile",
+          description: "Failed to update profile: " + profileError.message,
           variant: "destructive",
         });
         return;
       }
 
-      // Update customer table for phone
+      // Update customer table for full_name and phone
       const { error: customerError } = await supabase
         .from('customer')
-        .update({
+        .upsert({
+          id: user.id,
+          email: user.email ?? profileData.email,
+          full_name: `${profileData.firstName} ${profileData.lastName}`.trim(),
           phone_number: profileData.phoneNumber,
-        })
-        .eq('id', user.id);
+          plan_type: 'free',
+        }, {
+          onConflict: 'id',
+        });
 
       if (customerError) {
         console.error('Customer update error:', customerError);

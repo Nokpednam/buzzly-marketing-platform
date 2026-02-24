@@ -13,9 +13,9 @@ export interface DashboardMetrics {
   trendData: { date: string; impressions: number; clicks: number; spend: number }[];
 }
 
-export function useDashboardMetrics(dateRange: string = "7d") {
+export function useDashboardMetrics(dateRange: string = "7d", platformId: string = "all") {
   return useQuery({
-    queryKey: ["dashboard-metrics", dateRange],
+    queryKey: ["dashboard-metrics", dateRange, platformId],
     queryFn: async (): Promise<DashboardMetrics> => {
       // Calculate date range
       const now = new Date();
@@ -36,11 +36,20 @@ export function useDashboardMetrics(dateRange: string = "7d") {
           break;
       }
 
-      const { data: insights, error } = await supabase
+      let query = supabase
         .from("ad_insights")
-        .select("*")
+        .select(`
+          *,
+          ad_accounts!inner(platform_id)
+        `)
         .gte("date", startDate.toISOString().split("T")[0])
         .order("date", { ascending: true });
+
+      if (platformId !== "all") {
+        query = query.eq("ad_accounts.platform_id", platformId);
+      }
+
+      const { data: insights, error } = await query;
 
       if (error) throw error;
 
