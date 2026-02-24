@@ -257,6 +257,14 @@ echo "✅ Marketing data linked to workspaces."
 echo ""
 
 # ---------------------------------------------------------
+# 5.6b: Auto-link customer_personas to each workspace (RLS fix)
+# ---------------------------------------------------------
+echo "Step 5.6b: Linking customer_personas to workspaces (auto, no hardcoded emails)..."
+run_sql_script "supabase/script/fix-personas-linkage-auto.sql" "Customer Personas Linkage Fix"
+echo "✅ Customer personas linked to workspaces."
+echo ""
+
+# ---------------------------------------------------------
 # 5.7: Seed Business Performance — Payment Transactions
 # ---------------------------------------------------------
 echo "Step 5.7: Seeding Revenue Trends data (payment_transactions)..."
