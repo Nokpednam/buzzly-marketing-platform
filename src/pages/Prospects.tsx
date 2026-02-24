@@ -58,7 +58,7 @@ export default function Prospects() {
   } = useCustomerPersonas(workspace.id);
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cards" | "charts">("cards");
+  const [activeTab, setActiveTab] = useState<"cards" | "charts">("charts");
   const [searchQuery, setSearchQuery] = useState("");
 
   const stats = getPersonaStats();
@@ -139,11 +139,11 @@ export default function Prospects() {
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-6">
           <div className="flex items-center justify-between">
             <TabsList className="bg-muted/50 p-1 rounded-xl">
-              <TabsTrigger value="cards" className="rounded-lg gap-2">
-                <LayoutGrid className="h-4 w-4" /> Gallery
-              </TabsTrigger>
               <TabsTrigger value="charts" className="rounded-lg gap-2">
                 <BarChart3 className="h-4 w-4" /> Analytics
+              </TabsTrigger>
+              <TabsTrigger value="cards" className="rounded-lg gap-2">
+                <LayoutGrid className="h-4 w-4" /> Gallery
               </TabsTrigger>
             </TabsList>
             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
