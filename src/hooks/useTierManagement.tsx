@@ -88,10 +88,10 @@ export function useTierHistory() {
                     .order("created_at", { ascending: false })
                     .limit(100);
                 if (fallbackError) throw fallbackError;
-                return (fallback ?? []) as TierHistoryEntry[];
+                return (fallback ?? []) as unknown as TierHistoryEntry[];
             }
 
-            return (data ?? []) as TierHistoryEntry[];
+            return (data ?? []) as unknown as TierHistoryEntry[];
         },
     });
 }
@@ -116,10 +116,10 @@ export function usePointsTransactions() {
                     .order("created_at", { ascending: false })
                     .limit(200);
                 if (fallbackError) throw fallbackError;
-                return (fallback ?? []) as PointsTransaction[];
+                return (fallback ?? []) as unknown as PointsTransaction[];
             }
 
-            return (data ?? []) as PointsTransaction[];
+            return (data ?? []) as unknown as PointsTransaction[];
         },
     });
 }
@@ -145,10 +145,10 @@ export function useSuspiciousActivities() {
                     .order("created_at", { ascending: false })
                     .limit(100);
                 if (fallbackError) throw fallbackError;
-                return (fallback ?? []) as SuspiciousActivity[];
+                return (fallback ?? []) as unknown as SuspiciousActivity[];
             }
 
-            return (data ?? []) as SuspiciousActivity[];
+            return (data ?? []) as unknown as SuspiciousActivity[];
         },
     });
 
@@ -217,7 +217,7 @@ export function useCustomerSearch() {
             const { data, error } = await supabase
                 .from("customer")
                 .select(
-                    "id, full_name, email, loyalty_tier, loyalty_points_balance, total_spend, created_at"
+                    "id, full_name, email, loyalty_tiers(name), loyalty_points_balance, total_spend_amount, created_at"
                 )
                 .or(
                     `full_name.ilike.%${query}%,email.ilike.%${query}%,id.eq.${query}`
@@ -225,7 +225,17 @@ export function useCustomerSearch() {
                 .limit(10);
 
             if (error) throw error;
-            return (data ?? []) as CustomerSearchResult[];
+
+            return (data ?? []).map((d: any) => ({
+                id: d.id,
+                full_name: d.full_name,
+                email: d.email,
+                loyalty_tier: d.loyalty_tiers?.name ?? null,
+                loyalty_points_balance: d.loyalty_points_balance,
+                total_spend: d.total_spend_amount,
+                created_at: d.created_at
+            })) as unknown as CustomerSearchResult[];
+
         },
         enabled: query.trim().length >= 2,
     });
@@ -264,20 +274,14 @@ export function useManualTierOverride() {
             // Get current tier
             const { data: currentCustomer } = await supabase
                 .from("customer")
-                .select("loyalty_tier")
+                .select("loyalty_tier_id")
                 .eq("id", userId)
-                .maybeSingle();
-
-            const { data: currentTierData } = await supabase
-                .from("loyalty_tiers")
-                .select("id")
-                .eq("name", currentCustomer?.loyalty_tier ?? "")
                 .maybeSingle();
 
             // Update customer tier
             const { error: updateError } = await supabase
                 .from("customer")
-                .update({ loyalty_tier: newTierName } as any)
+                .update({ loyalty_tier_id: tierData?.id } as any)
                 .eq("id", userId);
 
             if (updateError) throw updateError;
@@ -286,7 +290,7 @@ export function useManualTierOverride() {
             if (tierData?.id) {
                 await supabase.from("tier_history").insert({
                     user_id: userId,
-                    previous_tier_id: currentTierData?.id ?? null,
+                    previous_tier_id: currentCustomer?.loyalty_tier_id ?? null,
                     new_tier_id: tierData.id,
                     change_reason: reason,
                     changed_by: adminUser?.id ?? null,
