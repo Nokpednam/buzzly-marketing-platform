@@ -73,31 +73,31 @@ export function useLoyaltyTier() {
 
       // Fetch user profile with loyalty info
       const { data: profile, error: profileError } = await supabase
-        .from("customer")
+        .from("profile_customers")
         .select(`
-          loyalty_tier_id,
-          loyalty_points_balance,
-          total_spend_amount,
-          member_since
+          created_at,
+          loyalty_points (
+            point_balance,
+            loyalty_tiers (*)
+          )
         `)
-        .eq("id", user.id)
-        .single();
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-      if (profileError) throw profileError;
+      if (profileError && profileError.code !== 'PGRST116') throw profileError;
 
-      // If user has a tier, fetch tier details
-      let tier: LoyaltyTier | null = null;
-      if (profile?.loyalty_tier_id) {
-        const { data: tierData, error: tierError } = await supabase
-          .from("loyalty_tiers")
-          .select("*")
-          .eq("id", profile.loyalty_tier_id)
-          .single();
+      // Calculate total spend
+      const { data: txs } = await supabase
+        .from("payment_transactions")
+        .select("amount")
+        .eq("user_id", user.id);
 
-        if (!tierError && tierData) {
-          tier = tierData;
-        }
-      } else {
+      const totalSpend = txs?.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0) || 0;
+
+      const loyaltyData = profile?.loyalty_points?.[0] || profile?.loyalty_points; // array or single object depending on relation
+      let tier: LoyaltyTier | null = loyaltyData?.loyalty_tiers || null;
+
+      if (!tier) {
         // Default to Bronze if no tier assigned
         const { data: bronzeTier } = await supabase
           .from("loyalty_tiers")
@@ -107,19 +107,14 @@ export function useLoyaltyTier() {
 
         if (bronzeTier) {
           tier = bronzeTier;
-          // Update user profile with default Bronze tier
-          await supabase
-            .from("customer")
-            .update({ loyalty_tier_id: bronzeTier.id })
-            .eq("id", user.id);
         }
       }
 
       setUserLoyalty({
         tier,
-        points_balance: profile?.loyalty_points_balance || 0,
-        total_spend_amount: Number(profile?.total_spend_amount) || 0,
-        member_since: profile?.member_since || null,
+        points_balance: loyaltyData?.point_balance || 0,
+        total_spend_amount: totalSpend,
+        member_since: profile?.created_at || null,
       });
     } catch (err) {
       console.error("Error fetching user loyalty:", err);

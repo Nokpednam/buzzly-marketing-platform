@@ -36,10 +36,10 @@ export default function OwnerDiscounts() {
         discounts,
         isLoading,
         draftDiscounts,
-        liveDiscounts,
+        ongoingDiscounts,
+        endedDiscounts,
         activeDiscounts,
         expiredDiscounts,
-        exhaustedDiscounts,
         createDiscount,
         deleteDiscount,
         toggleActive,
@@ -341,18 +341,34 @@ export default function OwnerDiscounts() {
                                 </div>
                             )}
 
-                            {/* Live Section */}
-                            {liveDiscounts.length > 0 && (
+                            {/* Ongoing Section */}
+                            {ongoingDiscounts.length > 0 && (
                                 <div className="space-y-4">
                                     <h3 className="font-bold text-lg flex items-center gap-2">
                                         <Zap className="h-5 w-5 text-emerald-500" />
-                                        Live Campaigns
+                                        Ongoing Campaigns
                                         <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
-                                            {liveDiscounts.length}
+                                            {ongoingDiscounts.length}
                                         </Badge>
                                     </h3>
                                     <div className="space-y-3">
-                                        {liveDiscounts.map(renderDiscountCard)}
+                                        {ongoingDiscounts.map(renderDiscountCard)}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Ended Section */}
+                            {endedDiscounts.length > 0 && (
+                                <div className="space-y-4">
+                                    <h3 className="font-bold text-lg flex items-center gap-2">
+                                        <XCircle className="h-5 w-5 text-slate-500" />
+                                        Ended Campaigns
+                                        <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                                            {endedDiscounts.length}
+                                        </Badge>
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {endedDiscounts.map(renderDiscountCard)}
                                     </div>
                                 </div>
                             )}

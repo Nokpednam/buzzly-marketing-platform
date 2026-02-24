@@ -204,6 +204,18 @@ export function useDiscounts() {
         (d) => d.usage_limit !== null && d.collections_count >= d.usage_limit
     );
 
+    const ongoingDiscounts = liveDiscounts.filter((d) => {
+        const isExpired = d.end_date && new Date(d.end_date) < new Date();
+        const isExhausted = d.usage_limit !== null && d.collections_count >= d.usage_limit;
+        return d.is_active && !isExpired && !isExhausted;
+    });
+
+    const endedDiscounts = liveDiscounts.filter((d) => {
+        const isExpired = d.end_date && new Date(d.end_date) < new Date();
+        const isExhausted = d.usage_limit !== null && d.collections_count >= d.usage_limit;
+        return !d.is_active || isExpired || isExhausted;
+    });
+
     return {
         discounts,
         isLoading,
@@ -212,6 +224,8 @@ export function useDiscounts() {
         activeDiscounts,
         expiredDiscounts,
         exhaustedDiscounts,
+        ongoingDiscounts,
+        endedDiscounts,
         createDiscount,
         updateDiscount,
         deleteDiscount,

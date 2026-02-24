@@ -214,18 +214,52 @@ export function useCustomerSearch() {
         queryFn: async () => {
             if (!query || query.trim().length < 2) return [];
 
-            const { data, error } = await supabase
+            const { data: customers, error } = await supabase
                 .from("customer")
-                .select(
-                    "id, full_name, email, loyalty_tier, loyalty_points_balance, total_spend, created_at"
-                )
-                .or(
-                    `full_name.ilike.%${query}%,email.ilike.%${query}%,id.eq.${query}`
-                )
+                .select("id, full_name, email, created_at")
+                .or(`full_name.ilike.%${query}%,email.ilike.%${query}%,id.eq.${query}`)
                 .limit(10);
 
             if (error) throw error;
-            return (data ?? []) as CustomerSearchResult[];
+            if (!customers || customers.length === 0) return [];
+
+            const customerIds = customers.map(c => c.id);
+
+            // Fetch loyalty info
+            const { data: loyaltyData } = await supabase
+                .from("profile_customers")
+                .select(`
+                    user_id,
+                    loyalty_points (
+                        point_balance,
+                        loyalty_tiers (name)
+                    )
+                `)
+                .in("user_id", customerIds);
+
+            // Fetch spend info
+            const { data: txs } = await supabase
+                .from("payment_transactions")
+                .select("user_id, amount")
+                .in("user_id", customerIds);
+
+            const results: CustomerSearchResult[] = customers.map(c => {
+                const lpInfo = loyaltyData?.find(l => l.user_id === c.id)?.loyalty_points as any;
+                const activeLp = Array.isArray(lpInfo) ? lpInfo[0] : lpInfo;
+                const spend = txs?.filter(t => t.user_id === c.id).reduce((sum, t) => sum + (Number(t.amount) || 0), 0) || 0;
+
+                return {
+                    id: c.id,
+                    full_name: c.full_name,
+                    email: c.email,
+                    created_at: c.created_at,
+                    loyalty_tier: activeLp?.loyalty_tiers?.name || "Bronze",
+                    loyalty_points_balance: activeLp?.point_balance || 0,
+                    total_spend: spend
+                };
+            });
+
+            return results;
         },
         enabled: query.trim().length >= 2,
     });
@@ -261,32 +295,46 @@ export function useManualTierOverride() {
 
             if (tierError) throw tierError;
 
-            // Get current tier
-            const { data: currentCustomer } = await supabase
-                .from("customer")
-                .select("loyalty_tier")
-                .eq("id", userId)
+            // Get current tier from profile_customers -> loyalty_points
+            const { data: profile } = await supabase
+                .from("profile_customers")
+                .select(`
+                    id,
+                    loyalty_points (
+                        id,
+                        loyalty_tier_id
+                    )
+                `)
+                .eq("user_id", userId)
                 .maybeSingle();
 
-            const { data: currentTierData } = await supabase
-                .from("loyalty_tiers")
-                .select("id")
-                .eq("name", currentCustomer?.loyalty_tier ?? "")
-                .maybeSingle();
+            const lpInfo = profile?.loyalty_points as any;
+            const lpRecord = Array.isArray(lpInfo) ? lpInfo[0] : lpInfo;
 
-            // Update customer tier
-            const { error: updateError } = await supabase
-                .from("customer")
-                .update({ loyalty_tier: newTierName } as any)
-                .eq("id", userId);
-
-            if (updateError) throw updateError;
+            // Update loyalty_tier
+            if (lpRecord?.id && tierData?.id) {
+                const { error: updateError } = await supabase
+                    .from("loyalty_points")
+                    .update({ loyalty_tier_id: tierData.id })
+                    .eq("id", lpRecord.id);
+                if (updateError) throw updateError;
+            } else if (profile?.id && tierData?.id) {
+                const { error: insertError } = await supabase
+                    .from("loyalty_points")
+                    .insert({
+                        profile_customer_id: profile.id,
+                        loyalty_tier_id: tierData.id,
+                        point_balance: 0,
+                        total_points_earned: 0
+                    });
+                if (insertError) throw insertError;
+            }
 
             // Log to tier_history
             if (tierData?.id) {
                 await supabase.from("tier_history").insert({
                     user_id: userId,
-                    previous_tier_id: currentTierData?.id ?? null,
+                    previous_tier_id: lpRecord?.loyalty_tier_id ?? null,
                     new_tier_id: tierData.id,
                     change_reason: reason,
                     changed_by: adminUser?.id ?? null,

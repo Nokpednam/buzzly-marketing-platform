@@ -80,8 +80,29 @@ export function useCustomerCoupons() {
         },
     });
 
+    const { data: availableDiscounts = [], isLoading: isLoadingAvailable } = useQuery({
+        queryKey: ["available_discounts"],
+        queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return [];
+
+            const { data, error } = await (supabase as any)
+                .rpc('get_available_discounts', {
+                    p_customer_id: user.id
+                });
+
+            if (error) {
+                console.error("Error fetching available discounts:", error);
+                return [];
+            }
+            return data || [];
+        },
+    });
+
     const markNotificationRead = useMutation({
         mutationFn: async (id: string) => {
+            if (id.startsWith('virtual_')) return; // Cannot mark virtual as read
+
             const { error } = await (supabase as any)
                 .from("customer_notifications")
                 .update({ is_read: true })
@@ -120,8 +141,8 @@ export function useCustomerCoupons() {
             }
             if (insertErr) throw insertErr;
 
-            // Mark notification as read
-            if (notificationId) {
+            // Mark notification as read (if it's not a virtual notification)
+            if (notificationId && !notificationId.startsWith('virtual_')) {
                 await (supabase as any)
                     .from("customer_notifications")
                     .update({ is_read: true })
@@ -131,6 +152,7 @@ export function useCustomerCoupons() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["customer_coupons"] });
             queryClient.invalidateQueries({ queryKey: ["customer_notifications"] });
+            queryClient.invalidateQueries({ queryKey: ["available_discounts"] });
             toast.success("Coupon collected successfully!");
         },
         onError: (err: any) => {
@@ -138,9 +160,29 @@ export function useCustomerCoupons() {
         }
     });
 
+    // Merge real notifications and dynamic virtual notifications
+    const allNotifications: CustomerNotification[] = [
+        // Virtual notifications for dynamic available discounts
+        ...availableDiscounts.map((d: any) => ({
+            id: `virtual_${d.id}`,
+            customer_id: 'auto',
+            title: 'New Promotional Code Available!',
+            message: `A new code "${d.code}" has been dropped. Collect it before it runs out!`,
+            type: 'discount',
+            is_read: false,
+            related_id: d.id,
+            created_at: d.publish_time || new Date().toISOString(),
+        })),
+        // Filter out real notifications that match the dynamic ones to avoid duplicates
+        ...notifications.filter((n) =>
+            n.type !== 'discount' || !availableDiscounts.some((ad: any) => ad.id === n.related_id)
+        ),
+    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+
     return {
-        notifications,
-        isLoadingNotifications,
+        notifications: allNotifications,
+        isLoadingNotifications: isLoadingNotifications || isLoadingAvailable,
         collectedCoupons,
         isLoadingCoupons,
         markNotificationRead,
