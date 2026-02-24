@@ -30,6 +30,7 @@ export interface CreateReportInput {
     end_date?: string;
     filters?: Record<string, unknown>;
     file_format?: string;
+    file_url?: string;
 }
 
 async function getCurrentUserAndTeam() {
@@ -95,8 +96,9 @@ export function useReports() {
                     date_range_type: input.date_range_type ?? null,
                     start_date: input.start_date ?? null,
                     end_date: input.end_date ?? null,
-                    filters: input.filters ?? null,
+                    filters: (input.filters as any) ?? null,
                     file_format: input.file_format ?? "pdf",
+                    file_url: input.file_url ?? null,
                     status: "ready",
                     generated_at: new Date().toISOString(),
                     team_id: teamId,

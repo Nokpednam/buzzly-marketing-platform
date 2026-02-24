@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,36 +29,55 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useReports } from "@/hooks/useReports";
 import { useScheduledReports } from "@/hooks/useScheduledReports";
+import { useSubscriptionMetrics, useFeedbackMetrics, useProductUsageMetrics, useAARRRMetrics } from "@/hooks/useOwnerMetrics";
+import { useCustomerTiers } from "@/hooks/useCustomerTiers";
+import { useDiscounts } from "@/hooks/useDiscounts";
+import { ExecutiveReportDocument } from "@/components/owner/ExecutiveReportDocument";
+import html2canvas from "html2canvas";
+import { jsPDF } from "jspdf";
+import { supabase } from "@/integrations/supabase/client";
 
-// Available metrics to include in report
+// Available metrics exactly matching Owner Sidebar
 const availableMetrics = [
-  { id: "mrr", label: "Monthly Recurring Revenue (MRR)", category: "Revenue" },
-  { id: "arr", label: "Annual Recurring Revenue (ARR)", category: "Revenue" },
-  { id: "clv", label: "Customer Lifetime Value (CLV)", category: "Revenue" },
-  { id: "churn", label: "Churn Rate", category: "Growth" },
-  { id: "nrr", label: "Net Revenue Retention", category: "Growth" },
-  { id: "growth", label: "Month-over-Month Growth", category: "Growth" },
-  { id: "nps", label: "Net Promoter Score (NPS)", category: "Customer" },
-  { id: "csat", label: "Customer Satisfaction Score", category: "Customer" },
-  { id: "dau", label: "Daily Active Users", category: "Engagement" },
-  { id: "mau", label: "Monthly Active Users", category: "Engagement" },
-  { id: "retention", label: "User Retention Rate", category: "Engagement" },
-  { id: "funnel", label: "AARRR Funnel Metrics", category: "Product" },
-  { id: "features", label: "Feature Usage Stats", category: "Product" },
+  { id: "business", label: "Business Performance (Revenue, ARR, Churn)", category: "Revenue & Growth" },
+  { id: "product", label: "Product Usage (AARRR Funnel)", category: "Engagement" },
+  { id: "tiers", label: "Customer Tiers (Loyalty Distribution)", category: "Audience" },
+  { id: "feedback", label: "User Feedback (NPS, CSAT, Sentiment)", category: "Customer Satisfaction" },
+  { id: "discounts", label: "Discount Codes (Promotions & Usage)", category: "Marketing" },
 ];
 
 export default function ExecutiveReport() {
   const { toast } = useToast();
-  const { reports, isLoading: reportsLoading, deleteReport } = useReports();
+  const { reports, isLoading: reportsLoading, deleteReport, createReport } = useReports();
   const { scheduledReports, isLoading: scheduledLoading, toggleActive, deleteScheduledReport } = useScheduledReports();
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([
-    "mrr",
-    "churn",
-    "nps",
-    "mau",
+    "business",
+    "product",
+    "tiers",
+    "feedback",
+    "discounts",
   ]);
   const [reportFormat, setReportFormat] = useState("pdf");
   const [dateRange, setDateRange] = useState("last-month");
+
+  const reportRef = useRef<HTMLDivElement>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const { data: subscriptionMetrics } = useSubscriptionMetrics();
+  const { data: feedbackMetrics } = useFeedbackMetrics();
+  const { data: productUsageMetrics } = useProductUsageMetrics();
+  const { data: aarrrMetrics } = useAARRRMetrics();
+  const { data: tierMetrics } = useCustomerTiers(dateRange === "last-year" ? "1y" : dateRange === "last-month" ? "30d" : "90d");
+  const { discounts } = useDiscounts();
+
+  const reportData = {
+    subscriptionMetrics,
+    feedbackMetrics,
+    productUsageMetrics,
+    aarrrMetrics,
+    tierMetrics,
+    discounts
+  };
 
   const handleMetricToggle = (metricId: string) => {
     setSelectedMetrics((prev) =>
@@ -68,11 +87,71 @@ export default function ExecutiveReport() {
     );
   };
 
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
+    if (!reportRef.current) return;
+
+    setIsGenerating(true);
     toast({
       title: "Generating Report",
-      description: `Creating ${reportFormat.toUpperCase()} report with ${selectedMetrics.length} metrics...`,
+      description: "Compiling document and data...",
     });
+
+    try {
+      const canvas = await html2canvas(reportRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+      });
+
+      const imgData = canvas.toDataURL("image/jpeg", 1.0);
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+      const pdfBlob = pdf.output("blob");
+
+      const fileName = `executive_report_${new Date().getTime()}.pdf`;
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('reports')
+        .upload(fileName, pdfBlob, {
+          contentType: 'application/pdf',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('reports')
+        .getPublicUrl(fileName);
+
+      await createReport.mutateAsync({
+        name: `Executive Report - ${dateRange}`,
+        report_type: 'executive',
+        file_format: 'pdf',
+        file_url: publicUrl,
+      });
+
+      toast({
+        title: "Success",
+        description: "Your report is ready in the history tab.",
+      });
+    } catch (error: any) {
+      console.error("PDF generation failed:", error);
+      toast({
+        variant: "destructive",
+        title: "Error Generating Report",
+        description: error.message || "Something went wrong.",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleScheduleReport = () => {
@@ -92,6 +171,15 @@ export default function ExecutiveReport() {
 
   return (
     <div className="space-y-6">
+      <div style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
+        <ExecutiveReportDocument
+          ref={reportRef}
+          data={reportData}
+          selectedMetrics={selectedMetrics}
+          dateRange={dateRange}
+        />
+      </div>
+
       <div>
         <h1 className="text-3xl font-bold">Executive Report</h1>
         <p className="text-muted-foreground">
@@ -206,10 +294,10 @@ export default function ExecutiveReport() {
                     <Button
                       className="w-full"
                       onClick={handleGenerateReport}
-                      disabled={selectedMetrics.length === 0}
+                      disabled={selectedMetrics.length === 0 || isGenerating}
                     >
                       <Download className="mr-2 h-4 w-4" />
-                      Generate Report
+                      {isGenerating ? "Generating..." : "Generate Report"}
                     </Button>
                     <Button
                       variant="outline"
@@ -293,8 +381,10 @@ export default function ExecutiveReport() {
                           <CheckCircle2 className="h-3 w-3 text-green-500" />
                           {report.status ?? "completed"}
                         </Badge>
-                        <Button variant="ghost" size="sm">
-                          <Download className="h-4 w-4" />
+                        <Button variant="ghost" size="sm" asChild>
+                          <a href={report.file_url ?? "#"} target="_blank" rel="noopener noreferrer">
+                            <Download className="h-4 w-4" />
+                          </a>
                         </Button>
                         <Button variant="ghost" size="sm">
                           <Send className="h-4 w-4" />
