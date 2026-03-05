@@ -129,7 +129,7 @@ export default function RedemptionRequests() {
                                             </TableCell>
                                             <TableCell>
                                                 <div className="font-medium text-sm">
-                                                    {req.customer?.first_name} {req.customer?.last_name}
+                                                    {req.customer?.full_name ?? "—"}
                                                 </div>
                                                 <div className="text-xs text-muted-foreground">{req.customer?.email}</div>
                                             </TableCell>
