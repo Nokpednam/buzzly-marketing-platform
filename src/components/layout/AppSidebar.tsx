@@ -53,7 +53,6 @@ const navGroups = [
     items: [
       { title: "Team Management", url: "/team", icon: UsersRound, requiresPlan: "team" as const },
       { title: "Reports", url: "/reports", icon: FileText, requiresPlan: "pro" as const },
-      { title: "Discounts", url: "/discounts", icon: Tag, requiresPlan: "pro" as const },
     ]
   },
   {

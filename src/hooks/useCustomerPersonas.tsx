@@ -59,28 +59,25 @@ export interface CustomerPersonaUpdate extends Partial<CustomerPersonaInsert> {
 export const useCustomerPersonas = (teamId: string | null) => {
   const queryClient = useQueryClient();
 
-  // Fetch all personas for a team/workspace
+  // Fetch all personas — RLS SELECT is open so all authenticated users see all data
   const {
     data: personas,
     isLoading,
     error,
     refetch,
   } = useQuery({
-    queryKey: ["customer-personas", teamId],
+    queryKey: ["customer-personas"],
     queryFn: async () => {
-      if (!teamId) return [];
-
       const { data, error } = await supabase
         .from("customer_personas")
         .select("*")
-        .eq("team_id", teamId)
         .eq("is_active", true)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       return data as CustomerPersona[];
     },
-    enabled: !!teamId,
+    enabled: true,
   });
 
   // Fetch genders for dropdown
@@ -111,7 +108,7 @@ export const useCustomerPersonas = (teamId: string | null) => {
   const createPersona = useMutation({
     mutationFn: async (newPersona: CustomerPersonaInsert) => {
       const { data: user } = await supabase.auth.getUser();
-      
+
       const { data, error } = await supabase
         .from("customer_personas")
         .insert({

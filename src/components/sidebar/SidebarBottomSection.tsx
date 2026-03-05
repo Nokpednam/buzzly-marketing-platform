@@ -29,6 +29,7 @@ import { auditAuth } from "@/lib/auditLogger";
 import { useCustomerCoupons } from "@/hooks/useCustomerCoupons";
 import { MyCouponsDialog } from "@/components/customer/MyCouponsDialog";
 import { NotificationCenterDialog } from "@/components/customer/NotificationCenterDialog";
+import { useProfileCustomer } from "@/hooks/useProfileCustomer";
 
 interface SidebarBottomSectionProps {
   collapsed?: boolean;
@@ -66,6 +67,7 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
   const [notifCenterOpen, setNotifCenterOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [recentTransactions, setRecentTransactions] = useState<PointsTransaction[]>([]);
   const { currentPlan, loading } = usePlanAccess();
   const { userLoyalty, getNextTier, getProgressToNextTier } = useLoyaltyTier();
@@ -73,12 +75,29 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
   const unreadCount = notifications.filter(n => !n.is_read).length;
   const navigate = useNavigate();
 
+  // Use the shared hook for profile data
+  const { data: serverProfile } = useProfileCustomer();
+
+  // Sync server data to local state for display
+  useEffect(() => {
+    if (serverProfile) {
+      if (serverProfile.first_name || serverProfile.last_name) {
+        setUserName([serverProfile.first_name, serverProfile.last_name].filter(Boolean).join(' '));
+      }
+      setAvatarUrl(serverProfile.avatar_url || null);
+    }
+  }, [serverProfile]);
+
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserEmail(user.email || null);
-        setUserName(user.user_metadata?.full_name || null);
+
+        // If serverProfile hasn't loaded yet, fallback to auth metadata
+        if (!userName) {
+          setUserName(user.user_metadata?.full_name || null);
+        }
 
         // Fetch recent points transactions
         const { data: transactions } = await supabase
@@ -143,7 +162,7 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="w-full h-10 p-0">
               <Avatar className="h-8 w-8">
-                <AvatarImage src="" />
+                <AvatarImage src={avatarUrl || ""} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                   {getInitials()}
                 </AvatarFallback>
@@ -260,7 +279,7 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-10 w-10 p-0 rounded-full">
               <Avatar className="h-9 w-9">
-                <AvatarImage src="" />
+                <AvatarImage src={avatarUrl || ""} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
                   {getInitials()}
                 </AvatarFallback>

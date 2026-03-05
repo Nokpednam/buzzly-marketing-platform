@@ -99,7 +99,15 @@ export function useSubscription() {
         .order("display_order");
 
       if (methodsError) throw methodsError;
-      setPaymentMethods(methodsData || []);
+      // Deduplicate by name (case-insensitive) — catches duplicates even when slugs differ
+      const seenNames = new Set<string>();
+      const uniqueMethods = (methodsData || []).filter((m) => {
+        const key = (m.name || "").toLowerCase();
+        if (seenNames.has(key)) return false;
+        seenNames.add(key);
+        return true;
+      });
+      setPaymentMethods(uniqueMethods);
 
       // Fetch Active Subscription
       if (user) {
