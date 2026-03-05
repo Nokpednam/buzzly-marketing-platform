@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -105,25 +106,22 @@ export default function AuditLogs() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 8;
 
-  const { data: auditLogs, isLoading, refetch } = useAuditLogs(selectedCategory);
+  const { data, isLoading, isFetching, refetch } = useAuditLogs(selectedCategory, page, pageSize, searchQuery);
+  const auditLogs = data?.logs || [];
+  const totalCount = data?.totalCount || 0;
+  const totalPages = data?.totalPages || 0;
   const { data: stats } = useAuditLogStats();
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await refetch();
-    setIsRefreshing(false);
-  };
+  useEffect(() => {
+    setPage(1);
+  }, [selectedCategory, searchQuery]);
 
-  const filteredLogs = auditLogs?.filter((log) => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      log.description?.toLowerCase().includes(searchLower) ||
-      log.action_name?.toLowerCase().includes(searchLower) ||
-      log.ip_address?.toLowerCase().includes(searchLower) ||
-      log.user_id?.toLowerCase().includes(searchLower)
-    );
-  }) || [];
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
 
   return (
     <div className="space-y-6">
@@ -134,10 +132,6 @@ export default function AuditLogs() {
           <p className="text-muted-foreground">ประวัติการใช้งานและกิจกรรมของผู้ใช้ในระบบ</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleRefresh} disabled={isRefreshing}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" />
             Export
@@ -202,10 +196,10 @@ export default function AuditLogs() {
             </div>
           </CardContent>
         </Card>
-      </div>
+      </div >
 
       {/* Filters */}
-      <Card>
+      < Card >
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
@@ -234,22 +228,28 @@ export default function AuditLogs() {
             </Select>
           </div>
         </CardContent>
-      </Card>
+      </Card >
 
       {/* Logs Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Activity Logs</CardTitle>
-          <CardDescription>รายการกิจกรรมทั้งหมด ({filteredLogs.length} รายการ)</CardDescription>
+      < Card >
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Activity Logs</CardTitle>
+            <CardDescription>รายการกิจกรรมทั้งหมด ({totalCount} รายการ)</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isRefreshing || isFetching}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${(isRefreshing || isFetching) ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
         </CardHeader>
-        <CardContent>
-          {isLoading ? (
+        <CardContent className="relative">
+          {(!data && isLoading) ? (
             <div className="text-center py-8 text-muted-foreground">Loading audit logs...</div>
-          ) : filteredLogs.length === 0 ? (
+          ) : auditLogs.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">No audit logs found</div>
           ) : (
-            <div className="space-y-3">
-              {filteredLogs.map((log) => (
+            <div className={cn("space-y-3 transition-opacity duration-200", isFetching && "opacity-50")}>
+              {auditLogs.map((log) => (
                 <div
                   key={log.id}
                   className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
@@ -300,20 +300,34 @@ export default function AuditLogs() {
             </div>
           )}
 
-          {/* Pagination */}
-          {filteredLogs.length > 0 && (
+          {auditLogs.length > 0 && (
             <div className="flex items-center justify-between mt-6 pt-4 border-t">
               <p className="text-sm text-muted-foreground">
-                Showing 1-{Math.min(filteredLogs.length, 50)} of {filteredLogs.length} logs
+                Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, totalCount)} of {totalCount} logs
               </p>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" disabled>
-                  <ChevronLeft className="h-4 w-4" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={page <= 1 || isLoading}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
                   Previous
                 </Button>
-                <Button variant="outline" size="sm" disabled={filteredLogs.length <= 50}>
+                <div className="text-sm font-medium px-2">
+                  Page {page} of {totalPages}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={page >= totalPages || isLoading}
+                >
                   Next
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               </div>
             </div>

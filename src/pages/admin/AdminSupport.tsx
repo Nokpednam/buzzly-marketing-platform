@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAdminErrorLogs, useAdminLogStats, ErrorLog } from "@/hooks/useAdminSupport";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -98,13 +98,17 @@ export default function AdminSupport() {
   };
 
   const [page, setPage] = useState(1);
-  const pageSize = 10;
+  const pageSize = 8;
 
   // Fetch error logs
-  const { data, isLoading, refetch } = useAdminErrorLogs(levelFilter, page, pageSize, searchQuery);
+  const { data, isLoading, isFetching, refetch } = useAdminErrorLogs(levelFilter, page, pageSize, searchQuery);
   const errorLogs = data?.logs || [];
   const totalCount = data?.totalCount || 0;
   const totalPages = data?.totalPages || 0;
+
+  useEffect(() => {
+    setPage(1);
+  }, [levelFilter, searchQuery]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
@@ -275,13 +279,13 @@ export default function AdminSupport() {
             </Select>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
-          {isLoading ? (
+        <CardContent className="p-0 relative">
+          {(!data && isLoading) ? (
             <div className="text-center py-12 text-muted-foreground">
               Loading error logs...
             </div>
           ) : (
-            <div className="rounded-md border border-t-0">
+            <div className={cn("rounded-md border border-t-0 transition-opacity duration-200", isFetching && "opacity-50")}>
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
@@ -378,6 +382,7 @@ export default function AdminSupport() {
             </div>
             <div className="flex items-center gap-2">
               <Button
+                type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => handlePageChange(page - 1)}
@@ -389,6 +394,7 @@ export default function AdminSupport() {
                 Page {page} of {totalPages}
               </div>
               <Button
+                type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => handlePageChange(page + 1)}

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface AuditLog {
@@ -16,10 +16,14 @@ export interface AuditLog {
   user_role?: string | null;
 }
 
-export function useAuditLogs(category?: string) {
+export function useAuditLogs(category?: string, page: number = 1, pageSize: number = 8, searchQuery: string = "") {
   return useQuery({
-    queryKey: ["audit-logs", category],
-    queryFn: async (): Promise<AuditLog[]> => {
+    queryKey: ["audit-logs", category, page, pageSize, searchQuery],
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+
       let query = supabase
         .from("audit_logs_enhanced")
         .select(`
@@ -33,9 +37,7 @@ export function useAuditLogs(category?: string) {
           metadata,
           created_at,
           action_type:action_type_id (action_name)
-        `)
-        .order("created_at", { ascending: false })
-        .limit(200);
+        `, { count: 'exact' });
 
       if (category && category !== "all") {
         let categories: string[] = [category];
@@ -65,7 +67,13 @@ export function useAuditLogs(category?: string) {
         query = query.in("category", categories);
       }
 
-      const { data, error } = await query;
+      if (searchQuery) {
+        query = query.or(`description.ilike.%${searchQuery}%,ip_address.ilike.%${searchQuery}%,user_id.ilike.%${searchQuery}%`);
+      }
+
+      const { data, error, count } = await query
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
       if (error) throw error;
 
@@ -73,7 +81,6 @@ export function useAuditLogs(category?: string) {
       const logs = data || [];
       const userIds = [...new Set(logs.map(log => log.user_id).filter(Boolean))] as string[];
 
-      // Get user emails and roles from employees table
       // Get user emails and roles from employees table
       const { data: employees } = await supabase
         .from('employees')
@@ -86,11 +93,11 @@ export function useAuditLogs(category?: string) {
       // Get user details from customer table for missing IDs
       let customers: any[] = [];
       if (missingUserIds.length > 0) {
-        const { data } = await supabase
+        const { data: customerData } = await supabase
           .from('customer')
           .select('id, email, full_name')
           .in('id', missingUserIds);
-        customers = data || [];
+        customers = customerData || [];
       }
 
       // Create a map of user_id -> { email, role }
@@ -114,7 +121,7 @@ export function useAuditLogs(category?: string) {
         });
       });
 
-      return logs.map((log: any) => {
+      const enrichedLogs = logs.map((log: any) => {
         const userInfo = log.user_id ? userMap.get(log.user_id) : null;
         const metadata = log.metadata as any || {};
 
@@ -125,6 +132,12 @@ export function useAuditLogs(category?: string) {
           user_role: userInfo?.role || metadata.role || 'User',
         };
       });
+
+      return {
+        logs: enrichedLogs as AuditLog[],
+        totalCount: count || 0,
+        totalPages: Math.ceil((count || 0) / pageSize)
+      };
     },
   });
 }

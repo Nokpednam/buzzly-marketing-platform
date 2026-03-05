@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface ErrorLog {
@@ -54,6 +54,7 @@ export function useDevErrorLogs(levelFilter: string, page: number = 1, pageSize:
     return useQuery({
         queryKey: ["dev-error-logs", levelFilter, page, pageSize, searchQuery],
         refetchInterval: 10000,
+        placeholderData: keepPreviousData,
         queryFn: async () => {
             const from = (page - 1) * pageSize;
             const to = from + pageSize - 1;
