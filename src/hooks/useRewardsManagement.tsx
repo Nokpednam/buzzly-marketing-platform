@@ -24,7 +24,8 @@ export function useRewardsManagement() {
             const { data, error } = await supabase
                 .from("reward_items")
                 .select("*")
-                .order("created_at", { ascending: false });
+                .order("created_at", { ascending: false })
+                .order("id", { ascending: true });
 
             if (error) {
                 toast.error("An error occurred while fetching rewards catalog", {
@@ -44,9 +45,8 @@ export function useRewardsManagement() {
                 .eq("id", id);
             if (error) throw error;
         },
-        onSuccess: (_, variables) => {
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["rewards-management"] });
-            toast.success(variables.is_active ? "เปิดการแลกของรางวัลสำเร็จ" : "ปิดการแลกของรางวัลสำเร็จ");
         },
         onError: (error: Error) => {
             toast.error("เกิดข้อผิดพลาดในการเปลี่ยนสถานะ", { description: error.message });
