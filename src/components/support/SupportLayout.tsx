@@ -4,11 +4,13 @@ import { SupportSidebar } from "./SupportSidebar";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function SupportLayout() {
     const navigate = useNavigate();
     const { toast } = useToast();
     const [isAuthorized, setIsAuthorized] = useState(false);
+    const [isChecking, setIsChecking] = useState(true);
 
     useEffect(() => {
         checkSupportAccess();
@@ -67,15 +69,46 @@ export function SupportLayout() {
         }
 
         setIsAuthorized(true);
+        setIsChecking(false);
     };
 
-    if (!isAuthorized) {
-        return null;
+    // Skeleton layout during auth check — matches the real layout shape
+    if (isChecking && !isAuthorized) {
+        return (
+            <div className="flex min-h-screen w-full">
+                {/* Sidebar skeleton */}
+                <div className="w-64 shrink-0 border-r border-slate-100 bg-white flex flex-col">
+                    <div className="flex items-center gap-3 px-8 py-10">
+                        <Skeleton className="h-10 w-10 rounded-xl" />
+                        <div className="space-y-2">
+                            <Skeleton className="h-4 w-20" />
+                            <Skeleton className="h-2 w-24" />
+                        </div>
+                    </div>
+                    <div className="px-6 space-y-2">
+                        {[1, 2, 3, 4, 5].map(i => (
+                            <Skeleton key={i} className="h-12 w-full rounded-[1.25rem]" />
+                        ))}
+                    </div>
+                </div>
+                {/* Main content skeleton */}
+                <main className="flex-1 px-8 pt-6 pb-10 space-y-6">
+                    <div className="space-y-2">
+                        <Skeleton className="h-8 w-48" />
+                        <Skeleton className="h-4 w-72" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                        {[1, 2, 3].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
+                    </div>
+                    <Skeleton className="h-64 rounded-xl" />
+                </main>
+            </div>
+        );
     }
 
     return (
         <SidebarProvider>
-            <div className="flex min-h-screen w-full">
+            <div className="flex min-h-screen w-full animate-fade-in">
                 <SupportSidebar />
                 <main className="flex-1 overflow-y-auto bg-background px-8 pt-6 pb-10">
                     <Outlet />
@@ -84,3 +117,4 @@ export function SupportLayout() {
         </SidebarProvider>
     );
 }
+
