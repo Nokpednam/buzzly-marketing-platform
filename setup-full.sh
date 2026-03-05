@@ -314,7 +314,7 @@ run_mock_sql "supabase/migrations/20260218200006_mock_crm_system.sql"     "Prosp
 run_mock_sql "supabase/migrations/20260218200007_mock_billing_reports.sql" "Discounts, Invoices, Reports"
 run_mock_sql "supabase/migrations/20260218200008_mock_team_activity_logs.sql" "Team Activity Logs"
 run_mock_sql "supabase/migrations/20260218200009_mock_funnel_activities.sql" "Funnel Stages + Customer Activities"
-run_mock_sql "supabase/migrations/20260218200005_mock_loyalty_analytics.sql" "Loyalty, Analytics (Tier History)"
+run_mock_sql "supabase/migrations/20260218200105_mock_loyalty_analytics.sql" "Loyalty, Analytics (Tier History)"
 run_mock_sql "supabase/migrations/20260218200010_mock_owner_pages.sql" "Owner Pages (Subscriptions, Cohorts, Tiers)"
 
 echo "✅ Mock data re-seeded."
