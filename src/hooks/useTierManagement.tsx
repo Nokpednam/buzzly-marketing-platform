@@ -66,18 +66,38 @@ export function useTierHistory() {
     return useQuery({
         queryKey: ["tier-history"],
         queryFn: async () => {
-            // Only join loyalty_tiers (FKs exist). No FK from user_id/changed_by to customer.
+            // FKs to customer were added in migration 20260224000002_add_loyalty_fks.sql.
+            // Try the full query with customer join first; fall back to tier-only query if
+            // the FK relationship is not found in PostgREST's schema cache (PGRST200).
             const { data, error } = await supabase
                 .from("tier_history")
                 .select(
                     `*,
                     previous_tier:loyalty_tiers!tier_history_previous_tier_id_fkey(name),
-                    new_tier:loyalty_tiers!tier_history_new_tier_id_fkey(name)`
+                    new_tier:loyalty_tiers!tier_history_new_tier_id_fkey(name),
+                    customer:customer!tier_history_user_id_fkey(full_name, email),
+                    changer:customer!tier_history_changed_by_fkey(full_name)`
                 )
                 .order("created_at", { ascending: false })
                 .limit(100);
 
-            if (error) throw error;
+            if (error) {
+                // PGRST200 = "Could not find a relationship" — FK not yet in schema cache
+                if (error.code === "PGRST200" || error.message?.includes("Could not find a relationship")) {
+                    const { data: fallback, error: fallbackError } = await supabase
+                        .from("tier_history")
+                        .select(
+                            `*,
+                            previous_tier:loyalty_tiers!tier_history_previous_tier_id_fkey(name),
+                            new_tier:loyalty_tiers!tier_history_new_tier_id_fkey(name)`
+                        )
+                        .order("created_at", { ascending: false })
+                        .limit(100);
+                    if (fallbackError) throw fallbackError;
+                    return (fallback as unknown as TierHistoryEntry[]) ?? [];
+                }
+                throw error;
+            }
             return (data as unknown as TierHistoryEntry[]) ?? [];
         },
     });
@@ -89,14 +109,26 @@ export function usePointsTransactions() {
     return useQuery({
         queryKey: ["points-transactions-admin"],
         queryFn: async () => {
-            // No FK from user_id to customer — fetch without join.
+            // FK to customer added in migration 20260224000002_add_loyalty_fks.sql.
+            // Fall back to basic query if the FK relationship is not in PostgREST schema cache.
             const { data, error } = await supabase
                 .from("points_transactions")
-                .select("*")
+                .select(`*, customer:customer!points_transactions_user_id_fkey(full_name, email)`)
                 .order("created_at", { ascending: false })
                 .limit(200);
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === "PGRST200" || error.message?.includes("Could not find a relationship")) {
+                    const { data: fallback, error: fallbackError } = await supabase
+                        .from("points_transactions")
+                        .select("*")
+                        .order("created_at", { ascending: false })
+                        .limit(200);
+                    if (fallbackError) throw fallbackError;
+                    return (fallback as unknown as PointsTransaction[]) ?? [];
+                }
+                throw error;
+            }
             return (data as unknown as PointsTransaction[]) ?? [];
         },
     });

@@ -80,8 +80,8 @@ export default function TierManagement() {
   const [overrideReason, setOverrideReason] = useState("");
 
   // Real DB hooks
-  const { data: tierHistory = [], isLoading: historyLoading } = useTierHistory();
-  const { data: pointsTransactions = [], isLoading: txLoading } = usePointsTransactions();
+  const { data: tierHistory = [], isLoading: historyLoading, isError: historyError, error: historyErrorDetail } = useTierHistory();
+  const { data: pointsTransactions = [], isLoading: txLoading, isError: txError, error: txErrorDetail } = usePointsTransactions();
   const { data: suspiciousActivities = [], isLoading: alertsLoading, resolveActivity, suspendCustomer } = useSuspiciousActivities();
   const { query: searchQuery, setQuery: setSearchQuery, data: searchResults = [], isFetching: searchLoading } = useCustomerSearch();
   const manualOverride = useManualTierOverride();
@@ -307,6 +307,12 @@ export default function TierManagement() {
             <CardContent>
               {historyLoading ? (
                 <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+              ) : historyError ? (
+                <div className="text-center py-8 text-destructive flex flex-col items-center gap-2">
+                  <AlertCircle className="h-8 w-8" />
+                  <p className="font-medium">ไม่สามารถโหลดประวัติการเปลี่ยน Tier ได้</p>
+                  <p className="text-sm text-muted-foreground">{(historyErrorDetail as Error)?.message ?? "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ"}</p>
+                </div>
               ) : tierHistory.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">ยังไม่มีประวัติการเปลี่ยน Tier</div>
               ) : (
@@ -379,6 +385,12 @@ export default function TierManagement() {
             <CardContent>
               {txLoading ? (
                 <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
+              ) : txError ? (
+                <div className="text-center py-8 text-destructive flex flex-col items-center gap-2">
+                  <AlertCircle className="h-8 w-8" />
+                  <p className="font-medium">ไม่สามารถโหลดธุรกรรม Points ได้</p>
+                  <p className="text-sm text-muted-foreground">{(txErrorDetail as Error)?.message ?? "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ"}</p>
+                </div>
               ) : pointsTransactions.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">ยังไม่มีธุรกรรม Points</div>
               ) : (
