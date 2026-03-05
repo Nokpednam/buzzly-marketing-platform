@@ -45,6 +45,7 @@ import { BillingTab } from "@/components/settings/BillingTab";
 import { LoyaltyTab } from "@/components/settings/LoyaltyTab";
 import { useUserPaymentMethods } from "@/hooks/useUserPaymentMethods";
 import { useBudgets } from "@/hooks/useBudgets";
+import { useProfileCustomer } from "@/hooks/useProfileCustomer";
 import { Plus, AlertTriangle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
@@ -93,69 +94,42 @@ export default function Settings() {
     birthday: "",
     genderId: "",
   });
-  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
-  // Fetch user profile data
+  // Use the shared hook for profile data
+  const { data: serverProfile, isLoading: isServerLoading, invalidate } = useProfileCustomer();
+
+  // Sync server data to local form state when it loads
   useEffect(() => {
-    const fetchProfileData = async () => {
-      try {
-        setIsLoadingProfile(true);
+    if (serverProfile) {
+      setProfileData({
+        firstName: serverProfile.first_name || "",
+        lastName: serverProfile.last_name || "",
+        // Form needs email, but profile_customers doesn't store it, 
+        // fallback to auth.email if we had it, or keep existing to not wipe it while typing
+        email: profileData.email,
+        phoneNumber: serverProfile.phone_number || "",
+        birthday: serverProfile.birthday_at ? serverProfile.birthday_at.split('T')[0] : "",
+        genderId: serverProfile.gender || "",
+      });
+      setAvatarUrl(serverProfile.avatar_url || null);
+    }
+  }, [serverProfile]);
 
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          toast({
-            title: "Error",
-            description: "User not authenticated",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // Fetch from profile_customers and customer tables
-        const { data: profileCustomer, error: profileError } = await supabase
-          .from('profile_customers')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-
-        const { data: customer, error: customerError } = await supabase
-          .from('customer')
-          .select('email, phone_number')
-          .eq('id', user.id)
-          .single();
-
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.error('Profile fetch error:', profileError);
-        }
-
-        if (customerError && customerError.code !== 'PGRST116') {
-          console.error('Customer fetch error:', customerError);
-        }
-
-        setProfileData({
-          firstName: profileCustomer?.first_name || "",
-          lastName: profileCustomer?.last_name || "",
-          email: customer?.email || user.email || "",
-          phoneNumber: customer?.phone_number || profileCustomer?.phone_number || "",
-          birthday: profileCustomer?.birthday_at ? profileCustomer.birthday_at.split('T')[0] : "",
-          genderId: (profileCustomer as any)?.gender || "",
-        });
-      } catch (error) {
-        console.error('Error fetching profile:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load profile data",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoadingProfile(false);
+  // Fetch user email separately since it's in auth/customer, not profile_customers
+  useEffect(() => {
+    const fetchEmail = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setProfileData(p => ({ ...p, email: user.email || "" }));
       }
     };
+    fetchEmail();
+  }, []);
 
-    fetchProfileData();
-  }, [toast]);
+  const isLoadingProfile = isServerLoading;
 
   // Handle profile save
   const handleSaveProfile = async () => {
@@ -217,6 +191,7 @@ export default function Settings() {
         title: "Success",
         description: "Profile updated successfully",
       });
+      invalidate(); // Re-fetch to sync with sidebar
     } catch (error) {
       console.error('Error saving profile:', error);
       toast({
@@ -226,6 +201,81 @@ export default function Settings() {
       });
     } finally {
       setIsSavingProfile(false);
+    }
+  };
+
+  // Handle avatar upload
+  const handleUploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "ไฟล์ใหญ่เกิน 2MB", variant: "destructive" });
+      return;
+    }
+    try {
+      setIsUploadingAvatar(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const ext = file.name.split('.').pop();
+      const path = `${user.id}/avatar.${ext}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(path);
+
+      // Save URL to profile_customers
+      await supabase
+        .from('profile_customers')
+        .upsert({ user_id: user.id, avatar_url: publicUrl } as any, { onConflict: 'user_id' });
+
+      setAvatarUrl(publicUrl + '?t=' + Date.now()); // bust cache
+      toast({ title: "อัปโหลดรูปสำเร็จ!" });
+      invalidate(); // Re-fetch to sync with sidebar
+    } catch (err: any) {
+      toast({ title: "อัปโหลดไม่สำเร็จ", description: err.message, variant: "destructive" });
+    } finally {
+      setIsUploadingAvatar(false);
+      // Reset input so same file can be re-selected
+      e.target.value = "";
+    }
+  };
+
+  // Handle avatar remove
+  const handleRemoveAvatar = async () => {
+    try {
+      setIsUploadingAvatar(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Remove all avatar files for this user
+      const { data: files } = await supabase.storage.from('avatars').list(user.id);
+      if (files && files.length > 0) {
+        await supabase.storage
+          .from('avatars')
+          .remove(files.map(f => `${user.id}/${f.name}`));
+      }
+
+      // Clear avatar_url in DB
+      await supabase
+        .from('profile_customers')
+        .upsert({ user_id: user.id, avatar_url: null } as any, { onConflict: 'user_id' });
+
+      setAvatarUrl(null);
+      toast({ title: "ลบรูปสำเร็จ!" });
+      invalidate(); // Re-fetch to sync with sidebar
+    } catch (err: any) {
+      toast({ title: "ลบรูปไม่สำเร็จ", description: err.message, variant: "destructive" });
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -295,19 +345,35 @@ export default function Settings() {
               <CardContent className="p-8 pt-0 space-y-8">
                 <div className="flex flex-col sm:flex-row items-center gap-8 bg-background p-6 rounded-2xl border shadow-sm">
                   <div className="relative group shrink-0">
-                    <div className="h-24 w-24 rounded-full bg-primary flex items-center justify-center text-3xl font-black text-white shadow-xl group-hover:opacity-80 transition-opacity uppercase">
-                      {(profileData.firstName?.charAt(0) || "") + (profileData.lastName?.charAt(0) || "") || profileData.email?.charAt(0) || "U"}
-                    </div>
-                    <button className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 rounded-full text-white">
+                    {avatarUrl ? (
+                      <img
+                        src={avatarUrl}
+                        alt="avatar"
+                        className="h-24 w-24 rounded-full object-cover shadow-xl group-hover:opacity-80 transition-opacity"
+                      />
+                    ) : (
+                      <div className="h-24 w-24 rounded-full bg-primary flex items-center justify-center text-3xl font-black text-white shadow-xl group-hover:opacity-80 transition-opacity uppercase">
+                        {(profileData.firstName?.charAt(0) || "") + (profileData.lastName?.charAt(0) || "") || profileData.email?.charAt(0) || "U"}
+                      </div>
+                    )}
+                    <label className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 rounded-full text-white cursor-pointer">
                       <Camera className="h-6 w-6" />
-                    </button>
+                      <input type="file" accept="image/*" className="hidden" onChange={handleUploadAvatar} disabled={isUploadingAvatar} />
+                    </label>
                   </div>
                   <div className="text-center sm:text-left space-y-1">
                     <h4 className="font-bold">{profileData.firstName || profileData.lastName ? `${profileData.firstName} ${profileData.lastName}` : "Unnamed User"}</h4>
                     <p className="text-xs text-muted-foreground">JPG, PNG or GIF. Max 2MB.</p>
                     <div className="pt-2 flex gap-2">
-                      <Button size="sm" variant="outline" className="rounded-lg h-8">Upload New</Button>
-                      <Button size="sm" variant="ghost" className="rounded-lg h-8 text-destructive">Remove</Button>
+                      <label className="cursor-pointer">
+                        <Button size="sm" variant="outline" className="rounded-lg h-8" disabled={isUploadingAvatar} asChild>
+                          <span>{isUploadingAvatar ? "Uploading..." : "Upload New"}</span>
+                        </Button>
+                        <input type="file" accept="image/*" className="hidden" onChange={handleUploadAvatar} disabled={isUploadingAvatar} />
+                      </label>
+                      {avatarUrl && (
+                        <Button size="sm" variant="ghost" className="rounded-lg h-8 text-destructive" onClick={handleRemoveAvatar} disabled={isUploadingAvatar}>Remove</Button>
+                      )}
                     </div>
                   </div>
                 </div>
