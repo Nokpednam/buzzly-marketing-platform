@@ -470,6 +470,17 @@ import { cn } from "@/lib/utils";
 
 ---
 
+## 16. Support Role & Loyalty System Guidelines
+
+When modifying or fixing issues related to the `support` role or the Loyalty system (`/support/tier-management`, `/rewards`), please consider the following:
+
+- **Row-Level Security (RLS)**: The `support` role must have appropriate `SELECT`, `INSERT`, and `UPDATE` permissions on relevant tables (`loyalty_tiers`, `customer_loyalty_points`, `tier_history` etc).
+- **Point Redemption**: Direct updates to `customer_loyalty_points` from the frontend can be insecure. Point redemption and point transactions MUST be done through a secure **Supabase RPC (Database Function)** to ensure atomicity and security. 
+- **Tier Upgrade Logic**: If implementing an automated tier upgrade, the logic should ideally reside in a **Supabase Database Trigger** that listens for updates on `customer_loyalty_points`.
+- **Database Missing Constraints**: The schema requires strict relationships. Ensure all tables such as `tier_history`, `points_transactions`, and `suspicious_activities` maintain correct Foreign Keys to `customer` to avoid breaking frontend joins (`PGRST200` errors).
+
+---
+
 ## 16. Feature Areas Quick Reference
 
 | Area | Pages | Primary Hooks |
@@ -507,3 +518,18 @@ Additional documentation is in the `guide/` folder:
 ---
 
 *Last updated: March 2026. This file should be updated whenever major architectural changes are made.*
+
+## 17. Troubleshooting Common Support/Loyalty Issues
+
+- **Cannot Create Activity Codes / Add Rewards (Role: support)**
+  - Cause: Insufficient RLS permissions for the `support` role to `INSERT` records.
+  - Fix: Check the RLS policies in `supabase/migrations/*_rls.sql` or create a new migration for `INSERT`/`UPDATE` access.
+- **Tier Change History Not Displaying**
+  - Cause: The `tier_history` table might not have been seeded, or there are missing Foreign Keys (especially `user_id` -> `customer(id)`) causing `PGRST200` from PostgREST.
+  - Fix: Ensure `setup-full.sh` correctly runs the mock data seed for loyalty analytics. Verify FKs in migrations.
+- **Point Redemption (Customer) Doesn't Deduct Points**
+  - Cause: Customer updating their own `loyalty_points` directly via frontend is blocked by RLS.
+  - Fix: Implement and call a `redeem_reward` Database Function (RPC) that uses `SECURITY DEFINER` to safely deduct points and insert redemption requests in one atomic transaction.
+- **Loyalty Tier Not Upgrading When Points Threshold is Met**
+  - Cause: There is no automated backend logic.
+  - Fix: Create a `customer_loyalty_points_update` Database Trigger that calculates the new tier based on the `loyalty_tiers` point thresholds whenever a customer's points change, and inserts a record into `tier_history`.
