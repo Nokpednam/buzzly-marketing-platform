@@ -18,7 +18,6 @@ import {
     LogOut,
     ChevronRight,
     HeadphonesIcon,
-    Bell,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -27,6 +26,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { auditAuth } from "@/lib/auditLogger";
+import { useNotifications } from "@/hooks/useNotifications";
+import { NotificationPanel } from "@/components/shared/NotificationPanel";
 
 const supportNavItems = [
     {
@@ -61,6 +62,7 @@ export function SupportSidebar() {
     const location = useLocation();
     const { toast } = useToast();
     const [userEmail, setUserEmail] = useState<string | null>(null);
+    const { notifications, unreadCount, isMarkingAll, markAsRead, markAllAsRead } = useNotifications("support");
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -177,11 +179,16 @@ export function SupportSidebar() {
                             <LogOut className="h-4 w-4" />
                         </button>
 
-                        {/* Bell Notification */}
-                        <button className="relative p-2 text-slate-400 hover:text-slate-700 transition-all duration-150 rounded-lg hover:bg-slate-50 active:scale-90">
-                            <Bell className="h-5 w-5" />
-                            <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 bg-emerald-500 rounded-full border-2 border-white animate-pulse" />
-                        </button>
+                        {/* Live Notification Bell */}
+                        <NotificationPanel
+                            notifications={notifications}
+                            unreadCount={unreadCount}
+                            isMarkingAll={isMarkingAll}
+                            onMarkAsRead={markAsRead}
+                            onMarkAllAsRead={markAllAsRead}
+                            accentColor="bg-emerald-500"
+                            badgeColor="bg-emerald-600"
+                        />
                     </div>
                 </div>
             </SidebarFooter>
