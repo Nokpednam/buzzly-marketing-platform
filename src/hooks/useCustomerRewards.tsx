@@ -76,63 +76,22 @@ export function useCustomerRewards() {
 
     const redeemReward = useMutation({
         mutationFn: async (rewardItem: RewardItem) => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error("Not authenticated");
+            const { data, error } = await supabase.rpc("redeem_reward", {
+                p_reward_item_id: rewardItem.id,
+            });
 
-            // Verify balance
-            const stats = queryClient.getQueryData<CustomerLoyaltyStats | null>(["customer-loyalty-stats"]);
-            if (!stats) throw new Error("Could not find loyalty stats");
-            if (stats.point_balance < rewardItem.points_cost) {
-                throw new Error("คะแนนสะสมไม่เพียงพอ");
+            if (error) {
+                // Map RPC exception messages to user-friendly Thai strings
+                const msg = error.message ?? "";
+                if (msg.includes("insufficient_points")) throw new Error("คะแนนสะสมไม่เพียงพอ");
+                if (msg.includes("out_of_stock")) throw new Error("ของรางวัลชิ้นนี้หมดแล้ว");
+                if (msg.includes("reward_not_found")) throw new Error("ไม่พบของรางวัลนี้");
+                if (msg.includes("loyalty_points_not_found")) throw new Error("ไม่พบข้อมูลคะแนนสะสม");
+                if (msg.includes("not_authenticated")) throw new Error("กรุณาเข้าสู่ระบบก่อน");
+                throw error;
             }
 
-            // Check stock
-            if (rewardItem.stock_quantity !== null && rewardItem.stock_quantity <= 0) {
-                throw new Error("ของรางวัลชิ้นนี้หมดแล้ว");
-            }
-
-            // 1. Log points_transactions (deduction)
-            const { data: tx, error: txError } = await supabase
-                .from("points_transactions")
-                .insert({
-                    user_id: user.id,
-                    loyalty_points_id: stats.id,
-                    transaction_type: "spend",
-                    points_amount: rewardItem.points_cost,
-                    balance_after: stats.point_balance - rewardItem.points_cost,
-                    description: `Redeemed: ${rewardItem.name}`,
-                })
-                .select("id")
-                .single();
-
-            if (txError) throw txError;
-
-            // 2. Create reward_redemptions
-            const { error: redemptionError } = await supabase
-                .from("reward_redemptions")
-                .insert({
-                    user_id: user.id,
-                    reward_id: rewardItem.id,
-                    points_transaction_id: tx.id,
-                    status: "pending",
-                });
-
-            if (redemptionError) throw redemptionError;
-
-            // 3. Deduct stock quantity if limited
-            if (rewardItem.stock_quantity !== null) {
-                const { error: updateError } = await supabase
-                    .from("reward_items")
-                    .update({ stock_quantity: rewardItem.stock_quantity - 1 })
-                    .eq("id", rewardItem.id);
-
-                if (updateError) throw updateError;
-            }
-
-            // NOTE: Database Trigger or Backend service should ultimately be responsible for
-            // deducting point_balance in loyalty_points table concurrently safely, 
-            // but for optimistic approach we can let the backend handle the reduction of point balance
-            // We will trigger a refetch of stats
+            return data as { success: boolean; new_balance: number };
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["customer-loyalty-stats"] });
