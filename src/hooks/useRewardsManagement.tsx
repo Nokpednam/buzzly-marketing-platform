@@ -53,19 +53,43 @@ export function useRewardsManagement() {
         },
     });
 
-    const updateRewardItem = useMutation({
-        mutationFn: async ({
-            id,
-            points_cost,
-            stock_quantity
-        }: {
-            id: string;
+    const createRewardItem = useMutation({
+        mutationFn: async (item: {
+            name: string;
+            description: string | null;
+            reward_type: string;
             points_cost: number;
             stock_quantity: number | null;
+            image_url: string | null;
+            is_active: boolean;
         }) => {
+            const { error } = await supabase.from("reward_items").insert(item);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["rewards-management"] });
+            toast.success("เพิ่มของรางวัลสำเร็จ");
+        },
+        onError: (error: Error) => {
+            toast.error("ไม่สามารถเพิ่มของรางวัลได้", { description: error.message });
+        },
+    });
+
+    const updateRewardItem = useMutation({
+        mutationFn: async (item: {
+            id: string;
+            name: string;
+            description: string | null;
+            reward_type: string;
+            points_cost: number;
+            stock_quantity: number | null;
+            image_url: string | null;
+            is_active: boolean;
+        }) => {
+            const { id, ...updates } = item;
             const { error } = await supabase
                 .from("reward_items")
-                .update({ points_cost, stock_quantity })
+                .update(updates)
                 .eq("id", id);
             if (error) throw error;
         },
@@ -78,9 +102,25 @@ export function useRewardsManagement() {
         },
     });
 
+    const deleteRewardItem = useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase.from("reward_items").delete().eq("id", id);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["rewards-management"] });
+            toast.success("ลบของรางวัลสำเร็จ");
+        },
+        onError: (error: Error) => {
+            toast.error("ไม่สามารถลบของรางวัลได้", { description: error.message });
+        },
+    });
+
     return {
         ...query,
         toggleRewardStatus,
+        createRewardItem,
         updateRewardItem,
+        deleteRewardItem,
     };
 }

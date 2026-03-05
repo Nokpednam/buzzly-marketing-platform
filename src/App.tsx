@@ -31,13 +31,13 @@ import Analytics from "./pages/Analytics";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
-import MonitorDashboard from "./pages/admin/MonitorDashboard";
-import AuditLogs from "./pages/admin/AuditLogs";
-import TierManagement from "./pages/admin/TierManagement";
-import EmployeeManagement from "./pages/admin/EmployeeManagement";
-import RewardsCampaigns from "./pages/admin/RewardsCampaigns";
-import RewardsManagement from "./pages/admin/RewardsManagement";
-import RedemptionRequests from "./pages/admin/RedemptionRequests";
+import MonitorDashboard from "./pages/dev/MonitorDashboard";
+import AuditLogs from "./pages/dev/AuditLogs";
+import EmployeeManagement from "./pages/dev/EmployeeManagement";
+import TierManagement from "./pages/support/TierManagement";
+import RewardsCampaigns from "./pages/support/RewardsCampaigns";
+import RewardsManagement from "./pages/support/RewardsManagement";
+import RedemptionRequests from "./pages/support/RedemptionRequests";
 import TeamManagement from "./pages/TeamManagement";
 import ProductUsage from "./pages/owner/ProductUsage";
 import BusinessPerformance from "./pages/owner/BusinessPerformance";
@@ -47,9 +47,6 @@ import CustomerTiers from "./pages/owner/CustomerTiers";
 import OwnerDiscounts from "./pages/owner/OwnerDiscounts";
 
 // Dev pages (renamed from admin)
-import DevLogin from "./pages/dev/DevLogin";
-import DevSignUp from "./pages/dev/DevSignUp";
-import DevMembers from "./pages/dev/DevMembers";
 import DevSupport from "./pages/dev/DevSupport";
 import DevWorkspaces from "./pages/dev/DevWorkspaces";
 
@@ -145,7 +142,6 @@ const App = () => (
                     <Route path="/dev/audit-logs" element={<AuditLogs />} />
                     <Route path="/dev/employees" element={<EmployeeManagement />} />
                     <Route path="/dev/support" element={<DevSupport />} />
-                    <Route path="/dev/members" element={<DevMembers />} />
                   </Route>
 
                   {/* Support Employee Routes */}

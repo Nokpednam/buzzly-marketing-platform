@@ -7,6 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import {
     Table,
     TableBody,
@@ -23,15 +31,29 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { PackageOpen, Edit, AlertCircle, Search, Gift, Loader2 } from "lucide-react";
+import { PackageOpen, Edit, Search, Gift, Loader2, Plus, Trash2 } from "lucide-react";
+
+const REWARD_TYPES = ["system_quota", "service", "partner_perk", "digital_asset"] as const;
+
+const emptyForm = {
+    name: "",
+    description: "",
+    reward_type: "service",
+    points_cost: 0,
+    stock_quantity: "" as number | "",
+    image_url: "",
+    is_active: true,
+};
+
+type FormState = typeof emptyForm;
 
 export default function RewardsManagement() {
-    const { data: rewards = [], isLoading, toggleRewardStatus, updateRewardItem } = useRewardsManagement();
+    const { data: rewards = [], isLoading, toggleRewardStatus, createRewardItem, updateRewardItem, deleteRewardItem } = useRewardsManagement();
 
     const [searchTerm, setSearchTerm] = useState("");
-    const [editingReward, setEditingReward] = useState<RewardItem | null>(null);
-    const [editPointsCost, setEditPointsCost] = useState<number>(0);
-    const [editStock, setEditStock] = useState<number | "">("");
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [form, setForm] = useState<FormState>(emptyForm);
 
     const filteredRewards = rewards.filter(r =>
         r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -39,22 +61,58 @@ export default function RewardsManagement() {
     );
 
     const activeCount = rewards.filter(r => r.is_active).length;
+    const isEditing = editingId !== null;
+    const isPending = createRewardItem.isPending || updateRewardItem.isPending;
 
-    const handleEditClick = (reward: RewardItem) => {
-        setEditingReward(reward);
-        setEditPointsCost(reward.points_cost);
-        setEditStock(reward.stock_quantity ?? "");
+    const openCreate = () => {
+        setEditingId(null);
+        setForm(emptyForm);
+        setDialogOpen(true);
     };
 
-    const handleSaveEdit = async () => {
-        if (!editingReward) return;
-        await updateRewardItem.mutateAsync({
-            id: editingReward.id,
-            points_cost: editPointsCost,
-            stock_quantity: editStock === "" ? null : Number(editStock),
+    const openEdit = (reward: RewardItem) => {
+        setEditingId(reward.id);
+        setForm({
+            name: reward.name,
+            description: reward.description ?? "",
+            reward_type: reward.reward_type,
+            points_cost: reward.points_cost,
+            stock_quantity: reward.stock_quantity ?? "",
+            image_url: reward.image_url ?? "",
+            is_active: reward.is_active,
         });
-        setEditingReward(null);
+        setDialogOpen(true);
     };
+
+    const handleDelete = (reward: RewardItem) => {
+        if (window.confirm(`คุณแน่ใจหรือไม่ที่จะลบ "${reward.name}"?`)) {
+            deleteRewardItem.mutate(reward.id);
+        }
+    };
+
+    const handleSubmit = async () => {
+        if (!form.name.trim()) return;
+
+        const payload = {
+            name: form.name.trim(),
+            description: form.description.trim() || null,
+            reward_type: form.reward_type,
+            points_cost: Number(form.points_cost),
+            stock_quantity: form.stock_quantity === "" ? null : Number(form.stock_quantity),
+            image_url: form.image_url.trim() || null,
+            is_active: form.is_active,
+        };
+
+        if (isEditing) {
+            await updateRewardItem.mutateAsync({ id: editingId!, ...payload });
+        } else {
+            await createRewardItem.mutateAsync(payload);
+        }
+        setDialogOpen(false);
+    };
+
+    const set = (field: keyof FormState, value: FormState[keyof FormState]) =>
+        setForm(prev => ({ ...prev, [field]: value }));
 
     return (
         <div className="space-y-6 p-6 animate-fade-in">
@@ -66,6 +124,9 @@ export default function RewardsManagement() {
                     </h1>
                     <p className="text-muted-foreground mt-1">จัดการแคตตาล็อกของรางวัลสำหรับนำไปแลกด้วยคะแนนสะสม</p>
                 </div>
+                <Button onClick={openCreate} className="shrink-0">
+                    <Plus className="h-4 w-4 mr-2" /> Add Reward
+                </Button>
             </div>
 
             {/* Summary Cards */}
@@ -143,7 +204,7 @@ export default function RewardsManagement() {
                                     {filteredRewards.map((reward) => (
                                         <TableRow
                                             key={reward.id}
-                                            className={`table-row-hover transition-opacity duration-200 ${reward.is_active ? "" : "opacity-60 bg-muted/20"}`}
+                                            className={`transition-opacity duration-200 ${reward.is_active ? "" : "opacity-60 bg-muted/20"}`}
                                         >
                                             <TableCell>
                                                 <div className="h-10 w-10 rounded-md border bg-muted flex items-center justify-center overflow-hidden">
@@ -187,9 +248,20 @@ export default function RewardsManagement() {
                                                 />
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="ghost" size="sm" className="press-effect" onClick={() => handleEditClick(reward)}>
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <Button variant="ghost" size="sm" onClick={() => openEdit(reward)}>
+                                                        <Edit className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="text-destructive hover:text-destructive"
+                                                        onClick={() => handleDelete(reward)}
+                                                        disabled={deleteRewardItem.isPending && deleteRewardItem.variables === reward.id}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -200,43 +272,100 @@ export default function RewardsManagement() {
                 </CardContent>
             </Card>
 
-            {/* Edit Dialog */}
-            <Dialog open={!!editingReward} onOpenChange={(open) => !open && setEditingReward(null)}>
-                <DialogContent>
+            {/* Create / Edit Dialog */}
+            <Dialog open={dialogOpen} onOpenChange={(open) => !open && setDialogOpen(false)}>
+                <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>แก้ไขของรางวัล</DialogTitle>
+                        <DialogTitle>{isEditing ? "แก้ไขของรางวัล" : "เพิ่มของรางวัลใหม่"}</DialogTitle>
                         <DialogDescription>
-                            ปรับเปลี่ยนคะแนนที่ใช้แลกและจำนวนสต๊อกของ "{editingReward?.name}"
+                            {isEditing ? `แก้ไขข้อมูลของรางวัล "${form.name}"` : "กรอกข้อมูลของรางวัลที่ต้องการเพิ่มในระบบ"}
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
+
+                    <div className="space-y-4 py-2">
                         <div className="space-y-2">
-                            <Label>คะแนนที่ใช้แลก (Points Cost)</Label>
+                            <Label>ชื่อของรางวัล <span className="text-destructive">*</span></Label>
                             <Input
-                                type="number"
-                                value={editPointsCost}
-                                onChange={(e) => setEditPointsCost(Number(e.target.value))}
+                                placeholder="เช่น Extra Storage 10GB"
+                                value={form.name}
+                                onChange={(e) => set("name", e.target.value)}
                             />
                         </div>
+
                         <div className="space-y-2">
-                            <Label>จำนวนสต๊อก (เว้นว่างไว้หากไม่จำกัดจำนวน)</Label>
-                            <Input
-                                type="number"
-                                placeholder="เช่น 100, หรือเว้นว่าง"
-                                value={editStock}
-                                onChange={(e) => setEditStock(e.target.value === "" ? "" : Number(e.target.value))}
+                            <Label>คำอธิบาย</Label>
+                            <Textarea
+                                placeholder="รายละเอียดของรางวัล..."
+                                className="resize-none"
+                                rows={3}
+                                value={form.description}
+                                onChange={(e) => set("description", e.target.value)}
                             />
                         </div>
-                        <div className="flex items-start gap-2 text-sm text-yellow-600 bg-yellow-50 p-3 rounded-lg mt-4">
-                            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                            <p>การปรับสต๊อกให้เป็น 0 ของรางวัลจะแสดงเป็น "หมด" ในหน้าระบบ</p>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>ประเภท</Label>
+                                <Select value={form.reward_type} onValueChange={(v) => set("reward_type", v)}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {REWARD_TYPES.map(t => (
+                                            <SelectItem key={t} value={t}>{t}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>คะแนนที่ใช้แลก</Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    value={form.points_cost}
+                                    onChange={(e) => set("points_cost", Number(e.target.value))}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>จำนวนสต๊อก <span className="text-xs text-muted-foreground">(เว้นว่าง = ไม่จำกัด)</span></Label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    placeholder="ไม่จำกัด"
+                                    value={form.stock_quantity}
+                                    onChange={(e) => set("stock_quantity", e.target.value === "" ? "" : Number(e.target.value))}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>URL รูปภาพ</Label>
+                                <Input
+                                    placeholder="https://..."
+                                    value={form.image_url}
+                                    onChange={(e) => set("image_url", e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 pt-1">
+                            <Switch
+                                id="is_active"
+                                checked={form.is_active}
+                                onCheckedChange={(v) => set("is_active", v)}
+                            />
+                            <Label htmlFor="is_active" className="cursor-pointer">เปิดให้แลกได้ทันที</Label>
                         </div>
                     </div>
+
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setEditingReward(null)}>ยกเลิก</Button>
-                        <Button onClick={handleSaveEdit} disabled={updateRewardItem.isPending}>
-                            {updateRewardItem.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                            บันทึก
+                        <Button variant="outline" onClick={() => setDialogOpen(false)}>ยกเลิก</Button>
+                        <Button onClick={handleSubmit} disabled={isPending || !form.name.trim()}>
+                            {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                            {isEditing ? "บันทึก" : "เพิ่มของรางวัล"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

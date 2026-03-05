@@ -75,6 +75,7 @@ export default function Campaigns() {
   const {
     campaigns: dbCampaigns,
     isLoading,
+    error,
     createCampaign,
     updateCampaign,
     deleteCampaign,
@@ -136,7 +137,7 @@ export default function Campaigns() {
     return dbCampaigns.map((c) => ({
       ...c,
       displayStatus: c.status || "draft",
-      progress: c.status === "completed" ? 100 : c.status === "active" ? 50 : 0,
+      progress: calculateProgress(c.start_date, c.end_date),
     }));
   }, [dbCampaigns]);
 
@@ -240,6 +241,18 @@ export default function Campaigns() {
         <p className="text-muted-foreground animate-pulse font-medium">
           Synchronizing campaign data...
         </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="p-4 bg-destructive/10 rounded-full">
+          <Target className="h-8 w-8 text-destructive" />
+        </div>
+        <h3 className="text-xl font-bold">Failed to load campaigns</h3>
+        <p className="text-muted-foreground text-sm">{(error as Error).message}</p>
       </div>
     );
   }
@@ -641,6 +654,18 @@ export default function Campaigns() {
       </Dialog>
     </div>
   );
+}
+
+// HELPERS
+function calculateProgress(startDate: string | null, endDate: string | null): number {
+  if (!startDate || !endDate) return 0;
+  const now = Date.now();
+  const start = new Date(startDate).getTime();
+  const end = new Date(endDate).getTime();
+  if (end <= start) return 0;
+  if (now <= start) return 0;
+  if (now >= end) return 100;
+  return Math.round(((now - start) / (end - start)) * 100);
 }
 
 // UI HELPERS
