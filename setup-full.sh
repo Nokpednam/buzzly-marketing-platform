@@ -125,16 +125,16 @@ echo "✅ Owner role assigned."
 echo ""
 
 # ---------------------------------------------------------
-# 4.5. Create Default Admin Account
+# 4.5. Create Default Dev Account
 # ---------------------------------------------------------
-echo "Step 4.5: Creating Default Admin Account (admin@buzzly.co)..."
+echo "Step 4.5: Creating Default Dev Account (dev@buzzly.co)..."
 docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres <<'SQL_EOF'
 DO $$
 DECLARE
-    admin_user_id uuid := 'a0000000-0000-0000-0000-000000000000';
-    admin_email text := 'admin@buzzly.co';
-    admin_password text := 'admin123';
-    admin_role_id uuid;
+    dev_user_id uuid := 'd0000000-0000-0000-0000-000000000000';
+    dev_email text := 'dev@buzzly.co';
+    dev_password text := 'dev123';
+    dev_role_id uuid;
 BEGIN
     -- 1. Create Identity & User in Auth Schema
     INSERT INTO auth.users (
@@ -143,14 +143,14 @@ BEGIN
         confirmation_token, recovery_token, email_change_token_new, email_change
     ) VALUES (
         '00000000-0000-0000-0000-000000000000',
-        admin_user_id,
+        dev_user_id,
         'authenticated',
         'authenticated',
-        admin_email,
-        crypt(admin_password, gen_salt('bf')),
+        dev_email,
+        crypt(dev_password, gen_salt('bf')),
         NOW(),
         '{"provider":"email","providers":["email"]}'::jsonb,
-        '{"display_name":"Admin User", "is_employee_signup": true}'::jsonb,
+        '{"display_name":"Dev User", "is_employee_signup": true}'::jsonb,
         NOW(),
         NOW(),
         '', '', '', ''
@@ -161,13 +161,13 @@ BEGIN
         updated_at = NOW();
 
     -- Create Identity
-    IF NOT EXISTS (SELECT 1 FROM auth.identities WHERE provider = 'email' AND user_id = admin_user_id) THEN
+    IF NOT EXISTS (SELECT 1 FROM auth.identities WHERE provider = 'email' AND user_id = dev_user_id) THEN
         INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
         VALUES (
             gen_random_uuid(),
-            admin_user_id::text,
-            admin_user_id,
-            jsonb_build_object('sub', admin_user_id::text, 'email', admin_email),
+            dev_user_id::text,
+            dev_user_id,
+            jsonb_build_object('sub', dev_user_id::text, 'email', dev_email),
             'email',
             NOW(),
             NOW(),
@@ -175,25 +175,97 @@ BEGIN
         );
     END IF;
 
-    -- 2. Assign Admin Role & Approve
-    SELECT id INTO admin_role_id FROM public.role_employees WHERE role_name = 'admin';
+    -- 2. Assign Dev Role & Approve
+    SELECT id INTO dev_role_id FROM public.role_employees WHERE role_name = 'dev';
 
-    IF admin_role_id IS NOT NULL THEN
+    IF dev_role_id IS NOT NULL THEN
         INSERT INTO public.employees (user_id, email, status, approval_status, role_employees_id, created_at, updated_at)
-        VALUES (admin_user_id, admin_email, 'active', 'approved', admin_role_id, NOW(), NOW())
+        VALUES (dev_user_id, dev_email, 'active', 'approved', dev_role_id, NOW(), NOW())
         ON CONFLICT (user_id) DO UPDATE SET
             status = 'active',
             approval_status = 'approved',
-            role_employees_id = admin_role_id,
+            role_employees_id = dev_role_id,
             updated_at = NOW();
             
-        RAISE NOTICE '✅ Created Admin User: % (Password: %)', admin_email, admin_password;
+        RAISE NOTICE '✅ Created Dev User: % (Password: %)', dev_email, dev_password;
     ELSE
-        RAISE WARNING '⚠️ Admin role not found! Employee record not created.';
+        RAISE WARNING '⚠️ Dev role not found! Employee record not created.';
     END IF;
 END $$;
 SQL_EOF
-echo "✅ Admin account created."
+echo "✅ Dev account created."
+echo ""
+
+# ---------------------------------------------------------
+# 4.6. Create Default Support Account
+# ---------------------------------------------------------
+echo "Step 4.6: Creating Default Support Account (support@buzzly.co)..."
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres <<'SQL_EOF'
+DO $$
+DECLARE
+    support_user_id uuid := 'e0000000-0000-0000-0000-000000000000';
+    support_email text := 'support@buzzly.co';
+    support_password text := 'support123';
+    support_role_id uuid;
+BEGIN
+    -- 1. Create Identity & User in Auth Schema
+    INSERT INTO auth.users (
+        instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+        raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+        confirmation_token, recovery_token, email_change_token_new, email_change
+    ) VALUES (
+        '00000000-0000-0000-0000-000000000000',
+        support_user_id,
+        'authenticated',
+        'authenticated',
+        support_email,
+        crypt(support_password, gen_salt('bf')),
+        NOW(),
+        '{"provider":"email","providers":["email"]}'::jsonb,
+        '{"display_name":"Support User", "is_employee_signup": true}'::jsonb,
+        NOW(),
+        NOW(),
+        '', '', '', ''
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        encrypted_password = EXCLUDED.encrypted_password,
+        email_confirmed_at = EXCLUDED.email_confirmed_at,
+        updated_at = NOW();
+
+    -- Create Identity
+    IF NOT EXISTS (SELECT 1 FROM auth.identities WHERE provider = 'email' AND user_id = support_user_id) THEN
+        INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+        VALUES (
+            gen_random_uuid(),
+            support_user_id::text,
+            support_user_id,
+            jsonb_build_object('sub', support_user_id::text, 'email', support_email),
+            'email',
+            NOW(),
+            NOW(),
+            NOW()
+        );
+    END IF;
+
+    -- 2. Assign Support Role & Approve
+    SELECT id INTO support_role_id FROM public.role_employees WHERE role_name = 'support';
+
+    IF support_role_id IS NOT NULL THEN
+        INSERT INTO public.employees (user_id, email, status, approval_status, role_employees_id, created_at, updated_at)
+        VALUES (support_user_id, support_email, 'active', 'approved', support_role_id, NOW(), NOW())
+        ON CONFLICT (user_id) DO UPDATE SET
+            status = 'active',
+            approval_status = 'approved',
+            role_employees_id = support_role_id,
+            updated_at = NOW();
+            
+        RAISE NOTICE '✅ Created Support User: % (Password: %)', support_email, support_password;
+    ELSE
+        RAISE WARNING '⚠️ Support role not found! Employee record not created.';
+    END IF;
+END $$;
+SQL_EOF
+echo "✅ Support account created."
 echo ""
 
 # ---------------------------------------------------------
@@ -277,5 +349,6 @@ echo ""
 echo "========================================="
 echo "✅✅ SETUP COMPLETE SUCCESSFULLY! ✅✅"
 echo "========================================="
-echo "Owner Login : hachikonoluna@gmail.com / owner123"
-echo "Admin Login : admin@buzzly.co / admin123"
+echo "Owner Login   : hachikonoluna@gmail.com / owner123"
+echo "Dev Login     : dev@buzzly.co / dev123"
+echo "Support Login : support@buzzly.co / support123"

@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useEmployeeAuth, EmployeeRole } from "@/hooks/useEmployeeAuth";
 
 interface EmployeeProtectedRouteProps {
@@ -8,9 +8,12 @@ interface EmployeeProtectedRouteProps {
 
 export function EmployeeProtectedRoute({
   children,
-  allowedRoles = ["owner", "admin", "support", "developer"]
+  allowedRoles = ["owner", "admin", "dev", "support", "developer"]
 }: EmployeeProtectedRouteProps) {
   const { user, session, isEmployee, employeeRole, approvalStatus, loading } = useEmployeeAuth();
+  const location = useLocation();
+
+  const loginPage = "/employee/login";
 
   if (loading) {
     return (
@@ -20,9 +23,9 @@ export function EmployeeProtectedRoute({
     );
   }
 
-  // Not logged in - redirect to admin login
+  // Not logged in - redirect to appropriate login page
   if (!user || !session) {
-    return <Navigate to="/admin/login" replace />;
+    return <Navigate to={loginPage} replace />;
   }
 
   // Check if pending approval
@@ -37,10 +40,10 @@ export function EmployeeProtectedRoute({
           </div>
           <h1 className="text-2xl font-bold text-foreground">รอการอนุมัติ</h1>
           <p className="text-muted-foreground">
-            บัญชีของคุณอยู่ระหว่างรอการอนุมัติจาก Admin กรุณารอการยืนยัน
+            บัญชีของคุณอยู่ระหว่างรอการอนุมัติจาก Dev/Admin กรุณารอการยืนยัน
           </p>
           <button
-            onClick={() => window.location.href = "/admin/login"}
+            onClick={() => window.location.href = loginPage}
             className="text-primary hover:underline"
           >
             กลับหน้า Login
@@ -86,8 +89,14 @@ export function EmployeeProtectedRoute({
     if (employeeRole === "owner") {
       return <Navigate to="/owner/product-usage" replace />;
     }
-    // Other roles go to admin panel
-    return <Navigate to="/admin/monitor" replace />;
+    // Other roles: support goes to support panel, dev goes to dev panel
+    if (employeeRole === "dev") {
+      return <Navigate to="/dev/monitor" replace />;
+    }
+    if (employeeRole === "support") {
+      return <Navigate to="/support/workspaces" replace />;
+    }
+    return <Navigate to="/dev/monitor" replace />;
   }
 
   return <>{children}</>;

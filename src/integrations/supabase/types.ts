@@ -4205,7 +4205,7 @@ export type Database = {
       validate_collected_discount: { Args: { p_code: string }; Returns: Json }
     }
     Enums: {
-      app_role: "customer" | "admin" | "owner" | "dev"
+      app_role: "customer" | "admin" | "owner" | "dev" | "support"
       invitation_status: "pending" | "accepted" | "declined" | "expired"
       member_status: "active" | "suspended" | "removed"
       team_role: "owner" | "admin" | "editor" | "viewer"
@@ -4339,7 +4339,7 @@ export const Constants = {
   },
   public: {
     Enums: {
-      app_role: ["customer", "admin", "owner", "dev"],
+      app_role: ["customer", "admin", "owner", "dev", "support"],
       invitation_status: ["pending", "accepted", "declined", "expired"],
       member_status: ["active", "suspended", "removed"],
       team_role: ["owner", "admin", "editor", "viewer"],

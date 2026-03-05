@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { DevLayout } from "@/components/dev/DevLayout";
 import { OwnerLayout } from "@/components/owner/OwnerLayout";
 import { CustomerProtectedRoute } from "@/components/CustomerProtectedRoute";
 import { EmployeeProtectedRoute } from "@/components/EmployeeProtectedRoute";
@@ -31,25 +31,34 @@ import Analytics from "./pages/Analytics";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
-import AdminLogin from "./pages/admin/AdminLogin";
-import AdminSignUp from "./pages/admin/AdminSignUp";
 import MonitorDashboard from "./pages/admin/MonitorDashboard";
 import AuditLogs from "./pages/admin/AuditLogs";
-import AdminWorkspaces from "./pages/admin/AdminWorkspaces";
-import AdminMembers from "./pages/admin/AdminMembers";
-import AdminSupport from "./pages/admin/AdminSupport";
+import TierManagement from "./pages/admin/TierManagement";
+import EmployeeManagement from "./pages/admin/EmployeeManagement";
+import RewardsCampaigns from "./pages/admin/RewardsCampaigns";
+import RewardsManagement from "./pages/admin/RewardsManagement";
+import RedemptionRequests from "./pages/admin/RedemptionRequests";
+import TeamManagement from "./pages/TeamManagement";
 import ProductUsage from "./pages/owner/ProductUsage";
 import BusinessPerformance from "./pages/owner/BusinessPerformance";
 import UserFeedback from "./pages/owner/UserFeedback";
 import ExecutiveReport from "./pages/owner/ExecutiveReport";
 import CustomerTiers from "./pages/owner/CustomerTiers";
 import OwnerDiscounts from "./pages/owner/OwnerDiscounts";
-import TeamManagement from "./pages/TeamManagement";
-import TierManagement from "./pages/admin/TierManagement";
-import EmployeeManagement from "./pages/admin/EmployeeManagement";
-import RewardsCampaigns from "./pages/admin/RewardsCampaigns";
-import RewardsManagement from "./pages/admin/RewardsManagement";
-import RedemptionRequests from "./pages/admin/RedemptionRequests";
+
+// Dev pages (renamed from admin)
+import DevLogin from "./pages/dev/DevLogin";
+import DevSignUp from "./pages/dev/DevSignUp";
+import DevMembers from "./pages/dev/DevMembers";
+import DevSupport from "./pages/dev/DevSupport";
+import DevWorkspaces from "./pages/dev/DevWorkspaces";
+
+// Employee shared auth
+import EmployeeLogin from "./pages/employee/EmployeeLogin";
+import EmployeeSignUp from "./pages/employee/EmployeeSignUp";
+
+// Support layout
+import { SupportLayout } from "./components/support/SupportLayout";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -105,23 +114,48 @@ const App = () => (
                     <Route path="/team" element={<TeamManagement />} />
                   </Route>
 
-                  {/* Employee Auth Routes */}
-                  <Route path="/admin/login" element={<AdminLogin />} />
-                  <Route path="/admin/signup" element={<AdminSignUp />} />
+                  {/* Legacy /admin/* routes → redirect to /dev/* */}
+                  <Route path="/admin/login" element={<Navigate to="/employee/login" replace />} />
+                  <Route path="/admin/signup" element={<Navigate to="/employee/signup" replace />} />
+                  <Route path="/admin" element={<Navigate to="/dev/monitor" replace />} />
+                  <Route path="/admin/dashboard" element={<Navigate to="/dev/monitor" replace />} />
+                  <Route path="/admin/monitor" element={<Navigate to="/dev/monitor" replace />} />
+                  <Route path="/admin/audit-logs" element={<Navigate to="/dev/audit-logs" replace />} />
+                  <Route path="/admin/workspaces" element={<Navigate to="/support/workspaces" replace />} />
+                  <Route path="/admin/employees" element={<Navigate to="/dev/employees" replace />} />
+                  <Route path="/admin/support" element={<Navigate to="/dev/support" replace />} />
+                  <Route path="/admin/tier-management" element={<Navigate to="/support/tier-management" replace />} />
+                  <Route path="/admin/rewards-campaigns" element={<Navigate to="/support/rewards-campaigns" replace />} />
+                  <Route path="/admin/rewards-management" element={<Navigate to="/support/rewards-management" replace />} />
+                  <Route path="/admin/redemption-requests" element={<Navigate to="/support/redemption-requests" replace />} />
 
-                  {/* Admin Employee Routes (admin, support, developer) */}
-                  <Route element={<EmployeeProtectedRoute allowedRoles={["admin", "support", "developer"]}><AdminLayout /></EmployeeProtectedRoute>}>
-                    <Route path="/admin" element={<Navigate to="/admin/monitor" replace />} />
-                    <Route path="/admin/dashboard" element={<Navigate to="/admin/monitor" replace />} />
-                    <Route path="/admin/monitor" element={<MonitorDashboard />} />
-                    <Route path="/admin/audit-logs" element={<AuditLogs />} />
-                    <Route path="/admin/workspaces" element={<AdminWorkspaces />} />
-                    <Route path="/admin/employees" element={<EmployeeManagement />} />
-                    <Route path="/admin/support" element={<AdminSupport />} />
-                    <Route path="/admin/tier-management" element={<TierManagement />} />
-                    <Route path="/admin/rewards-campaigns" element={<RewardsCampaigns />} />
-                    <Route path="/admin/rewards-management" element={<RewardsManagement />} />
-                    <Route path="/admin/redemption-requests" element={<RedemptionRequests />} />
+                  {/* Legacy /dev/login → /employee/login */}
+                  <Route path="/dev/login" element={<Navigate to="/employee/login" replace />} />
+                  <Route path="/dev/signup" element={<Navigate to="/employee/signup" replace />} />
+
+                  {/* Shared Employee Auth Routes */}
+                  <Route path="/employee/login" element={<EmployeeLogin />} />
+                  <Route path="/employee/signup" element={<EmployeeSignUp />} />
+
+                  {/* Dev Employee Routes — restricted to 4 pages */}
+                  <Route element={<EmployeeProtectedRoute allowedRoles={["dev", "owner"]}><DevLayout /></EmployeeProtectedRoute>}>
+                    <Route path="/dev" element={<Navigate to="/dev/monitor" replace />} />
+                    <Route path="/dev/dashboard" element={<Navigate to="/dev/monitor" replace />} />
+                    <Route path="/dev/monitor" element={<MonitorDashboard />} />
+                    <Route path="/dev/audit-logs" element={<AuditLogs />} />
+                    <Route path="/dev/employees" element={<EmployeeManagement />} />
+                    <Route path="/dev/support" element={<DevSupport />} />
+                    <Route path="/dev/members" element={<DevMembers />} />
+                  </Route>
+
+                  {/* Support Employee Routes */}
+                  <Route element={<EmployeeProtectedRoute allowedRoles={["support", "owner"]}><SupportLayout /></EmployeeProtectedRoute>}>
+                    <Route path="/support" element={<Navigate to="/support/workspaces" replace />} />
+                    <Route path="/support/workspaces" element={<DevWorkspaces />} />
+                    <Route path="/support/tier-management" element={<TierManagement />} />
+                    <Route path="/support/rewards-campaigns" element={<RewardsCampaigns />} />
+                    <Route path="/support/rewards-management" element={<RewardsManagement />} />
+                    <Route path="/support/redemption-requests" element={<RedemptionRequests />} />
                   </Route>
 
                   {/* Owner Employee Routes */}
