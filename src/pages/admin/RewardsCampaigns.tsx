@@ -26,7 +26,15 @@ import { Gift, Edit, Loader2 } from "lucide-react";
 import { useRewardsCampaigns, type PointEarningRule } from "@/hooks/useRewardsCampaigns";
 
 export default function RewardsCampaigns() {
-    const { data: campaigns = [], isLoading, toggleCampaignStatus, updateCampaignReward } = useRewardsCampaigns();
+    const { data: rawCampaigns = [], isLoading, toggleCampaignStatus, updateCampaignReward } = useRewardsCampaigns();
+
+    // Ensure stable sorting locally to avoid jumps during refetch/invalidate
+    const campaigns = [...rawCampaigns].sort((a, b) => {
+        const timeA = new Date(a.created_at).getTime();
+        const timeB = new Date(b.created_at).getTime();
+        if (timeB !== timeA) return timeB - timeA;
+        return a.id.localeCompare(b.id);
+    });
 
     const [editingCampaign, setEditingCampaign] = useState<PointEarningRule | null>(null);
     const [editPoints, setEditPoints] = useState<number>(0);
@@ -55,7 +63,7 @@ export default function RewardsCampaigns() {
     const activeCount = campaigns.filter(c => c.is_active).length;
 
     return (
-        <div className="space-y-6 p-6 animate-fade-in">
+        <div className="space-y-6 p-6">
             {/* Header */}
             <div>
                 <h1 className="text-3xl font-bold text-foreground">Rewards Campaigns</h1>
@@ -100,13 +108,13 @@ export default function RewardsCampaigns() {
                     ) : (
                         <Table>
                             <TableHeader>
-                                <TableRow>
-                                    <TableHead>รหัสกิจกรรม</TableHead>
-                                    <TableHead>ชื่อแคมเปญ</TableHead>
-                                    <TableHead>แต้มรางวัล</TableHead>
-                                    <TableHead>จำกัดครั้ง/ผู้ใช้</TableHead>
-                                    <TableHead>สถานะ</TableHead>
-                                    <TableHead className="text-right">จัดการ</TableHead>
+                                <TableRow className="hover:bg-transparent">
+                                    <TableHead className="text-base font-bold text-foreground">รหัสกิจกรรม</TableHead>
+                                    <TableHead className="text-base font-bold text-foreground">ชื่อแคมเปญ</TableHead>
+                                    <TableHead className="text-base font-bold text-foreground">แต้มรางวัล</TableHead>
+                                    <TableHead className="text-base font-bold text-foreground">จำกัดครั้ง/ผู้ใช้</TableHead>
+                                    <TableHead className="w-[100px] text-base font-bold text-foreground">สถานะ</TableHead>
+                                    <TableHead className="text-right text-base font-bold text-foreground">จัดการ</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -115,10 +123,13 @@ export default function RewardsCampaigns() {
                                     return (
                                         <TableRow
                                             key={campaign.id}
-                                            className={`table-row-hover transition-opacity duration-200 ${isThisPending ? "opacity-60" : ""}`}
+                                            className="table-row-hover"
                                         >
-                                            <TableCell className="font-mono text-xs text-muted-foreground">
-                                                {campaign.action_code}
+                                            <TableCell className="font-mono text-sm font-bold text-foreground">
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`h-2 w-2 rounded-full shrink-0 ${campaign.is_active ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)]" : "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]"}`} />
+                                                    {campaign.action_code}
+                                                </div>
                                             </TableCell>
                                             <TableCell>
                                                 <p className="font-medium">{campaign.name}</p>
@@ -137,15 +148,12 @@ export default function RewardsCampaigns() {
                                                     : `${campaign.max_times_per_user} ครั้ง`}
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center justify-center">
                                                     <Switch
                                                         checked={campaign.is_active}
                                                         onCheckedChange={(checked) => handleToggle(campaign.id, checked)}
                                                         disabled={isThisPending}
                                                     />
-                                                    <span className="text-sm">
-                                                        {campaign.is_active ? "เปิดใช้งาน" : "ปิด"}
-                                                    </span>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-right">

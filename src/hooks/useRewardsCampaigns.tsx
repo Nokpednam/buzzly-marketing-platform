@@ -23,7 +23,8 @@ export function useRewardsCampaigns() {
             const { data, error } = await supabase
                 .from("point_earning_rules")
                 .select("*")
-                .order("created_at", { ascending: false });
+                .order("created_at", { ascending: false })
+                .order("id", { ascending: true });
 
             if (error) {
                 toast.error("An error occurred while fetching campaigns", {
@@ -43,9 +44,8 @@ export function useRewardsCampaigns() {
                 .eq("id", id);
             if (error) throw error;
         },
-        onSuccess: (_, variables) => {
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["rewards-campaigns"] });
-            toast.success(variables.is_active ? "เปิดแคมเปญสำเร็จ" : "ปิดแคมเปญสำเร็จ");
         },
         onError: (error: Error) => {
             toast.error("เกิดข้อผิดพลาดในการเปลี่ยนสถานะ", { description: error.message });

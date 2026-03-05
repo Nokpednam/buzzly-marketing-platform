@@ -38,6 +38,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
     Building2,
     Users,
     MoreHorizontal,
@@ -58,6 +66,8 @@ export default function DevWorkspaces() {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedWorkspace, setSelectedWorkspace] = useState<Team | null>(null);
     const [viewMode, setViewMode] = useState<"members" | "api" | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 8;
 
     const { data: workspaces, isLoading, refetch } = useDevWorkspaces();
     const updateStatusMutation = useUpdateWorkspaceStatus();
@@ -88,7 +98,18 @@ export default function DevWorkspaces() {
         ws.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         ws.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         ws.business_types?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    ) || [];
+
+    const totalPages = Math.ceil(filteredWorkspaces.length / ITEMS_PER_PAGE);
+    const paginatedWorkspaces = filteredWorkspaces.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
     );
+
+    const handleSearchChange = (value: string) => {
+        setSearchQuery(value);
+        setCurrentPage(1);
+    };
 
     const handleSuspendToggle = async (workspace: Team) => {
         const isSuspended = workspace.status === 'suspended';
@@ -191,7 +212,7 @@ export default function DevWorkspaces() {
                             <Input
                                 placeholder="Search workspaces by name, description, or business type..."
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={(e) => handleSearchChange(e.target.value)}
                                 className="pl-10"
                             />
                         </div>
@@ -217,7 +238,7 @@ export default function DevWorkspaces() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredWorkspaces?.map((workspace) => {
+                                {paginatedWorkspaces.map((workspace) => {
                                     const stats = workspaceStats?.[workspace.id] || { members: 0, adAccounts: 0 };
                                     const isSuspended = workspace.status === 'suspended';
 
@@ -336,6 +357,33 @@ export default function DevWorkspaces() {
                                 )}
                             </TableBody>
                         </Table>
+                    )}
+
+                    {totalPages > 1 && (
+                        <div className="mt-4 flex items-center justify-between">
+                            <p className="text-sm text-muted-foreground">
+                                Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredWorkspaces.length)} of {filteredWorkspaces.length} workspaces
+                            </p>
+                            <Pagination>
+                                <PaginationContent>
+                                    <PaginationItem>
+                                        <PaginationPrevious
+                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                            className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                        />
+                                    </PaginationItem>
+                                    <PaginationItem className="flex items-center px-4 text-sm font-medium">
+                                        Page {currentPage} of {totalPages}
+                                    </PaginationItem>
+                                    <PaginationItem>
+                                        <PaginationNext
+                                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                            className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                        />
+                                    </PaginationItem>
+                                </PaginationContent>
+                            </Pagination>
+                        </div>
                     )}
                 </CardContent>
             </Card>
