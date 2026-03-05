@@ -33,7 +33,15 @@ export default function RewardsManagement() {
     const [editPointsCost, setEditPointsCost] = useState<number>(0);
     const [editStock, setEditStock] = useState<number | "">("");
 
-    const filteredRewards = rewards.filter(r =>
+    // Ensure stable sorting locally to avoid jumps during refetch/invalidate
+    const sortedRewards = [...rewards].sort((a, b) => {
+        const timeA = new Date(a.created_at).getTime();
+        const timeB = new Date(b.created_at).getTime();
+        if (timeB !== timeA) return timeB - timeA;
+        return a.id.localeCompare(b.id);
+    });
+
+    const filteredRewards = sortedRewards.filter(r =>
         r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (r.description && r.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
@@ -57,7 +65,7 @@ export default function RewardsManagement() {
     };
 
     return (
-        <div className="space-y-6 p-6 animate-fade-in">
+        <div className="space-y-6 p-6">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
@@ -129,21 +137,21 @@ export default function RewardsManagement() {
                         <div className="rounded-md border">
                             <Table>
                                 <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-[80px]">รูปภาพ</TableHead>
-                                        <TableHead>ของรางวัล</TableHead>
-                                        <TableHead>ประเภท</TableHead>
-                                        <TableHead className="text-right">คะแนนที่ใช้แลก</TableHead>
-                                        <TableHead className="text-right">จำนวนคงเหลือ</TableHead>
-                                        <TableHead className="text-center">สถานะใช้งาน</TableHead>
-                                        <TableHead className="text-right">จัดการ</TableHead>
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableHead className="w-[100px] text-base font-bold text-foreground">รูปภาพ</TableHead>
+                                        <TableHead className="text-base font-bold text-foreground">ของรางวัล</TableHead>
+                                        <TableHead className="text-base font-bold text-foreground">ประเภท</TableHead>
+                                        <TableHead className="text-right text-base font-bold text-foreground">คะแนนที่ใช้แลก</TableHead>
+                                        <TableHead className="text-right text-base font-bold text-foreground">จำนวนคงเหลือ</TableHead>
+                                        <TableHead className="text-center text-base font-bold text-foreground">สถานะใช้งาน</TableHead>
+                                        <TableHead className="text-right text-base font-bold text-foreground">จัดการ</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredRewards.map((reward) => (
                                         <TableRow
                                             key={reward.id}
-                                            className={`table-row-hover transition-opacity duration-200 ${reward.is_active ? "" : "opacity-60 bg-muted/20"}`}
+                                            className="table-row-hover"
                                         >
                                             <TableCell>
                                                 <div className="h-10 w-10 rounded-md border bg-muted flex items-center justify-center overflow-hidden">
@@ -155,10 +163,12 @@ export default function RewardsManagement() {
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <p className="font-medium">{reward.name}</p>
-                                                {reward.description && (
-                                                    <p className="text-xs text-muted-foreground truncate max-w-[200px]">{reward.description}</p>
-                                                )}
+                                                <div>
+                                                    <p className="font-medium">{reward.name}</p>
+                                                    {reward.description && (
+                                                        <p className="text-xs text-muted-foreground truncate max-w-[200px]">{reward.description}</p>
+                                                    )}
+                                                </div>
                                             </TableCell>
                                             <TableCell>
                                                 <Badge variant="outline" className="uppercase text-[10px]">
@@ -184,6 +194,7 @@ export default function RewardsManagement() {
                                                     checked={reward.is_active}
                                                     onCheckedChange={() => toggleRewardStatus.mutate({ id: reward.id, is_active: !reward.is_active })}
                                                     disabled={toggleRewardStatus.isPending && toggleRewardStatus.variables?.id === reward.id}
+                                                    className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-slate-400"
                                                 />
                                             </TableCell>
                                             <TableCell className="text-right">

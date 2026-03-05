@@ -126,10 +126,7 @@ export default function RewardsCampaigns() {
                                             className="table-row-hover"
                                         >
                                             <TableCell className="font-mono text-sm font-bold text-foreground">
-                                                <div className="flex items-center gap-2">
-                                                    <div className={`h-2 w-2 rounded-full shrink-0 ${campaign.is_active ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)]" : "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.6)]"}`} />
-                                                    {campaign.action_code}
-                                                </div>
+                                                {campaign.action_code}
                                             </TableCell>
                                             <TableCell>
                                                 <p className="font-medium">{campaign.name}</p>
@@ -153,6 +150,7 @@ export default function RewardsCampaigns() {
                                                         checked={campaign.is_active}
                                                         onCheckedChange={(checked) => handleToggle(campaign.id, checked)}
                                                         disabled={isThisPending}
+                                                        className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-slate-400"
                                                     />
                                                 </div>
                                             </TableCell>
