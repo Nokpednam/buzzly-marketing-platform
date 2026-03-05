@@ -13,9 +13,8 @@ export interface RedemptionRequest {
     redeemed_at: string;
     fulfilled_at: string | null;
     customer?: {
-        email: string;
-        first_name: string | null;
-        last_name: string | null;
+        email: string | null;
+        full_name: string | null;
     };
     reward_item?: {
         name: string;
@@ -34,7 +33,7 @@ export function useRedemptionRequests() {
                 .from("reward_redemptions")
                 .select(`
           *,
-          customer:user_id(email, first_name, last_name),
+          customer:user_id(email, full_name),
           reward_item:reward_id(name, reward_type, points_cost)
         `)
                 .order("redeemed_at", { ascending: false });

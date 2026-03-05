@@ -121,7 +121,7 @@ export function useDevWorkspaceAdAccounts(workspaceId: string | null, enabled: b
         queryFn: async () => {
             const { data, error } = await supabase
                 .from("ad_accounts")
-                .select("*")
+                .select("*, platforms:platform_id (name, icon_url)")
                 .eq("team_id", workspaceId!)
                 .order("created_at", { ascending: false });
 

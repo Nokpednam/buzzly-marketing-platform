@@ -77,8 +77,10 @@ async function main() {
         console.log('✅  Connected to database');
 
         // Capture RAISE NOTICE messages
-        client.on('notice', (msg: { message: string }) => {
-            console.log('   📋', msg.message);
+        client.on('notice', (msg: { message?: string }) => {
+            if (msg.message) {
+                console.log('   📋', msg.message);
+            }
         });
 
         console.log('\n⏳  Running seed SQL (may take 10–30 sec)…\n');

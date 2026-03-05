@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDevErrorLogs, useDevLogStats, ErrorLog } from "@/hooks/useDevSupport";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,12 +95,16 @@ export default function DevSupport() {
     };
 
     const [page, setPage] = useState(1);
-    const pageSize = 10;
+    const pageSize = 8;
 
-    const { data, isLoading, refetch } = useDevErrorLogs(levelFilter, page, pageSize, searchQuery);
+    const { data, isLoading, isFetching, refetch } = useDevErrorLogs(levelFilter, page, pageSize, searchQuery);
     const errorLogs = data?.logs || [];
     const totalCount = data?.totalCount || 0;
     const totalPages = data?.totalPages || 0;
+
+    useEffect(() => {
+        setPage(1);
+    }, [levelFilter, searchQuery]);
 
     const handlePageChange = (newPage: number) => {
         setPage(newPage);
@@ -270,13 +274,13 @@ export default function DevSupport() {
                         </Select>
                     </div>
                 </CardHeader>
-                <CardContent className="p-0">
-                    {isLoading ? (
+                <CardContent className="p-0 relative">
+                    {(!data && isLoading) ? (
                         <div className="text-center py-12 text-muted-foreground">
                             Loading error logs...
                         </div>
                     ) : (
-                        <div className="rounded-md border border-t-0">
+                        <div className={cn("rounded-md border border-t-0 transition-opacity duration-200", isFetching && "opacity-50")}>
                             <Table>
                                 <TableHeader>
                                     <TableRow className="bg-muted/50">
@@ -373,6 +377,7 @@ export default function DevSupport() {
                         </div>
                         <div className="flex items-center gap-2">
                             <Button
+                                type="button"
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handlePageChange(page - 1)}
@@ -384,6 +389,7 @@ export default function DevSupport() {
                                 Page {page} of {totalPages}
                             </div>
                             <Button
+                                type="button"
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handlePageChange(page + 1)}

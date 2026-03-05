@@ -73,7 +73,7 @@ export default function RedemptionRequests() {
     };
 
     return (
-        <div className="space-y-6 p-6">
+        <div className="space-y-6 p-6 animate-fade-in">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-foreground">Redemption Requests</h1>
@@ -123,13 +123,13 @@ export default function RedemptionRequests() {
                                 </TableHeader>
                                 <TableBody>
                                     {filteredRequests.map((req) => (
-                                        <TableRow key={req.id}>
+                                        <TableRow key={req.id} className="table-row-hover">
                                             <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
                                                 {format(new Date(req.redeemed_at), "dd MMM yyyy HH:mm")}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="font-medium text-sm">
-                                                    {req.customer?.first_name} {req.customer?.last_name}
+                                                    {req.customer?.full_name ?? "—"}
                                                 </div>
                                                 <div className="text-xs text-muted-foreground">{req.customer?.email}</div>
                                             </TableCell>
@@ -151,15 +151,15 @@ export default function RedemptionRequests() {
                                             <TableCell className="text-right">
                                                 {req.status === 'pending' ? (
                                                     <div className="flex justify-end gap-2">
-                                                        <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700 hover:bg-green-50" onClick={() => handleActionClick(req, "fulfill")}>
+                                                        <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700 hover:bg-green-50 press-effect" onClick={() => handleActionClick(req, "fulfill")}>
                                                             อนุมัติ
                                                         </Button>
-                                                        <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleActionClick(req, "reject")}>
+                                                        <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 press-effect" onClick={() => handleActionClick(req, "reject")}>
                                                             ปฏิเสธ
                                                         </Button>
                                                     </div>
                                                 ) : (
-                                                    <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => handleActionClick(req, "fulfill")}>
+                                                    <Button size="sm" variant="ghost" className="text-muted-foreground press-effect" onClick={() => handleActionClick(req, "fulfill")}>
                                                         ดูรายละเอียด
                                                     </Button>
                                                 )}

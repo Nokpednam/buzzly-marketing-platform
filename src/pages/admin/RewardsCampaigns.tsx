@@ -30,10 +30,17 @@ export default function RewardsCampaigns() {
 
     const [editingCampaign, setEditingCampaign] = useState<PointEarningRule | null>(null);
     const [editPoints, setEditPoints] = useState<number>(0);
+    const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
 
     const handleEditClick = (campaign: PointEarningRule) => {
         setEditingCampaign(campaign);
         setEditPoints(campaign.points_reward);
+    };
+
+    const handleToggle = async (id: string, checked: boolean) => {
+        setPendingToggleId(id);
+        await toggleCampaignStatus.mutateAsync({ id, is_active: checked });
+        setPendingToggleId(null);
     };
 
     const handleSaveEdit = async () => {
@@ -48,7 +55,7 @@ export default function RewardsCampaigns() {
     const activeCount = campaigns.filter(c => c.is_active).length;
 
     return (
-        <div className="space-y-6 p-6">
+        <div className="space-y-6 p-6 animate-fade-in">
             {/* Header */}
             <div>
                 <h1 className="text-3xl font-bold text-foreground">Rewards Campaigns</h1>
@@ -103,52 +110,57 @@ export default function RewardsCampaigns() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {campaigns.map((campaign) => (
-                                    <TableRow key={campaign.id}>
-                                        <TableCell className="font-mono text-xs text-muted-foreground">
-                                            {campaign.action_code}
-                                        </TableCell>
-                                        <TableCell>
-                                            <p className="font-medium">{campaign.name}</p>
-                                            <p className="text-xs text-muted-foreground truncate max-w-[250px]">
-                                                {campaign.description}
-                                            </p>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="secondary" className="font-bold text-green-600 bg-green-50">
-                                                +{campaign.points_reward.toLocaleString()} pts
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {campaign.max_times_per_user === null
-                                                ? <span className="text-muted-foreground">ไม่จำกัด</span>
-                                                : `${campaign.max_times_per_user} ครั้ง`}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-2">
-                                                <Switch
-                                                    checked={campaign.is_active}
-                                                    onCheckedChange={(checked) =>
-                                                        toggleCampaignStatus.mutate({ id: campaign.id, is_active: checked })
-                                                    }
-                                                    disabled={toggleCampaignStatus.isPending}
-                                                />
-                                                <span className="text-sm">
-                                                    {campaign.is_active ? "เปิดใช้งาน" : "ปิด"}
-                                                </span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => handleEditClick(campaign)}
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                {campaigns.map((campaign) => {
+                                    const isThisPending = pendingToggleId === campaign.id;
+                                    return (
+                                        <TableRow
+                                            key={campaign.id}
+                                            className={`table-row-hover transition-opacity duration-200 ${isThisPending ? "opacity-60" : ""}`}
+                                        >
+                                            <TableCell className="font-mono text-xs text-muted-foreground">
+                                                {campaign.action_code}
+                                            </TableCell>
+                                            <TableCell>
+                                                <p className="font-medium">{campaign.name}</p>
+                                                <p className="text-xs text-muted-foreground truncate max-w-[250px]">
+                                                    {campaign.description}
+                                                </p>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="secondary" className="font-bold text-green-600 bg-green-50">
+                                                    +{campaign.points_reward.toLocaleString()} pts
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                {campaign.max_times_per_user === null
+                                                    ? <span className="text-muted-foreground">ไม่จำกัด</span>
+                                                    : `${campaign.max_times_per_user} ครั้ง`}
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <Switch
+                                                        checked={campaign.is_active}
+                                                        onCheckedChange={(checked) => handleToggle(campaign.id, checked)}
+                                                        disabled={isThisPending}
+                                                    />
+                                                    <span className="text-sm">
+                                                        {campaign.is_active ? "เปิดใช้งาน" : "ปิด"}
+                                                    </span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="press-effect"
+                                                    onClick={() => handleEditClick(campaign)}
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
                                 {campaigns.length === 0 && (
                                     <TableRow>
                                         <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">

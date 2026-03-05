@@ -57,7 +57,7 @@ export default function RewardsManagement() {
     };
 
     return (
-        <div className="space-y-6 p-6">
+        <div className="space-y-6 p-6 animate-fade-in">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
@@ -141,7 +141,10 @@ export default function RewardsManagement() {
                                 </TableHeader>
                                 <TableBody>
                                     {filteredRewards.map((reward) => (
-                                        <TableRow key={reward.id} className={reward.is_active ? "" : "opacity-60 bg-muted/20"}>
+                                        <TableRow
+                                            key={reward.id}
+                                            className={`table-row-hover transition-opacity duration-200 ${reward.is_active ? "" : "opacity-60 bg-muted/20"}`}
+                                        >
                                             <TableCell>
                                                 <div className="h-10 w-10 rounded-md border bg-muted flex items-center justify-center overflow-hidden">
                                                     {reward.image_url ? (
@@ -184,7 +187,7 @@ export default function RewardsManagement() {
                                                 />
                                             </TableCell>
                                             <TableCell className="text-right">
-                                                <Button variant="ghost" size="sm" onClick={() => handleEditClick(reward)}>
+                                                <Button variant="ghost" size="sm" className="press-effect" onClick={() => handleEditClick(reward)}>
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
                                             </TableCell>

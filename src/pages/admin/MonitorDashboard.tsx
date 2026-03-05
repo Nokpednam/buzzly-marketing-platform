@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,10 +63,27 @@ const getStatusBadge = (status: string | null) => {
 };
 
 export default function MonitorDashboard() {
+  const navigate = useNavigate();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [serverPage, setServerPage] = useState(1);
+  const serversPerPage = 4;
+  const [pipelinePage, setPipelinePage] = useState(1);
+  const pipelinesPerPage = 8;
 
   const { data: servers, isLoading: serversLoading, refetch: refetchServers } = useServerHealth();
+
+  const indexOfLastServer = serverPage * serversPerPage;
+  const indexOfFirstServer = indexOfLastServer - serversPerPage;
+  const currentServers = servers?.slice(indexOfFirstServer, indexOfLastServer);
+  const totalServerPages = Math.ceil((servers?.length || 0) / serversPerPage);
+
   const { data: pipelines, isLoading: pipelinesLoading, refetch: refetchPipelines } = useDataPipelines();
+
+  const indexOfLastPipeline = pipelinePage * pipelinesPerPage;
+  const indexOfFirstPipeline = indexOfLastPipeline - pipelinesPerPage;
+  const currentPipelines = pipelines?.slice(indexOfFirstPipeline, indexOfLastPipeline);
+  const totalPipelinePages = Math.ceil((pipelines?.length || 0) / pipelinesPerPage);
+
   const { data: externalApis, isLoading: apisLoading, refetch: refetchApis } = useExternalAPIStatus();
   const { data: errorStats, refetch: refetchErrors } = useErrorLogStats();
   const { data: perfMetrics, refetch: refetchPerf } = usePerformanceMetrics();
@@ -171,7 +189,7 @@ export default function MonitorDashboard() {
       </div>
 
       {/* Tabs for Different Sections */}
-      <Tabs defaultValue="servers" className="space-y-4">
+      <Tabs defaultValue="servers" className="space-y-4 min-h-[600px]">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="servers">
             <Server className="h-4 w-4 mr-2" />
@@ -202,57 +220,80 @@ export default function MonitorDashboard() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {servers?.map((server) => {
-                const memoryPercent = server.total_memory && server.used_memory
-                  ? Math.round((Number(server.used_memory) / Number(server.total_memory)) * 100)
-                  : 0;
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                {currentServers?.map((server) => {
+                  const memoryPercent = server.total_memory && server.used_memory
+                    ? Math.round((Number(server.used_memory) / Number(server.total_memory)) * 100)
+                    : 0;
 
-                return (
-                  <Card key={server.id}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          {getStatusIcon(server.status)}
-                          {server.hostname || "Unknown Server"}
-                        </CardTitle>
-                        {getStatusBadge(server.status)}
-                      </div>
-                      {server.ip_address && (
-                        <p className="text-xs text-muted-foreground font-mono">{server.ip_address}</p>
-                      )}
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="flex items-center gap-2">
-                            <Cpu className="h-4 w-4 text-muted-foreground" />
-                            CPU Usage
-                          </span>
-                          <span className="font-medium">{Number(server.cpu_usage_percent) || 0}%</span>
+                  return (
+                    <Card key={server.id}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            {getStatusIcon(server.status)}
+                            {server.hostname || "Unknown Server"}
+                          </CardTitle>
+                          {getStatusBadge(server.status)}
                         </div>
-                        <Progress
-                          value={Number(server.cpu_usage_percent) || 0}
-                          className={Number(server.cpu_usage_percent) > 70 ? "[&>div]:bg-yellow-500" : ""}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="flex items-center gap-2">
-                            <HardDrive className="h-4 w-4 text-muted-foreground" />
-                            Memory Usage
-                          </span>
-                          <span className="font-medium">{memoryPercent}%</span>
+                        {server.ip_address && (
+                          <p className="text-xs text-muted-foreground font-mono">{server.ip_address}</p>
+                        )}
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="flex items-center gap-2">
+                              <Cpu className="h-4 w-4 text-muted-foreground" />
+                              CPU Usage
+                            </span>
+                            <span className="font-medium">{Number(server.cpu_usage_percent) || 0}%</span>
+                          </div>
+                          <Progress
+                            value={Number(server.cpu_usage_percent) || 0}
+                            className={Number(server.cpu_usage_percent) > 70 ? "[&>div]:bg-yellow-500" : ""}
+                          />
                         </div>
-                        <Progress
-                          value={memoryPercent}
-                          className={memoryPercent > 80 ? "[&>div]:bg-yellow-500" : ""}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="flex items-center gap-2">
+                              <HardDrive className="h-4 w-4 text-muted-foreground" />
+                              Memory Usage
+                            </span>
+                            <span className="font-medium">{memoryPercent}%</span>
+                          </div>
+                          <Progress
+                            value={memoryPercent}
+                            className={memoryPercent > 80 ? "[&>div]:bg-yellow-500" : ""}
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+              {totalServerPages > 1 && (
+                <div className="flex justify-center items-center gap-4 mt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setServerPage((p) => Math.max(1, p - 1))}
+                    disabled={serverPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {serverPage} of {totalServerPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    onClick={() => setServerPage((p) => Math.min(totalServerPages, p + 1))}
+                    disabled={serverPage === totalServerPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </TabsContent>
@@ -271,31 +312,56 @@ export default function MonitorDashboard() {
                 <div className="text-center py-8 text-muted-foreground">No pipelines configured</div>
               ) : (
                 <div className="space-y-4">
-                  {pipelines?.map((pipeline) => (
-                    <div
-                      key={pipeline.id}
-                      className="flex items-center justify-between p-4 rounded-lg border bg-card"
-                    >
-                      <div className="flex items-center gap-4">
-                        {getStatusIcon(pipeline.status)}
-                        <div>
-                          <p className="font-medium">{pipeline.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {pipeline.last_run_at
-                              ? `Last run: ${formatDistanceToNow(new Date(pipeline.last_run_at), { addSuffix: true })}`
-                              : "Never run"}
-                          </p>
+                  <div className="space-y-4">
+                    {currentPipelines?.map((pipeline) => (
+                      <div
+                        key={pipeline.id}
+                        className="flex items-center justify-between p-4 rounded-lg border bg-card"
+                      >
+                        <div className="flex items-center gap-4">
+                          {getStatusIcon(pipeline.status)}
+                          <div>
+                            <p className="font-medium">{pipeline.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {pipeline.last_run_at
+                                ? `Last run: ${formatDistanceToNow(new Date(pipeline.last_run_at), { addSuffix: true })}`
+                                : "Never run"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-6">
+                          <div className="text-right">
+                            <p className="text-sm font-medium">{pipeline.schedule_cron || "Manual"}</p>
+                            <p className="text-xs text-muted-foreground">Schedule</p>
+                          </div>
+                          {getStatusBadge(pipeline.status)}
                         </div>
                       </div>
-                      <div className="flex items-center gap-6">
-                        <div className="text-right">
-                          <p className="text-sm font-medium">{pipeline.schedule_cron || "Manual"}</p>
-                          <p className="text-xs text-muted-foreground">Schedule</p>
-                        </div>
-                        {getStatusBadge(pipeline.status)}
-                      </div>
+                    ))}
+                  </div>
+                  {totalPipelinePages > 1 && (
+                    <div className="flex justify-center items-center gap-4 mt-6">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPipelinePage((p) => Math.max(1, p - 1))}
+                        disabled={pipelinePage === 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        Page {pipelinePage} of {totalPipelinePages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPipelinePage((p) => Math.min(totalPipelinePages, p + 1))}
+                        disabled={pipelinePage === totalPipelinePages}
+                      >
+                        Next
+                      </Button>
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </CardContent>
@@ -333,7 +399,7 @@ export default function MonitorDashboard() {
                 </div>
               </div>
               <div className="mt-4 text-center">
-                <Button variant="outline" onClick={() => window.location.href = "/admin/support"}>
+                <Button variant="outline" onClick={() => navigate("/dev/support")}>
                   View Detailed Logs
                 </Button>
               </div>
