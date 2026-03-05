@@ -170,21 +170,25 @@ export default function Settings() {
         return;
       }
 
-      // Update customer table for full_name and phone
+      // Update customer table for full_name and phone.
+      // Use .update() to avoid accidentally overwriting plan_type or other
+      // billing-managed columns (the trigger creates the row on sign-up).
       const { error: customerError } = await supabase
         .from('customer')
-        .upsert({
-          id: user.id,
-          email: user.email ?? profileData.email,
+        .update({
           full_name: `${profileData.firstName} ${profileData.lastName}`.trim(),
           phone_number: profileData.phoneNumber,
-          plan_type: 'free',
-        }, {
-          onConflict: 'id',
-        });
+        })
+        .eq('id', user.id);
 
       if (customerError) {
         console.error('Customer update error:', customerError);
+        toast({
+          title: "Warning",
+          description: "Profile saved, but failed to sync display name: " + customerError.message,
+          variant: "destructive",
+        });
+        return;
       }
 
       toast({

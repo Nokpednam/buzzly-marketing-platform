@@ -128,6 +128,26 @@ const SignUp = () => {
       });
       if (error) throw error;
       if (data.user) {
+        // Fallback: ensure customer and profile_customers rows exist
+        // in case the DB trigger failed silently.
+        const displayName = formData.displayName || `${formData.firstName} ${formData.lastName}`.trim();
+
+        await supabase.from('customer').upsert({
+          id: data.user.id,
+          email: formData.email,
+          full_name: displayName,
+          plan_type: 'free',
+        }, { onConflict: 'id' });
+
+        await supabase.from('profile_customers').upsert({
+          user_id: data.user.id,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          phone_number: formData.phone,
+          gender: formData.genderId || null,
+          salary_range: formData.salaryRange || null,
+        } as any, { onConflict: 'user_id' });
+
         toast.success("สมัครสมาชิกสำเร็จ! กำลังเข้าสู่ระบบ...");
         navigate("/dashboard");
       }
