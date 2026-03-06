@@ -665,6 +665,7 @@ export type Database = {
           objective: string | null
           start_date: string | null
           status: string | null
+          team_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -679,6 +680,7 @@ export type Database = {
           objective?: string | null
           start_date?: string | null
           status?: string | null
+          team_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -693,6 +695,7 @@ export type Database = {
           objective?: string | null
           start_date?: string | null
           status?: string | null
+          team_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -715,6 +718,13 @@ export type Database = {
             columns: ["ad_buying_type_id"]
             isOneToOne: false
             referencedRelation: "ad_buying_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -928,14 +938,9 @@ export type Database = {
           full_name: string | null
           id: string
           last_active: string | null
-          loyalty_points_balance: number | null
-          loyalty_tier_id: string | null
-          member_since: string | null
           phone_number: string | null
           plan_type: string | null
           status: string | null
-          subscription_credit_balance: number | null
-          total_spend_amount: number | null
           updated_at: string | null
         }
         Insert: {
@@ -946,14 +951,9 @@ export type Database = {
           full_name?: string | null
           id: string
           last_active?: string | null
-          loyalty_points_balance?: number | null
-          loyalty_tier_id?: string | null
-          member_since?: string | null
           phone_number?: string | null
           plan_type?: string | null
           status?: string | null
-          subscription_credit_balance?: number | null
-          total_spend_amount?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -964,25 +964,12 @@ export type Database = {
           full_name?: string | null
           id?: string
           last_active?: string | null
-          loyalty_points_balance?: number | null
-          loyalty_tier_id?: string | null
-          member_since?: string | null
           phone_number?: string | null
           plan_type?: string | null
           status?: string | null
-          subscription_credit_balance?: number | null
-          total_spend_amount?: number | null
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "profiles_loyalty_tier_id_fkey"
-            columns: ["loyalty_tier_id"]
-            isOneToOne: false
-            referencedRelation: "loyalty_tiers"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       customer_activities: {
         Row: {
@@ -1301,7 +1288,6 @@ export type Database = {
           name: string | null
           published_at: string | null
           start_date: string | null
-          team_id: string | null
           updated_at: string
           usage_count: number
           usage_limit: number | null
@@ -1321,7 +1307,6 @@ export type Database = {
           name?: string | null
           published_at?: string | null
           start_date?: string | null
-          team_id?: string | null
           updated_at?: string
           usage_count?: number
           usage_limit?: number | null
@@ -1341,20 +1326,11 @@ export type Database = {
           name?: string | null
           published_at?: string | null
           start_date?: string | null
-          team_id?: string | null
           updated_at?: string
           usage_count?: number
           usage_limit?: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "discounts_team_id_fkey"
-            columns: ["team_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       email_campaigns: {
         Row: {
@@ -2110,6 +2086,42 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          link: string | null
+          source_id: string | null
+          target_role: string
+          title: string
+          type: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          source_id?: string | null
+          target_role: string
+          title: string
+          type: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          source_id?: string | null
+          target_role?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       payment_methods: {
         Row: {
           created_at: string | null
@@ -2582,7 +2594,15 @@ export type Database = {
           transaction_type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "points_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "customer"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       priority_level: {
         Row: {
@@ -2613,6 +2633,7 @@ export type Database = {
       }
       profile_customers: {
         Row: {
+          avatar_url: string | null
           birthday_at: string | null
           created_at: string | null
           first_name: string | null
@@ -2630,6 +2651,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          avatar_url?: string | null
           birthday_at?: string | null
           created_at?: string | null
           first_name?: string | null
@@ -2647,6 +2669,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          avatar_url?: string | null
           birthday_at?: string | null
           created_at?: string | null
           first_name?: string | null
@@ -3563,7 +3586,15 @@ export type Database = {
           severity?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "suspicious_activities_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "customer"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       system_health: {
         Row: {
@@ -3763,6 +3794,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "tier_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "customer"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tier_history_new_tier_id_fkey"
             columns: ["new_tier_id"]
             isOneToOne: false
@@ -3774,6 +3812,13 @@ export type Database = {
             columns: ["previous_tier_id"]
             isOneToOne: false
             referencedRelation: "loyalty_tiers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tier_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "customer"
             referencedColumns: ["id"]
           },
         ]
@@ -4173,6 +4218,16 @@ export type Database = {
         Returns: boolean
       }
       debug_dashboard_visibility: { Args: never; Returns: string }
+      get_available_discounts: {
+        Args: { p_customer_id: string }
+        Returns: {
+          code: string
+          description: string
+          id: string
+          name: string
+          publish_time: string
+        }[]
+      }
       get_employee_role: { Args: { _user_id: string }; Returns: string }
       get_my_team_ids: { Args: never; Returns: string[] }
       get_team_role: {
@@ -4184,20 +4239,21 @@ export type Database = {
         Returns: boolean
       }
       has_role:
-      | {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      | { Args: { _role: string; _user_id: string }; Returns: boolean }
+        | {
+            Args: {
+              _role: Database["public"]["Enums"]["app_role"]
+              _user_id: string
+            }
+            Returns: boolean
+          }
+        | { Args: { _role: string; _user_id: string }; Returns: boolean }
       increment_discount_usage: { Args: { d_id: string }; Returns: undefined }
       is_employee: { Args: { _user_id: string }; Returns: boolean }
       is_team_member: {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
+      redeem_reward: { Args: { p_reward_item_id: string }; Returns: Json }
       seed_demo_insights: {
         Args: { p_ad_account_id: string }
         Returns: undefined
@@ -4222,116 +4278,116 @@ type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-  : never = never,
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
-  ? R
-  : never
+    ? R
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])
-  ? (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-      Row: infer R
-    }
-  ? R
-  : never
-  : never
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
+      Insert: infer I
+    }
+    ? I
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Insert: infer I
-  }
-  ? I
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-  | keyof DefaultSchema["Tables"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-    Update: infer U
-  }
-  ? U
-  : never
+      Update: infer U
+    }
+    ? U
+    : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-    Update: infer U
-  }
-  ? U
-  : never
-  : never
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-  | keyof DefaultSchema["Enums"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-  : never
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-  | keyof DefaultSchema["CompositeTypes"]
-  | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-  ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-  : never = never,
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-  : never
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
 
 export const Constants = {
   graphql_public: {
