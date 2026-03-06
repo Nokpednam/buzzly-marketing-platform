@@ -119,187 +119,186 @@ export default function SocialAnalytics() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
+    <div className="relative min-h-[90vh] w-full bg-[#f4f7fb] dark:bg-background overflow-hidden font-sans">
+      <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-8 relative z-10 animate-in fade-in duration-500">
 
-      {/* 1. TOP HEADER & PERFORMANCE PILLS */}
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-black tracking-tighter">SOCIAL ANALYTICS</h1>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Activity className="h-4 w-4 text-green-500" />
-            <span className="text-sm font-medium uppercase tracking-widest">Real-time Performance</span>
+        {/* 1. TOP HEADER & PERFORMANCE PILLS */}
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between border-b border-border/40 pb-8">
+          <div className="space-y-1 py-1">
+            <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-foreground inline-block bg-white dark:bg-slate-900 px-4 py-2 rounded-2xl shadow-sm">
+              Social Analytics
+            </h1>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1 bg-muted p-1 rounded-xl">
+              <Button variant="ghost" size="sm" className="rounded-lg h-8 px-4">Overview</Button>
+              <Button variant="secondary" size="sm" className="rounded-lg h-8 px-4 shadow-sm">Detailed</Button>
+            </div>
+            <Select value={dateRange} onValueChange={setDateRange}>
+              <SelectTrigger className="w-[140px] bg-background border-none shadow-sm ring-1 ring-border">
+                <Calendar className="h-4 w-4 mr-2 text-primary" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">Last 7 Days</SelectItem>
+                <SelectItem value="30">Last 30 Days</SelectItem>
+                <SelectItem value="90">Last 90 Days</SelectItem>
+              </SelectContent>
+            </Select>
+            {selectedPosts.length >= 2 && (
+              <Button onClick={() => setShowCompare(true)} variant="default" className="gap-2 shadow-lg shadow-primary/20 bg-primary">
+                <GitCompare className="h-4 w-4" />
+                Compare ({selectedPosts.length})
+              </Button>
+            )}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-1 bg-muted p-1 rounded-xl">
-            <Button variant="ghost" size="sm" className="rounded-lg h-8 px-4">Overview</Button>
-            <Button variant="secondary" size="sm" className="rounded-lg h-8 px-4 shadow-sm">Detailed</Button>
-          </div>
-          <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-[140px] bg-background border-none shadow-sm ring-1 ring-border">
-              <Calendar className="h-4 w-4 mr-2 text-primary" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Last 7 Days</SelectItem>
-              <SelectItem value="30">Last 30 Days</SelectItem>
-              <SelectItem value="90">Last 90 Days</SelectItem>
-            </SelectContent>
-          </Select>
-          {selectedPosts.length >= 2 && (
-            <Button onClick={() => setShowCompare(true)} variant="default" className="gap-2 shadow-lg shadow-primary/20 bg-primary">
-              <GitCompare className="h-4 w-4" />
-              Compare ({selectedPosts.length})
-            </Button>
-          )}
+        {/* 2. PLATFORM SELECTOR BAR */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Card className="md:col-span-3 border-none bg-white dark:bg-slate-900 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[2rem] overflow-hidden">
+            <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center gap-6">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.15em] flex items-center gap-2 shrink-0">
+                <Layers className="h-4 w-4" /> Data Sources
+              </span>
+              <div className="flex flex-wrap gap-4">
+                {connectedPlatforms.map((platform) => (
+                  <div
+                    key={platform.id}
+                    className={`flex items-center gap-3 px-4 py-2 rounded-2xl transition-all border duration-300 ${activePlatforms.includes(platform.id)
+                      ? 'bg-primary/10 border-primary/20 text-primary'
+                      : 'bg-slate-50 dark:bg-slate-800 border-transparent grayscale opacity-50 hover:opacity-80'
+                      }`}
+                  >
+                    <Switch
+                      checked={activePlatforms.includes(platform.id)}
+                      onCheckedChange={() => setActivePlatforms(prev =>
+                        prev.includes(platform.id) ? prev.filter(i => i !== platform.id) : [...prev, platform.id]
+                      )}
+                      className="data-[state=checked]:bg-primary shadow-sm"
+                    />
+                    <div className="flex items-center gap-2 pr-1">
+                      <div className={activePlatforms.includes(platform.id) ? "scale-105 transition-transform" : ""}>
+                        {getPlatformIcon(platform, activePlatforms.includes(platform.id))}
+                      </div>
+                      <span className="text-sm font-bold tracking-tight">{platform.name}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-[#A88BFA] to-[#7C3AED] text-white border-none rounded-[2rem] overflow-hidden shadow-[0_12px_40px_rgb(139,92,246,0.3)] relative">
+            <div className="absolute right-[-10%] top-[-10%] w-32 h-32 bg-white/20 rounded-full blur-2xl" />
+            <CardContent className="p-8 flex flex-col justify-center h-full relative z-10">
+              <p className="text-sm tracking-wider opacity-90 font-medium mb-1">Est. Ad Reach</p>
+              <h2 className="text-5xl font-bold tracking-tight">2.4<span className="text-3xl ml-1">M</span></h2>
+            </CardContent>
+          </Card>
         </div>
-      </div>
 
-      {/* 2. PLATFORM SELECTOR BAR */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="md:col-span-3 border-none bg-muted/30 backdrop-blur-sm">
-          <CardContent className="p-4 flex flex-wrap items-center gap-6">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <Layers className="h-3 w-3" /> Data Sources
-            </span>
-            <div className="flex flex-wrap gap-4">
-              {connectedPlatforms.map((platform) => (
-                <div
-                  key={platform.id}
-                  className={`flex items-center gap-3 px-3 py-1.5 rounded-full transition-all border ${activePlatforms.includes(platform.id)
-                    ? 'bg-background border-primary/20 shadow-sm'
-                    : 'bg-transparent border-transparent grayscale opacity-50'
-                    }`}
-                >
-                  <Switch
-                    checked={activePlatforms.includes(platform.id)}
-                    onCheckedChange={() => setActivePlatforms(prev =>
-                      prev.includes(platform.id) ? prev.filter(i => i !== platform.id) : [...prev, platform.id]
-                    )}
-                    className="data-[state=checked]:bg-primary"
-                  />
-                  <div className="flex items-center gap-2 pr-1">
-                    {getPlatformIcon(platform, activePlatforms.includes(platform.id))}
-                    <span className="text-sm font-semibold">{platform.name}</span>
-                  </div>
-                </div>
-              ))}
+        {/* 3. MAIN WORKSPACE */}
+        {activePlatforms.length > 0 ? (
+          <Tabs defaultValue="posts" className="space-y-6">
+            <TabsList className="bg-muted/50 p-1 h-12 rounded-2xl gap-2 w-full sm:w-auto overflow-x-auto justify-start">
+              <TabsTrigger value="posts" className="rounded-xl px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <FileText className="h-4 w-4 mr-2" /> Posts
+              </TabsTrigger>
+              <TabsTrigger value="ads" className="rounded-xl px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <Megaphone className="h-4 w-4 mr-2" /> Ads
+              </TabsTrigger>
+              <TabsTrigger value="groups" className="rounded-xl px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <FolderOpen className="h-4 w-4 mr-2" /> Groups
+              </TabsTrigger>
+              <TabsTrigger value="insights" className="rounded-xl px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                <BarChart3 className="h-4 w-4 mr-2" /> Insights
+              </TabsTrigger>
+            </TabsList>
+
+            <div className="bg-white dark:bg-slate-900 border-none rounded-[2rem] p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] min-h-[400px]">
+              <TabsContent value="posts" className="m-0 border-none outline-none">
+                <SocialPostsList
+                  selectedPosts={selectedPosts}
+                  onSelectPost={(id: string) => {
+                    // Toggle selection logic
+                    setSelectedPosts((prev) =>
+                      prev.includes(id)
+                        ? prev.filter((pid) => pid !== id)
+                        : [...prev, id]
+                    );
+                  }}
+                  dateRange={dateRange}
+                  activePlatforms={activePlatforms}
+                />
+              </TabsContent>
+              <TabsContent value="ads" className="m-0 border-none outline-none">
+                <AdsList adGroups={adGroups} />
+              </TabsContent>
+              <TabsContent value="groups" className="m-0 border-none outline-none">
+                <AdGroupsList onGroupsChange={setAdGroups} />
+              </TabsContent>
+              <TabsContent value="insights" className="m-0 border-none outline-none">
+                <AdInsightsSummary dateRange={dateRange} />
+              </TabsContent>
             </div>
-          </CardContent>
-        </Card>
+          </Tabs>
+        ) : (
+          <Card className="border-2 border-dashed">
+            <CardContent className="h-64 flex flex-col items-center justify-center text-muted-foreground">
+              <Layers className="h-10 w-10 mb-2 opacity-20" />
+              <p className="font-medium">Please enable at least one platform to see analytics</p>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card className="bg-primary text-primary-foreground border-none overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-            <TrendingUp className="h-16 w-16" />
-          </div>
-          <CardContent className="p-4 flex flex-col justify-center h-full">
-            <p className="text-xs font-bold uppercase opacity-70 tracking-tighter">Est. Ad Reach</p>
-            <h2 className="text-2xl font-black">2.4M</h2>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 3. MAIN WORKSPACE */}
-      {activePlatforms.length > 0 ? (
-        <Tabs defaultValue="posts" className="space-y-6">
-          <TabsList className="bg-muted/50 p-1 h-12 rounded-2xl gap-2 w-full sm:w-auto overflow-x-auto justify-start">
-            <TabsTrigger value="posts" className="rounded-xl px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-              <FileText className="h-4 w-4 mr-2" /> Posts
-            </TabsTrigger>
-            <TabsTrigger value="ads" className="rounded-xl px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-              <Megaphone className="h-4 w-4 mr-2" /> Ads
-            </TabsTrigger>
-            <TabsTrigger value="groups" className="rounded-xl px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-              <FolderOpen className="h-4 w-4 mr-2" /> Groups
-            </TabsTrigger>
-            <TabsTrigger value="insights" className="rounded-xl px-6 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-              <BarChart3 className="h-4 w-4 mr-2" /> Insights
-            </TabsTrigger>
-          </TabsList>
-
-          <div className="bg-card border rounded-3xl p-2 shadow-sm min-h-[400px]">
-            <TabsContent value="posts" className="m-0 border-none outline-none">
-              <SocialPostsList
-                selectedPosts={selectedPosts}
-                onSelectPost={(id: string) => {
-                  // Toggle selection logic
-                  setSelectedPosts((prev) =>
-                    prev.includes(id)
-                      ? prev.filter((pid) => pid !== id)
-                      : [...prev, id]
-                  );
-                }}
-                dateRange={dateRange}
-                activePlatforms={activePlatforms}
-              />
-            </TabsContent>
-            <TabsContent value="ads" className="m-0 border-none outline-none">
-              <AdsList adGroups={adGroups} />
-            </TabsContent>
-            <TabsContent value="groups" className="m-0 border-none outline-none">
-              <AdGroupsList onGroupsChange={setAdGroups} />
-            </TabsContent>
-            <TabsContent value="insights" className="m-0 border-none outline-none">
-              <AdInsightsSummary dateRange={dateRange} />
-            </TabsContent>
-          </div>
-        </Tabs>
-      ) : (
-        <Card className="border-2 border-dashed">
-          <CardContent className="h-64 flex flex-col items-center justify-center text-muted-foreground">
-            <Layers className="h-10 w-10 mb-2 opacity-20" />
-            <p className="font-medium">Please enable at least one platform to see analytics</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 4. COMPARISON DIALOG */}
-      <Dialog open={showCompare} onOpenChange={setShowCompare}>
-        <DialogContent className="max-w-5xl rounded-3xl border-none shadow-2xl p-0 overflow-hidden">
-          <DialogHeader className="p-6 bg-muted/50 border-b">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary rounded-xl text-primary-foreground shadow-lg shadow-primary/20">
-                <GitCompare className="h-5 w-5" />
+        <Dialog open={showCompare} onOpenChange={setShowCompare}>
+          <DialogContent className="max-w-5xl rounded-[2.5rem] bg-card/95 backdrop-blur-2xl border border-border/50 shadow-2xl p-0 overflow-hidden">
+            <DialogHeader className="p-8 bg-muted/30 border-b border-border/30">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-primary rounded-2xl text-primary-foreground shadow-lg shadow-primary/20">
+                  <GitCompare className="h-6 w-6" />
+                </div>
+                <div>
+                  <DialogTitle className="text-2xl font-black tracking-tight text-foreground/90">Post Performance Comparison</DialogTitle>
+                  <CardDescription className="text-sm font-medium mt-1">Comparing key metrics across {selectedPosts.length} selected assets</CardDescription>
+                </div>
               </div>
-              <div>
-                <DialogTitle className="text-xl">Post Performance Comparison</DialogTitle>
-                <CardDescription>Comparing key metrics across {selectedPosts.length} selected assets</CardDescription>
+            </DialogHeader>
+
+            <div className="p-6 space-y-8">
+              <div className="h-[350px] w-full bg-background rounded-2xl p-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={compareChartData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                    <Tooltip cursor={{ fill: 'hsl(var(--muted)/0.4)' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                    <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
+                    <Bar dataKey="impressions" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={32} />
+                    <Bar dataKey="reach" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} barSize={32} />
+                    <Bar dataKey="likes" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} barSize={32} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {compareChartData.map((item, i) => (
+                  <div key={i} className="p-4 rounded-2xl bg-muted/20 border transition-hover hover:border-primary/50 group">
+                    <h4 className="font-bold text-sm mb-4 truncate group-hover:text-primary transition-colors">{item.name}</h4>
+                    <div className="space-y-3">
+                      <MetricRow label="Engagement" value={`${item.engagement}%`} icon={TrendingUp} color="text-green-500" />
+                      <MetricRow label="Impressions" value={`${(item.impressions / 1000).toFixed(1)}K`} icon={Eye} />
+                      <MetricRow label="Likes" value={item.likes.toLocaleString()} icon={Heart} color="text-red-500" />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          </DialogHeader>
-
-          <div className="p-6 space-y-8">
-            <div className="h-[350px] w-full bg-background rounded-2xl p-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={compareChartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 600 }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                  <Tooltip cursor={{ fill: 'hsl(var(--muted)/0.4)' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                  <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-                  <Bar dataKey="impressions" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} barSize={32} />
-                  <Bar dataKey="reach" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} barSize={32} />
-                  <Bar dataKey="likes" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} barSize={32} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {compareChartData.map((item, i) => (
-                <div key={i} className="p-4 rounded-2xl bg-muted/20 border transition-hover hover:border-primary/50 group">
-                  <h4 className="font-bold text-sm mb-4 truncate group-hover:text-primary transition-colors">{item.name}</h4>
-                  <div className="space-y-3">
-                    <MetricRow label="Engagement" value={`${item.engagement}%`} icon={TrendingUp} color="text-green-500" />
-                    <MetricRow label="Impressions" value={`${(item.impressions / 1000).toFixed(1)}K`} icon={Eye} />
-                    <MetricRow label="Likes" value={item.likes.toLocaleString()} icon={Heart} color="text-red-500" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }
