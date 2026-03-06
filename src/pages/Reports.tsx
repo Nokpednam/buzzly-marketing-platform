@@ -49,6 +49,7 @@ import { PlanRestrictedPage } from "@/components/PlanRestrictedPage";
 import { useReports } from "@/hooks/useReports";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
+import { toast } from "sonner";
 
 const reportTemplates = [
   { id: "campaign", name: "Campaign Performance", description: "Conversion & CTR deep dive", icon: BarChart3, color: "text-blue-500", bg: "bg-blue-500/10" },
@@ -109,7 +110,7 @@ function ReportsContent() {
           <Button
             variant="outline"
             className="rounded-xl px-6 h-11 border-primary/20 hover:bg-primary/5 text-primary"
-            onClick={() => { }}
+            onClick={() => toast.info("เลือกวัน-เวลาสำหรับส่งอัตโนมัติ — พร้อมใช้งานเร็วๆ นี้")}
           >
             <Clock className="h-4 w-4 mr-2" /> Schedule Automation
           </Button>
@@ -224,8 +225,8 @@ function ReportsContent() {
                             </Badge>
                             <Badge
                               className={`text-[9px] py-0 h-4 ${report.status === "ready"
-                                  ? "bg-green-500/10 text-green-600"
-                                  : "bg-yellow-500/10 text-yellow-600"
+                                ? "bg-green-500/10 text-green-600"
+                                : "bg-yellow-500/10 text-yellow-600"
                                 }`}
                             >
                               {report.status}
@@ -261,7 +262,7 @@ function ReportsContent() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="rounded-xl">
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success("ลิ้งถูกคัดลอกแล้ว"); }}>
                               <Share2 className="mr-2 h-4 w-4" /> Share with Team
                             </DropdownMenuItem>
                             <DropdownMenuItem
@@ -368,7 +369,7 @@ function ReportsContent() {
               <div className="grid grid-cols-3 gap-8 mb-12">
                 <Metric label="Total Impressions" value="1.42M" change="+12%" />
                 <Metric label="Conv. Rate" value="3.82%" change="+0.4%" />
-                <Metric label="Ad Spend" value="$12,400" change="-5%" />
+                <Metric label="Ad Spend" value="฿12,400" change="-5%" />
               </div>
               <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10">
                 <h4 className="text-sm font-bold flex items-center gap-2 mb-2">
@@ -384,7 +385,7 @@ function ReportsContent() {
             <span className="text-xs text-muted-foreground">Viewing Page 1 of 1</span>
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setIsPreviewOpen(false)}>Close</Button>
-              <Button className="rounded-xl px-6 bg-primary">
+              <Button className="rounded-xl px-6 bg-primary" onClick={() => toast.info("Download — พร้อมใช้งานเร็วๆ นี้")}>
                 <Download className="h-4 w-4 mr-2" /> Download Document
               </Button>
             </div>

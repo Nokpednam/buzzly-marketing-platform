@@ -27,6 +27,7 @@ import {
 import { PlanRestrictedPage } from "@/components/PlanRestrictedPage";
 import { useFunnelData } from "@/hooks/useFunnelData";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const stageConfig = [
   { id: "awareness", name: "Awareness", icon: Eye, color: "text-blue-500", bg: "bg-blue-500/10", fill: "bg-blue-500", desc: "Ad impressions & Reach" },
@@ -39,19 +40,19 @@ const stageConfig = [
 function CustomerJourneyContent() {
   const navigate = useNavigate();
   const [selectedPeriod, setSelectedPeriod] = useState("30d");
-  const { funnelStages, isLoading } = useFunnelData();
+  const { funnelStages, isLoading } = useFunnelData(selectedPeriod);
 
   const journeyStages = useMemo(() => {
     if (!funnelStages || funnelStages.length === 0) return [];
-    
+
     return stageConfig.map((config, index) => {
       const funnelStage = funnelStages[index];
       const value = funnelStage?.value || 0;
       const prevValue = index > 0 ? (funnelStages[index - 1]?.value || 0) : 0;
-      
+
       // Calculate conversion rate from previous stage
       const retentionRate = prevValue > 0 ? (value / prevValue) * 100 : 0;
-      
+
       return {
         ...config,
         value,
@@ -92,7 +93,7 @@ function CustomerJourneyContent() {
 
   return (
     <div className="max-w-[1400px] mx-auto space-y-10 p-4 md:p-8">
-      
+
       {/* 1. HEADER SECTION */}
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between border-b pb-8">
         <div className="space-y-1">
@@ -134,12 +135,12 @@ function CustomerJourneyContent() {
                   )}>
                     <stage.icon className="h-9 w-9" />
                   </div>
-                  
+
                   <h3 className="text-sm font-black uppercase tracking-tight">{stage.name}</h3>
                   <p className="text-[10px] text-muted-foreground text-center mt-1 px-4 leading-tight opacity-70">
                     {stage.desc}
                   </p>
-                  
+
                   <div className="mt-4 text-center">
                     <p className="text-2xl font-black tracking-tighter">{stage.value.toLocaleString()}</p>
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total Users</p>
@@ -181,7 +182,7 @@ function CustomerJourneyContent() {
                   <span className="text-[10px] font-bold text-muted-foreground uppercase">Volume</span>
                   <span className="text-sm font-black">{stage.value.toLocaleString()}</span>
                 </div>
-                
+
                 {Object.entries(stage.metrics).map(([key, value]) => (
                   <div key={key} className="flex items-center justify-between gap-2 border-t border-background/50 pt-3">
                     <span className="text-[10px] font-bold text-muted-foreground uppercase truncate pr-2">{key}</span>
@@ -189,8 +190,13 @@ function CustomerJourneyContent() {
                   </div>
                 ))}
               </div>
-              
-              <Button variant="ghost" size="sm" className="w-full mt-6 rounded-xl group-hover:bg-background transition-colors text-[10px] font-bold uppercase tracking-widest">
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full mt-6 rounded-xl group-hover:bg-background transition-colors text-[10px] font-bold uppercase tracking-widest"
+                onClick={() => toast.info("รายละเอียดเพิ่มเติม — พร้อมใช้งานเร็วๆ นี้")}
+              >
                 Full Details <ChevronRight className="h-3 w-3 ml-1" />
               </Button>
             </CardContent>

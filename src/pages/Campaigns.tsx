@@ -324,7 +324,7 @@ export default function Campaigns() {
         />
         <MetricCard
           label="Total Spend"
-          value={`$${formatNumber(totalSpend)}`}
+          value={`฿${formatNumber(totalSpend)}`}
           icon={DollarSign}
           color="text-amber-500"
           bgColor="bg-amber-50/50 dark:bg-amber-950/20"
@@ -426,7 +426,7 @@ export default function Campaigns() {
                       <DollarSign className="h-3 w-3" />
                     </div>
                     <span className="text-sm font-bold">
-                      ${campaign.budget_amount?.toLocaleString() ?? "—"}
+                      ฿{campaign.budget_amount?.toLocaleString() ?? "—"}
                     </span>
                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest ml-1">
                       Budget

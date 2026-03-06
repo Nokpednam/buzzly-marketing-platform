@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { toast } from "sonner";
 // --- เพิ่ม Import ตัวเช็คสิทธิ์ ---
 import { PlanRestrictedPage } from "@/components/PlanRestrictedPage";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,13 +29,13 @@ import {
 
 import { useFunnelData } from "@/hooks/useFunnelData";
 
-// Visual mapping for AARRR categories from DB
+// Visual mapping for AARRR categories from DB (no prevValue — growth is always based on real data)
 const categoryVisuals: Record<string, any> = {
-  Acquisition: { letter: "A", icon: UserPlus, color: "text-blue-500", bg: "bg-blue-500/10", fill: "bg-blue-500", description: "New sign-ups", prevValue: 10200 },
-  Activation: { letter: "A", icon: Zap, color: "text-green-500", bg: "bg-green-500/10", fill: "bg-green-500", description: "Completed onboarding", prevValue: 7900 },
-  Retention: { letter: "R", icon: RefreshCw, color: "text-yellow-500", bg: "bg-yellow-500/10", fill: "bg-yellow-500", description: "Active for 30+ days", prevValue: 4500 },
-  Referral: { letter: "R", icon: Share2, color: "text-purple-500", bg: "bg-purple-500/10", fill: "bg-purple-500", description: "Invited a friend", prevValue: 900 },
-  Revenue: { letter: "R", icon: DollarSign, color: "text-orange-500", bg: "bg-orange-500/10", fill: "bg-orange-500", description: "Paid subscribers", prevValue: 720 },
+  Acquisition: { letter: "A", icon: UserPlus, color: "text-blue-500", bg: "bg-blue-500/10", fill: "bg-blue-500", description: "New sign-ups" },
+  Activation: { letter: "A", icon: Zap, color: "text-green-500", bg: "bg-green-500/10", fill: "bg-green-500", description: "Completed onboarding" },
+  Retention: { letter: "R", icon: RefreshCw, color: "text-yellow-500", bg: "bg-yellow-500/10", fill: "bg-yellow-500", description: "Active for 30+ days" },
+  Referral: { letter: "R", icon: Share2, color: "text-purple-500", bg: "bg-purple-500/10", fill: "bg-purple-500", description: "Invited a friend" },
+  Revenue: { letter: "R", icon: DollarSign, color: "text-orange-500", bg: "bg-orange-500/10", fill: "bg-orange-500", description: "Paid subscribers" },
 };
 
 // 1. แยกเนื้อหาหลักออกมาเป็น Component ย่อย
@@ -50,7 +51,6 @@ function AARRRDashboardContent() {
         icon: Info,
         color: "text-slate-500", bg: "bg-slate-500/10", fill: "bg-slate-500",
         description: cat.description || "",
-        prevValue: cat.value > 0 ? Math.floor(cat.value * 0.9) : 0
       };
 
       return {
@@ -67,7 +67,9 @@ function AARRRDashboardContent() {
     return realAarrrData.map((stage, index) => {
       const nextStage = realAarrrData[index + 1];
       const conversionRate = nextStage ? (nextStage.value / stage.value) * 100 : 0;
-      const growth = ((stage.value - stage.prevValue) / stage.prevValue) * 100;
+      const growth = stage.prevValue != null && stage.prevValue > 0
+        ? ((stage.value - stage.prevValue) / stage.prevValue) * 100
+        : null;
 
       return {
         ...stage,
@@ -226,7 +228,12 @@ function AARRRDashboardContent() {
                 </div>
 
                 <div className="mt-4 pt-3 border-t flex justify-between items-center">
-                  <Button variant="ghost" size="sm" className="h-7 text-[10px] uppercase font-bold">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-[10px] uppercase font-bold"
+                    onClick={() => toast.info("รายละเอียดเพิ่มเติม — พร้อมใช้งานเร็วๆ นี้")}
+                  >
                     View Details <ArrowRight className="ml-2 h-3 w-3" />
                   </Button>
                   {stage.conversionRate > 0 && (

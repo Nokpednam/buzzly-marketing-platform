@@ -9,11 +9,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { 
-  Download, 
-  Calendar, 
-  TrendingUp, 
-  TrendingDown, 
+import {
+  Download,
+  Calendar,
+  TrendingUp,
+  TrendingDown,
   AlertCircle,
   BarChart3,
   Activity,
@@ -21,7 +21,9 @@ import {
   MousePointer2,
   DollarSign,
   PieChart as PieChartIcon,
+  Target,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   AreaChart,
   Area,
@@ -71,10 +73,10 @@ function AnalyticsContent() {
   const metricsCards = metrics ? [
     { label: "Total Impressions", value: formatNumber(metrics.totalImpressions), icon: Activity, color: "text-blue-500" },
     { label: "CTR Rate", value: `${metrics.avgCtr.toFixed(2)}%`, icon: MousePointer2, color: "text-emerald-500" },
-    { label: "Avg CPC", value: `$${metrics.avgCpc.toFixed(2)}`, icon: Zap, color: "text-amber-500" },
+    { label: "Avg CPC", value: `฿${metrics.avgCpc.toFixed(2)}`, icon: Zap, color: "text-amber-500" },
     { label: "Net ROAS", value: `${metrics.avgRoas.toFixed(1)}x`, icon: TrendingUp, color: "text-indigo-500" },
     { label: "Conversions", value: metrics.totalConversions.toLocaleString(), icon: Target, color: "text-rose-500" },
-    { label: "Total Spend", value: `$${metrics.totalSpend.toFixed(2)}`, icon: DollarSign, color: "text-slate-500" },
+    { label: "Total Spend", value: `฿${metrics.totalSpend.toFixed(2)}`, icon: DollarSign, color: "text-slate-500" },
   ] : [];
 
   const pieData = metrics?.trendData.reduce((acc, item, index) => {
@@ -87,7 +89,7 @@ function AnalyticsContent() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 animate-in fade-in duration-500">
-      
+
       {/* 1. HEADER & GLOBAL FILTERS */}
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between border-b pb-8">
         <div className="space-y-1">
@@ -111,7 +113,7 @@ function AnalyticsContent() {
               </SelectContent>
             </Select>
           </div>
-          <Button variant="outline" className="rounded-xl h-11 px-6 border-primary/20 hover:bg-primary/5 text-primary">
+          <Button variant="outline" className="rounded-xl h-11 px-6 border-primary/20 hover:bg-primary/5 text-primary" onClick={() => toast.info("Export — พร้อมใช้งานเร็วๆ นี้")}>
             <Download className="h-4 w-4 mr-2" /> Export Hub
           </Button>
         </div>
@@ -152,20 +154,20 @@ function AnalyticsContent() {
                     <AreaChart data={metrics?.trendData}>
                       <defs>
                         <linearGradient id="colorImp" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
-                      <XAxis 
-                        dataKey="date" 
-                        axisLine={false} 
-                        tickLine={false} 
-                        tick={{fontSize: 10, fontWeight: 700}}
+                      <XAxis
+                        dataKey="date"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 10, fontWeight: 700 }}
                         tickFormatter={(val) => new Date(val).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       />
-                      <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                      <Tooltip contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
                       <Area type="monotone" dataKey="impressions" stroke="hsl(var(--primary))" strokeWidth={3} fill="url(#colorImp)" />
                       <Area type="monotone" dataKey="clicks" stroke="hsl(var(--chart-2))" strokeWidth={3} fill="transparent" strokeDasharray="5 5" />
                     </AreaChart>
@@ -197,7 +199,7 @@ function AnalyticsContent() {
                           <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={{borderRadius: '12px', border: 'none'}} />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -226,15 +228,15 @@ function AnalyticsContent() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={metrics?.trendData.slice(-14)}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
-                    <XAxis 
-                      dataKey="date" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{fontSize: 10, fontWeight: 700}}
+                    <XAxis
+                      dataKey="date"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10, fontWeight: 700 }}
                       tickFormatter={(val) => new Date(val).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
                     />
-                    <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                    <Tooltip cursor={{fill: 'hsl(var(--muted)/0.4)'}} contentStyle={{borderRadius: '12px', border: 'none'}} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                    <Tooltip cursor={{ fill: 'hsl(var(--muted)/0.4)' }} contentStyle={{ borderRadius: '12px', border: 'none' }} />
                     <Bar dataKey="spend" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} barSize={30} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -303,8 +305,3 @@ export default function Analytics() {
     </PlanRestrictedPage>
   );
 }
-
-// Add Target icon missing from Lucide imports in the logic block
-const Target = ({ className }: { className?: string }) => (
-  <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { X } from "lucide-react";
-import type { CustomerPersonaInsert } from "@/hooks/useCustomerPersonas";
+import type { CustomerPersonaInsert, CustomerPersona } from "@/hooks/useCustomerPersonas";
 
 interface Gender {
   id: string;
@@ -33,6 +33,7 @@ interface CreatePersonaDialogProps {
   teamId: string;
   genders: Gender[];
   isLoading: boolean;
+  initialData?: CustomerPersona | null;
 }
 
 const SALARY_RANGES = [
@@ -56,23 +57,36 @@ export function CreatePersonaDialog({
   teamId,
   genders,
   isLoading,
+  initialData,
 }: CreatePersonaDialogProps) {
-  const [formData, setFormData] = useState({
-    persona_name: "",
-    description: "",
-    gender_id: "",
-    age_min: "",
-    age_max: "",
-    profession: "",
-    industry: "",
-    company_size: "",
-    salary_range: "",
-    active_hours: "",
-    preferred_devices: [] as string[],
-    interests: [] as string[],
-    goals: [] as string[],
-    pain_points: [] as string[],
+  const isEditMode = !!initialData;
+
+  const getDefaultFormData = () => ({
+    persona_name: initialData?.persona_name ?? "",
+    description: initialData?.description ?? "",
+    gender_id: initialData?.gender_id ?? "",
+    age_min: initialData?.age_min?.toString() ?? "",
+    age_max: initialData?.age_max?.toString() ?? "",
+    profession: initialData?.profession ?? "",
+    industry: initialData?.industry ?? "",
+    company_size: initialData?.company_size ?? "",
+    salary_range: initialData?.salary_range ?? "",
+    active_hours: initialData?.active_hours ?? "",
+    preferred_devices: (initialData?.preferred_devices ?? []) as string[],
+    interests: (initialData?.interests ?? []) as string[],
+    goals: (initialData?.goals ?? []) as string[],
+    pain_points: (initialData?.pain_points ?? []) as string[],
   });
+
+  const [formData, setFormData] = useState(getDefaultFormData);
+
+  useEffect(() => {
+    if (open) {
+      setFormData(getDefaultFormData());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialData]);
+
 
   const [interestInput, setInterestInput] = useState("");
   const [goalInput, setGoalInput] = useState("");
@@ -80,7 +94,7 @@ export function CreatePersonaDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const data: CustomerPersonaInsert = {
       team_id: teamId,
       persona_name: formData.persona_name,
@@ -159,7 +173,7 @@ export function CreatePersonaDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>สร้าง Customer Persona ใหม่</DialogTitle>
+          <DialogTitle>{isEditMode ? "แก้ไข Customer Persona" : "สร้าง Customer Persona ใหม่"}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -447,7 +461,7 @@ export function CreatePersonaDialog({
               ยกเลิก
             </Button>
             <Button type="submit" disabled={isLoading || !formData.persona_name}>
-              {isLoading ? "กำลังบันทึก..." : "สร้าง Persona"}
+              {isLoading ? "กำลังบันทึก..." : isEditMode ? "บันทึกการแก้ไข" : "สร้าง Persona"}
             </Button>
           </DialogFooter>
         </form>

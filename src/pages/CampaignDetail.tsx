@@ -162,7 +162,7 @@ export default function CampaignDetail() {
     { title: "Reach", value: formatNumber(campaign.reach), icon: Users, color: "text-green-600" },
     { title: "Clicks", value: formatNumber(campaign.clicks), icon: MousePointer, color: "text-orange-600" },
     { title: "Conversions", value: formatNumber(campaign.conversions), icon: Target, color: "text-pink-600" },
-    { title: "Spend", value: `$${campaign.spend.toFixed(0)}`, icon: DollarSign, color: "text-cyan-600" },
+    { title: "Spend", value: `฿${campaign.spend.toFixed(0)}`, icon: DollarSign, color: "text-cyan-600" },
     { title: "CTR", value: `${ctr}%`, icon: TrendingUp, color: "text-purple-600" },
   ];
 
@@ -208,7 +208,7 @@ export default function CampaignDetail() {
               </span>
               <span className="flex items-center gap-1">
                 <Clock className="h-4 w-4" />
-                Budget: ${campaign.budget_amount?.toLocaleString() || 0}
+                Budget: ฿{campaign.budget_amount?.toLocaleString() || 0}
               </span>
             </div>
 
@@ -473,13 +473,13 @@ export default function CampaignDetail() {
             <div className="p-4 bg-muted/30 rounded-lg">
               <p className="text-sm text-muted-foreground">Cost Per Click</p>
               <p className="text-2xl font-bold">
-                ${campaign.clicks > 0 ? (campaign.spend / campaign.clicks).toFixed(2) : "0"}
+                ฿{campaign.clicks > 0 ? (campaign.spend / campaign.clicks).toFixed(2) : "0"}
               </p>
             </div>
             <div className="p-4 bg-muted/30 rounded-lg">
               <p className="text-sm text-muted-foreground">Cost Per Conversion</p>
               <p className="text-2xl font-bold">
-                ${campaign.conversions > 0 ? (campaign.spend / campaign.conversions).toFixed(2) : "0"}
+                ฿{campaign.conversions > 0 ? (campaign.spend / campaign.conversions).toFixed(2) : "0"}
               </p>
             </div>
           </div>

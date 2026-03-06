@@ -13,7 +13,14 @@ export interface FunnelStageWithMetrics extends FunnelStage {
   category?: AARRRCategory;
 }
 
-export function useFunnelData() {
+export function useFunnelData(period?: string) {
+  // Compute start date based on period string (e.g. "7d", "30d", "90d")
+  const dateFrom = period ? (() => {
+    const days = parseInt(period, 10);
+    const d = new Date();
+    d.setDate(d.getDate() - days);
+    return d.toISOString();
+  })() : undefined;
   // Fetch Total Users for Top of Funnel alignment
   const { data: totalUserCount = 0 } = useQuery({
     queryKey: ["funnel_total_users"],
@@ -52,12 +59,10 @@ export function useFunnelData() {
     },
   });
 
-  // Fetch Customer Activities for metrics calculation
-  // Increased limit to 5000 to match useOwnerMetrics for consistency
   const { data: activities = [], isLoading: activitiesLoading } = useQuery({
-    queryKey: ["customer_activities"],
+    queryKey: ["customer_activities", period],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("customer_activities")
         .select(`
           *,
@@ -67,6 +72,12 @@ export function useFunnelData() {
         `)
         .order("created_at", { ascending: false })
         .limit(5000);
+
+      if (dateFrom) {
+        query = query.gte("created_at", dateFrom);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as (CustomerActivity & { event_types: { slug: string } | null })[];
     },
