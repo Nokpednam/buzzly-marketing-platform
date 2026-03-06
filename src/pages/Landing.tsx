@@ -233,7 +233,7 @@ export default function Landing() {
                 >
                   <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10" />
                   <Sparkles className="mr-2 h-5 w-5 text-amber-300 group-hover:animate-spin" />
-                  Start Free Trial
+                  Let's Sign Up
                 </Button>
                 <Button
                   size="lg"

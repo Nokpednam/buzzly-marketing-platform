@@ -1,5 +1,4 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,9 +34,12 @@ import {
 } from "recharts";
 import { usePlatformConnections } from "@/hooks/usePlatformConnections";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
+import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2 } from "lucide-react";
+import { OnboardingBanner } from "@/components/dashboard/OnboardingBanner";
 import { cn } from "@/lib/utils";
 
 const formatValue = (value: number, format: string) => {
@@ -54,8 +56,8 @@ const formatValue = (value: number, format: string) => {
 };
 
 export default function Dashboard() {
-  const navigate = useNavigate();
   const { connectedPlatforms } = usePlatformConnections();
+  const { state: onboardingState } = useOnboardingGuard();
   const [dateRange, setDateRange] = React.useState("7d");
   const [selectedPlatform, setSelectedPlatform] = React.useState<string>("all");
   const [isRefreshing, setIsRefreshing] = React.useState(false);
@@ -97,8 +99,16 @@ export default function Dashboard() {
     setIsRefreshing(false);
   };
 
-  if (connectedPlatforms.length === 0) {
-    return <EmptyPlatformState navigate={navigate} />;
+  if (onboardingState === "loading") {
+    return (
+      <div className="flex items-center justify-center min-h-[70vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (onboardingState !== "ready") {
+    return <OnboardingBanner state={onboardingState} />;
   }
 
   const hasData = metrics && (metrics.totalImpressions > 0 || metrics.totalClicks > 0);
@@ -382,18 +392,6 @@ function LegendItem({ label, color }: { label: string, color: string }) {
   );
 }
 
-function EmptyPlatformState({ navigate }: { navigate: any }) {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] text-center p-8 border-2 border-dashed rounded-[3rem] m-4 bg-muted/10">
-      <div className="bg-background p-6 rounded-full shadow-xl mb-6"><Zap className="h-10 w-10 text-primary" /></div>
-      <h2 className="text-2xl font-black uppercase tracking-tight mb-2">Bridge the Gap</h2>
-      <p className="text-muted-foreground max-w-sm mb-8">Connect your ad platforms to start populating this dashboard with real-time performance data.</p>
-      <Button size="lg" className="rounded-full px-10 shadow-lg shadow-primary/20" onClick={() => navigate("/api-keys")}>
-        Connect Integration
-      </Button>
-    </div>
-  );
-}
 
 function LoadingSkeleton() {
   return (
