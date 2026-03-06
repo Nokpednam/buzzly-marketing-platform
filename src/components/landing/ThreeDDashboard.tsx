@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Environment, Float, MeshTransmissionMaterial, RoundedBox, Text } from "@react-three/drei";
+import { Environment, Float, RoundedBox, Text } from "@react-three/drei";
 import * as THREE from "three";
 
 function GlassCard({ position, rotation, width, height, children }: { position: [number, number, number], rotation: [number, number, number], width: number, height: number, children: React.ReactNode }) {
@@ -8,18 +8,13 @@ function GlassCard({ position, rotation, width, height, children }: { position: 
         <Float speed={1.5} rotationIntensity={0.1} floatIntensity={0.5} position={position} rotation={rotation}>
             <group>
                 <RoundedBox args={[width, height, 0.2]} radius={0.15} smoothness={4} receiveShadow castShadow>
-                    <MeshTransmissionMaterial
-                        backside
-                        samples={4}
-                        thickness={2}
-                        chromaticAberration={0.05}
-                        anisotropy={0.1}
-                        distortion={0}
-                        distortionScale={0}
-                        temporalDistortion={0}
-                        ior={1.5}
+                    <meshPhysicalMaterial
                         color="#ffffff"
+                        metalness={0.1}
                         roughness={0.1}
+                        transmission={0.9}
+                        ior={1.5}
+                        thickness={2}
                     />
                 </RoundedBox>
                 {/* Subtle white border for glass edge definition */}
