@@ -190,7 +190,7 @@ export default function CustomerTiers() {
             </div>
           </CardHeader>
           <CardContent className="relative z-10">
-            <div className="text-4xl font-bold tracking-tight text-white shadow-sm">${(totalRevenue / 1000000).toFixed(2)}M</div>
+            <div className="text-4xl font-bold tracking-tight text-white shadow-sm">฿{(totalRevenue / 1000).toFixed(0)}K</div>
             <div className="flex items-center text-xs font-medium mt-3 text-emerald-100">
               <span className="flex items-center bg-white/20 px-2 py-1 rounded-lg text-white mr-2 backdrop-blur-sm">
                 <ArrowUpRight className="h-3 w-3 mr-1" />
@@ -213,7 +213,7 @@ export default function CustomerTiers() {
             </div>
           </CardHeader>
           <CardContent className="relative z-10">
-            <div className="text-4xl font-bold tracking-tight text-white shadow-sm">${avgSpendAll.toLocaleString()}</div>
+            <div className="text-4xl font-bold tracking-tight text-white shadow-sm">฿{avgSpendAll.toLocaleString()}</div>
             <div className="flex items-center text-xs font-medium mt-3 text-orange-100">
               <span className="flex items-center bg-white/20 px-2 py-1 rounded-lg text-white mr-2 backdrop-blur-sm">
                 <ArrowUpRight className="h-3 w-3 mr-1" />
@@ -294,7 +294,7 @@ export default function CustomerTiers() {
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="text-right hidden sm:block">
-                            <p className="text-sm font-bold text-emerald-600">Needs ${cust.spendNeeded.toLocaleString()}</p>
+                            <p className="text-sm font-bold text-emerald-600">ต้อง ฿{cust.spendNeeded.toLocaleString()}</p>
                           </div>
                           <button
                             onClick={() => handleOpenPromoModal(cust.id, cust.name)}
@@ -461,8 +461,8 @@ export default function CustomerTiers() {
                         cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }}
                         contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "12px", border: "1px solid hsl(var(--border))", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}
                         formatter={(value: number, name: string) => {
-                          if (name === "avgSpend") return [`$${value.toLocaleString()}`, "AOV"];
-                          return [`$${value.toLocaleString()}`, "Revenue"];
+                          if (name === "avgSpend") return [`฿${value.toLocaleString()}`, "AOV"];
+                          return [`฿${value.toLocaleString()}`, "Revenue"];
                         }}
                       />
                       <Bar

@@ -34,7 +34,7 @@ const navGroups = [
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, requiresPlan: null },
       { title: "Campaigns", url: "/campaigns", icon: Megaphone, requiresPlan: null },
-      { title: "Customer Persona", url: "/prospects", icon: Users, requiresPlan: null },
+      { title: "Customer Personas", url: "/personas", icon: Users, requiresPlan: null },
       { title: "Social Analytics", url: "/social-analytics", icon: Share2, requiresPlan: null },
     ]
   },

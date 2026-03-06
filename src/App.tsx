@@ -95,7 +95,8 @@ const App = () => (
                   {/* Customer Routes */}
                   <Route element={<CustomerProtectedRoute><MainLayout /></CustomerProtectedRoute>}>
                     <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/prospects" element={<Prospects />} />
+                    <Route path="/personas" element={<Prospects />} />
+                    <Route path="/prospects" element={<Navigate to="/personas" replace />} />
                     <Route path="/campaigns" element={<Campaigns />} />
                     <Route path="/campaigns/:id" element={<CampaignDetail />} />
                     <Route path="/social-analytics" element={<SocialAnalytics />} />

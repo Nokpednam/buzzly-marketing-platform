@@ -66,7 +66,7 @@ const TIER_COLORS: Record<string, string> = {
 };
 
 async function fetchCustomerTiersData(timePeriod: string): Promise<CustomerTiersData> {
-    const [tiersRes, customersRes, txsRes] = await Promise.all([
+    const [tiersRes, customersRes, txsRes, tierHistoryRes] = await Promise.all([
         supabase.from("loyalty_tiers").select("*").order("min_points"),
         supabase.from("profile_customers").select(`
       user_id,
@@ -85,11 +85,22 @@ async function fetchCustomerTiersData(timePeriod: string): Promise<CustomerTiers
             .from("payment_transactions")
             .select("amount, user_id, created_at")
             .order("created_at", { ascending: true }),
+        supabase
+            .from("tier_history")
+            .select(`
+                id,
+                user_id,
+                created_at,
+                previous_tier:loyalty_tiers!tier_history_previous_tier_id_fkey(name, priority_level),
+                new_tier:loyalty_tiers!tier_history_new_tier_id_fkey(name, priority_level)
+            `)
+            .order("created_at", { ascending: true }),
     ]);
 
     const tiers = tiersRes.data ?? [];
     const customers = customersRes.data ?? [];
     const allTxs = txsRes.data ?? [];
+    const allTierHistory = (tierHistoryRes.data ?? []) as any[];
 
     const now = new Date();
     let filterStartDate = new Date(0);
@@ -243,7 +254,7 @@ async function fetchCustomerTiersData(timePeriod: string): Promise<CustomerTiers
     });
     const pointsBurnRate = totalPointsEarned > 0 ? ((totalPointsEarned - totalPointsBalance) / totalPointsEarned) * 100 : 0;
 
-    // D. Tier movement (Dynamic based on timePeriod)
+    // D. Tier Movement — from real tier_history (upgrades AND downgrades)
     const endDate = new Date();
     const trendsMap = new Map<string, { up: number; down: number }>();
 
@@ -275,30 +286,31 @@ async function fetchCustomerTiersData(timePeriod: string): Promise<CustomerTiers
         }
     }
 
-    const defaultLogicTier = sortedLogicTiers[0];
-    const replayUserSpend = new Map<string, number>();
+    // Walk through real tier_history records — each row is one tier change event
+    allTierHistory.forEach((event) => {
+        const eventDate = new Date(event.created_at);
+        if (eventDate < chartStartDate) return; // outside range
 
-    allTxs.forEach((tx) => {
-        const txDate = new Date(tx.created_at);
-        const currentSpend = replayUserSpend.get(tx.user_id) || 0;
-        const newSpend = currentSpend + tx.amount;
-        replayUserSpend.set(tx.user_id, newSpend);
+        const prevPriority: number = event.previous_tier?.priority_level ?? 0;
+        const newPriority: number = event.new_tier?.priority_level ?? 0;
 
-        let oldTier = defaultLogicTier;
-        let newTier = defaultLogicTier;
-        for (const t of sortedLogicTiers) {
-            if (currentSpend >= t.min_spend_amount) oldTier = t;
-            if (newSpend >= t.min_spend_amount) newTier = t;
+        // Higher priority_level = higher tier (Platinum > Gold > Silver > Bronze)
+        const isUpgrade = newPriority > prevPriority;
+        const isDowngrade = newPriority < prevPriority;
+
+        if (!isUpgrade && !isDowngrade) return; // no change (shouldn't happen)
+
+        let key = "";
+        if (timePeriod === "7d" || timePeriod === "30d") {
+            key = format(eventDate, "d MMM", { locale: th });
+        } else {
+            key = format(eventDate, "MMM yy", { locale: th });
         }
 
-        if (newTier.min_spend_amount > oldTier.min_spend_amount && txDate >= chartStartDate) {
-            let key = "";
-            if (timePeriod === "7d" || timePeriod === "30d") {
-                key = format(txDate, "d MMM", { locale: th });
-            } else {
-                key = format(txDate, "MMM yy", { locale: th });
-            }
-            if (trendsMap.has(key)) trendsMap.get(key)!.up++;
+        const bucket = trendsMap.get(key);
+        if (bucket) {
+            if (isUpgrade) bucket.up++;
+            else bucket.down++;
         }
     });
 
