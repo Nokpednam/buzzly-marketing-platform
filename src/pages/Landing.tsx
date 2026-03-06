@@ -196,9 +196,8 @@ export default function Landing() {
           {/* Left Column: Text & Mascot */}
           <div className="flex flex-col items-center lg:items-start text-center lg:text-left relative z-10 lg:pt-20">
 
-            {/* The Mascot tracking the mouse */}
-            {/* Kept wrapper size large enough to avoid cutting off the 3D canvas */}
-            <div className="absolute -top-32 lg:-top-56 left-1/2 -translate-x-1/2 lg:translate-x-0 lg:-left-12 z-20 scale-90 md:scale-100 opacity-95">
+            {/* The Mascot tracking the mouse across the whole page */}
+            <div className="fixed bottom-0 -left-6 lg:bottom-4 lg:left-4 z-[100] scale-75 md:scale-90 pointer-events-none origin-bottom-left">
               <Suspense fallback={null}>
                 <ThreeDHopper />
               </Suspense>
@@ -222,39 +221,51 @@ export default function Landing() {
             </h1>
 
             <p className="text-lg md:text-xl font-medium text-slate-600 dark:text-slate-300 mb-10 max-w-2xl leading-relaxed animate-fade-in-up [animation-delay:200ms] relative z-30">
-              การสร้างและจัดการแคมเปญไม่เคยง่ายขนาดนี้มาก่อน วิเคราะห์ จัดการ และเติบโตไปพร้อมกับแพลตฟอร์มที่ทรงพลังที่สุด ผสาน 3D Intelligence
+              Building and managing campaigns has never been this simple. Analyze, manage, and grow alongside the most powerful platform powered by 3D Intelligence.
             </p>
 
             {!user ? (
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start animate-fade-in-up [animation-delay:300ms] relative z-30 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row gap-5 justify-center lg:justify-start animate-fade-in-up [animation-delay:300ms] relative z-30 w-full sm:w-auto">
                 <Button
                   size="lg"
                   onClick={() => navigate("/signup")}
-                  className="h-16 px-10 text-lg font-bold rounded-full bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgba(59,130,246,0.3)] hover:-translate-y-1 transition-all duration-300 relative group overflow-hidden"
+                  className="h-16 px-10 text-lg font-bold rounded-full bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:shadow-[0_8px_30px_rgba(59,130,246,0.4)] hover:-translate-y-1 transition-all duration-300 relative group overflow-hidden"
                 >
-                  <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10" />
+                  <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10" />
                   <Sparkles className="mr-2 h-5 w-5 text-amber-300 group-hover:animate-spin" />
-                  เริ่มต้นใช้งานฟรี
+                  Start Free Trial
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
                   onClick={() => scrollToFeatures()}
-                  className="h-16 px-10 text-lg font-bold rounded-full border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md hover:bg-white dark:hover:bg-slate-900 hover:scale-105 transition-all duration-300"
+                  className="h-16 px-10 text-lg font-bold rounded-full border-slate-200/50 dark:border-slate-800/50 bg-white/40 dark:bg-slate-900/40 backdrop-blur-xl hover:bg-white/80 dark:hover:bg-slate-900/80 hover:scale-105 hover:shadow-lg transition-all duration-300 group"
                 >
-                  ดูฟีเจอร์ <ChevronDown className="ml-2 h-5 w-5 text-blue-500" />
+                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-slate-700 to-slate-900 dark:from-slate-100 dark:to-slate-300 group-hover:from-blue-600 group-hover:to-cyan-600 transition-all duration-300">
+                    Explore Features
+                  </span>
+                  <ChevronDown className="ml-2 h-5 w-5 text-blue-500 group-hover:translate-y-1 transition-transform duration-300" />
                 </Button>
               </div>
             ) : null}
           </div>
 
-          {/* Right Column: 3D Analytics Dashboard */}
-          <div className="relative h-[450px] lg:h-[650px] w-full flex items-center justify-center animate-fade-in-up [animation-delay:400ms] z-10 perspective-1000">
-            {/* Removed the hardcoded glass backdrop, moving it into the 3D Canvas for true depth */}
-            <div className="absolute inset-0 w-full h-full flex items-center justify-center">
-              <Suspense fallback={<div className="text-blue-400 animate-pulse font-bold tracking-widest uppercase text-sm">Loading Neural Engine...</div>}>
-                <ThreeDDashboard />
-              </Suspense>
+          {/* Right Column: Static UI Mockup */}
+          <div className="relative h-auto lg:h-[650px] w-full flex items-center justify-center animate-fade-in-up [animation-delay:400ms] z-10 perspective-1000 mt-12 lg:mt-0">
+            <div className="relative w-full max-w-[600px] aspect-[4/3] rounded-2xl overflow-hidden shadow-[0_20px_60px_-15px_rgba(59,130,246,0.5)] border border-white/20 dark:border-white/10 group animate-[float_6s_ease-in-out_infinite] transform-gpu hover:-translate-y-4 hover:shadow-[0_30px_80px_-15px_rgba(59,130,246,0.6)] transition-all duration-500">
+
+              {/* Mockup Image */}
+              <img
+                src="/dashboard-mockup.png"
+                alt="Marketing Analytics Dashboard Mockup"
+                className="w-full h-full object-cover object-left-top"
+              />
+
+              {/* Subtle glass reflection overlay */}
+              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+              {/* Optional: Floating decorative element for depth */}
+              <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-full blur-2xl opacity-50 animate-pulse" />
             </div>
           </div>
 
@@ -269,7 +280,7 @@ export default function Landing() {
               UNLEASH YOUR <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-600">POTENTIAL.</span>
             </h2>
             <p className="text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto font-medium">
-              เครื่องมือครบครันที่ผสานดีไซน์แห่งโลกอนาคตเข้ากับประสิทธิภาพสูงสุด
+              A complete toolkit combining futuristic design with maximum performance
             </p>
           </div>
 
@@ -277,37 +288,37 @@ export default function Landing() {
             <FeatureCard
               icon={BarChart3}
               title="Intelligent Dashboard"
-              desc="ดูภาพรวมธุรกิจแบบ Real-time พร้อมกราฟวิเคราะห์ที่สวยงามและเข้าใจง่าย"
+              desc="View your business overview in real-time with beautiful, easy-to-understand analytics graphics."
               color="from-cyan-400 to-blue-500"
             />
             <FeatureCard
               icon={Users}
               title="Customer Management"
-              desc="เก็บข้อมูล Prospects และติดตามทุกปฏิสัมพันธ์ด้วย CRM อัจฉริยะ"
+              desc="Store prospect data and track every interaction with our smart CRM system."
               color="from-sky-400 to-blue-600"
             />
             <FeatureCard
               icon={GitCompareArrows}
               title="Campaign Comparison"
-              desc="เปรียบเทียบประสิทธิภาพแคมเปญ 2-5 รายการพร้อมกันแบบ 3D Visualization"
+              desc="Compare up to 5 concurrent campaigns with stunning 3D visualization."
               color="from-blue-400 to-indigo-500"
             />
             <FeatureCard
               icon={Share2}
               title="Social Analytics"
-              desc="กวาดข้อมูลโซเชียลมีเดียจากทุกแพลตฟอร์มมาแสดงใน UI เดียว"
+              desc="Scrape social media data across platforms directly into a unified UI."
               color="from-cyan-300 to-sky-500"
             />
             <FeatureCard
               icon={TrendingUp}
               title="Advanced Reports"
-              desc="ลดเวลาทำรายงานด้วยระบบ Generate อัตโนมัติพร้อม Export ทันที"
+              desc="Save hours with automated report generation and instant exporting."
               color="from-sky-400 to-indigo-500"
             />
             <FeatureCard
               icon={Route}
               title="Customer Journey"
-              desc="ติดตามเส้นทางเปลี่ยนจากผู้เข้าชมเป็นลูกค้าประจำ (Loyalty)"
+              desc="Track the precise path from a casual visitor to a loyal customer."
               color="from-blue-400 to-cyan-500"
             />
           </div>
@@ -325,7 +336,7 @@ export default function Landing() {
             THE FUTURE OF <br /> MARKETING IS HERE.
           </h2>
           <p className="text-xl text-slate-300 font-medium mb-12 max-w-2xl mx-auto">
-            เข้าร่วมกับธุรกิจนับพันที่เปลี่ยนมาใช้ Buzzly ในการขับเคลื่อนนวัตกรรมการตลาด
+            Join thousands of businesses that have switched to Buzzly to drive marketing innovation.
           </p>
 
           {!user ? (
