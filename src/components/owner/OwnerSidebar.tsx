@@ -46,10 +46,10 @@ const ownerNavItems = [
     description: "Sentiment Analysis",
   },
   {
-    title: "Discount Codes",
+    title: "Discount Analytic",
     icon: Tag,
     href: "/owner/discounts",
-    description: "Subscription Promotions",
+    description: "Dashboard discount",
   },
   {
     title: "Executive Report",
