@@ -63,9 +63,9 @@ export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
     setPaymentDialogOpen(true);
   };
 
-  const handlePaymentConfirm = async (methodId: string) => {
+  const handlePaymentConfirm = async (methodId: string, discountCode?: string) => {
     if (!selectedPlanId) return;
-    const result = await createSubscription(selectedPlanId, methodId, billingCycle);
+    const result = await createSubscription(selectedPlanId, methodId, billingCycle, discountCode);
     if (result.success) {
       setPaymentDialogOpen(false);
       setSelectedPlanId(null);

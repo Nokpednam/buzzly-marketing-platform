@@ -366,21 +366,39 @@ export default function TierManagement() {
                               </TableCell>
                               <TableCell className="font-medium">{customerName}</TableCell>
                               <TableCell>
-                                <Badge className={safeTierColors[prevTierName]?.bg ?? "bg-muted"}>
-                                  {safeTierIcons[prevTierName] ?? "?"} {prevTierName}
-                                </Badge>
+                                <div className="flex items-center">
+                                  <Badge
+                                    variant="secondary"
+                                    className={cn(
+                                      "rounded-full px-3 py-0.5 text-sm font-medium border-none shadow-none",
+                                      safeTierColors[prevTierName]?.bg,
+                                      safeTierColors[prevTierName]?.text
+                                    )}
+                                  >
+                                    <span className="mr-1.5 text-base leading-none">{safeTierIcons[prevTierName] ?? "?"}</span>
+                                    {prevTierName}
+                                  </Badge>
+                                </div>
                               </TableCell>
                               <TableCell>
-                                <span className="flex items-center gap-1">
+                                <div className="flex items-center gap-4">
                                   {(history.new_tier?.priority_level ?? 0) > (history.previous_tier?.priority_level ?? 0) ? (
-                                    <TrendingUp className="h-4 w-4 text-green-600" />
+                                    <TrendingUp className="h-5 w-5 text-green-500" strokeWidth={2.5} />
                                   ) : (
-                                    <TrendingDown className="h-4 w-4 text-destructive" />
+                                    <TrendingDown className="h-5 w-5 text-red-500" strokeWidth={2.5} />
                                   )}
-                                  <Badge className={safeTierColors[newTierName]?.bg ?? "bg-muted"}>
-                                    {safeTierIcons[newTierName] ?? "?"} {newTierName}
+                                  <Badge
+                                    variant="secondary"
+                                    className={cn(
+                                      "rounded-full px-3 py-0.5 text-sm font-medium border-none shadow-none",
+                                      safeTierColors[newTierName]?.bg,
+                                      safeTierColors[newTierName]?.text
+                                    )}
+                                  >
+                                    <span className="mr-1.5 text-base leading-none">{safeTierIcons[newTierName] ?? "?"}</span>
+                                    {newTierName}
                                   </Badge>
-                                </span>
+                                </div>
                               </TableCell>
                               <TableCell className="max-w-[200px] truncate">{history.change_reason ?? "—"}</TableCell>
                               <TableCell>

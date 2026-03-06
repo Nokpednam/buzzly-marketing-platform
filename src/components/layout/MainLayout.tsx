@@ -14,8 +14,8 @@ export function MainLayout() {
   const { state } = useOnboardingGuard();
   const { pathname } = useLocation();
 
-  const isExempt = EXEMPT_PATHS.some((p) => pathname.startsWith(p));
-  const isPlanLocked = PLAN_LOCKED_PATHS.some((p) => pathname.startsWith(p));
+  const isExempt = EXEMPT_PATHS.some(p => pathname.startsWith(p)) ||
+    PLAN_LOCKED_PATHS.some(p => pathname.startsWith(p));
 
   if (state === "loading") {
     return (
@@ -25,7 +25,7 @@ export function MainLayout() {
     );
   }
 
-  if (state !== "ready" && !isExempt && !isPlanLocked) {
+  if (state !== "ready" && !isExempt) {
     return <Navigate to="/api-keys" replace />;
   }
 

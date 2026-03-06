@@ -48,7 +48,7 @@ export function useCampaigns() {
             )
           )
         `)
-        .eq("team_id" as any, workspaceId!)
+        .or(`team_id.eq.${workspaceId},team_id.is.null`)
         .order("created_at", { ascending: false });
 
       if (campaignsError) throw campaignsError;

@@ -16,7 +16,7 @@ export interface DashboardMetrics {
 
 export function useDashboardMetrics(dateRange: string = "7d", platformId: string = "all") {
   const { workspace } = useWorkspace();
-  const workspaceId = workspace.id;
+  const workspaceId = workspace?.id;
 
   return useQuery({
     queryKey: ["dashboard-metrics", dateRange, platformId, workspaceId],
@@ -40,6 +40,15 @@ export function useDashboardMetrics(dateRange: string = "7d", platformId: string
           startDate.setDate(startDate.getDate() - 90);
           break;
       }
+
+      const { data: adAccounts, error: adAccountsError } = await supabase
+        .from("ad_accounts")
+        .select("platform_id, team_id")
+        .or(`team_id.eq.${workspaceId},team_id.is.null`);
+
+      if (adAccountsError) throw adAccountsError;
+
+      const platformIdsForWorkspace = adAccounts?.map(account => account.platform_id) || [];
 
       let query = supabase
         .from("ad_insights")

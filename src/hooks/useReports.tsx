@@ -74,7 +74,7 @@ export function useReports() {
                 .order("created_at", { ascending: false });
 
             if (teamId) {
-                query = query.eq("team_id", teamId);
+                query = query.or(`team_id.eq.${teamId},team_id.is.null`);
             }
 
             const { data, error } = await query;

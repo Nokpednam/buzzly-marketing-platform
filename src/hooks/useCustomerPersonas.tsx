@@ -68,10 +68,12 @@ export const useCustomerPersonas = (teamId: string | null) => {
   } = useQuery({
     queryKey: ["customer-personas", teamId],
     queryFn: async () => {
+      if (!teamId) return [];
+      console.log('Fetching personas for team:', teamId);
       const { data, error } = await supabase
         .from("customer_personas")
         .select("*")
-        .eq("team_id", teamId!)
+        .or(`team_id.eq.${teamId},team_id.is.null`)
         .eq("is_active", true)
         .order("created_at", { ascending: false });
 

@@ -123,7 +123,8 @@ export function UpgradeRequiredDialog({
       const result = await createSubscription(
         realPlan.id,
         paymentMethodId,
-        billingCycle
+        billingCycle,
+        discountCode
       );
 
       if (result.success) {
