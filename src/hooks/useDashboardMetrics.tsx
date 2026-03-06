@@ -44,7 +44,7 @@ export function useDashboardMetrics(dateRange: string = "7d", platformId: string
       const { data: adAccounts, error: adAccountsError } = await supabase
         .from("ad_accounts")
         .select("platform_id, team_id")
-        .eq("team_id", workspaceId);
+        .or(`team_id.eq.${workspaceId},team_id.is.null`);
 
       if (adAccountsError) throw adAccountsError;
 
