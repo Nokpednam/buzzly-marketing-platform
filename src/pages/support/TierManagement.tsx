@@ -47,17 +47,29 @@ import {
   TrendingDown,
   ArrowUpDown,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { tierColors, tierIcons } from "@/hooks/useLoyaltyTier";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
   useTierHistory,
   usePointsTransactions,
   useSuspiciousActivities,
   useCustomerSearch,
   useManualTierOverride,
+  ADMIN_PAGE_SIZE,
+  ALERTS_PAGE_SIZE,
   type CustomerSearchResult,
 } from "@/hooks/useTierManagement";
 
@@ -79,10 +91,15 @@ export default function TierManagement() {
   const [overrideTier, setOverrideTier] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
 
+  // Pagination state
+  const [historyPage, setHistoryPage] = useState(0);
+  const [transactionsPage, setTransactionsPage] = useState(0);
+  const [activitiesPage, setActivitiesPage] = useState(0);
+
   // Real DB hooks
-  const { data: tierHistory = [], isLoading: historyLoading, isError: historyError, error: historyErrorDetail } = useTierHistory();
-  const { data: pointsTransactions = [], isLoading: txLoading, isError: txError, error: txErrorDetail } = usePointsTransactions();
-  const { data: suspiciousActivities = [], isLoading: alertsLoading, resolveActivity, suspendCustomer } = useSuspiciousActivities();
+  const { data: tierHistory = [], isLoading: historyLoading, isError: historyError, error: historyErrorDetail } = useTierHistory(historyPage);
+  const { data: pointsTransactions = [], isLoading: txLoading, isError: txError, error: txErrorDetail } = usePointsTransactions(transactionsPage);
+  const { data: suspiciousActivities = [], isLoading: alertsLoading, resolveActivity, suspendCustomer } = useSuspiciousActivities(activitiesPage);
   const { query: searchQuery, setQuery: setSearchQuery, data: searchResults = [], isFetching: searchLoading } = useCustomerSearch();
   const manualOverride = useManualTierOverride();
 
@@ -305,72 +322,117 @@ export default function TierManagement() {
               <CardDescription>บันทึกการเปลี่ยน Tier ทั้งหมดในระบบ</CardDescription>
             </CardHeader>
             <CardContent>
-              {historyLoading ? (
-                <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
-              ) : historyError ? (
-                <div className="text-center py-8 text-destructive flex flex-col items-center gap-2">
-                  <AlertCircle className="h-8 w-8" />
-                  <p className="font-medium">ไม่สามารถโหลดประวัติการเปลี่ยน Tier ได้</p>
-                  <p className="text-sm text-muted-foreground">{(historyErrorDetail as Error)?.message ?? "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ"}</p>
-                </div>
-              ) : tierHistory.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">ยังไม่มีประวัติการเปลี่ยน Tier</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>วันที่</TableHead>
-                      <TableHead>ลูกค้า</TableHead>
-                      <TableHead>Tier เดิม</TableHead>
-                      <TableHead>Tier ใหม่</TableHead>
-                      <TableHead>เหตุผล</TableHead>
-                      <TableHead>โดย</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {tierHistory.map((history) => {
-                      const prevTierName = history.previous_tier?.name ?? "—";
-                      const newTierName = history.new_tier?.name ?? "—";
-                      const customerName = history.customer?.full_name ?? history.customer?.email ?? history.user_id.slice(0, 8);
-                      const changerName = history.is_manual_override
-                        ? (history.changer?.full_name ?? "Admin")
-                        : "System";
-
-                      return (
-                        <TableRow key={history.id}>
-                          <TableCell className="text-sm">
-                            {format(new Date(history.created_at), "d MMM yyyy", { locale: safeLocale })}
-                          </TableCell>
-                          <TableCell className="font-medium">{customerName}</TableCell>
-                          <TableCell>
-                            <Badge className={safeTierColors[prevTierName]?.bg ?? "bg-muted"}>
-                              {safeTierIcons[prevTierName] ?? "?"} {prevTierName}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <span className="flex items-center gap-1">
-                              {prevTierName < newTierName ? (
-                                <TrendingUp className="h-4 w-4 text-green-600" />
-                              ) : (
-                                <TrendingDown className="h-4 w-4 text-destructive" />
-                              )}
-                              <Badge className={safeTierColors[newTierName]?.bg ?? "bg-muted"}>
-                                {safeTierIcons[newTierName] ?? "?"} {newTierName}
-                              </Badge>
-                            </span>
-                          </TableCell>
-                          <TableCell className="max-w-[200px] truncate">{history.change_reason ?? "—"}</TableCell>
-                          <TableCell>
-                            <Badge variant={history.is_manual_override ? "destructive" : "secondary"}>
-                              {changerName}
-                            </Badge>
-                          </TableCell>
+              <div className="min-h-[500px] flex flex-col justify-between">
+                <div>
+                  {historyLoading ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: ADMIN_PAGE_SIZE }).map((_, i) => (
+                        <Skeleton key={i} className="h-12 w-full" />
+                      ))}
+                    </div>
+                  ) : historyError ? (
+                    <div className="text-center py-8 text-destructive flex flex-col items-center gap-2">
+                      <AlertCircle className="h-8 w-8" />
+                      <p className="font-medium">ไม่สามารถโหลดประวัติการเปลี่ยน Tier ได้</p>
+                      <p className="text-sm text-muted-foreground">{(historyErrorDetail as Error)?.message ?? "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ"}</p>
+                    </div>
+                  ) : tierHistory.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">ยังไม่มีประวัติการเปลี่ยน Tier</div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>วันที่</TableHead>
+                          <TableHead>ลูกค้า</TableHead>
+                          <TableHead>Tier เดิม</TableHead>
+                          <TableHead>Tier ใหม่</TableHead>
+                          <TableHead>เหตุผล</TableHead>
+                          <TableHead>โดย</TableHead>
                         </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
+                      </TableHeader>
+                      <TableBody>
+                        {tierHistory.slice(0, ADMIN_PAGE_SIZE).map((history) => {
+                          const prevTierName = history.previous_tier?.name ?? "—";
+                          const newTierName = history.new_tier?.name ?? "—";
+                          const customerName = history.customer?.full_name ?? history.customer?.email ?? history.user_id.slice(0, 8);
+                          const changerName = history.is_manual_override
+                            ? (history.changer?.full_name ?? "Admin")
+                            : "System";
+
+                          return (
+                            <TableRow key={history.id}>
+                              <TableCell className="text-sm">
+                                {format(new Date(history.created_at), "d MMM yyyy", { locale: safeLocale })}
+                              </TableCell>
+                              <TableCell className="font-medium">{customerName}</TableCell>
+                              <TableCell>
+                                <Badge className={safeTierColors[prevTierName]?.bg ?? "bg-muted"}>
+                                  {safeTierIcons[prevTierName] ?? "?"} {prevTierName}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <span className="flex items-center gap-1">
+                                  {prevTierName < newTierName ? (
+                                    <TrendingUp className="h-4 w-4 text-green-600" />
+                                  ) : (
+                                    <TrendingDown className="h-4 w-4 text-destructive" />
+                                  )}
+                                  <Badge className={safeTierColors[newTierName]?.bg ?? "bg-muted"}>
+                                    {safeTierIcons[newTierName] ?? "?"} {newTierName}
+                                  </Badge>
+                                </span>
+                              </TableCell>
+                              <TableCell className="max-w-[200px] truncate">{history.change_reason ?? "—"}</TableCell>
+                              <TableCell>
+                                <Badge variant={history.is_manual_override ? "destructive" : "secondary"}>
+                                  {changerName}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+
+                {/* Pagination Controls */}
+                {!historyLoading && !historyError && tierHistory.length > 0 && (
+                  <div className="mt-4 flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      หน้า {historyPage + 1}
+                    </p>
+                    <Pagination className="mx-0 w-auto">
+                      <PaginationContent>
+                        <PaginationItem>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setHistoryPage((p) => Math.max(0, p - 1))}
+                            disabled={historyPage === 0}
+                            className="gap-1 pl-2.5"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            <span>Previous</span>
+                          </Button>
+                        </PaginationItem>
+                        <PaginationItem>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setHistoryPage((p) => p + 1)}
+                            disabled={tierHistory.length <= ADMIN_PAGE_SIZE}
+                            className="gap-1 pr-2.5"
+                          >
+                            <span>Next</span>
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -383,51 +445,96 @@ export default function TierManagement() {
               <CardDescription>ประวัติการได้รับ/ใช้คะแนนทั้งหมด</CardDescription>
             </CardHeader>
             <CardContent>
-              {txLoading ? (
-                <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div>
-              ) : txError ? (
-                <div className="text-center py-8 text-destructive flex flex-col items-center gap-2">
-                  <AlertCircle className="h-8 w-8" />
-                  <p className="font-medium">ไม่สามารถโหลดธุรกรรม Points ได้</p>
-                  <p className="text-sm text-muted-foreground">{(txErrorDetail as Error)?.message ?? "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ"}</p>
-                </div>
-              ) : pointsTransactions.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">ยังไม่มีธุรกรรม Points</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>วันเวลา</TableHead>
-                      <TableHead>ลูกค้า</TableHead>
-                      <TableHead>ประเภท</TableHead>
-                      <TableHead className="text-right">จำนวน</TableHead>
-                      <TableHead className="text-right">ยอดคงเหลือ</TableHead>
-                      <TableHead>รายละเอียด</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pointsTransactions.map((tx) => {
-                      const customerName = tx.customer?.full_name ?? tx.customer?.email ?? tx.user_id.slice(0, 8);
-                      return (
-                        <TableRow key={tx.id}>
-                          <TableCell className="text-sm">
-                            {format(new Date(tx.created_at), "d MMM yyyy HH:mm", { locale: safeLocale })}
-                          </TableCell>
-                          <TableCell className="font-medium">{customerName}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="capitalize">{tx.transaction_type}</Badge>
-                          </TableCell>
-                          <TableCell className={cn("text-right font-medium", getTransactionTypeColor(tx.transaction_type))}>
-                            {(tx.points_amount ?? 0) > 0 ? "+" : ""}{(tx.points_amount ?? 0).toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-right">{(tx.balance_after ?? 0).toLocaleString()}</TableCell>
-                          <TableCell className="max-w-[200px] truncate">{tx.description ?? "—"}</TableCell>
+              <div className="min-h-[500px] flex flex-col justify-between">
+                <div>
+                  {txLoading ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: ADMIN_PAGE_SIZE }).map((_, i) => (
+                        <Skeleton key={i} className="h-12 w-full" />
+                      ))}
+                    </div>
+                  ) : txError ? (
+                    <div className="text-center py-8 text-destructive flex flex-col items-center gap-2">
+                      <AlertCircle className="h-8 w-8" />
+                      <p className="font-medium">ไม่สามารถโหลดธุรกรรม Points ได้</p>
+                      <p className="text-sm text-muted-foreground">{(txErrorDetail as Error)?.message ?? "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ"}</p>
+                    </div>
+                  ) : pointsTransactions.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">ยังไม่มีธุรกรรม Points</div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>วันเวลา</TableHead>
+                          <TableHead>ลูกค้า</TableHead>
+                          <TableHead>ประเภท</TableHead>
+                          <TableHead className="text-right">จำนวน</TableHead>
+                          <TableHead className="text-right">ยอดคงเหลือ</TableHead>
+                          <TableHead>รายละเอียด</TableHead>
                         </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
+                      </TableHeader>
+                      <TableBody>
+                        {pointsTransactions.slice(0, ADMIN_PAGE_SIZE).map((tx) => {
+                          const customerName = tx.customer?.full_name ?? tx.customer?.email ?? tx.user_id.slice(0, 8);
+                          return (
+                            <TableRow key={tx.id}>
+                              <TableCell className="text-sm">
+                                {format(new Date(tx.created_at), "d MMM yyyy HH:mm", { locale: safeLocale })}
+                              </TableCell>
+                              <TableCell className="font-medium">{customerName}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="capitalize">{tx.transaction_type}</Badge>
+                              </TableCell>
+                              <TableCell className={cn("text-right font-medium", getTransactionTypeColor(tx.transaction_type))}>
+                                {(tx.points_amount ?? 0) > 0 ? "+" : ""}{(tx.points_amount ?? 0).toLocaleString()}
+                              </TableCell>
+                              <TableCell className="text-right">{(tx.balance_after ?? 0).toLocaleString()}</TableCell>
+                              <TableCell className="max-w-[200px] truncate">{tx.description ?? "—"}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+
+                {/* Pagination Controls */}
+                {!txLoading && !txError && pointsTransactions.length > 0 && (
+                  <div className="mt-4 flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      หน้า {transactionsPage + 1}
+                    </p>
+                    <Pagination className="mx-0 w-auto">
+                      <PaginationContent>
+                        <PaginationItem>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setTransactionsPage((p) => Math.max(0, p - 1))}
+                            disabled={transactionsPage === 0}
+                            className="gap-1 pl-2.5"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            <span>Previous</span>
+                          </Button>
+                        </PaginationItem>
+                        <PaginationItem>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setTransactionsPage((p) => p + 1)}
+                            disabled={pointsTransactions.length <= ADMIN_PAGE_SIZE}
+                            className="gap-1 pr-2.5"
+                          >
+                            <span>Next</span>
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -443,78 +550,123 @@ export default function TierManagement() {
               <CardDescription>กิจกรรมที่น่าสงสัยและต้องตรวจสอบ</CardDescription>
             </CardHeader>
             <CardContent>
-              {alertsLoading ? (
-                <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}</div>
-              ) : suspiciousActivities.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3 opacity-50" />
-                  ไม่มีกิจกรรมที่น่าสงสัย
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {suspiciousActivities.map((activity) => {
-                    const customerName = activity.customer?.full_name ?? activity.customer?.email ?? activity.user_id.slice(0, 8);
-                    return (
-                      <div
-                        key={activity.id}
-                        className={cn(
-                          "flex items-center justify-between p-4 rounded-lg border",
-                          activity.is_resolved ? "bg-muted/30" : "bg-destructive/5 border-destructive/20"
-                        )}
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className={cn(
-                            "flex h-10 w-10 items-center justify-center rounded-full",
-                            activity.is_resolved ? "bg-green-500/20" : "bg-destructive/20"
-                          )}>
-                            {activity.is_resolved ? (
-                              <CheckCircle className="h-5 w-5 text-green-600" />
-                            ) : (
-                              <AlertCircle className="h-5 w-5 text-destructive" />
+              <div className="min-h-[450px] flex flex-col justify-between">
+                <div>
+                  {alertsLoading ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: ALERTS_PAGE_SIZE }).map((_, i) => (
+                        <Skeleton key={i} className="h-20 w-full rounded-lg" />
+                      ))}
+                    </div>
+                  ) : suspiciousActivities.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3 opacity-50" />
+                      ไม่มีกิจกรรมที่น่าสงสัย
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {suspiciousActivities.slice(0, ALERTS_PAGE_SIZE).map((activity) => {
+                        const customerName = activity.customer?.full_name ?? activity.customer?.email ?? activity.user_id.slice(0, 8);
+                        return (
+                          <div
+                            key={activity.id}
+                            className={cn(
+                              "flex items-center justify-between p-4 rounded-lg border",
+                              activity.is_resolved ? "bg-muted/30" : "bg-destructive/5 border-destructive/20"
                             )}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium">{customerName}</p>
-                              <Badge className={getSeverityColor(activity.severity)}>{activity.severity}</Badge>
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className={cn(
+                                "flex h-10 w-10 items-center justify-center rounded-full",
+                                activity.is_resolved ? "bg-green-500/20" : "bg-destructive/20"
+                              )}>
+                                {activity.is_resolved ? (
+                                  <CheckCircle className="h-5 w-5 text-green-600" />
+                                ) : (
+                                  <AlertCircle className="h-5 w-5 text-destructive" />
+                                )}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium">{customerName}</p>
+                                  <Badge className={getSeverityColor(activity.severity)}>{activity.severity}</Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground">{activity.description ?? activity.activity_type}</p>
+                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                  <Clock className="h-3 w-3" />
+                                  {format(new Date(activity.created_at), "d MMM yyyy HH:mm", { locale: safeLocale })}
+                                </p>
+                              </div>
                             </div>
-                            <p className="text-sm text-muted-foreground">{activity.description ?? activity.activity_type}</p>
-                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                              <Clock className="h-3 w-3" />
-                              {format(new Date(activity.created_at), "d MMM yyyy HH:mm", { locale: safeLocale })}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              {!activity.is_resolved && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => resolveActivity.mutate({ activityId: activity.id })}
+                                    disabled={resolveActivity.isPending}
+                                  >
+                                    <Eye className="h-4 w-4 mr-1" /> แก้ไขแล้ว
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => suspendCustomer.mutate(activity.user_id)}
+                                    disabled={suspendCustomer.isPending}
+                                  >
+                                    <XCircle className="h-4 w-4 mr-1" /> ระงับ
+                                  </Button>
+                                </>
+                              )}
+                              {activity.is_resolved && (
+                                <Badge variant="outline" className="text-green-600 border-green-600">แก้ไขแล้ว</Badge>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {!activity.is_resolved && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => resolveActivity.mutate({ activityId: activity.id })}
-                                disabled={resolveActivity.isPending}
-                              >
-                                <Eye className="h-4 w-4 mr-1" /> แก้ไขแล้ว
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => suspendCustomer.mutate(activity.user_id)}
-                                disabled={suspendCustomer.isPending}
-                              >
-                                <XCircle className="h-4 w-4 mr-1" /> ระงับ
-                              </Button>
-                            </>
-                          )}
-                          {activity.is_resolved && (
-                            <Badge variant="outline" className="text-green-600 border-green-600">แก้ไขแล้ว</Badge>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {/* Pagination Controls */}
+                {!alertsLoading && suspiciousActivities.length > 0 && (
+                  <div className="mt-4 flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      หน้า {activitiesPage + 1}
+                    </p>
+                    <Pagination className="mx-0 w-auto">
+                      <PaginationContent>
+                        <PaginationItem>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setActivitiesPage((p) => Math.max(0, p - 1))}
+                            disabled={activitiesPage === 0}
+                            className="gap-1 pl-2.5"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            <span>Previous</span>
+                          </Button>
+                        </PaginationItem>
+                        <PaginationItem>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setActivitiesPage((p) => p + 1)}
+                            disabled={suspiciousActivities.length <= ALERTS_PAGE_SIZE}
+                            className="gap-1 pr-2.5"
+                          >
+                            <span>Next</span>
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

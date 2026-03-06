@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -60,12 +60,18 @@ export interface CustomerSearchResult {
     created_at: string;
 }
 
+export const ADMIN_PAGE_SIZE = 8;
+export const ALERTS_PAGE_SIZE = 5;
+
 // ─── Tier History ─────────────────────────────────────────────────────────────
 
-export function useTierHistory() {
+export function useTierHistory(page = 0) {
     return useQuery({
-        queryKey: ["tier-history"],
+        queryKey: ["tier-history", page],
         queryFn: async () => {
+            const from = page * ADMIN_PAGE_SIZE;
+            const to = from + ADMIN_PAGE_SIZE; // Fetch one extra to check if next exists
+
             // FKs to customer were added in migration 20260224000002_add_loyalty_fks.sql.
             // Try the full query with customer join first; fall back to tier-only query if
             // the FK relationship is not found in PostgREST's schema cache (PGRST200).
@@ -79,7 +85,7 @@ export function useTierHistory() {
                     changer:customer!tier_history_changed_by_fkey(full_name)`
                 )
                 .order("created_at", { ascending: false })
-                .limit(100);
+                .range(from, to);
 
             if (error) {
                 // PGRST200 = "Could not find a relationship" — FK not yet in schema cache
@@ -92,7 +98,7 @@ export function useTierHistory() {
                             new_tier:loyalty_tiers!tier_history_new_tier_id_fkey(name)`
                         )
                         .order("created_at", { ascending: false })
-                        .limit(100);
+                        .range(from, to);
                     if (fallbackError) throw fallbackError;
                     return (fallback as unknown as TierHistoryEntry[]) ?? [];
                 }
@@ -100,22 +106,26 @@ export function useTierHistory() {
             }
             return (data as unknown as TierHistoryEntry[]) ?? [];
         },
+        placeholderData: keepPreviousData,
     });
 }
 
 // ─── Points Transactions ──────────────────────────────────────────────────────
 
-export function usePointsTransactions() {
+export function usePointsTransactions(page = 0) {
     return useQuery({
-        queryKey: ["points-transactions-admin"],
+        queryKey: ["points-transactions-admin", page],
         queryFn: async () => {
+            const from = page * ADMIN_PAGE_SIZE;
+            const to = from + ADMIN_PAGE_SIZE; // Fetch one extra to check if next exists
+
             // FK to customer added in migration 20260224000002_add_loyalty_fks.sql.
             // Fall back to basic query if the FK relationship is not in PostgREST schema cache.
             const { data, error } = await supabase
                 .from("points_transactions")
                 .select(`*, customer:customer!points_transactions_user_id_fkey(full_name, email)`)
                 .order("created_at", { ascending: false })
-                .limit(200);
+                .range(from, to);
 
             if (error) {
                 if (error.code === "PGRST200" || error.message?.includes("Could not find a relationship")) {
@@ -123,7 +133,7 @@ export function usePointsTransactions() {
                         .from("points_transactions")
                         .select("*")
                         .order("created_at", { ascending: false })
-                        .limit(200);
+                        .range(from, to);
                     if (fallbackError) throw fallbackError;
                     return (fallback as unknown as PointsTransaction[]) ?? [];
                 }
@@ -131,27 +141,32 @@ export function usePointsTransactions() {
             }
             return (data as unknown as PointsTransaction[]) ?? [];
         },
+        placeholderData: keepPreviousData,
     });
 }
 
 // ─── Suspicious Activities ────────────────────────────────────────────────────
 
-export function useSuspiciousActivities() {
+export function useSuspiciousActivities(page = 0) {
     const queryClient = useQueryClient();
 
     const query = useQuery({
-        queryKey: ["suspicious-activities"],
+        queryKey: ["suspicious-activities", page],
         queryFn: async () => {
+            const from = page * ALERTS_PAGE_SIZE;
+            const to = from + ALERTS_PAGE_SIZE; // Fetch one extra to check if next exists
+
             // No FK from user_id to customer — fetch without join.
             const { data, error } = await supabase
                 .from("suspicious_activities")
                 .select("*")
                 .order("created_at", { ascending: false })
-                .limit(100);
+                .range(from, to);
 
             if (error) throw error;
             return (data as unknown as SuspiciousActivity[]) ?? [];
         },
+        placeholderData: keepPreviousData,
     });
 
     const resolveActivity = useMutation({
