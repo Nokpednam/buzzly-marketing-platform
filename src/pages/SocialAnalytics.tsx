@@ -47,6 +47,8 @@ import {
 import { usePlatformConnections, Platform } from "@/hooks/usePlatformConnections";
 import { useSocialPosts } from "@/hooks/useSocialPosts";
 import { useAdInsights } from "@/hooks/useAdInsights";
+import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
+import { OnboardingBanner } from "@/components/dashboard/OnboardingBanner";
 import { SocialPostsList } from "@/components/social/SocialPostsList";
 import { AdsList } from "@/components/social/AdsList";
 import { AdGroupsList } from "@/components/social/AdGroupsList";
@@ -82,6 +84,8 @@ export default function SocialAnalytics() {
   const [showCompare, setShowCompare] = useState(false);
   const [viewMode, setViewMode] = useState<"overview" | "detailed">("detailed");
 
+  const { state: onboardingState } = useOnboardingGuard();
+
   const { posts } = useSocialPosts(dateRange);
   const { summary: adSummary } = useAdInsights(dateRange);
 
@@ -98,21 +102,8 @@ export default function SocialAnalytics() {
       }));
   }, [selectedPosts, posts]);
 
-  if (connectedPlatforms.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[70vh] text-center p-6 border-2 border-dashed rounded-2xl mx-4">
-        <div className="bg-muted p-4 rounded-full mb-4">
-          <AlertCircle className="h-10 w-10 text-muted-foreground" />
-        </div>
-        <h2 className="text-2xl font-bold tracking-tight">No Platforms Connected</h2>
-        <p className="text-muted-foreground mb-6 max-w-sm">
-          Connect your social accounts to start tracking post performance and ad spend.
-        </p>
-        <Button size="lg" onClick={() => navigate("/api-keys")} className="gap-2">
-          Connect API Keys <ArrowUpRight className="h-4 w-4" />
-        </Button>
-      </div>
-    );
+  if (onboardingState !== "ready") {
+    return <OnboardingBanner state={onboardingState} />;
   }
 
   return (

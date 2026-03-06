@@ -34,6 +34,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { useCustomerPersonas } from "@/hooks/useCustomerPersonas";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
+import { OnboardingBanner } from "@/components/dashboard/OnboardingBanner";
 import { PersonaCard } from "@/components/persona/PersonaCard";
 import { CreatePersonaDialog } from "@/components/persona/CreatePersonaDialog";
 import type { CustomerPersona } from "@/hooks/useCustomerPersonas";
@@ -56,6 +58,7 @@ export default function Prospects() {
     deletePersona,
     getPersonaStats,
   } = useCustomerPersonas(workspace.id);
+  const { state: onboardingState } = useOnboardingGuard();
   type CustomerPersona = NonNullable<typeof personas>[number];
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -75,6 +78,10 @@ export default function Prospects() {
         <p className="text-sm font-medium text-muted-foreground animate-pulse">Building your audience profiles...</p>
       </div>
     );
+  }
+
+  if (onboardingState !== "ready") {
+    return <OnboardingBanner state={onboardingState} />;
   }
 
   const hasPersonas = personas && personas.length > 0;

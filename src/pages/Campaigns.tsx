@@ -35,6 +35,8 @@ import {
   BarChart3,
   DollarSign,
 } from "lucide-react";
+import { OnboardingBanner } from "@/components/dashboard/OnboardingBanner";
+import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -116,6 +118,8 @@ export default function Campaigns() {
     }
   };
   const [selectedAdAccount, setSelectedAdAccount] = useState<string>("");
+
+  const { state: onboardingState } = useOnboardingGuard();
 
   // Use React Query so this auto-refetches when a platform is connected
   const { data: adAccounts = [] } = useQuery({
@@ -281,6 +285,10 @@ export default function Campaigns() {
         <p className="text-muted-foreground text-sm">{(error as Error).message}</p>
       </div>
     );
+  }
+
+  if (onboardingState !== "ready") {
+    return <OnboardingBanner state={onboardingState} />;
   }
 
   return (

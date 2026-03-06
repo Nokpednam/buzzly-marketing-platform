@@ -19,8 +19,8 @@ COMMENT ON TABLE public.customer_activities IS
   'Behavioral activity log for profile_customers. Tracks page visits, events, clicks. Used by useFunnelData and useAnalyticsData hooks for AARRR funnel analysis.';
 
 -- customer_insights: legacy/partially-used table
-COMMENT ON TABLE public.customer_insights IS 
-  'LEGACY: Originally stored profession/salary info from signup form. Now partially superseded by profile_customers.salary_range and customer_personas fields. Do not add new features here without discussion.';
+-- COMMENT ON TABLE public.customer_insights IS 
+--  'LEGACY: Originally stored profession/salary info from signup form. Now partially superseded by profile_customers.salary_range and customer_personas fields. Do not add new features here without discussion.';
 
 -- prospects: unused, kept for future lead management
 COMMENT ON TABLE public.prospects IS 
