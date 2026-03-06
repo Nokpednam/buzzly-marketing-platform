@@ -7,18 +7,22 @@
 -- =======================================================================
 
 -- -----------------------------------------------------------------------
--- 1. Drop team_id column (nullable, was never a real business requirement)
+-- 1. Drop ALL existing policies that reference team_id FIRST,
+--    so the column drop below succeeds without dependency errors.
+-- -----------------------------------------------------------------------
+DROP POLICY IF EXISTS "Users can view their team discounts" ON public.discounts;
+DROP POLICY IF EXISTS "Users can insert their team discounts" ON public.discounts;
+DROP POLICY IF EXISTS "Users can update their team discounts" ON public.discounts;
+DROP POLICY IF EXISTS "Users can delete their team discounts" ON public.discounts;
+DROP POLICY IF EXISTS "Admins can manage discounts" ON public.discounts;
+DROP POLICY IF EXISTS "admin_owner_manage" ON public.discounts;
+
+-- -----------------------------------------------------------------------
+-- 2. Now safe to drop team_id column
 -- -----------------------------------------------------------------------
 ALTER TABLE public.discounts
     DROP CONSTRAINT IF EXISTS discounts_team_id_fkey,
     DROP COLUMN IF EXISTS team_id;
-
--- -----------------------------------------------------------------------
--- 2. Drop broken legacy management policies
---    (These use has_role() against user_roles which employees are not in)
--- -----------------------------------------------------------------------
-DROP POLICY IF EXISTS "Admins can manage discounts" ON public.discounts;
-DROP POLICY IF EXISTS "admin_owner_manage" ON public.discounts;
 
 -- -----------------------------------------------------------------------
 -- 3. Add employee management policies using has_employee_role()
