@@ -372,7 +372,7 @@ export default function TierManagement() {
                               </TableCell>
                               <TableCell>
                                 <span className="flex items-center gap-1">
-                                  {prevTierName < newTierName ? (
+                                  {(history.new_tier?.priority_level ?? 0) > (history.previous_tier?.priority_level ?? 0) ? (
                                     <TrendingUp className="h-4 w-4 text-green-600" />
                                   ) : (
                                     <TrendingDown className="h-4 w-4 text-destructive" />

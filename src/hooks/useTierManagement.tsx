@@ -16,8 +16,8 @@ export interface TierHistoryEntry {
     created_at: string;
     // Joined
     customer?: { full_name: string | null; email: string | null };
-    previous_tier?: { name: string } | null;
-    new_tier?: { name: string };
+    previous_tier?: { name: string; priority_level: number } | null;
+    new_tier?: { name: string; priority_level: number };
     changer?: { full_name: string | null } | null;
 }
 
@@ -79,11 +79,12 @@ export function useTierHistory(page = 0) {
                 .from("tier_history")
                 .select(
                     `*,
-                    previous_tier:loyalty_tiers!tier_history_previous_tier_id_fkey(name),
-                    new_tier:loyalty_tiers!tier_history_new_tier_id_fkey(name),
+                    previous_tier:loyalty_tiers!tier_history_previous_tier_id_fkey(name, priority_level),
+                    new_tier:loyalty_tiers!tier_history_new_tier_id_fkey(name, priority_level),
                     customer:customer!tier_history_user_id_fkey(full_name, email),
                     changer:customer!tier_history_changed_by_fkey(full_name)`
                 )
+                .not("previous_tier_id", "is", null)
                 .order("created_at", { ascending: false })
                 .range(from, to);
 
@@ -94,9 +95,10 @@ export function useTierHistory(page = 0) {
                         .from("tier_history")
                         .select(
                             `*,
-                            previous_tier:loyalty_tiers!tier_history_previous_tier_id_fkey(name),
-                            new_tier:loyalty_tiers!tier_history_new_tier_id_fkey(name)`
+                            previous_tier:loyalty_tiers!tier_history_previous_tier_id_fkey(name, priority_level),
+                            new_tier:loyalty_tiers!tier_history_new_tier_id_fkey(name, priority_level)`
                         )
+                        .not("previous_tier_id", "is", null)
                         .order("created_at", { ascending: false })
                         .range(from, to);
                     if (fallbackError) throw fallbackError;
