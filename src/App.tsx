@@ -21,6 +21,9 @@ import Prospects from "./pages/Prospects";
 import Campaigns from "./pages/Campaigns";
 import CampaignDetail from "./pages/CampaignDetail";
 import SocialAnalytics from "./pages/SocialAnalytics";
+import Email from "./pages/Email";
+import Engagement from "./pages/Engagement";
+import AIInsights from "./pages/AIInsights";
 
 import CustomerJourney from "./pages/CustomerJourney";
 import AARRRFunnel from "./pages/AARRRFunnel";
@@ -45,6 +48,7 @@ import UserFeedback from "./pages/owner/UserFeedback";
 import ExecutiveReport from "./pages/owner/ExecutiveReport";
 import CustomerTiers from "./pages/owner/CustomerTiers";
 import OwnerDiscounts from "./pages/owner/OwnerDiscounts";
+import Discounts from "./pages/Discounts";
 
 // Dev pages (renamed from admin)
 import DevSupport from "./pages/dev/DevSupport";
@@ -100,6 +104,9 @@ const App = () => (
                     <Route path="/campaigns" element={<Campaigns />} />
                     <Route path="/campaigns/:id" element={<CampaignDetail />} />
                     <Route path="/social-analytics" element={<SocialAnalytics />} />
+                    <Route path="/email" element={<Email />} />
+                    <Route path="/engagement" element={<Engagement />} />
+                    <Route path="/ai-insights" element={<AIInsights />} />
 
                     <Route path="/customer-journey" element={<CustomerJourney />} />
                     <Route path="/aarrr-funnel" element={<AARRRFunnel />} />
@@ -163,7 +170,7 @@ const App = () => (
                     <Route path="/owner/user-feedback" element={<UserFeedback />} />
                     <Route path="/owner/executive-report" element={<ExecutiveReport />} />
                     <Route path="/owner/customer-tiers" element={<CustomerTiers />} />
-                    <Route path="/owner/discounts" element={<OwnerDiscounts />} />
+                    <Route path="/owner/discounts" element={<Discounts />} />
                   </Route>
 
                   <Route path="*" element={<NotFound />} />
