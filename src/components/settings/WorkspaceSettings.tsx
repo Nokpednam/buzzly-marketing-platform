@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { Building2, Globe, Loader2 } from "lucide-react";
 import { useWorkspace } from "@/hooks/useWorkspace";
 
 export function WorkspaceSettings() {
+  const navigate = useNavigate();
   const {
     workspace,
     setWorkspace,
@@ -36,6 +38,7 @@ export function WorkspaceSettings() {
     const result = await createWorkspace(newWorkspaceName.trim());
     if (result) {
       setNewWorkspaceName("");
+      navigate("/api-keys");
     }
     setIsCreating(false);
   };

@@ -344,7 +344,7 @@ function NoWorkspaceState({ navigate }: { navigate: any }) {
       <div className="bg-background p-6 rounded-full shadow-xl mb-6"><Building2 className="h-10 w-10 text-primary" /></div>
       <h3 className="text-2xl font-black tracking-tight mb-2 uppercase">Workspace Required</h3>
       <p className="text-muted-foreground mb-8 max-w-sm">Establish your workspace environment first to begin linking external marketing platforms.</p>
-      <Button onClick={() => navigate("/settings")} size="lg" className="rounded-full px-10 shadow-lg shadow-primary/20">
+      <Button onClick={() => navigate("/settings?tab=workspace")} size="lg" className="rounded-full px-10 shadow-lg shadow-primary/20">
         Setup Workspace <ChevronRight className="h-4 w-4 ml-2" />
       </Button>
     </div>

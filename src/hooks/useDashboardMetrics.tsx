@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
 export interface DashboardMetrics {
   totalImpressions: number;
@@ -14,8 +15,12 @@ export interface DashboardMetrics {
 }
 
 export function useDashboardMetrics(dateRange: string = "7d", platformId: string = "all") {
+  const { workspace } = useWorkspace();
+  const workspaceId = workspace.id;
+
   return useQuery({
-    queryKey: ["dashboard-metrics", dateRange, platformId],
+    queryKey: ["dashboard-metrics", dateRange, platformId, workspaceId],
+    enabled: !!workspaceId,
     queryFn: async (): Promise<DashboardMetrics> => {
       // Calculate date range
       const now = new Date();
@@ -40,8 +45,9 @@ export function useDashboardMetrics(dateRange: string = "7d", platformId: string
         .from("ad_insights")
         .select(`
           *,
-          ad_accounts!inner(platform_id)
+          ad_accounts!inner(platform_id, team_id)
         `)
+        .eq("ad_accounts.team_id", workspaceId!)
         .gte("date", startDate.toISOString().split("T")[0])
         .order("date", { ascending: true });
 

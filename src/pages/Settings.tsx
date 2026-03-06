@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -283,7 +284,8 @@ export default function Settings() {
     }
   };
 
-  const [activeTab, setActiveTab] = useState("workspace");
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "workspace");
 
   const navigateToPaymentMethods = () => setActiveTab("payment-methods");
 

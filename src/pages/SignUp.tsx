@@ -148,8 +148,9 @@ const SignUp = () => {
           salary_range: formData.salaryRange || null,
         } as any, { onConflict: 'user_id' });
 
-        toast.success("สมัครสมาชิกสำเร็จ! กำลังเข้าสู่ระบบ...");
-        navigate("/dashboard");
+        await supabase.auth.signOut();
+        toast.success("สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบด้วย email และรหัสผ่านของคุณ");
+        navigate("/auth");
       }
     } catch (error: any) {
       // Handle "User already registered" specifically

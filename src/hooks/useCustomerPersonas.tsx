@@ -66,18 +66,19 @@ export const useCustomerPersonas = (teamId: string | null) => {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["customer-personas"],
+    queryKey: ["customer-personas", teamId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("customer_personas")
         .select("*")
+        .eq("team_id", teamId!)
         .eq("is_active", true)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       return data as CustomerPersona[];
     },
-    enabled: true,
+    enabled: !!teamId,
   });
 
   // Fetch genders for dropdown
