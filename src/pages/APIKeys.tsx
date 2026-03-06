@@ -329,26 +329,48 @@ function OnboardingStepper({
   ];
 
   return (
-    <div className="max-w-2xl mx-auto p-4 md:p-8 space-y-8">
-      {/* Header */}
-      <div className="text-center space-y-2">
-        <div className="flex items-center justify-center gap-2 text-primary font-bold text-xs uppercase tracking-widest mb-4">
-          <Rocket className="h-4 w-4" /> Getting Started
-        </div>
-        <h1 className="text-3xl font-black tracking-tighter">Welcome to Buzzly</h1>
-        <p className="text-muted-foreground">
-          Let's get you set up in 2 quick steps before you can access your dashboard.
-        </p>
-      </div>
+    <div className="relative min-h-[80vh] flex items-center justify-center p-4 md:p-8 overflow-hidden rounded-[3rem] bg-gradient-to-br from-indigo-50 via-white to-cyan-50 dark:from-slate-950 dark:via-background dark:to-slate-900 border border-border/50">
 
-      {/* Steps */}
-      <Card className="rounded-3xl border shadow-lg overflow-hidden">
-        <CardContent className="p-8 space-y-0">
-          {steps.map((step, idx) => (
-            <StepRow key={step.number} step={step} isLast={idx === steps.length - 1} />
-          ))}
-        </CardContent>
-      </Card>
+      {/* MetaMask style ambient background effects */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/20 blur-[120px] rounded-full mix-blend-multiply animate-pulse" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-500/20 blur-[120px] rounded-full mix-blend-multiply animate-pulse delay-1000" />
+      <div className="absolute top-[40%] left-[50%] w-[30%] h-[30%] bg-purple-500/20 blur-[100px] rounded-full mix-blend-multiply animate-pulse delay-2000" />
+
+      <div className="max-w-3xl w-full relative z-10 space-y-10">
+        {/* Statement Header - MetaMask typography + Gamma structure */}
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-white/50 dark:bg-black/50 border border-white/20 dark:border-white/10 shadow-sm backdrop-blur-md text-primary font-bold text-[10px] uppercase tracking-[0.2em] mb-4">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+            </span>
+            Getting Started
+          </div>
+          <h1 className="text-5xl md:text-7xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 dark:from-white dark:via-indigo-200 dark:to-white">
+            SETUP BUZZLY.
+          </h1>
+          <p className="text-lg text-muted-foreground/80 max-w-lg mx-auto font-medium">
+            Let's build your foundation. Complete these two simple steps to unlock your intelligent dashboard.
+          </p>
+        </div>
+
+        {/* Wizard Card - Gamma Glassmorphism */}
+        <div className="relative group">
+          <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 rounded-[3rem] blur opacity-20 group-hover:opacity-30 transition duration-1000 group-hover:duration-200" />
+
+          <Card className="relative rounded-[3rem] border-white/20 dark:border-white/10 bg-white/60 dark:bg-black/40 backdrop-blur-2xl shadow-2xl overflow-hidden pt-8 pb-4">
+            <CardContent className="p-8 md:p-12 space-y-0 relative z-10">
+              {steps.map((step, idx) => (
+                <StepRow key={step.number} step={step} isLast={idx === steps.length - 1} />
+              ))}
+            </CardContent>
+
+            {/* Subtle decorative mesh within the card */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-indigo-500/5 to-transparent rounded-bl-full pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-cyan-500/5 to-transparent rounded-tr-full pointer-events-none" />
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
@@ -359,51 +381,57 @@ function StepRow({ step, isLast }: { step: Step; isLast: boolean }) {
   const isLocked = step.status === "locked";
 
   return (
-    <div className="flex gap-6">
+    <div className={cn("flex gap-8 group/step transition-all duration-500", isCurrent ? "opacity-100" : "opacity-60")}>
       {/* Number + connector line */}
       <div className="flex flex-col items-center">
         <div
           className={cn(
-            "h-10 w-10 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0 border-2 transition-colors",
-            isCompleted && "bg-emerald-500 border-emerald-500 text-white",
-            isCurrent && "bg-primary border-primary text-primary-foreground",
-            isLocked && "bg-muted border-border text-muted-foreground"
+            "h-14 w-14 rounded-2xl flex items-center justify-center font-black text-xl flex-shrink-0 border-2 transition-all duration-500",
+            isCompleted && "bg-emerald-500 border-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)]",
+            isCurrent && "bg-gradient-to-br from-indigo-500 to-cyan-500 border-transparent text-white shadow-xl shadow-indigo-500/20 scale-110",
+            isLocked && "bg-muted/50 border-border/50 text-muted-foreground backdrop-blur-sm"
           )}
         >
-          {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : isLocked ? <Lock className="h-4 w-4" /> : step.number}
+          {isCompleted ? <CheckCircle2 className="h-6 w-6" /> : isLocked ? <Lock className="h-5 w-5 opacity-50" /> : step.number}
         </div>
         {!isLast && (
           <div
             className={cn(
-              "w-0.5 flex-1 my-2 min-h-[2.5rem]",
-              isCompleted ? "bg-emerald-500/40" : "bg-border"
+              "w-0.5 flex-1 my-4 min-h-[3rem] transition-colors duration-500 relative overflow-hidden",
+              isCompleted ? "bg-emerald-500/30" : "bg-border/60"
             )}
-          />
+          >
+            {/* Animated pulse on connector if previous is done and current is next */}
+            {isCompleted && (
+              <div className="absolute top-0 left-0 w-full h-1/3 bg-emerald-500 animate-[bounce_2s_infinite]" />
+            )}
+          </div>
         )}
       </div>
 
       {/* Content */}
-      <div className={cn("pb-8 flex-1", isLast && "pb-0")}>
-        <div className="flex items-center gap-3 mb-1">
+      <div className={cn("pb-10 flex-1 transition-transform duration-500", isCurrent && "translate-x-2", isLast && "pb-0")}>
+        <div className="flex items-center gap-4 mb-2">
           <h3
             className={cn(
-              "font-black text-base uppercase tracking-tight",
+              "font-black text-2xl uppercase tracking-tighter",
               isLocked && "text-muted-foreground",
-              isCompleted && "text-muted-foreground"
+              isCompleted && "text-muted-foreground line-through decoration-2 decoration-emerald-500/30",
+              isCurrent && "text-foreground bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400"
             )}
           >
             {step.title}
           </h3>
           {isCompleted && (
-            <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] uppercase tracking-widest font-bold">
-              Completed
+            <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs uppercase tracking-widest font-bold px-3 py-1">
+              Done
             </Badge>
           )}
         </div>
         <p
           className={cn(
-            "text-sm mb-4 leading-relaxed",
-            isLocked || isCompleted ? "text-muted-foreground" : "text-foreground"
+            "text-base md:text-lg mb-6 leading-relaxed max-w-xl font-medium",
+            isLocked || isCompleted ? "text-muted-foreground/60" : "text-slate-600 dark:text-slate-300"
           )}
         >
           {step.description}
@@ -412,10 +440,11 @@ function StepRow({ step, isLast }: { step: Step; isLast: boolean }) {
           <Button
             disabled={step.buttonDisabled}
             onClick={step.onAction}
+            size="lg"
             className={cn(
-              "rounded-xl transition-all",
-              isCurrent && "shadow-lg shadow-primary/20 hover:scale-[1.02]",
-              isLocked && "opacity-50 cursor-not-allowed"
+              "rounded-2xl transition-all duration-300 font-bold tracking-wide uppercase text-xs h-12 px-8",
+              isCurrent && "bg-foreground text-background shadow-xl hover:scale-105 hover:bg-primary hover:text-primary-foreground hover:shadow-primary/30",
+              isLocked && "opacity-50 cursor-not-allowed bg-muted text-muted-foreground hover:bg-muted"
             )}
             variant={isCurrent ? "default" : "outline"}
           >
@@ -428,7 +457,7 @@ function StepRow({ step, isLast }: { step: Step; isLast: boolean }) {
               <>
                 <step.icon className="h-4 w-4 mr-2" />
                 {step.buttonLabel}
-                <ChevronRight className="h-4 w-4 ml-1" />
+                <ChevronRight className="h-4 w-4 ml-2 transition-transform group-hover/step:translate-x-1" />
               </>
             )}
           </Button>
