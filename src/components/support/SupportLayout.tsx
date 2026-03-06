@@ -5,12 +5,14 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useEmployeeAuth } from "@/hooks/useEmployeeAuth";
 
 export function SupportLayout() {
     const navigate = useNavigate();
     const { toast } = useToast();
     const [isAuthorized, setIsAuthorized] = useState(false);
     const [isChecking, setIsChecking] = useState(true);
+    useEmployeeAuth(); // Trigger last_active update logic
 
     useEffect(() => {
         checkSupportAccess();

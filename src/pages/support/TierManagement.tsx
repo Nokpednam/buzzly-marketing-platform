@@ -99,7 +99,7 @@ export default function TierManagement() {
   // Real DB hooks
   const { data: tierHistory = [], isLoading: historyLoading, isError: historyError, error: historyErrorDetail } = useTierHistory(historyPage);
   const { data: pointsTransactions = [], isLoading: txLoading, isError: txError, error: txErrorDetail } = usePointsTransactions(transactionsPage);
-  const { data: suspiciousActivities = [], isLoading: alertsLoading, resolveActivity, suspendCustomer } = useSuspiciousActivities(activitiesPage);
+  const { data: suspiciousActivities = [], isLoading: alertsLoading, unresolvedCount, resolveActivity, suspendCustomer } = useSuspiciousActivities(activitiesPage);
   const { query: searchQuery, setQuery: setSearchQuery, data: searchResults = [], isFetching: searchLoading } = useCustomerSearch();
   const manualOverride = useManualTierOverride();
 
@@ -306,9 +306,9 @@ export default function TierManagement() {
           </TabsTrigger>
           <TabsTrigger value="alerts" className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" /> Suspicious Activities
-            {suspiciousActivities.filter(a => !a.is_resolved).length > 0 && (
+            {unresolvedCount > 0 && (
               <Badge className="bg-destructive text-destructive-foreground text-[10px] h-4 px-1 ml-1">
-                {suspiciousActivities.filter(a => !a.is_resolved).length}
+                {unresolvedCount}
               </Badge>
             )}
           </TabsTrigger>
@@ -545,7 +545,7 @@ export default function TierManagement() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-orange-500" />
-                Suspicious Activities ({suspiciousActivities.filter(a => !a.is_resolved).length} unresolved)
+                Suspicious Activities ({unresolvedCount} unresolved)
               </CardTitle>
               <CardDescription>กิจกรรมที่น่าสงสัยและต้องตรวจสอบ</CardDescription>
             </CardHeader>

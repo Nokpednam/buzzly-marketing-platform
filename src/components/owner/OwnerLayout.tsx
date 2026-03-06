@@ -1,7 +1,9 @@
 import { Outlet } from "react-router-dom";
 import { OwnerSidebar } from "./OwnerSidebar";
+import { useEmployeeAuth } from "@/hooks/useEmployeeAuth";
 
 export function OwnerLayout() {
+  useEmployeeAuth(); // Trigger last_active update logic
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
       <OwnerSidebar />

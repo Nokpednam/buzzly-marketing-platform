@@ -169,6 +169,19 @@ export function useSuspiciousActivities(page = 0) {
         placeholderData: keepPreviousData,
     });
 
+    const { data: unresolvedCount = 0 } = useQuery({
+        queryKey: ["unresolved-activities-count"],
+        queryFn: async () => {
+            const { count, error } = await supabase
+                .from("suspicious_activities")
+                .select("*", { count: 'exact', head: true })
+                .eq("is_resolved", false);
+
+            if (error) throw error;
+            return count ?? 0;
+        },
+    });
+
     const resolveActivity = useMutation({
         mutationFn: async ({
             activityId,
@@ -195,6 +208,7 @@ export function useSuspiciousActivities(page = 0) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["suspicious-activities"] });
+            queryClient.invalidateQueries({ queryKey: ["unresolved-activities-count"] });
             toast.success("ทำเครื่องหมายว่าแก้ไขแล้ว");
         },
         onError: (error: Error) => {
@@ -218,7 +232,7 @@ export function useSuspiciousActivities(page = 0) {
         },
     });
 
-    return { ...query, resolveActivity, suspendCustomer };
+    return { ...query, unresolvedCount, resolveActivity, suspendCustomer };
 }
 
 // ─── Customer Search ──────────────────────────────────────────────────────────
