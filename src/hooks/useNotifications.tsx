@@ -35,7 +35,7 @@ export function useNotifications(role: "dev" | "support" | "owner") {
                 .select("*")
                 .or(`target_role.eq.${role},target_role.eq.all`)
                 .order("created_at", { ascending: false })
-                .limit(50);
+                .limit(100);
             if (error) throw error;
             return (data ?? []) as Notification[];
         },
@@ -60,6 +60,7 @@ export function useNotifications(role: "dev" | "support" | "owner") {
                         QUERY_KEY(role),
                         (old) => [newNotification, ...(old ?? [])]
                     );
+                    queryClient.invalidateQueries({ queryKey: [...QUERY_KEY(role), "unreadCount"] });
                 }
             )
             // Also catch 'all' target role notifications
@@ -81,6 +82,7 @@ export function useNotifications(role: "dev" | "support" | "owner") {
                             return [newNotification, ...(old ?? [])];
                         }
                     );
+                    queryClient.invalidateQueries({ queryKey: [...QUERY_KEY(role), "unreadCount"] });
                 }
             )
             .subscribe();
@@ -103,6 +105,8 @@ export function useNotifications(role: "dev" | "support" | "owner") {
             queryClient.setQueryData<Notification[]>(QUERY_KEY(role), (old) =>
                 old?.map((n) => (n.id === id ? { ...n, is_read: true } : n)) ?? []
             );
+            // Invalidate the unread count so it fetches the fresh number
+            queryClient.invalidateQueries({ queryKey: [...QUERY_KEY(role), "unreadCount"] });
         },
     });
 
@@ -120,10 +124,29 @@ export function useNotifications(role: "dev" | "support" | "owner") {
             queryClient.setQueryData<Notification[]>(QUERY_KEY(role), (old) =>
                 old?.map((n) => ({ ...n, is_read: true })) ?? []
             );
+            // Invalidate the unread count so it fetches the fresh number
+            queryClient.invalidateQueries({ queryKey: [...QUERY_KEY(role), "unreadCount"] });
         },
     });
 
-    const unreadCount = notifications.filter((n) => !n.is_read).length;
+    // Fetch exact unread count from database
+    const { data: dbUnreadCount = 0 } = useQuery({
+        queryKey: [...QUERY_KEY(role), "unreadCount"],
+        queryFn: async () => {
+            const { count, error } = await supabase
+                .from("notifications")
+                .select("*", { count: "exact", head: true })
+                .or(`target_role.eq.${role},target_role.eq.all`)
+                .eq("is_read", false);
+            if (error) throw error;
+            return count ?? 0;
+        },
+        refetchInterval: 30_000,
+    });
+
+    // Use the max of db count or local unread count in case of new realtime inserts
+    const localUnreadCount = notifications.filter((n) => !n.is_read).length;
+    const unreadCount = Math.max(dbUnreadCount, localUnreadCount);
 
     return {
         notifications,
