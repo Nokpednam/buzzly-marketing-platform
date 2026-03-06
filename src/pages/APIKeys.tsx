@@ -39,9 +39,12 @@ import {
   ShieldCheck,
   Activity,
   ChevronRight,
+  Rocket,
+  Lock,
 } from "lucide-react";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { usePlatformConnections } from "@/hooks/usePlatformConnections";
+import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -80,6 +83,7 @@ export default function APIKeys() {
     updatePlatformToken,
     refreshPlatformStatus,
   } = usePlatformConnections();
+  const { state } = useOnboardingGuard();
 
   const [editingPlatformId, setEditingPlatformId] = useState<string | null>(null);
   const [visibleTokens, setVisibleTokens] = useState<string[]>([]);
@@ -89,7 +93,9 @@ export default function APIKeys() {
   const isLoading = workspaceLoading || platformsLoading;
 
   if (isLoading) return <LoadingState />;
-  if (!workspaceLoading && !hasTeam) return <NoWorkspaceState navigate={navigate} />;
+  if (state !== "ready") {
+    return <OnboardingStepper state={state} hasTeam={hasTeam} navigate={navigate} />;
+  }
 
   const stats = {
     connected: platforms.filter((p) => p.status === "connected").length,
@@ -120,7 +126,7 @@ export default function APIKeys() {
       </div>
 
       {/* 2. INTEGRATION LIST */}
-      <div className="grid grid-cols-1 gap-4">
+      <div id="integrations-list" className="grid grid-cols-1 gap-4">
         {platforms.length === 0 ? (
           <EmptyState />
         ) : (
@@ -263,6 +269,173 @@ export default function APIKeys() {
     await connectPlatform(platformId);
     setConnecting(null);
   }
+}
+
+// -- ONBOARDING STEPPER --
+
+type StepStatus = "completed" | "current" | "locked";
+
+interface Step {
+  number: number;
+  title: string;
+  description: string;
+  status: StepStatus;
+  buttonLabel: string;
+  buttonDisabled: boolean;
+  disabledHint?: string;
+  onAction: () => void;
+  icon: React.ElementType;
+}
+
+function OnboardingStepper({
+  state,
+  hasTeam,
+  navigate,
+}: {
+  state: string;
+  hasTeam: boolean;
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  const step1Status: StepStatus = hasTeam ? "completed" : "current";
+  const step2Status: StepStatus = !hasTeam ? "locked" : "current";
+
+  const steps: Step[] = [
+    {
+      number: 1,
+      title: "Create Your Workspace",
+      description:
+        "Set up your workspace to organize your team, campaigns, and integrations. This is the foundation for everything in Buzzly.",
+      status: step1Status,
+      buttonLabel: "Go to Workspace Settings",
+      buttonDisabled: false,
+      onAction: () => navigate("/settings?tab=workspace"),
+      icon: Building2,
+    },
+    {
+      number: 2,
+      title: "Connect Your First Platform",
+      description:
+        "Link your marketing platform (e.g., Facebook Ads, Google Ads) to start syncing campaign data and insights.",
+      status: step2Status,
+      buttonLabel: !hasTeam ? "Complete Step 1 first" : "Set Up Integration",
+      buttonDisabled: !hasTeam,
+      disabledHint: !hasTeam ? "Complete Step 1 first" : undefined,
+      onAction: () => {
+        const el = document.getElementById("integrations-list");
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      },
+      icon: Link2,
+    },
+  ];
+
+  return (
+    <div className="max-w-2xl mx-auto p-4 md:p-8 space-y-8">
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <div className="flex items-center justify-center gap-2 text-primary font-bold text-xs uppercase tracking-widest mb-4">
+          <Rocket className="h-4 w-4" /> Getting Started
+        </div>
+        <h1 className="text-3xl font-black tracking-tighter">Welcome to Buzzly</h1>
+        <p className="text-muted-foreground">
+          Let's get you set up in 2 quick steps before you can access your dashboard.
+        </p>
+      </div>
+
+      {/* Steps */}
+      <Card className="rounded-3xl border shadow-lg overflow-hidden">
+        <CardContent className="p-8 space-y-0">
+          {steps.map((step, idx) => (
+            <StepRow key={step.number} step={step} isLast={idx === steps.length - 1} />
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function StepRow({ step, isLast }: { step: Step; isLast: boolean }) {
+  const isCompleted = step.status === "completed";
+  const isCurrent = step.status === "current";
+  const isLocked = step.status === "locked";
+
+  return (
+    <div className="flex gap-6">
+      {/* Number + connector line */}
+      <div className="flex flex-col items-center">
+        <div
+          className={cn(
+            "h-10 w-10 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0 border-2 transition-colors",
+            isCompleted && "bg-emerald-500 border-emerald-500 text-white",
+            isCurrent && "bg-primary border-primary text-primary-foreground",
+            isLocked && "bg-muted border-border text-muted-foreground"
+          )}
+        >
+          {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : isLocked ? <Lock className="h-4 w-4" /> : step.number}
+        </div>
+        {!isLast && (
+          <div
+            className={cn(
+              "w-0.5 flex-1 my-2 min-h-[2.5rem]",
+              isCompleted ? "bg-emerald-500/40" : "bg-border"
+            )}
+          />
+        )}
+      </div>
+
+      {/* Content */}
+      <div className={cn("pb-8 flex-1", isLast && "pb-0")}>
+        <div className="flex items-center gap-3 mb-1">
+          <h3
+            className={cn(
+              "font-black text-base uppercase tracking-tight",
+              isLocked && "text-muted-foreground",
+              isCompleted && "text-muted-foreground"
+            )}
+          >
+            {step.title}
+          </h3>
+          {isCompleted && (
+            <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px] uppercase tracking-widest font-bold">
+              Completed
+            </Badge>
+          )}
+        </div>
+        <p
+          className={cn(
+            "text-sm mb-4 leading-relaxed",
+            isLocked || isCompleted ? "text-muted-foreground" : "text-foreground"
+          )}
+        >
+          {step.description}
+        </p>
+        {!isCompleted && (
+          <Button
+            disabled={step.buttonDisabled}
+            onClick={step.onAction}
+            className={cn(
+              "rounded-xl transition-all",
+              isCurrent && "shadow-lg shadow-primary/20 hover:scale-[1.02]",
+              isLocked && "opacity-50 cursor-not-allowed"
+            )}
+            variant={isCurrent ? "default" : "outline"}
+          >
+            {step.buttonDisabled ? (
+              <>
+                <Lock className="h-4 w-4 mr-2" />
+                {step.buttonLabel}
+              </>
+            ) : (
+              <>
+                <step.icon className="h-4 w-4 mr-2" />
+                {step.buttonLabel}
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // Sub-components for cleaner structure
