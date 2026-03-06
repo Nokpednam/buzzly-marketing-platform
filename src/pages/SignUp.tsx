@@ -149,6 +149,7 @@ const SignUp = () => {
         } as any, { onConflict: 'user_id' });
 
         await supabase.auth.signOut();
+        // Sign out เพื่อบังคับให้ user ต้อง login ผ่านหน้า /auth
         toast.success("สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบด้วย email และรหัสผ่านของคุณ");
         navigate("/auth");
       }

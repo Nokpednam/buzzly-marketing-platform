@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { supabase } from "@/integrations/supabase/client";
 import {
   User,
@@ -284,8 +285,9 @@ export default function Settings() {
     }
   };
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "workspace");
+  const { workspace, loading, saveWorkspace } = useWorkspace();
 
   const navigateToPaymentMethods = () => setActiveTab("payment-methods");
 

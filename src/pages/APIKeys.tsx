@@ -93,7 +93,9 @@ export default function APIKeys() {
   const isLoading = workspaceLoading || platformsLoading;
 
   if (isLoading) return <LoadingState />;
-  if (state !== "ready") {
+
+  // ถ้าไม่มี workspace เลย (no_workspace) -> แสดง Stepper เต็มหน้าเหมือนเดิม
+  if (state === "no_workspace") {
     return <OnboardingStepper state={state} hasTeam={hasTeam} navigate={navigate} />;
   }
 
@@ -105,6 +107,13 @@ export default function APIKeys() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 p-4 md:p-8">
+      {/* 0. ONBOARDING STEPPER (ถ้ามี workspace แล้วแต่ยังไม่มี platform) */}
+      {state === "no_platform" && (
+        <div className="mb-12">
+          <OnboardingStepper state={state} hasTeam={hasTeam} navigate={navigate} />
+        </div>
+      )}
+
       {/* 1. HEADER & SECURITY INFO */}
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between border-b pb-8">
         <div className="space-y-1">
@@ -322,7 +331,9 @@ function OnboardingStepper({
       disabledHint: !hasTeam ? "Complete Step 1 first" : undefined,
       onAction: () => {
         const el = document.getElementById("integrations-list");
-        if (el) el.scrollIntoView({ behavior: "smooth" });
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
       },
       icon: Link2,
     },
