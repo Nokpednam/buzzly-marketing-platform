@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Environment, Float, useCursor } from "@react-three/drei";
 import * as THREE from "three";
@@ -8,12 +8,36 @@ function CuteBot() {
     const [hovered, setHovered] = useState(false);
     useCursor(hovered);
 
-    useFrame((state) => {
+    // Global mouse tracking relative to the bot's position
+    const mouse = useRef({ x: 0, y: 0 });
+
+    useEffect(() => {
+        const handleMouseMove = (e: MouseEvent) => {
+            // Default center if we can't find the element
+            let centerX = window.innerWidth / 2;
+            let centerY = window.innerHeight / 2;
+
+            const container = document.getElementById('three-d-hopper-container');
+            if (container) {
+                const rect = container.getBoundingClientRect();
+                centerX = rect.left + rect.width / 2;
+                centerY = rect.top + rect.height / 2;
+            }
+
+            // Calculate offset relative to the bot's center
+            mouse.current.x = ((e.clientX - centerX) / window.innerWidth) * 2;
+            mouse.current.y = -((e.clientY - centerY) / window.innerHeight) * 2;
+        };
+        window.addEventListener('mousemove', handleMouseMove);
+        return () => window.removeEventListener('mousemove', handleMouseMove);
+    }, []);
+
+    useFrame(() => {
         if (!group.current) return;
-        const targetX = (state.pointer.x * Math.PI) / 4;
-        const targetY = (state.pointer.y * Math.PI) / 4;
+        const targetX = (mouse.current.x * Math.PI) / 3;
+        const targetY = -(mouse.current.y * Math.PI) / 4;
         group.current.rotation.y = THREE.MathUtils.lerp(group.current.rotation.y, targetX, 0.1);
-        group.current.rotation.x = THREE.MathUtils.lerp(group.current.rotation.x, -targetY, 0.1);
+        group.current.rotation.x = THREE.MathUtils.lerp(group.current.rotation.x, targetY, 0.1);
     });
 
     return (
@@ -70,7 +94,7 @@ function CuteBot() {
 
 export default function ThreeDHopper() {
     return (
-        <div className="w-[300px] h-[300px] md:w-[400px] md:h-[400px] relative cursor-pointer" style={{ pointerEvents: 'auto' }}>
+        <div id="three-d-hopper-container" className="w-[300px] h-[300px] md:w-[400px] md:h-[400px] relative pointer-events-none">
             <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
                 <ambientLight intensity={0.6} />
                 <directionalLight position={[10, 10, 5]} intensity={1.5} color="#ffffff" />

@@ -60,27 +60,35 @@ export default function DevSupport() {
     const { toast } = useToast();
     const queryClient = useQueryClient();
 
-    const handleSimulateError = () => {
+    const handleSimulateError = async () => {
         try {
             throw new Error("Test error generated manually by Dev");
         } catch (err) {
-            logError("Manual Test Error Verification", err, {
-                component: "DevSupport",
-                action: "simulate_error",
-                source: "dev_ui",
-                service: "Dev Console"
-            });
+            try {
+                await logError("Manual Test Error Verification", err, {
+                    component: "DevSupport",
+                    action: "simulate_error",
+                    source: "dev_ui",
+                    service: "Dev Console"
+                });
 
-            toast({
-                title: "Test Error Logged",
-                description: "A test error has been sent to the system. Refreshing list...",
-            });
+                toast({
+                    title: "Test Error Logged",
+                    description: "A test error has been sent to the system. Refreshing list...",
+                });
 
-            setTimeout(() => {
-                queryClient.invalidateQueries({ queryKey: ["dev-error-logs"] });
-                queryClient.invalidateQueries({ queryKey: ["dev-error-stats"] });
-                refetch();
-            }, 1500);
+                setTimeout(() => {
+                    queryClient.invalidateQueries({ queryKey: ["dev-error-logs"] });
+                    queryClient.invalidateQueries({ queryKey: ["dev-error-stats"] });
+                    refetch();
+                }, 500);
+            } catch (logErr: any) {
+                toast({
+                    variant: "destructive",
+                    title: "Failed to log error",
+                    description: logErr?.message || JSON.stringify(logErr) || "Unknown database error",
+                });
+            }
         }
     };
 

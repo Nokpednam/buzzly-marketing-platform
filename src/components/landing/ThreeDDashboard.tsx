@@ -1,98 +1,183 @@
 import { useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Environment, Float, MeshTransmissionMaterial, RoundedBox, Text } from "@react-three/drei";
+import { Environment, Float, RoundedBox, Text, MeshTransmissionMaterial, ContactShadows, Billboard } from "@react-three/drei";
 import * as THREE from "three";
 
-function GlassCard({ position, rotation, width, height, children }: { position: [number, number, number], rotation: [number, number, number], width: number, height: number, children: React.ReactNode }) {
+function PremiumGlassCard({ position, rotation, width, height, children, glowColor }: { position: [number, number, number], rotation: [number, number, number], width: number, height: number, children: React.ReactNode, glowColor?: string }) {
     return (
-        <Float speed={1.5} rotationIntensity={0.1} floatIntensity={0.5} position={position} rotation={rotation}>
-            <group>
-                <RoundedBox args={[width, height, 0.2]} radius={0.15} smoothness={4} receiveShadow castShadow>
-                    <MeshTransmissionMaterial
-                        backside
-                        samples={4}
-                        thickness={2}
-                        chromaticAberration={0.05}
-                        anisotropy={0.1}
-                        distortion={0}
-                        distortionScale={0}
-                        temporalDistortion={0}
-                        ior={1.5}
-                        color="#ffffff"
-                        roughness={0.1}
-                    />
-                </RoundedBox>
-                {/* Subtle white border for glass edge definition */}
-                <RoundedBox args={[width + 0.05, height + 0.05, 0.1]} radius={0.16} smoothness={4} position={[0, 0, -0.05]}>
-                    <meshBasicMaterial color="#ffffff" opacity={0.1} transparent />
-                </RoundedBox>
-                <group position={[0, 0, 0.11]}>
-                    {children}
-                </group>
+        <group position={position} rotation={rotation}>
+            <RoundedBox args={[width, height, 0.1]} radius={0.15} smoothness={8}>
+                <MeshTransmissionMaterial
+                    backside
+                    samples={4}
+                    thickness={0.2}
+                    chromaticAberration={0.025}
+                    anisotropy={0.1}
+                    distortion={0.1}
+                    distortionScale={0.1}
+                    temporalDistortion={0.0}
+                    iridescence={0.5}
+                    iridescenceIOR={1}
+                    iridescenceThicknessRange={[0, 1400]}
+                    clearcoat={1}
+                    color="#ffffff"
+                    transparent
+                    opacity={0.9}
+                />
+            </RoundedBox>
+
+            {/* Subtle inner edge highlight */}
+            <RoundedBox args={[width - 0.02, height - 0.02, 0.105]} radius={0.14} smoothness={4}>
+                <meshBasicMaterial color="#ffffff" transparent opacity={0.15} wireframe={true} />
+            </RoundedBox>
+
+            {glowColor && (
+                <pointLight position={[0, 0, -0.5]} intensity={0.5} color={glowColor} distance={3} />
+            )}
+
+            <group position={[0, 0, 0.06]}>
+                {children}
             </group>
-        </Float>
+        </group>
     );
 }
 
 function DataVisuals() {
     const group = useRef<THREE.Group>(null);
+    const barsRef = useRef<THREE.Group>(null);
 
     useFrame((state) => {
+        const t = state.clock.elapsedTime;
         if (group.current) {
-            group.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.2) * 0.1;
-            group.current.rotation.x = Math.cos(state.clock.elapsedTime * 0.15) * 0.05;
+            group.current.rotation.y = Math.sin(t * 0.1) * 0.1;
+            group.current.rotation.x = Math.cos(t * 0.15) * 0.05;
+        }
+
+        // Gentle breathing animation for bars
+        if (barsRef.current) {
+            barsRef.current.children.forEach((bar, i) => {
+                const scaleY = 1 + Math.sin(t * 2 + i) * 0.05;
+                bar.scale.setY(scaleY);
+                // Adjust position so it scales from the bottom
+                const baseHeight = (bar as any).userData.baseHeight || 1;
+                bar.position.y = (baseHeight * scaleY) / 2;
+            });
         }
     });
 
+    const barHeights = [0.8, 1.2, 0.9, 1.8, 1.4, 2.2, 1.7, 2.8, 3.5];
+
     return (
         <group ref={group}>
-            {/* Main Center Card - Bar Chart */}
-            <GlassCard width={4} height={3} position={[0, 0, 0]} rotation={[0, 0, 0]}>
-                <Text position={[-1.7, 1.1, 0.01]} fontSize={0.2} color="#64748b" anchorX="left" fontWeight="bold">
-                    TOTAL REVENUE
-                </Text>
-                <Text position={[-1.7, 0.7, 0.01]} fontSize={0.5} color="#0f172a" anchorX="left" fontWeight="black">
-                    $124.5K
-                </Text>
+            {/* Main Center Card - Analytics */}
+            <Float speed={1.5} rotationIntensity={0.05} floatIntensity={0.2}>
+                <PremiumGlassCard width={6} height={4} position={[0, 0, 0]} rotation={[0, 0, 0]} glowColor="#38bdf8">
 
-                {/* Floating Bars */}
-                <group position={[-1.3, -0.8, 0]}>
-                    {[0.6, 1.1, 0.8, 1.8, 1.4, 1.2, 0.9].map((h, i) => (
-                        <RoundedBox key={i} args={[0.25, h, 0.15]} position={[i * 0.45, h / 2, 0]} radius={0.05} smoothness={4} receiveShadow castShadow>
-                            <meshStandardMaterial
-                                color={i === 3 ? "#3b82f6" : "#cbd5e1"}
-                                roughness={0.2}
-                                metalness={0.1}
-                            />
+                    {/* Header Text */}
+                    <Text position={[-2.6, 1.5, 0]} fontSize={0.2} color="#f8fafc" anchorX="left" fontWeight="bold" letterSpacing={0.1}>
+                        REVENUE GROWTH
+                    </Text>
+                    <Text position={[-2.6, 1.0, 0]} fontSize={0.7} color="#ffffff" anchorX="left" fontWeight="black" letterSpacing={-0.02}>
+                        $2.4M
+                    </Text>
+
+                    {/* Growth Pill */}
+                    <group position={[-0.4, 1.15, 0]}>
+                        <RoundedBox args={[0.8, 0.25, 0.05]} radius={0.125} smoothness={4}>
+                            <meshBasicMaterial color="#10b981" />
                         </RoundedBox>
-                    ))}
-                </group>
-            </GlassCard>
+                        <Text position={[0, 0, 0.03]} fontSize={0.12} color="#ffffff" anchorX="center" anchorY="middle" fontWeight="bold">
+                            +24.5% ↗
+                        </Text>
+                    </group>
 
-            {/* Top Right Card - Conversion Widget */}
-            <GlassCard width={2.5} height={1.2} position={[2.2, 1.7, 0.5]} rotation={[0.1, -0.2, -0.1]}>
-                <Text position={[0, 0.2, 0.01]} fontSize={0.18} color="#64748b" anchorX="center" fontWeight="bold">CONVERSION</Text>
-                <Text position={[0, -0.2, 0.01]} fontSize={0.4} color="#10b981" anchorX="center" fontWeight="black">+14.2%</Text>
-            </GlassCard>
+                    {/* Chart Area Background Grid */}
+                    <group position={[0, -0.6, -0.05]}>
+                        {[0, 1, 2, 3].map((y, i) => (
+                            <mesh key={i} position={[0, y * 0.6 - 1, 0]}>
+                                <planeGeometry args={[5.2, 0.02]} />
+                                <meshBasicMaterial color="#ffffff" transparent opacity={0.1} />
+                            </mesh>
+                        ))}
+                    </group>
 
-            {/* Bottom Left Card - Active Users */}
-            <GlassCard width={2.2} height={1.2} position={[-2.2, -1.2, 0.8]} rotation={[-0.1, 0.2, 0.05]}>
-                <Text position={[0, 0.2, 0.01]} fontSize={0.18} color="#64748b" anchorX="center" fontWeight="bold">ACTIVE CAMPAIGNS</Text>
-                <Text position={[0, -0.2, 0.01]} fontSize={0.45} color="#6366f1" anchorX="center" fontWeight="black">42</Text>
-            </GlassCard>
-
-            {/* Behind decorative abstract shapes */}
-            <Float speed={2} rotationIntensity={1} floatIntensity={1} position={[2.5, -1.5, -1.5]}>
-                <mesh castShadow receiveShadow>
-                    <torusGeometry args={[0.5, 0.15, 16, 32]} />
-                    <meshStandardMaterial color="#0ea5e9" roughness={0.1} metalness={0.8} />
-                </mesh>
+                    {/* 3D Bar Chart */}
+                    <group ref={barsRef} position={[-2.2, -1.6, 0.1]}>
+                        {barHeights.map((h, i) => {
+                            const isHighest = i === 8;
+                            const isSecondHighest = i === 7;
+                            return (
+                                <RoundedBox
+                                    key={i}
+                                    args={[0.3, h, 0.2]}
+                                    position={[i * 0.55, h / 2, 0]}
+                                    radius={0.05}
+                                    smoothness={4}
+                                    userData={{ baseHeight: h }}
+                                >
+                                    <meshPhysicalMaterial
+                                        color={isHighest ? "#38bdf8" : isSecondHighest ? "#7dd3fc" : "#e2e8f0"}
+                                        metalness={isHighest ? 0.3 : 0.1}
+                                        roughness={isHighest ? 0.1 : 0.3}
+                                        transmission={0.5}
+                                        thickness={0.5}
+                                        clearcoat={1}
+                                    />
+                                </RoundedBox>
+                            );
+                        })}
+                    </group>
+                </PremiumGlassCard>
             </Float>
 
-            <Float speed={3} rotationIntensity={2} floatIntensity={2} position={[-2.5, 1.5, -1]}>
-                <mesh castShadow receiveShadow>
-                    <icosahedronGeometry args={[0.6, 0]} />
-                    <meshStandardMaterial color="#8b5cf6" roughness={0.1} metalness={0.8} wireframe />
+            {/* Top Right Floating Metric */}
+            <Float speed={2} rotationIntensity={0.2} floatIntensity={0.5} position={[3.2, 1.8, 0.5]}>
+                <PremiumGlassCard width={2.5} height={1.4} position={[0, 0, 0]} rotation={[0.05, -0.15, 0.05]} glowColor="#a855f7">
+                    <group position={[0, 0.1, 0]}>
+                        <Billboard>
+                            <mesh>
+                                <ringGeometry args={[0.2, 0.28, 32]} />
+                                <meshBasicMaterial color="#c084fc" />
+                            </mesh>
+                            <mesh>
+                                <ringGeometry args={[0.2, 0.28, 32, 1, 0, Math.PI * 1.5]} />
+                                <meshBasicMaterial color="#a855f7" />
+                            </mesh>
+                        </Billboard>
+                    </group>
+                    <Text position={[0, -0.3, 0.05]} fontSize={0.15} color="#e2e8f0" anchorX="center" fontWeight="bold" letterSpacing={0.1}>ACTIVE USERS</Text>
+                    <Text position={[0, -0.55, 0.05]} fontSize={0.25} color="#ffffff" anchorX="center" fontWeight="black">14,203</Text>
+                </PremiumGlassCard>
+            </Float>
+
+            {/* Bottom Left Floating Metric */}
+            <Float speed={2.5} rotationIntensity={0.3} floatIntensity={0.6} position={[-3.5, -1.2, 0.8]}>
+                <PremiumGlassCard width={2.2} height={1.2} position={[0, 0, 0]} rotation={[-0.1, 0.2, -0.05]}>
+                    <Text position={[0, 0.2, 0.05]} fontSize={0.14} color="#e2e8f0" anchorX="center" fontWeight="bold" letterSpacing={0.1}>CONVERSION</Text>
+                    <Text position={[0, -0.15, 0.05]} fontSize={0.45} color="#34d399" anchorX="center" fontWeight="black">8.4%</Text>
+                </PremiumGlassCard>
+            </Float>
+
+            {/* Decorative Glowing Orbs behind */}
+            <Float speed={1} floatIntensity={2}>
+                <mesh position={[2, -1.5, -2]}>
+                    <sphereGeometry args={[1, 32, 32]} />
+                    <meshPhysicalMaterial color="#38bdf8" transmission={1} thickness={2} roughness={0.1} />
+                    <pointLight color="#38bdf8" intensity={2} distance={5} />
+                </mesh>
+            </Float>
+            <Float speed={1.5} floatIntensity={1.5}>
+                <mesh position={[-2.5, 1.5, -1.5]}>
+                    <sphereGeometry args={[0.8, 32, 32]} />
+                    <meshPhysicalMaterial color="#a855f7" transmission={1} thickness={2} roughness={0.1} />
+                    <pointLight color="#a855f7" intensity={2} distance={5} />
+                </mesh>
+            </Float>
+            <Float speed={2} floatIntensity={3}>
+                <mesh position={[0, 2.5, -3]}>
+                    <sphereGeometry args={[1.5, 32, 32]} />
+                    <meshPhysicalMaterial color="#10b981" transmission={1} thickness={3} roughness={0.2} />
+                    <pointLight color="#10b981" intensity={1} distance={8} />
                 </mesh>
             </Float>
         </group>
@@ -101,15 +186,22 @@ function DataVisuals() {
 
 export default function ThreeDDashboard() {
     return (
-        <div className="w-full h-full min-h-[400px] lg:min-h-[500px]" style={{ pointerEvents: 'none' }}>
-            <Canvas camera={{ position: [0, 0, 7.5], fov: 45 }} shadows>
-                <ambientLight intensity={0.8} />
-                <spotLight position={[10, 10, 10]} angle={0.3} penumbra={1} intensity={2} color="#ffffff" castShadow />
-                <pointLight position={[-10, 5, -10]} intensity={1} color="#bae6fd" />
+        <div className="w-full h-full min-h-[500px] lg:min-h-[600px]" style={{ pointerEvents: 'none' }}>
+            <Canvas camera={{ position: [0, 0, 8.5], fov: 45 }} dpr={[1, 2]}>
+                <color attach="background" args={['transparent']} />
+
+                {/* Advanced Lighting setup for premium look */}
+                <ambientLight intensity={1.2} />
+                <directionalLight position={[10, 10, 10]} intensity={2} color="#ffffff" />
+                <directionalLight position={[-10, -10, -10]} intensity={1} color="#38bdf8" />
+                <spotLight position={[0, 10, 10]} angle={0.2} penumbra={1} intensity={3} color="#a855f7" />
 
                 <DataVisuals />
 
                 <Environment preset="city" />
+
+                {/* Stunning soft contact shadows */}
+                <ContactShadows position={[0, -3.5, 0]} opacity={0.4} scale={15} blur={2.5} far={10} color="#0f172a" />
             </Canvas>
         </div>
     );
