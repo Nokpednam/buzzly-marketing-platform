@@ -4,7 +4,6 @@ import { toast } from "sonner";
 
 export interface Discount {
     id: string;
-    team_id: string;
     code: string;
     name: string | null;
     discount_type: "percent" | "fixed";
@@ -37,46 +36,18 @@ export interface CreateDiscountInput {
     description?: string;
 }
 
-async function getTeamId(): Promise<string | null> {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
-
-    // 1. Check if user owns a workspace
-    const { data: workspace } = await supabase
-        .from("workspaces")
-        .select("id")
-        .eq("owner_id", user.id)
-        .maybeSingle();
-
-    if (workspace?.id) return workspace.id;
-
-    // 2. Check if user is a member of a workspace
-    const { data: member } = await supabase
-        .from("workspace_members")
-        .select("team_id")
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .maybeSingle();
-
-    return member?.team_id ?? null;
-}
-
 export function useDiscounts() {
     const queryClient = useQueryClient();
 
     const { data: discounts = [], isLoading } = useQuery({
         queryKey: ["discounts"],
         queryFn: async () => {
-            const teamId = await getTeamId();
-            if (!teamId) return [];
-
             const { data, error } = await (supabase as any)
                 .from("discounts")
                 .select(`
                     *,
                     customer_coupons (count)
                 `)
-                .eq("team_id", teamId)
                 .order("created_at", { ascending: false });
 
             if (error) throw error;
@@ -93,14 +64,11 @@ export function useDiscounts() {
 
     const createDiscount = useMutation({
         mutationFn: async (input: CreateDiscountInput) => {
-            const teamId = await getTeamId();
-            if (!teamId) throw new Error("No team found");
             const { data: { user } } = await supabase.auth.getUser();
 
             const { data, error } = await (supabase as any)
                 .from("discounts")
                 .insert({
-                    team_id: teamId,
                     created_by: user?.id,
                     code: input.code.toUpperCase(),
                     name: input.name ?? null,
