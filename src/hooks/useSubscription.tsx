@@ -271,6 +271,7 @@ export function useSubscription() {
 
       // --- Apply Discount if provided (atomic: validate + mark used + increment count) ---
       let appliedDiscountAmount = 0;
+      let appliedDiscountId: string | undefined = undefined;
       if (discountCode) {
         // apply_collected_discount is SECURITY DEFINER and uses FOR UPDATE to prevent
         // double-spend race conditions. It also marks used_at and increments usage_count.
@@ -283,6 +284,7 @@ export function useSubscription() {
           console.error("Error applying discount:", discountErr);
         } else if (discountResult && !discountResult.error) {
           const d = discountResult as {
+            id?: string;
             discount_type: "percent" | "fixed";
             discount_value: number;
             min_order_value: number;
@@ -299,6 +301,7 @@ export function useSubscription() {
           }
           appliedDiscountAmount = Math.min(rawDiscount, chargeAmount);
           chargeAmount = chargeAmount - appliedDiscountAmount;
+          appliedDiscountId = d.id;
         } else if (discountResult?.error) {
           // Discount code was validated in dialog but something changed server-side (e.g. race).
           // Log but do NOT abort the payment — customer already confirmed.
@@ -345,6 +348,8 @@ export function useSubscription() {
           subscription_id: subscription.id,
           payment_method_id: paymentMethodId,
           amount: chargeAmount,
+          discount_amount: appliedDiscountAmount,
+          discount_id: appliedDiscountId,
           currency_id: currency?.id,
           status: "completed",
           transaction_type: isUpgrade ? "subscription_upgrade" : "subscription",

@@ -114,7 +114,8 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
       const result = await createSubscription(
         selectedPlan.id,
         paymentMethodId,
-        billingCycle
+        billingCycle,
+        discountCode
       );
 
       if (result.success) {
