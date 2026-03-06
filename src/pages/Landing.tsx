@@ -197,7 +197,7 @@ export default function Landing() {
           <div className="flex flex-col items-center lg:items-start text-center lg:text-left relative z-10 lg:pt-20">
 
             {/* The Mascot tracking the mouse across the whole page */}
-            <div className="fixed bottom-0 -left-6 lg:bottom-4 lg:left-4 z-[100] scale-75 md:scale-90 pointer-events-none origin-bottom-left">
+            <div className="fixed top-12 left-12 z-0 scale-50 md:scale-65 pointer-events-none origin-top-left">
               <Suspense fallback={null}>
                 <ThreeDHopper />
               </Suspense>
