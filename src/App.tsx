@@ -38,6 +38,7 @@ import TierManagement from "./pages/support/TierManagement";
 import RewardsCampaigns from "./pages/support/RewardsCampaigns";
 import RewardsManagement from "./pages/support/RewardsManagement";
 import RedemptionRequests from "./pages/support/RedemptionRequests";
+import DiscountManagement from "./pages/support/DiscountManagement";
 import TeamManagement from "./pages/TeamManagement";
 import ProductUsage from "./pages/owner/ProductUsage";
 import BusinessPerformance from "./pages/owner/BusinessPerformance";
@@ -152,6 +153,7 @@ const App = () => (
                     <Route path="/support/rewards-campaigns" element={<RewardsCampaigns />} />
                     <Route path="/support/rewards-management" element={<RewardsManagement />} />
                     <Route path="/support/redemption-requests" element={<RedemptionRequests />} />
+                    <Route path="/support/discount-management" element={<DiscountManagement />} />
                   </Route>
 
                   {/* Owner Employee Routes */}

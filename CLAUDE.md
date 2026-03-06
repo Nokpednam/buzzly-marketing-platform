@@ -1,287 +1,149 @@
-# Buzzly — AI Assistant Project Guide
+# Buzzly — Project Context for AI Assistants
 
-This document gives AI assistants (Claude, Gemini, Cursor, etc.) the full context needed to work effectively in this codebase. Read this before making any changes.
-
----
-
-## 1. Project Overview
-
-**Buzzly** is a **B2B SaaS marketing platform** that helps businesses manage marketing campaigns, customer loyalty (rewards/tiers), social media analytics, and team operations — all from a single workspace. It is a **demo/prototype-stage product** with rich mock data seeded into the database.
-
-- **Frontend**: React 18 + Vite + TypeScript, served at `http://localhost:8080`
-- **Backend**: Supabase (PostgreSQL + Auth + Row-Level Security)
-- **UI Library**: shadcn/ui + Radix UI + Tailwind CSS v3
-- **State Management**: TanStack React Query v5
-- **Routing**: React Router DOM v6
+**B2B SaaS marketing platform** (demo/prototype stage). Campaigns, loyalty/rewards, social analytics, team ops — single workspace.
 
 ---
 
-## 2. Tech Stack & Key Libraries
+## Stack
 
-| Category | Library | Version |
-|---|---|---|
-| Framework | React | 18.3 |
-| Build Tool | Vite + SWC | 5.4 |
-| Language | TypeScript | 5.8 |
-| Styling | Tailwind CSS | 3.4 |
-| UI Components | shadcn/ui + Radix UI | latest |
-| Backend / DB | Supabase JS | 2.x |
-| Data Fetching | TanStack React Query | 5.x |
-| Forms | React Hook Form + Zod | latest |
-| Charts | Recharts | 2.x |
-| Testing (unit) | Vitest + Testing Library | latest |
-| Testing (e2e) | Playwright | 1.x |
-| Icons | Lucide React | 0.462 |
-| Notifications | Sonner + Radix Toast | latest |
+| Layer | Tech |
+|---|---|
+| Frontend | React 18 + Vite 5 (SWC) + TypeScript 5.8 |
+| Styling | Tailwind CSS 3.4 + shadcn/ui + Radix UI |
+| Backend | Supabase (PostgreSQL, Auth, RLS) |
+| Data | TanStack React Query v5 |
+| Forms | React Hook Form + Zod |
+| Routing | React Router DOM v6 |
+| Charts | Recharts 2.x |
+| Icons | Lucide React 0.462 |
+| Toasts | Sonner + Radix Toast |
 
-**Always use** `npm run dev` to start the dev server, **not** `bun dev`. The `bun.lockb` file is present but npm is the primary runner for scripts.
+**Dev server**: `npm run dev` (port 8080). Do **not** use `bun dev`.
 
 ---
 
-## 3. Directory Structure
+## Directory Layout
 
 ```
-BuzzlyDev/
-├── src/
-│   ├── App.tsx                    # Root router — all routes defined here
-│   ├── main.tsx                   # Entry point
-│   ├── index.css                  # Global styles + Tailwind base
-│   ├── pages/                     # All page-level components
-│   │   ├── *.tsx                  # Customer-facing pages
-│   │   ├── admin/                 # Legacy admin UI (now redirects to /dev/*)
-│   │   ├── dev/                   # Dev employee pages (monitor, audit, etc.)
-│   │   ├── employee/              # Shared employee auth (login/signup)
-│   │   ├── owner/                 # Owner-only analytics pages
-│   │   └── dev/                   # Dev tool pages
-│   ├── components/                # Reusable components
-│   │   ├── ui/                    # Base shadcn/ui primitives
-│   │   ├── layout/                # MainLayout, DevLayout, OwnerLayout
-│   │   ├── sidebar/               # Sidebar navigation
-│   │   ├── team/                  # Team management components
-│   │   ├── social/                # Social media components
-│   │   ├── support/               # SupportLayout
-│   │   └── ...                    # Feature-specific component folders
-│   ├── hooks/                     # All custom React hooks (51 hooks)
-│   ├── contexts/
-│   │   └── PlanContext.tsx        # Subscription plan gate (free/pro/team)
-│   ├── integrations/supabase/
-│   │   ├── client.ts              # Supabase client instance
-│   │   └── types.ts               # Auto-generated DB type definitions (133KB)
-│   ├── services/
-│   │   └── errorLogger.ts         # Centralized error logging to Supabase
-│   ├── lib/                       # Utility helpers (cn, etc.)
-│   └── constants/                 # App-wide constants
-├── supabase/
-│   ├── migrations/                # 71+ migration files (schema + RLS + seed)
-│   ├── config.toml                # Supabase local config
-│   └── *.sql                      # Diagnostic/debug SQL scripts
-├── e2e/                           # Playwright end-to-end tests
-├── guide/                         # Documentation for specific features
-│   ├── TESTING.md                 # Test strategy guide
-│   ├── Audit_Logs.md
-│   ├── Monitor_Dashboard.md
-│   └── Support_Dashboard.md
-├── scripts/                       # Seed scripts (tsx)
-├── docker-compose.yml             # Local PostgreSQL container (port 5432)
-├── setup-full.sh                  # Full environment setup script
-├── vite.config.ts                 # Vite config — alias `@/` = `src/`
-└── tailwind.config.ts             # Tailwind config with custom design tokens
+src/
+├── App.tsx                 # All routes defined here
+├── main.tsx                # Entry point
+├── index.css               # Global + Tailwind base
+├── pages/                  # Page components
+│   ├── *.tsx               # Customer pages
+│   ├── dev/                # Dev panel: MonitorDashboard, AuditLogs, EmployeeManagement, DevSupport, DevWorkspaces
+│   ├── support/            # Support panel: TierManagement, RewardsCampaigns, RewardsManagement, RedemptionRequests
+│   ├── owner/              # Owner panel: ProductUsage, BusinessPerformance, UserFeedback, ExecutiveReport, CustomerTiers, OwnerDiscounts
+│   └── employee/           # Shared auth: EmployeeLogin, EmployeeSignUp
+├── components/
+│   ├── ui/                 # shadcn/ui primitives
+│   ├── layout/             # MainLayout
+│   ├── dev/                # DevLayout
+│   ├── support/            # SupportLayout
+│   ├── owner/              # OwnerLayout
+│   └── sidebar/            # Sidebar navigation
+├── hooks/                  # 53 custom hooks (see Key Hooks below)
+├── contexts/PlanContext.tsx # Subscription plan gating (free/pro/team)
+├── integrations/supabase/
+│   ├── client.ts           # Supabase client
+│   └── types.ts            # Auto-generated DB types (DO NOT hand-edit)
+├── services/errorLogger.ts # Centralized error logging
+├── lib/utils.ts            # cn() helper
+└── constants/
+
+supabase/migrations/        # 84+ SQL migration files
 ```
 
----
-
-## 4. Routing Architecture
-
-All routes are defined centrally in `src/App.tsx`. There are **four distinct user roles**:
-
-### 4.1 Public Routes
-| Path | Component |
-|---|---|
-| `/` | `Landing` |
-| `/auth` | `Auth` (login) |
-| `/signup` | `SignUp` |
-| `/employee/login` | `EmployeeLogin` |
-| `/employee/signup` | `EmployeeSignUp` |
-
-### 4.2 Customer Routes (protected by `CustomerProtectedRoute`)
-Wrapped in `MainLayout`. Requires Supabase `auth.users` session.
-
-| Path | Page |
-|---|---|
-| `/dashboard` | Main business dashboard |
-| `/campaigns` | Campaign list |
-| `/campaigns/:id` | Campaign detail |
-| `/social-analytics` | Social media stats |
-| `/rewards` | Loyalty rewards center |
-| `/prospects` | Prospect/lead list |
-| `/analytics` | General analytics |
-| `/reports` | Reports & exports |
-| `/customer-journey` | Customer journey view (Pro+) |
-| `/aarrr-funnel` | AARRR funnel (Pro+) |
-| `/api-keys` | API key management |
-| `/team` | Team management |
-| `/settings` | Workspace/user settings |
-
-### 4.3 Employee Routes (protected by `EmployeeProtectedRoute`)
-**Employee roles** are stored in the `employees` table (`role` column: `"dev"`, `"support"`, `"owner"`).
-
-| Role | Layout | Paths |
-|---|---|---|
-| `dev` or `owner` | `DevLayout` | `/dev/monitor`, `/dev/audit-logs`, `/dev/employees`, `/dev/support`, `/dev/members` |
-| `support` or `owner` | `SupportLayout` | `/support/workspaces`, `/support/tier-management`, `/support/rewards-*`, `/support/redemption-requests` |
-| `owner` only | `OwnerLayout` | `/owner/product-usage`, `/owner/business-performance`, `/owner/user-feedback`, `/owner/executive-report`, `/owner/customer-tiers`, `/owner/discounts` |
-
-### 4.4 Legacy Admin Routes (auto-redirect)
-All `/admin/*` paths redirect to their new equivalents (`/dev/*` or `/support/*`). **Do not create new routes under `/admin`.**
+**Import alias**: `@/` → `src/`
 
 ---
 
-## 5. Authentication System
+## Routing (all in App.tsx)
 
-### Customer Auth
-- Uses **Supabase Auth** (`supabase.auth`)
-- Protected by `CustomerProtectedRoute` component
-- After login, user is redirected to `/dashboard`
-- Sign-up triggers a database trigger (`handle_new_user`) that creates a `workspaces` row and links data
+### Public
+`/` · `/auth` · `/signup` · `/employee/login` · `/employee/signup`
 
-### Employee Auth
-- Employees are stored in the `employees` table (separate from `auth.users`)
-- Uses `useEmployeeAuth` hook for session management
-- Protected by `EmployeeProtectedRoute` with `allowedRoles` prop
-- Employee role values: `"dev"` | `"support"` | `"owner"`
+### Customer (wrapped in `CustomerProtectedRoute` + `MainLayout`)
+`/dashboard` · `/campaigns` · `/campaigns/:id` · `/social-analytics` · `/rewards` · `/prospects` · `/analytics` · `/reports` · `/customer-journey` (Pro) · `/aarrr-funnel` (Pro) · `/api-keys` · `/team` · `/settings`
+
+### Dev Employee (`EmployeeProtectedRoute` roles: `dev`, `owner` → `DevLayout`)
+`/dev/monitor` · `/dev/audit-logs` · `/dev/employees` · `/dev/support`
+
+### Support Employee (`EmployeeProtectedRoute` roles: `support`, `owner` → `SupportLayout`)
+`/support/workspaces` · `/support/tier-management` · `/support/rewards-campaigns` · `/support/rewards-management` · `/support/redemption-requests` · `/support/discount-management`
+
+### Owner Employee (`EmployeeProtectedRoute` roles: `owner` → `OwnerLayout`)
+`/owner/product-usage` · `/owner/business-performance` · `/owner/user-feedback` · `/owner/executive-report` · `/owner/customer-tiers` · `/owner/discounts` (read-only analytics dashboard — CRUD is at `/support/discount-management`)
+
+### Legacy
+All `/admin/*` redirects to `/dev/*` or `/support/*`. **Never create new routes under `/admin`.**
 
 ---
 
-## 6. Subscription Plan System
+## Auth
 
-Plans are managed via `PlanContext` (`src/contexts/PlanContext.tsx`).
+- **Customers**: Supabase Auth → `CustomerProtectedRoute` → redirects to `/dashboard`
+- **Employees**: Stored in `employees` table (not `auth.users`). Uses `useEmployeeAuth` hook. Roles: `"dev"` | `"support"` | `"owner"`. Protected by `EmployeeProtectedRoute` with `allowedRoles` prop.
 
-### Plan Tiers
-| Plan | Slug | UUID |
-|---|---|---|
-| Free | `free-*` | `5b000001-...` |
-| Pro | `pro-*` | `5b000002-...` |
-| Team | `team-*` | `5b000003-...` |
+---
 
-### Plan-Gated Features
-| Feature | Required Plan |
+## Subscription Plans (PlanContext)
+
+| Plan | Slug prefix |
 |---|---|
-| AI Insights | Pro |
-| Advanced Analytics | Pro |
-| Custom Reports | Pro |
-| Customer Journey | Pro |
-| AARRR Funnel | Pro |
-| Unlimited Platforms | Pro |
-| Priority Support | Pro |
-| Team Collaboration | Team |
+| Free | `free-*` |
+| Pro | `pro-*` |
+| Team | `team-*` |
 
-### Usage Pattern
 ```tsx
-const { hasFeature, currentPlan } = usePlanContext();
-
-// Check access
-if (!hasFeature('aiInsights')) {
-  return <UpgradeRequiredDialog feature="aiInsights" />;
-}
+const { hasFeature } = usePlanContext();
+if (!hasFeature('aiInsights')) return <UpgradeRequiredDialog feature="aiInsights" />;
 ```
 
-When adding **new plan-gated features**, always:
-1. Add the feature key to `PlanFeatures` interface in `PlanContext.tsx`
-2. Add it to `planFeatures` map (free/pro/team values)
-3. Add to `featureRequiredPlan` and `featureNames`
-4. Use `<PlanRestrictedPage>` or `hasFeature()` check in the component
+Adding a new gated feature: update `PlanFeatures` interface, `planFeatures` map, `featureRequiredPlan`, and `featureNames` in `PlanContext.tsx`.
 
 ---
 
-## 7. Database (Supabase)
+## Database (Supabase)
 
-### Connection
-- Client is at `src/integrations/supabase/client.ts`
-- Auto-generated TypeScript types at `src/integrations/supabase/types.ts` (133KB — do not hand-edit)
-- Import: `import { supabase } from "@/integrations/supabase/client";`
+**Client**: `import { supabase } from "@/integrations/supabase/client";`
 
-### Key Database Tables
+### Core Tables
+
 | Table | Purpose |
 |---|---|
-| `workspaces` | Each customer business workspace |
-| `workspace_members` | Workspace ↔ user membership |
-| `subscriptions` | Active plan subscriptions |
-| `subscription_plans` | Plan definitions (slug, price) |
-| `campaigns` | Marketing campaigns |
-| `ad_groups`, `ads` | Ad hierarchy |
-| `ad_insights` | Ad performance metrics |
-| `social_posts` | Social media posts |
-| `email_campaigns`, `email_messages` | Email marketing |
+| `workspaces` | Customer business workspaces |
+| `workspace_members` | Workspace ↔ user links |
+| `subscriptions` / `subscription_plans` | Plan subscriptions |
+| `campaigns` / `ad_groups` / `ads` / `ad_insights` | Marketing campaigns |
+| `social_posts` | Social media |
+| `email_campaigns` / `email_messages` | Email marketing |
 | `customer_personas` | Customer segments |
-| `loyalty_tiers` | Tier definitions (Bronze, Silver, Gold, etc.) |
-| `customer_loyalty_points` | Customer point balances |
-| `discounts` | Discount/coupon campaigns |
-| `customer_discount_notifications` | Discount delivery log |
-| `employees` | Internal staff (dev/support/owner roles) |
-| `error_logs` | App errors logged via `errorLogger.ts` |
-| `audit_logs` | Admin action audit trail |
-| `reports` | Generated report records |
-| `api_keys` | Customer API key management |
-| `platforms` | Connected social/ad platforms |
-| `platform_connections` | Workspace ↔ platform links |
+| `loyalty_tiers` / `customer_loyalty_points` / `tier_history` | Loyalty system |
+| `reward_items` / `reward_redemptions` / `point_earning_rules` | Gamification rewards |
+| `discounts` / `customer_discount_notifications` | Discount system |
+| `employees` | Internal staff (dev/support/owner) |
+| `error_logs` / `audit_logs` | Logging |
+| `notifications` | Real-time notification system |
+| `reports` / `api_keys` / `platforms` / `platform_connections` | Misc |
 
-### Row-Level Security (RLS)
-- **RLS is enabled on all tables**
-- Customer data is scoped to workspace via `workspace_members`
-- Employee data access is role-based
-- Never bypass RLS without explicit reason. Test RLS policies when modifying tables.
-- Key helper: `is_team_member(workspace_id)` PostgreSQL function used in RLS policies
+### RLS Rules
+- RLS enabled on all tables. Customer data scoped via `workspace_members`.
+- Helper function: `is_team_member(workspace_id)`
+- Never bypass RLS without documenting why.
 
-### Migration Convention
-- All schema changes go in `supabase/migrations/` as `.sql` files
-- Naming: `YYYYMMDDHHMMSS_descriptive_name.sql`
-- The consolidated schema is `20260218000000_consolidated_schema.sql`
-- **Never modify existing migration files** — always add new migrations
+### Migrations
+- Path: `supabase/migrations/YYYYMMDDHHMMSS_descriptive_name.sql`
+- Consolidated base: `20260218000000_consolidated_schema.sql`
+- **Never modify existing migrations** — always add new ones.
 
 ---
 
-## 8. Custom Hooks
+## Key Hooks (src/hooks/)
 
-All data fetching logic lives in `src/hooks/`. Each hook wraps Supabase queries with TanStack React Query.
+All hooks wrap Supabase queries with React Query. Pattern:
 
-### Key Hooks Reference
-
-| Hook | Purpose |
-|---|---|
-| `useWorkspace` | Current workspace info and membership |
-| `useWorkspaceMembers` | List members of a workspace |
-| `useCampaigns` | Campaign CRUD |
-| `useSubscription` | Subscription details + upgrade flow |
-| `usePlatformConnections` | Social/ad platform connections |
-| `usePlatformsDB` | Platform master list |
-| `useCustomerPersonas` | Customer segment management |
-| `useCustomerTiers` | Loyalty tier configuration |
-| `useCustomerRewards` | Customer reward redemption |
-| `useCustomerCoupons` | Coupon/discount management |
-| `useDiscounts` | Discount campaign CRUD |
-| `useTeamManagement` | Team invite/remove/role management |
-| `useTierManagement` | Admin tier CRUD |
-| `useEmployees` | Employee list + approval |
-| `useEmployeeAuth` | Employee session |
-| `useAdminMonitor` | Dev monitor dashboard data |
-| `useAdminSupport` | Support ticket data |
-| `useAdminWorkspaces` | Workspace admin management |
-| `useAuditLogs` | Audit log viewer |
-| `useOwnerMetrics` | Owner analytics aggregation |
-| `useLoyaltyTier` | Loyalty tier for current user |
-| `useScheduledReports` | Report scheduling |
-| `useAnalyticsData` | General analytics |
-| `useFunnelData` | AARRR funnel metrics |
-| `useAdInsights` | Ad performance data |
-| `useSocialPosts` | Social post management |
-| `useDashboardMetrics` | Main dashboard KPIs |
-| `useUserRole` | Current user's role in workspace |
-| `usePlanAccess` | Quick plan access check |
-| `useReports` | Report list and generation |
-
-### Hook Patterns
 ```tsx
-// All hooks follow this pattern:
 export function useXxx() {
   return useQuery({
     queryKey: ['xxx', workspaceId],
@@ -294,242 +156,73 @@ export function useXxx() {
 }
 ```
 
-**Rule**: Always throw errors from Supabase queries — don't silently swallow them. React Query will handle retries and error boundaries.
+**Always throw errors** — never swallow them. React Query handles retries.
 
----
-
-## 9. Component Architecture
-
-### Layout Hierarchy
-```
-App.tsx (QueryClient, PlanProvider, PlatformConnectionsProvider, SidebarStateProvider)
-  └── BrowserRouter
-        ├── MainLayout          → Customer portal
-        ├── DevLayout           → Dev employee panel
-        ├── SupportLayout       → Support employee panel
-        └── OwnerLayout         → Owner analytics panel
-```
-
-### shadcn/ui Usage
-- All base UI primitives are in `src/components/ui/` (Button, Dialog, Table, etc.)
-- Use `cn()` from `@/lib/utils` for conditional classes
-- Import components from `@/components/ui/component-name`
-- **Do not mix Tailwind arbitrary values** — use design tokens from `tailwind.config.ts`
-
-### Component Naming Conventions
-- Pages: `PascalCase.tsx` (e.g., `Dashboard.tsx`)
-- Feature components: `PascalCase.tsx` inside feature folder (e.g., `components/team/EmployeesList.tsx`)
-- Hooks: `useCamelCase.tsx` in `src/hooks/`
-- Protected route wrappers: `XxxProtectedRoute.tsx`
-
----
-
-## 10. Error Handling
-
-### Error Logger
-- Service: `src/services/errorLogger.ts`
-- Logs to `error_logs` table in Supabase
-- Import: `import { logError } from "@/services/errorLogger";`
-- Usage:
-```tsx
-try {
-  // risky operation
-} catch (error) {
-  logError('Context description', error as Error, { extraContext: 'value' });
-}
-```
-
-### Error Boundary
-- `ErrorBoundary` component wraps the entire app in `App.tsx`
-- Also use `logError` inside React Query mutation `onError` callbacks
-
-### Toast Notifications
-- Use `sonner` (`toast.success(...)`, `toast.error(...)`) for user-facing feedback
-- Import: `import { toast } from "sonner";`
-
----
-
-## 11. Testing
-
-### Unit Tests (Vitest)
-```bash
-npm run test                 # Run all unit tests
-npm run test:ui              # Interactive UI mode
-npm run test:coverage        # Coverage report
-npm run test:monitor         # Monitor dashboard tests only
-npm run test:audit           # Audit log tests only
-npm run test:employee        # Employee management tests only
-npm run test:support         # Support dashboard tests only
-npm run test:logger          # Error logger tests only
-npm run test:tier            # Tier management tests only
-npm run test:loyalty         # Loyalty tier tests only
-```
-
-Unit tests live beside their source:
-- `src/hooks/__tests__/` — hook tests
-- `src/pages/admin/__tests__/` — admin page tests
-- `src/pages/owner/__tests__/` — owner page tests
-- `src/components/team/__tests__/` — team component tests
-- `src/services/__tests__/` — service tests
-
-### E2E Tests (Playwright)
-```bash
-npm run test:e2e             # Headless
-npm run test:e2e:ui          # Interactive UI mode
-npm run test:e2e:headed      # Headed browser
-```
-
-E2E tests are in `e2e/`.
-
-### Test Rules
-- Mock Supabase client in unit tests — never hit real DB
-- Use `@testing-library/react` for component tests
-- Follow `guide/TESTING.md` for the full testing strategy
-
----
-
-## 12. Environment & Local Setup
-
-### Environment Variables
-Copy `.env.example` or `.env.local.example` to `.env` and fill in:
-
-| Variable | Purpose |
+| Hook | For |
 |---|---|
-| `VITE_SUPABASE_URL` | Supabase project URL |
-| `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key |
+| `useWorkspace` / `useWorkspaceMembers` | Workspace data |
+| `useCampaigns` / `useAdGroups` / `useAds` / `useAdInsights` | Campaigns |
+| `useSocialPosts` / `usePlatformConnections` / `usePlatformsDB` | Social |
+| `useSubscription` / `usePlanAccess` | Plans |
+| `useCustomerTiers` / `useLoyaltyTier` / `useTierManagement` | Loyalty tiers |
+| `useCustomerRewards` / `useRewardsManagement` / `useRewardsCampaigns` / `useRedemptionRequests` | Rewards |
+| `useDiscounts` / `useCustomerCoupons` | Discounts |
+| `useEmployees` / `useEmployeeAuth` | Employee management |
+| `useAdminMonitor` / `useDevMonitor` | Dev monitor |
+| `useAuditLogs` | Audit logs |
+| `useAdminWorkspaces` / `useDevWorkspaces` | Workspace admin |
+| `useNotifications` | Notification system |
+| `useTeamManagement` / `useUserRole` | Team |
+| `useOwnerMetrics` | Owner analytics |
+| `useDashboardMetrics` / `useAnalyticsData` / `useFunnelData` | Analytics |
+| `useReports` / `useScheduledReports` | Reports |
 
-### Local Dev Commands
+---
+
+## Key Patterns
+
+1. **Data fetching** — Always React Query hooks, never raw `useState`+`useEffect`. Mutations invalidate relevant queries on success.
+2. **Plan gating** — Always through `PlanContext` with `hasFeature()`. Show `<UpgradeRequiredDialog>` or `<PlanRestrictedPage>`.
+3. **Workspace scoping** — `const { workspaceId } = useWorkspace()`, pass as query key dependency.
+4. **Forms** — `react-hook-form` + `zod` schema validation.
+5. **Error handling** — `logError()` from `@/services/errorLogger` logs to `error_logs` table. Use `toast.error()` / `toast.success()` from `sonner` for user feedback.
+6. **Components** — shadcn/ui primitives in `components/ui/`. Use `cn()` from `@/lib/utils` for conditional classes.
+
+---
+
+## Loyalty & Support System Notes
+
+- **Point redemption** must use Supabase RPC (`redeem_reward`) — never update `customer_loyalty_points` directly from frontend.
+- **Tier upgrades** should use database triggers on `customer_loyalty_points` updates.
+- **RLS for support role**: Ensure `SELECT`/`INSERT`/`UPDATE` on `loyalty_tiers`, `customer_loyalty_points`, `tier_history`, `reward_items`, `reward_redemptions`.
+- **Foreign keys**: `tier_history`, `points_transactions`, etc. must have correct FKs to avoid `PGRST200` errors.
+
+---
+
+## Don'ts
+
+- ❌ Create routes under `/admin/*`
+- ❌ Hand-edit `types.ts` (auto-generated)
+- ❌ Modify existing migration files
+- ❌ Bypass RLS without documentation
+- ❌ Use raw `fetch()` for Supabase ops
+- ❌ Add new state management (use React Query + Context)
+- ❌ Swallow Supabase errors silently
+- ❌ Mix customer/employee page references
+- ❌ Commit `.env` files
+- ❌ Skip tests — Tests are not required for this project. Focus on building features.
+
+---
+
+## Commands
+
 ```bash
-npm run dev          # Start Vite dev server on port 8080
+npm run dev          # Dev server (port 8080)
 npm run build        # Production build
-npm run lint         # ESLint check
-npm run seed         # Seed business data (tsx scripts/seed-business-data.ts)
-npm run seed:check   # Check seed status without writing
-```
-
-### Docker
-```bash
-docker-compose up -d       # Start local PostgreSQL on port 5432
-```
-The project uses **Supabase cloud** by default. The `docker-compose.yml` is for local PostgreSQL instances only (used alongside Supabase CLI local dev).
-
-### Full Setup Script
-```bash
-bash setup-full.sh    # One-command full environment setup
+npm run lint         # ESLint
+npm run seed         # Seed mock data
 ```
 
 ---
 
-## 13. Import Aliases
-
-The `@/` alias maps to `src/`:
-```tsx
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { useCampaigns } from "@/hooks/useCampaigns";
-import { logError } from "@/services/errorLogger";
-import { cn } from "@/lib/utils";
-```
-
----
-
-## 14. Key Design Patterns
-
-### Data Fetching
-- **Always use React Query hooks** — never raw `useState` + `useEffect` for async data
-- Query keys should be arrays: `['campaigns', workspaceId]`
-- Mutations should invalidate relevant queries on success
-
-### Plan Gating
-- Use `usePlanContext().hasFeature('featureKey')` to check access
-- Show `<UpgradeRequiredDialog>` or `<PlanRestrictedPage>` when access is denied
-- **Never hard-code plan checks** — always go through `PlanContext`
-
-### Workspace Scoping
-- All customer data is scoped to `workspaceId`
-- Get workspace: `const { workspaceId } = useWorkspace()`
-- Pass `workspaceId` as dependency to query keys
-
-### Form Validation
-- Use `react-hook-form` + `zod` for all forms
-- Schema validation first, then submit to Supabase
-
----
-
-## 15. What NOT To Do
-
-- **Do not** create new routes under `/admin/*` — use `/dev/*` or `/support/*`
-- **Do not** hand-edit `src/integrations/supabase/types.ts` — it is auto-generated
-- **Do not** modify existing migration files — always add new ones
-- **Do not** bypass Supabase RLS unless absolutely necessary and documented
-- **Do not** use raw `fetch()` for Supabase operations — always use the `supabase` client
-- **Do not** add new state management solutions — use React Query for server state and React context for global UI state
-- **Do not** swallow Supabase errors silently — always `throw error` or `logError()`
-- **Do not** reference `/employee/*` pages from within customer layouts or vice versa
-- **Do not** commit `.env` files — use `.env.example` as the template
-
----
-
-## 16. Support Role & Loyalty System Guidelines
-
-When modifying or fixing issues related to the `support` role or the Loyalty system (`/support/tier-management`, `/rewards`), please consider the following:
-
-- **Row-Level Security (RLS)**: The `support` role must have appropriate `SELECT`, `INSERT`, and `UPDATE` permissions on relevant tables (`loyalty_tiers`, `customer_loyalty_points`, `tier_history` etc).
-- **Point Redemption**: Direct updates to `customer_loyalty_points` from the frontend can be insecure. Point redemption and point transactions MUST be done through a secure **Supabase RPC (Database Function)** to ensure atomicity and security. 
-- **Tier Upgrade Logic**: If implementing an automated tier upgrade, the logic should ideally reside in a **Supabase Database Trigger** that listens for updates on `customer_loyalty_points`.
-- **Database Missing Constraints**: The schema requires strict relationships. Ensure all tables such as `tier_history`, `points_transactions`, and `suspicious_activities` maintain correct Foreign Keys to `customer` to avoid breaking frontend joins (`PGRST200` errors).
-
----
-
-## 16. Feature Areas Quick Reference
-
-| Area | Pages | Primary Hooks |
-|---|---|---|
-| Dashboard | `/dashboard` | `useDashboardMetrics`, `useWorkspace` |
-| Campaigns | `/campaigns`, `/campaigns/:id` | `useCampaigns`, `useAdGroups`, `useAds` |
-| Social | `/social-analytics` | `useAdInsights`, `useSocialPosts`, `usePlatformsDB` |
-| Email | (Email page) | `useSocialPosts` (email type) |
-| Analytics | `/analytics`, `/reports` | `useAnalyticsData`, `useReports` |
-| AARRR | `/aarrr-funnel` | `useFunnelData` |
-| Customer Journey | `/customer-journey` | `useCustomerPersonas` |
-| Rewards/Loyalty | `/rewards` | `useCustomerRewards`, `useLoyaltyTier`, `useCustomerTiers` |
-| Discounts | `/discounts` (Discounts page) | `useDiscounts`, `useCustomerCoupons` |
-| Team | `/team` | `useTeamManagement`, `useWorkspaceMembers` |
-| Settings | `/settings` | `useSubscription`, `useUserPaymentMethods` |
-| API Keys | `/api-keys` | (direct supabase queries) |
-| Dev Monitor | `/dev/monitor` | `useAdminMonitor`, `useDevMonitor` |
-| Dev Audit | `/dev/audit-logs` | `useAuditLogs` |
-| Support Workspaces | `/support/workspaces` | `useAdminWorkspaces`, `useDevWorkspaces` |
-| Support Tiers | `/support/tier-management` | `useTierManagement` |
-| Support Rewards | `/support/rewards-*`, `/support/redemption-requests` | `useRewardsManagement`, `useRewardsCampaigns`, `useRedemptionRequests` |
-| Owner Analytics | `/owner/*` | `useOwnerMetrics` |
-
----
-
-## 17. Guide Documents
-
-Additional documentation is in the `guide/` folder:
-- `guide/README.md` — Overview
-- `guide/TESTING.md` — Complete test strategy (read before writing tests)
-- `guide/Monitor_Dashboard.md` — Dev monitor dashboard spec
-- `guide/Audit_Logs.md` — Audit log system spec
-- `guide/Support_Dashboard.md` — Support dashboard spec
-
----
-
-*Last updated: March 2026. This file should be updated whenever major architectural changes are made.*
-
-## 17. Troubleshooting Common Support/Loyalty Issues
-
-- **Cannot Create Activity Codes / Add Rewards (Role: support)**
-  - Cause: Insufficient RLS permissions for the `support` role to `INSERT` records.
-  - Fix: Check the RLS policies in `supabase/migrations/*_rls.sql` or create a new migration for `INSERT`/`UPDATE` access.
-- **Tier Change History Not Displaying**
-  - Cause: The `tier_history` table might not have been seeded, or there are missing Foreign Keys (especially `user_id` -> `customer(id)`) causing `PGRST200` from PostgREST.
-  - Fix: Ensure `setup-full.sh` correctly runs the mock data seed for loyalty analytics. Verify FKs in migrations.
-- **Point Redemption (Customer) Doesn't Deduct Points**
-  - Cause: Customer updating their own `loyalty_points` directly via frontend is blocked by RLS.
-  - Fix: Implement and call a `redeem_reward` Database Function (RPC) that uses `SECURITY DEFINER` to safely deduct points and insert redemption requests in one atomic transaction.
-- **Loyalty Tier Not Upgrading When Points Threshold is Met**
-  - Cause: There is no automated backend logic.
-  - Fix: Create a `customer_loyalty_points_update` Database Trigger that calculates the new tier based on the `loyalty_tiers` point thresholds whenever a customer's points change, and inserts a record into `tier_history`.
+*Last updated: March 2026*

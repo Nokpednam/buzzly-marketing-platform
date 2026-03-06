@@ -18,6 +18,7 @@ import {
     LogOut,
     ChevronRight,
     HeadphonesIcon,
+    Tag,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -54,6 +55,11 @@ const supportNavItems = [
         title: "Redemption Requests",
         icon: ClipboardList,
         href: "/support/redemption-requests",
+    },
+    {
+        title: "Discount Management",
+        icon: Tag,
+        href: "/support/discount-management",
     },
 ];
 
