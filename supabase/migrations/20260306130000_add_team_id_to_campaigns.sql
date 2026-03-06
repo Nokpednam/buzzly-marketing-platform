@@ -11,15 +11,26 @@ WHERE team_id IS NULL AND ad_account_id IS NOT NULL;
 -- Enable RLS if not already enabled
 ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies to allow re-runs safely
+DROP POLICY IF EXISTS "team_campaigns_select" ON campaigns;
+DROP POLICY IF EXISTS "team_campaigns_insert" ON campaigns;
+DROP POLICY IF EXISTS "team_campaigns_update" ON campaigns;
+DROP POLICY IF EXISTS "team_campaigns_delete" ON campaigns;
+
 -- RLS policies scoped to workspace membership
+-- Uses is_team_member(auth.uid(), team_id) — the 2-arg signature this project defines
 CREATE POLICY "team_campaigns_select" ON campaigns
-  FOR SELECT USING (is_team_member(team_id));
+  FOR SELECT TO authenticated
+  USING (is_team_member(auth.uid(), team_id));
 
 CREATE POLICY "team_campaigns_insert" ON campaigns
-  FOR INSERT WITH CHECK (is_team_member(team_id));
+  FOR INSERT TO authenticated
+  WITH CHECK (is_team_member(auth.uid(), team_id));
 
 CREATE POLICY "team_campaigns_update" ON campaigns
-  FOR UPDATE USING (is_team_member(team_id));
+  FOR UPDATE TO authenticated
+  USING (is_team_member(auth.uid(), team_id));
 
 CREATE POLICY "team_campaigns_delete" ON campaigns
-  FOR DELETE USING (is_team_member(team_id));
+  FOR DELETE TO authenticated
+  USING (is_team_member(auth.uid(), team_id));
