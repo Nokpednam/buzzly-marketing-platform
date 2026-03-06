@@ -7,7 +7,8 @@ export type NotificationType =
     | "error_log"
     | "auth_failure"
     | "redemption_request"
-    | "suspicious_activity";
+    | "suspicious_activity"
+    | "discount_exhausted";
 
 export interface Notification {
     id: string;

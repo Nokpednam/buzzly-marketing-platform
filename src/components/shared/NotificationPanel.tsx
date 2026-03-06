@@ -15,6 +15,7 @@ import {
     ShieldAlert,
     Gift,
     Zap,
+    Ticket,
     CheckCheck,
     Loader2,
 } from "lucide-react";
@@ -50,6 +51,11 @@ const typeConfig: Record<
         icon: <Zap className="h-4 w-4 text-rose-600" />,
         color: "text-rose-600",
         bg: "bg-rose-50 border-rose-100",
+    },
+    discount_exhausted: {
+        icon: <Ticket className="h-4 w-4 text-emerald-600" />,
+        color: "text-emerald-600",
+        bg: "bg-emerald-50 border-emerald-100",
     },
 };
 
