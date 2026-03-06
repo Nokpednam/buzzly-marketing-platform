@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-export type WorkspaceMemberRole = "owner" | "admin" | "member" | "viewer";
+export type WorkspaceMemberRole = "owner" | "admin" | "editor" | "viewer";
 export type WorkspaceMemberStatus = "active" | "pending" | "suspended";
 
 export interface WorkspaceMember {
@@ -121,7 +121,7 @@ export function useWorkspaceMembers() {
           user_id: m.user_id ?? null,
           email: profile?.email ?? m.email ?? "",
           fullName: profile?.full_name ?? null,
-          role: (m.role as WorkspaceMemberRole) ?? "member",
+          role: (m.role as WorkspaceMemberRole) ?? "editor",
           status: (m.status as WorkspaceMemberStatus) ?? "active",
           invitedBy: m.invited_by ?? null,
           inviterName: m.invited_by
