@@ -171,7 +171,7 @@ export function NotificationPanel({
                             "rounded-full text-[9px] font-bold text-white",
                             badgeColor, "shadow"
                         )}>
-                            {unreadCount > 9 ? "9+" : unreadCount}
+                            {unreadCount}
                         </span>
                     )}
                 </button>
@@ -193,7 +193,7 @@ export function NotificationPanel({
                                 "flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-white",
                                 badgeColor
                             )}>
-                                {unreadCount > 9 ? "9+" : unreadCount}
+                                {unreadCount}
                             </span>
                         )}
                     </div>
@@ -215,7 +215,7 @@ export function NotificationPanel({
                 </div>
 
                 {/* Body */}
-                <ScrollArea className="max-h-[360px]">
+                <ScrollArea className="h-[400px]">
                     {notifications.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-10 text-slate-400">
                             <Bell className="h-8 w-8 mb-2 opacity-30" />

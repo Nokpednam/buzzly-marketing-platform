@@ -56,10 +56,12 @@ export default function Prospects() {
     deletePersona,
     getPersonaStats,
   } = useCustomerPersonas(workspace.id);
+  type CustomerPersona = NonNullable<typeof personas>[number];
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<"cards" | "charts">("charts");
   const [searchQuery, setSearchQuery] = useState("");
+  const [editingPersona, setEditingPersona] = useState<CustomerPersona | null>(null);
 
   const stats = getPersonaStats();
 
@@ -146,7 +148,7 @@ export default function Prospects() {
                 <LayoutGrid className="h-4 w-4" /> Gallery
               </TabsTrigger>
             </TabsList>
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
+            <Button variant="ghost" size="sm" className="text-muted-foreground" disabled title="Coming soon">
               <Filter className="h-4 w-4 mr-2" /> Filter
             </Button>
           </div>
@@ -158,7 +160,7 @@ export default function Prospects() {
                   key={persona.id}
                   persona={persona}
                   genderName={genders?.find((g) => g.id === persona.gender_id)?.name_gender}
-                  onEdit={() => { }}
+                  onEdit={(persona) => setEditingPersona(persona as CustomerPersona)}
                   onDelete={(id) => deletePersona.mutate(id)}
                 />
               ))}

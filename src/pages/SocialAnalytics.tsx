@@ -46,6 +46,7 @@ import {
 } from "recharts";
 import { usePlatformConnections, Platform } from "@/hooks/usePlatformConnections";
 import { useSocialPosts } from "@/hooks/useSocialPosts";
+import { useAdInsights } from "@/hooks/useAdInsights";
 import { SocialPostsList } from "@/components/social/SocialPostsList";
 import { AdsList } from "@/components/social/AdsList";
 import { AdGroupsList } from "@/components/social/AdGroupsList";
@@ -79,14 +80,10 @@ export default function SocialAnalytics() {
   const [dateRange, setDateRange] = useState("7");
   const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
   const [showCompare, setShowCompare] = useState(false);
-  const [adGroups, setAdGroups] = useState([
-    { id: "ag-1", name: "Summer Sale Campaign" },
-    { id: "ag-2", name: "New Arrivals Promotion" },
-    { id: "ag-3", name: "Brand Awareness" },
-    { id: "ag-4", name: "Year End Sale" },
-  ]);
+  const [viewMode, setViewMode] = useState<"overview" | "detailed">("detailed");
 
   const { posts } = useSocialPosts(dateRange);
+  const { summary: adSummary } = useAdInsights(dateRange);
 
   // Derived comparison logic using real post data
   const compareChartData = useMemo(() => {
@@ -132,8 +129,22 @@ export default function SocialAnalytics() {
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-1 bg-muted p-1 rounded-xl">
-              <Button variant="ghost" size="sm" className="rounded-lg h-8 px-4">Overview</Button>
-              <Button variant="secondary" size="sm" className="rounded-lg h-8 px-4 shadow-sm">Detailed</Button>
+              <Button
+                variant={viewMode === "overview" ? "secondary" : "ghost"}
+                size="sm"
+                className="rounded-lg h-8 px-4 shadow-sm"
+                onClick={() => setViewMode("overview")}
+              >
+                Overview
+              </Button>
+              <Button
+                variant={viewMode === "detailed" ? "secondary" : "ghost"}
+                size="sm"
+                className="rounded-lg h-8 px-4 shadow-sm"
+                onClick={() => setViewMode("detailed")}
+              >
+                Detailed
+              </Button>
             </div>
             <Select value={dateRange} onValueChange={setDateRange}>
               <SelectTrigger className="w-[140px] bg-background border-none shadow-sm ring-1 ring-border">
@@ -194,7 +205,13 @@ export default function SocialAnalytics() {
             <div className="absolute right-[-10%] top-[-10%] w-32 h-32 bg-white/20 rounded-full blur-2xl" />
             <CardContent className="p-8 flex flex-col justify-center h-full relative z-10">
               <p className="text-sm tracking-wider opacity-90 font-medium mb-1">Est. Ad Reach</p>
-              <h2 className="text-5xl font-bold tracking-tight">2.4<span className="text-3xl ml-1">M</span></h2>
+              <h2 className="text-5xl font-bold tracking-tight">
+                {adSummary.totalReach >= 1_000_000
+                  ? <>{(adSummary.totalReach / 1_000_000).toFixed(1)}<span className="text-3xl ml-1">M</span></>
+                  : adSummary.totalReach >= 1_000
+                    ? <>{(adSummary.totalReach / 1_000).toFixed(1)}<span className="text-3xl ml-1">K</span></>
+                    : <>{adSummary.totalReach > 0 ? adSummary.totalReach.toLocaleString() : "—"}</>}
+              </h2>
             </CardContent>
           </Card>
         </div>
@@ -234,10 +251,10 @@ export default function SocialAnalytics() {
                 />
               </TabsContent>
               <TabsContent value="ads" className="m-0 border-none outline-none">
-                <AdsList adGroups={adGroups} />
+                <AdsList adGroups={[]} />
               </TabsContent>
               <TabsContent value="groups" className="m-0 border-none outline-none">
-                <AdGroupsList onGroupsChange={setAdGroups} />
+                <AdGroupsList />
               </TabsContent>
               <TabsContent value="insights" className="m-0 border-none outline-none">
                 <AdInsightsSummary dateRange={dateRange} />

@@ -63,7 +63,7 @@ export function CustomerProtectedRoute({ children }: { children: React.ReactNode
         const roleEmployee = employeeData.role_employees as any;
         const roleName = roleEmployee?.role_name;
 
-        if (["owner", "admin", "support", "developer"].includes(roleName)) {
+        if (["owner", "admin", "support", "dev"].includes(roleName)) {
           isEmployeeRole = true;
         }
       }
@@ -99,7 +99,7 @@ export function CustomerProtectedRoute({ children }: { children: React.ReactNode
 
   // Logged in but blocked - must be admin/owner trying to access customer area
   if (!isCustomer) {
-    return <Navigate to="/admin/dashboard" replace />;
+    return <Navigate to="/dev/monitor" replace />;
   }
 
   // Customer access granted

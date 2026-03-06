@@ -11,7 +11,6 @@ import {
   History,
   Crown,
   Shield,
-  Briefcase,
   Store,
 } from "lucide-react";
 import { PlanRestrictedPage } from "@/components/PlanRestrictedPage";
@@ -22,6 +21,7 @@ import { TeamActivityLog } from "@/components/team/TeamActivityLog";
 import { InviteMemberDialog } from "@/components/team/InviteMemberDialog";
 import { EmployeesList } from "@/components/team/EmployeesList";
 import { WorkspaceMembersList } from "@/components/team/WorkspaceMembersList";
+
 
 function TeamManagementContent() {
   const {
@@ -151,7 +151,7 @@ function TeamManagementContent() {
             {(["owner", "admin", "editor", "viewer"] as const).map((role) => {
               const permissions = defaultRolePermissions[role];
               const enabledCount = Object.values(permissions).filter(Boolean).length;
-              
+
               return (
                 <div key={role} className="rounded-lg border p-3">
                   <div className="flex items-center justify-between mb-2">
@@ -160,10 +160,10 @@ function TeamManagementContent() {
                         role === "owner"
                           ? "bg-primary text-primary-foreground"
                           : role === "admin"
-                          ? "bg-info text-info-foreground"
-                          : role === "editor"
-                          ? "bg-warning text-warning-foreground"
-                          : "bg-muted text-muted-foreground"
+                            ? "bg-info text-info-foreground"
+                            : role === "editor"
+                              ? "bg-warning text-warning-foreground"
+                              : "bg-muted text-muted-foreground"
                       }
                     >
                       {role.charAt(0).toUpperCase() + role.slice(1)}
@@ -195,10 +195,6 @@ function TeamManagementContent() {
           <TabsTrigger value="invitations" className="gap-2">
             <Mail className="h-4 w-4" />
             คำเชิญ ({pendingInvitations.length})
-          </TabsTrigger>
-          <TabsTrigger value="employees" className="gap-2">
-            <Briefcase className="h-4 w-4" />
-            พนักงาน
           </TabsTrigger>
           <TabsTrigger value="workspace" className="gap-2">
             <Store className="h-4 w-4" />
@@ -235,23 +231,6 @@ function TeamManagementContent() {
                 canManage={canManageTeam}
                 onCancel={cancelInvitation}
               />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="employees">
-          <Card className="border-0 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Briefcase className="h-4 w-4" />
-                จัดการพนักงาน
-              </CardTitle>
-              <CardDescription>
-                เพิ่ม แก้ไข และจัดการข้อมูลพนักงานในองค์กร
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <EmployeesList canManage={canManageTeam} />
             </CardContent>
           </Card>
         </TabsContent>

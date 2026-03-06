@@ -127,25 +127,27 @@ export async function logToDatabase(options: LogOptions): Promise<void> {
                 details: insertError.details,
                 hint: insertError.hint,
             });
+            throw insertError;
         } else {
             // Always log success to help with debugging
             console.log(`[Error Logger] ✅ Successfully logged ${level.toUpperCase()}: ${errorDetails.message}`);
         }
     } catch (loggingError) {
-        // Don't let logging errors crash the app
+        // Log locally and throw so caller can catch
         console.error('[Error Logger] Logging failed:', loggingError);
+        throw loggingError;
     }
 }
 
 /**
  * Log an error
  */
-export function logError(
+export async function logError(
     message: string,
     error?: Error | unknown,
     metadata?: Record<string, unknown>
-): void {
-    logToDatabase({
+): Promise<void> {
+    return logToDatabase({
         level: 'error',
         message,
         error,
@@ -156,11 +158,11 @@ export function logError(
 /**
  * Log a warning
  */
-export function logWarning(
+export async function logWarning(
     message: string,
     metadata?: Record<string, unknown>
-): void {
-    logToDatabase({
+): Promise<void> {
+    return logToDatabase({
         level: 'warning',
         message,
         metadata,
@@ -170,11 +172,11 @@ export function logWarning(
 /**
  * Log an info message
  */
-export function logInfo(
+export async function logInfo(
     message: string,
     metadata?: Record<string, unknown>
-): void {
-    logToDatabase({
+): Promise<void> {
+    return logToDatabase({
         level: 'info',
         message,
         metadata,
@@ -184,12 +186,12 @@ export function logInfo(
 /**
  * Log a debug message (only in development)
  */
-export function logDebug(
+export async function logDebug(
     message: string,
     metadata?: Record<string, unknown>
-): void {
+): Promise<void> {
     if (isDevelopment) {
-        logToDatabase({
+        return logToDatabase({
             level: 'debug',
             message,
             metadata,
