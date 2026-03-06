@@ -21,7 +21,6 @@ import Prospects from "./pages/Prospects";
 import Campaigns from "./pages/Campaigns";
 import CampaignDetail from "./pages/CampaignDetail";
 import SocialAnalytics from "./pages/SocialAnalytics";
-import RewardsCenter from "./pages/RewardsCenter";
 
 import CustomerJourney from "./pages/CustomerJourney";
 import AARRRFunnel from "./pages/AARRRFunnel";
@@ -100,7 +99,6 @@ const App = () => (
                     <Route path="/campaigns" element={<Campaigns />} />
                     <Route path="/campaigns/:id" element={<CampaignDetail />} />
                     <Route path="/social-analytics" element={<SocialAnalytics />} />
-                    <Route path="/rewards" element={<RewardsCenter />} />
 
                     <Route path="/customer-journey" element={<CustomerJourney />} />
                     <Route path="/aarrr-funnel" element={<AARRRFunnel />} />

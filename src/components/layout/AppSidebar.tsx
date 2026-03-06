@@ -19,7 +19,6 @@ import {
   UsersRound,
   ArrowUpRight,
   Tag,
-  Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -35,7 +34,6 @@ const navGroups = [
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, requiresPlan: null },
       { title: "Campaigns", url: "/campaigns", icon: Megaphone, requiresPlan: null },
-      { title: "Rewards Center", url: "/rewards", icon: Gift, requiresPlan: null },
       { title: "Customer Persona", url: "/prospects", icon: Users, requiresPlan: null },
       { title: "Social Analytics", url: "/social-analytics", icon: Share2, requiresPlan: null },
     ]

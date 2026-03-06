@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Zap, Bell, LogOut, Settings, User, ChevronUp, Gift, TrendingUp, History, ArrowUp, ArrowDown, ArrowUpRight } from "lucide-react";
+import { Zap, Bell, LogOut, Settings, ChevronUp, Gift, TrendingUp, History, ArrowUp, ArrowDown, ArrowUpRight } from "lucide-react";
+import { RewardsCenterModal } from "@/components/customer/RewardsCenterModal";
+import { MyCouponsModal } from "@/components/customer/MyCouponsModal";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -27,7 +29,6 @@ import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { MessageSquarePlus, Ticket } from "lucide-react";
 import { auditAuth } from "@/lib/auditLogger";
 import { useCustomerCoupons } from "@/hooks/useCustomerCoupons";
-import { MyCouponsDialog } from "@/components/customer/MyCouponsDialog";
 import { NotificationCenterDialog } from "@/components/customer/NotificationCenterDialog";
 import { useProfileCustomer } from "@/hooks/useProfileCustomer";
 
@@ -64,6 +65,8 @@ const planInfo: Record<PlanType, { name: string; upgradeText: string; showUpgrad
 export function SidebarBottomSection({ collapsed = false }: SidebarBottomSectionProps) {
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [upgradeHovered, setUpgradeHovered] = useState(false);
+  const [rewardsCenterOpen, setRewardsCenterOpen] = useState(false);
+  const [myCouponsOpen, setMyCouponsOpen] = useState(false);
   const [notifCenterOpen, setNotifCenterOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
@@ -177,9 +180,9 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate("/settings")}>
-              <User className="mr-2 h-4 w-4" />
-              Profile
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setRewardsCenterOpen(true); }}>
+              <Gift className="mr-2 h-4 w-4" />
+              Rewards Center
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/settings")}>
               <Settings className="mr-2 h-4 w-4" />
@@ -240,6 +243,7 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
         </Popover>
 
         <PlanSelectionDialog open={planDialogOpen} onOpenChange={setPlanDialogOpen} />
+        <RewardsCenterModal open={rewardsCenterOpen} onOpenChange={setRewardsCenterOpen} />
       </div>
     );
   }
@@ -294,16 +298,14 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate("/settings")}>
-              <User className="mr-2 h-4 w-4" />
-              Profile
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setRewardsCenterOpen(true); }}>
+              <Gift className="mr-2 h-4 w-4" />
+              Rewards Center
             </DropdownMenuItem>
-            <NotificationCenterDialog defaultTab="coupons">
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                <Ticket className="mr-2 h-4 w-4" />
-                My Coupons
-              </DropdownMenuItem>
-            </NotificationCenterDialog>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setMyCouponsOpen(true); }}>
+              <Ticket className="mr-2 h-4 w-4" />
+              My Coupons
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate("/settings")}>
               <Settings className="mr-2 h-4 w-4" />
               Settings
@@ -362,8 +364,10 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
       </div>
 
       <PlanSelectionDialog open={planDialogOpen} onOpenChange={setPlanDialogOpen} />
-      {/* Full Notification Center — opened via "View all notifications" */}
+      {/* Full Notification Center */}
       <NotificationCenterDialog open={notifCenterOpen} onOpenChange={setNotifCenterOpen} />
+      <RewardsCenterModal open={rewardsCenterOpen} onOpenChange={setRewardsCenterOpen} />
+      <MyCouponsModal open={myCouponsOpen} onOpenChange={setMyCouponsOpen} />
     </div>
   );
 }
