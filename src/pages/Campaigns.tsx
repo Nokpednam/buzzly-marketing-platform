@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -51,6 +51,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -86,6 +96,8 @@ export default function Campaigns() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] =
     useState<CampaignWithInsights | null>(null);
+  const [deletingCampaignId, setDeletingCampaignId] = useState<string | null>(null);
+
   const handleDuplicate = async (campaign: CampaignWithInsights) => {
     try {
       await createCampaign.mutateAsync({
@@ -115,13 +127,17 @@ export default function Campaigns() {
         .eq("is_active", true)
         .order("account_name");
       if (error) throw error;
-      if (data?.length > 0 && !selectedAdAccount) {
-        setSelectedAdAccount(data[0].id);
-      }
       return data || [];
     },
     staleTime: 30_000,
   });
+
+  // Auto-select first ad account when data loads
+  useEffect(() => {
+    if (adAccounts.length > 0 && !selectedAdAccount) {
+      setSelectedAdAccount(adAccounts[0].id);
+    }
+  }, [adAccounts, selectedAdAccount]);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -169,14 +185,22 @@ export default function Campaigns() {
     id: string,
     currentStatus: string | null,
   ) => {
+    if (currentStatus !== "active" && currentStatus !== "paused") {
+      toast.error("Cannot toggle this status");
+      return;
+    }
     const newStatus = currentStatus === "active" ? "paused" : "active";
     await updateCampaign.mutateAsync({ id, updates: { status: newStatus } });
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm("คุณแน่ใจหรือไม่ที่จะลบ Campaign นี้?")) {
-      await deleteCampaign.mutateAsync(id);
-    }
+  const handleDelete = (id: string) => {
+    setDeletingCampaignId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingCampaignId) return;
+    await deleteCampaign.mutateAsync(deletingCampaignId);
+    setDeletingCampaignId(null);
   };
 
   const openCreateDialog = () => {
@@ -231,7 +255,9 @@ export default function Campaigns() {
         await createCampaign.mutateAsync({ ...payload, status: "draft" });
       }
       setIsDialogOpen(false);
-    } catch (e) { }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Operation failed");
+    }
   };
 
   if (isLoading) {
@@ -322,7 +348,7 @@ export default function Campaigns() {
           className="w-full lg:w-auto"
         >
           <TabsList className="bg-transparent h-10 gap-1">
-            {["all", "active", "scheduled", "draft", "completed"].map((tab) => (
+            {["all", "active", "paused", "scheduled", "draft", "completed"].map((tab) => (
               <TabsTrigger
                 key={tab}
                 value={tab}
@@ -400,12 +426,19 @@ export default function Campaigns() {
                       <DollarSign className="h-3 w-3" />
                     </div>
                     <span className="text-sm font-bold">
-                      ${campaign.budget_amount?.toLocaleString()}
+                      ${campaign.budget_amount?.toLocaleString() ?? "—"}
                     </span>
                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest ml-1">
                       Budget
                     </span>
                   </div>
+
+                  {/* Ad Account */}
+                  {campaign.ad_account_name && (
+                    <p className="text-[10px] text-muted-foreground font-medium mb-2 truncate">
+                      {campaign.ad_account_name}
+                    </p>
+                  )}
 
                   {/* Tags */}
                   <div className="flex flex-wrap gap-1.5 min-h-[24px]">
@@ -526,6 +559,30 @@ export default function Campaigns() {
           ))
         )}
       </div>
+
+      {/* DELETE CONFIRMATION DIALOG */}
+      <AlertDialog
+        open={!!deletingCampaignId}
+        onOpenChange={(open) => { if (!open) setDeletingCampaignId(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>ยืนยันการลบ Campaign</AlertDialogTitle>
+            <AlertDialogDescription>
+              คุณแน่ใจหรือไม่ที่จะลบ Campaign นี้? การกระทำนี้ไม่สามารถย้อนกลับได้
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              ลบ
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* 5. DIALOG - STYLED FOR CLARITY */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

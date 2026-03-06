@@ -55,6 +55,17 @@ const statusStyles: Record<string, string> = {
   completed: "bg-primary/10 text-primary border-primary/20",
 };
 
+function calculateProgress(startDate: string | null, endDate: string | null): number {
+  if (!startDate || !endDate) return 0;
+  const now = Date.now();
+  const start = new Date(startDate).getTime();
+  const end = new Date(endDate).getTime();
+  if (end <= start) return 0;
+  if (now <= start) return 0;
+  if (now >= end) return 100;
+  return Math.round(((now - start) / (end - start)) * 100);
+}
+
 export default function CampaignDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -124,7 +135,7 @@ export default function CampaignDetail() {
     );
   }
 
-  const progress = status === "completed" ? 100 : status === "active" ? 50 : 0;
+  const progress = calculateProgress(campaign.start_date, campaign.end_date);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -287,7 +298,7 @@ export default function CampaignDetail() {
           </div>
         </div>
         <div className="flex gap-2 ml-12 sm:ml-0">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => toast.info("Export coming soon")}>
             <Download className="h-4 w-4" />
             Export
           </Button>

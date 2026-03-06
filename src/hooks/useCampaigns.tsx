@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
 export type Campaign = Database["public"]["Tables"]["campaigns"]["Row"];
 export type CampaignInsert = Database["public"]["Tables"]["campaigns"]["Insert"];
@@ -17,19 +18,26 @@ export interface CampaignWithInsights extends Campaign {
   conversions: number;
   spend: number;
   tags: Tag[];
+  ad_account_name?: string | null;
+  // team_id added by migration — cast via any until types.ts is regenerated
+  team_id?: string | null;
 }
 
 export function useCampaigns() {
   const queryClient = useQueryClient();
+  const { workspace } = useWorkspace();
+  const workspaceId = workspace.id;
 
   const { data: campaigns = [], isLoading, error } = useQuery({
-    queryKey: ["campaigns"],
+    queryKey: ["campaigns", workspaceId],
+    enabled: !!workspaceId,
     queryFn: async () => {
-      // Get campaigns with tags
+      // Get campaigns with tags and ad account name
       const { data: campaignsData, error: campaignsError } = await supabase
         .from("campaigns")
         .select(`
           *,
+          ad_accounts(account_name),
           campaign_tags (
             tag_id,
             tags (
@@ -40,6 +48,7 @@ export function useCampaigns() {
             )
           )
         `)
+        .eq("team_id" as any, workspaceId!)
         .order("created_at", { ascending: false });
 
       if (campaignsError) throw campaignsError;
@@ -66,14 +75,15 @@ export function useCampaigns() {
         return acc;
       }, {} as Record<string, { impressions: number; reach: number; clicks: number; conversions: number; spend: number }>) || {};
 
-      return campaignsData.map((campaign: any) => ({
+      return (campaignsData ?? []).map((campaign: any) => ({
         ...campaign,
         impressions: insightsMap[campaign.id]?.impressions || 0,
         reach: insightsMap[campaign.id]?.reach || 0,
         clicks: insightsMap[campaign.id]?.clicks || 0,
         conversions: insightsMap[campaign.id]?.conversions || 0,
         spend: insightsMap[campaign.id]?.spend || 0,
-        tags: campaign.campaign_tags?.map((ct: any) => ct.tags).filter(Boolean) || []
+        tags: campaign.campaign_tags?.map((ct: any) => ct.tags).filter(Boolean) || [],
+        ad_account_name: (campaign.ad_accounts as any)?.account_name ?? null,
       })) as CampaignWithInsights[];
     },
   });
@@ -82,14 +92,14 @@ export function useCampaigns() {
     mutationFn: async (newCampaign: CampaignInsert) => {
       const { data, error } = await supabase
         .from("campaigns")
-        .insert(newCampaign)
+        .insert({ ...newCampaign, team_id: workspaceId } as any)
         .select()
         .single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns", workspaceId] });
       toast.success("สร้างแคมเปญสำเร็จ");
     },
     onError: (error: Error) => {
@@ -109,7 +119,7 @@ export function useCampaigns() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns", workspaceId] });
       toast.success("อัปเดตแคมเปญสำเร็จ");
     },
     onError: (error: Error) => {
@@ -126,7 +136,7 @@ export function useCampaigns() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns", workspaceId] });
       toast.success("ลบแคมเปญสำเร็จ");
     },
     onError: (error: Error) => {

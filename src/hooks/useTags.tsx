@@ -113,8 +113,8 @@ export function useTags(entityType?: "campaign" | "post" | "persona" | "report")
                 .insert({ campaign_id: campaignId, tag_id: tagId });
             if (error) throw error;
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["campaign-tags"] });
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ["campaign-tags", variables.campaignId] });
         },
         onError: (err: any) => {
             toast.error(err.message ?? "Failed to assign tag");
@@ -130,8 +130,8 @@ export function useTags(entityType?: "campaign" | "post" | "persona" | "report")
                 .eq("tag_id", tagId);
             if (error) throw error;
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["campaign-tags"] });
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ["campaign-tags", variables.campaignId] });
         },
         onError: (err: any) => {
             toast.error(err.message ?? "Failed to remove tag");
