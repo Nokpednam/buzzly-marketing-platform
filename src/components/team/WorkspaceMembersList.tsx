@@ -50,14 +50,14 @@ import { useWorkspaceMembers, WorkspaceMemberRole, WorkspaceMemberStatus } from 
 const roleLabels: Record<WorkspaceMemberRole, string> = {
   owner: "เจ้าของ",
   admin: "ผู้ดูแล",
-  member: "สมาชิก",
+  editor: "สมาชิก",
   viewer: "ผู้ดู",
 };
 
 const roleColors: Record<WorkspaceMemberRole, string> = {
   owner: "bg-primary text-primary-foreground",
   admin: "bg-info text-info-foreground",
-  member: "bg-warning text-warning-foreground",
+  editor: "bg-warning text-warning-foreground",
   viewer: "bg-muted text-muted-foreground",
 };
 
@@ -66,8 +66,8 @@ interface WorkspaceMembersListProps {
 }
 
 export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
-  const { 
-    members, 
+  const {
+    members,
     isLoading,
     inviteMember,
     suspendMember,
@@ -78,7 +78,7 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
-    role: "member" as WorkspaceMemberRole,
+    role: "editor" as WorkspaceMemberRole,
   });
 
   const handleInvite = async () => {
@@ -87,7 +87,7 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
       role: formData.role,
     });
     setInviteDialogOpen(false);
-    setFormData({ email: "", role: "member" });
+    setFormData({ email: "", role: "editor" });
   };
 
   const handleSuspend = async (id: string) => {
@@ -333,7 +333,7 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
                       <span className="text-xs text-muted-foreground">จัดการร้านค้าและสมาชิกได้</span>
                     </div>
                   </SelectItem>
-                  <SelectItem value="member">
+                  <SelectItem value="editor">
                     <div className="flex flex-col">
                       <span>สมาชิก (Member)</span>
                       <span className="text-xs text-muted-foreground">ทำงานและแก้ไขข้อมูลได้</span>
