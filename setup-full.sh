@@ -290,9 +290,9 @@ run_sql_script() {
 run_sql_script "sample-data/unified-seed.sql" "Seeding Realistic Data (Users, Feedbacks, etc.)"
 
 # ---------------------------------------------------------
-# 5.5 Re-run mock data scripts that depend on auth.users/workspaces
+# 5.5 Seed non-customer data (Owner/Employee side only)
 # ---------------------------------------------------------
-echo "Step 5.5: Re-seeding mock data (user-dependent tables)..."
+echo "Step 5.5: Seeding non-customer data (billing, team logs)..."
 DB_CONTAINER=$(docker ps --filter "name=supabase_db" --format "{{.Names}}" | head -n 1)
 
 run_mock_sql() {
@@ -307,33 +307,16 @@ run_mock_sql() {
     fi
 }
 
-run_mock_sql "supabase/migrations/20260218200002_mock_campaigns.sql"      "Ad Accounts, Campaigns, Budgets"
-run_mock_sql "supabase/migrations/20260218200003_mock_ad_insights.sql"    "Ad Insights (30 days)"
-run_mock_sql "supabase/migrations/20260218200004_mock_social_email.sql"    "Social Posts & Email Campaigns"
-run_mock_sql "supabase/migrations/20260218200006_mock_crm_system.sql"     "Prospects, Audit Logs, Suspicious Activities"
+# NOTE: Customer-facing graph data (campaigns, ad_insights, social_posts,
+# prospects, funnel activities, cohort analysis) is NO LONGER seeded here.
+# That data must come from the user manually connecting platforms via /api-keys.
+# Only non-customer seeds remain below:
+
 run_mock_sql "supabase/migrations/20260218200007_mock_billing_reports.sql" "Discounts, Invoices, Reports"
 run_mock_sql "supabase/migrations/20260218200008_mock_team_activity_logs.sql" "Team Activity Logs"
-run_mock_sql "supabase/migrations/20260218200009_mock_funnel_activities.sql" "Funnel Stages + Customer Activities"
-run_mock_sql "supabase/migrations/20260218200105_mock_loyalty_analytics.sql" "Loyalty, Analytics (Tier History)"
 run_mock_sql "supabase/migrations/20260218200010_mock_owner_pages.sql" "Owner Pages (Subscriptions, Cohorts, Tiers)"
 
-echo "✅ Mock data re-seeded."
-echo ""
-
-# ---------------------------------------------------------
-# 5.6: Re-assign marketing data to workspace so RLS works
-# ---------------------------------------------------------
-echo "Step 5.6: Linking ad_accounts & insights to workspaces (RLS fix)..."
-run_sql_script "supabase/script/fix-marketing-linkage.sql" "Marketing Data Linkage Fix"
-echo "✅ Marketing data linked to workspaces."
-echo ""
-
-# ---------------------------------------------------------
-# 5.6b: Auto-link customer_personas to each workspace (RLS fix)
-# ---------------------------------------------------------
-echo "Step 5.6b: Linking customer_personas to workspaces (auto, no hardcoded emails)..."
-run_sql_script "supabase/script/fix-personas-linkage-auto.sql" "Customer Personas Linkage Fix"
-echo "✅ Customer personas linked to workspaces."
+echo "✅ Non-customer data seeded."
 echo ""
 
 # ---------------------------------------------------------

@@ -1,0 +1,54 @@
+{
+  "error": "",
+  "message": "",
+  "response": {
+    "more": false,
+    "next_cursor": "",
+    "order_list": [
+      {
+        "order_sn": "2603140101NICHE",
+        "order_status": "COMPLETED",
+        "create_time": 1773580800,
+        "update_time": 1773667200,
+        "buyer_username": "skincare_lover_bkk",
+        "payment_method": "credit_card",
+        "total_amount": 89.00,
+        "currency": "THB",
+        "item_list": [
+          { "item_id": 200001, "item_name": "Premium Retinol Serum 30ml", "model_quantity_purchased": 1, "model_discounted_price": 89.00 }
+        ],
+        "shipping": { "tracking_number": "TH2603140101", "shipping_carrier": "Kerry Express" }
+      },
+      {
+        "order_sn": "2603140102NICHE",
+        "order_status": "COMPLETED",
+        "create_time": 1773591600,
+        "update_time": 1773678000,
+        "buyer_username": "beauty_queen_cm",
+        "payment_method": "shopee_pay",
+        "total_amount": 245.00,
+        "currency": "THB",
+        "item_list": [
+          { "item_id": 200002, "item_name": "Vitamin C Brightening Set", "model_quantity_purchased": 1, "model_discounted_price": 149.00 },
+          { "item_id": 200003, "item_name": "Hyaluronic Acid Moisturizer 50ml", "model_quantity_purchased": 1, "model_discounted_price": 96.00 }
+        ],
+        "shipping": { "tracking_number": "TH2603140102", "shipping_carrier": "Flash Express" }
+      },
+      {
+        "order_sn": "2603140103NICHE",
+        "order_status": "SHIPPED",
+        "create_time": 1773602400,
+        "update_time": 1773688800,
+        "buyer_username": "organic_life_th",
+        "payment_method": "bank_transfer",
+        "total_amount": 120.00,
+        "currency": "THB",
+        "item_list": [
+          { "item_id": 200004, "item_name": "Organic Face Oil Rosehip 20ml", "model_quantity_purchased": 2, "model_discounted_price": 60.00 }
+        ],
+        "shipping": { "tracking_number": "TH2603140103", "shipping_carrier": "J&T Express" }
+      }
+    ]
+  },
+  "request_id": "req_shopb_ord_001"
+}

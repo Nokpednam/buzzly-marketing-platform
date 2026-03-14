@@ -1,0 +1,94 @@
+{
+  "data": [
+    {
+      "campaign_id": "120210660001",
+      "campaign_name": "Organic Skincare - Awareness",
+      "objective": "OUTCOME_AWARENESS",
+      "impressions": "78200",
+      "reach": "52100",
+      "clicks": "3910",
+      "ctr": "5.00",
+      "cpc": "0.13",
+      "cpm": "6.52",
+      "spend": "509.86",
+      "conversions": "0",
+      "roas": "0.00",
+      "actions": [
+        { "action_type": "link_click", "value": "3910" },
+        { "action_type": "video_view", "value": "42000" },
+        { "action_type": "post_engagement", "value": "6200" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.13" },
+        { "action_type": "video_view", "value": "0.012" }
+      ],
+      "date_start": "2026-03-01",
+      "date_stop": "2026-03-13",
+      "account_currency": "USD"
+    },
+    {
+      "campaign_id": "120210660002",
+      "campaign_name": "Premium Serum - Conversion",
+      "objective": "OUTCOME_SALES",
+      "impressions": "32400",
+      "reach": "21800",
+      "clicks": "1685",
+      "ctr": "5.20",
+      "cpc": "0.18",
+      "cpm": "9.35",
+      "spend": "303.12",
+      "conversions": "142",
+      "roas": "8.42",
+      "actions": [
+        { "action_type": "link_click", "value": "1685" },
+        { "action_type": "add_to_cart", "value": "420" },
+        { "action_type": "purchase", "value": "142" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.18" },
+        { "action_type": "purchase", "value": "2.13" }
+      ],
+      "date_start": "2026-03-01",
+      "date_stop": "2026-03-13",
+      "account_currency": "USD"
+    },
+    {
+      "campaign_id": "120210660003",
+      "campaign_name": "VIP Loyalty - Retargeting",
+      "objective": "OUTCOME_SALES",
+      "impressions": "18500",
+      "reach": "8200",
+      "clicks": "648",
+      "ctr": "3.50",
+      "cpc": "0.28",
+      "cpm": "9.84",
+      "spend": "182.05",
+      "conversions": "54",
+      "roas": "12.60",
+      "actions": [
+        { "action_type": "link_click", "value": "648" },
+        { "action_type": "purchase", "value": "54" },
+        { "action_type": "add_to_cart", "value": "112" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.28" },
+        { "action_type": "purchase", "value": "3.37" }
+      ],
+      "date_start": "2026-03-05",
+      "date_stop": "2026-03-13",
+      "account_currency": "USD"
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "MjAyNi0wMy0wMQ==",
+      "after": "MjAyNi0wMy0xMw=="
+    }
+  },
+  "summary": {
+    "account_currency": "USD",
+    "total_spend": "995.03",
+    "total_impressions": "129100",
+    "total_clicks": "6243"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "error": "",
+  "message": "",
+  "response": {
+    "impressions": 45200,
+    "clicks": 3842,
+    "ctr": 8.50,
+    "expense": 8500.00,
+    "cost_per_click": 2.21,
+    "direct_conversions": 322,
+    "direct_conversion_rate": 8.38,
+    "broad_conversions": 418,
+    "broad_conversion_rate": 10.88,
+    "direct_gmv": 28980.00,
+    "broad_gmv": 37620.00,
+    "roi": 3.41,
+    "average_order_value": 90.00,
+    "new_buyers": 198,
+    "returning_buyers": 124,
+    "date": "2026-03-13"
+  },
+  "request_id": "req_shopb_perf_001"
+}

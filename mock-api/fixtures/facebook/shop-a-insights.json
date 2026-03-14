@@ -1,0 +1,124 @@
+{
+  "data": [
+    {
+      "campaign_id": "120210550001",
+      "campaign_name": "Summer Mega Sale 2026",
+      "objective": "OUTCOME_SALES",
+      "impressions": "1842503",
+      "reach": "1203400",
+      "clicks": "27650",
+      "ctr": "1.50",
+      "cpc": "0.18",
+      "cpm": "2.72",
+      "spend": "4998.12",
+      "conversions": "832",
+      "roas": "4.21",
+      "actions": [
+        { "action_type": "link_click", "value": "27650" },
+        { "action_type": "landing_page_view", "value": "21300" },
+        { "action_type": "add_to_cart", "value": "3420" },
+        { "action_type": "purchase", "value": "832" },
+        { "action_type": "lead", "value": "156" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.18" },
+        { "action_type": "purchase", "value": "6.01" },
+        { "action_type": "lead", "value": "32.04" }
+      ],
+      "date_start": "2026-03-01",
+      "date_stop": "2026-03-13",
+      "account_currency": "USD"
+    },
+    {
+      "campaign_id": "120210550002",
+      "campaign_name": "Brand Awareness - Q1",
+      "objective": "OUTCOME_AWARENESS",
+      "impressions": "2105000",
+      "reach": "1580000",
+      "clicks": "31575",
+      "ctr": "1.50",
+      "cpc": "0.10",
+      "cpm": "1.42",
+      "spend": "2989.10",
+      "conversions": "0",
+      "roas": "0.00",
+      "actions": [
+        { "action_type": "link_click", "value": "31575" },
+        { "action_type": "video_view", "value": "892000" },
+        { "action_type": "post_engagement", "value": "45200" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.10" },
+        { "action_type": "video_view", "value": "0.003" }
+      ],
+      "date_start": "2026-02-15",
+      "date_stop": "2026-03-13",
+      "account_currency": "USD"
+    },
+    {
+      "campaign_id": "120210550003",
+      "campaign_name": "Retargeting - Cart Abandoners",
+      "objective": "OUTCOME_SALES",
+      "impressions": "520100",
+      "reach": "210400",
+      "clicks": "9362",
+      "ctr": "1.80",
+      "cpc": "0.32",
+      "cpm": "5.76",
+      "spend": "2995.97",
+      "conversions": "421",
+      "roas": "5.82",
+      "actions": [
+        { "action_type": "link_click", "value": "9362" },
+        { "action_type": "purchase", "value": "421" },
+        { "action_type": "add_to_cart", "value": "1850" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.32" },
+        { "action_type": "purchase", "value": "7.12" }
+      ],
+      "date_start": "2026-03-01",
+      "date_stop": "2026-03-13",
+      "account_currency": "USD"
+    },
+    {
+      "campaign_id": "120210550004",
+      "campaign_name": "Lead Gen - Free Trial Signup",
+      "objective": "OUTCOME_LEADS",
+      "impressions": "680200",
+      "reach": "445000",
+      "clicks": "8162",
+      "ctr": "1.20",
+      "cpc": "0.49",
+      "cpm": "5.88",
+      "spend": "3998.25",
+      "conversions": "0",
+      "roas": "0.00",
+      "actions": [
+        { "action_type": "link_click", "value": "8162" },
+        { "action_type": "lead", "value": "612" },
+        { "action_type": "landing_page_view", "value": "6800" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.49" },
+        { "action_type": "lead", "value": "6.53" }
+      ],
+      "date_start": "2026-02-20",
+      "date_stop": "2026-03-13",
+      "account_currency": "USD"
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "MjAyNi0wMy0wMQ==",
+      "after": "MjAyNi0wMy0xMw=="
+    },
+    "next": "https://graph.facebook.com/v19.0/act_120210550/insights?after=MjAyNi0wMy0xMw=="
+  },
+  "summary": {
+    "account_currency": "USD",
+    "total_spend": "14981.44",
+    "total_impressions": "5147803",
+    "total_clicks": "76749"
+  }
+}

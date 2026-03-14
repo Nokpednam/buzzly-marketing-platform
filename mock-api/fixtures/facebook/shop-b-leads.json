@@ -1,0 +1,46 @@
+{
+  "data": [
+    {
+      "id": "lead_b001",
+      "created_time": "2026-03-13T10:30:15+0000",
+      "field_data": [
+        { "name": "full_name", "values": ["Pimchanok Aree"] },
+        { "name": "email", "values": ["pimchanok@skinlux.co.th"] },
+        { "name": "phone_number", "values": ["+66812221111"] },
+        { "name": "company_name", "values": ["SkinLux Clinic"] }
+      ],
+      "form_id": "form_120210660",
+      "ad_id": "ad_120210660002"
+    },
+    {
+      "id": "lead_b002",
+      "created_time": "2026-03-12T18:45:30+0000",
+      "field_data": [
+        { "name": "full_name", "values": ["Natthida Kosolrak"] },
+        { "name": "email", "values": ["natthida@beautyinsider.th"] },
+        { "name": "phone_number", "values": ["+66893332222"] },
+        { "name": "company_name", "values": ["Beauty Insider TH"] }
+      ],
+      "form_id": "form_120210660",
+      "ad_id": "ad_120210660002"
+    },
+    {
+      "id": "lead_b003",
+      "created_time": "2026-03-11T09:12:44+0000",
+      "field_data": [
+        { "name": "full_name", "values": ["Yui Nakamura"] },
+        { "name": "email", "values": ["yui@organicbeauty.jp"] },
+        { "name": "phone_number", "values": ["+81801234567"] },
+        { "name": "company_name", "values": ["Organic Beauty Japan"] }
+      ],
+      "form_id": "form_120210660",
+      "ad_id": "ad_120210660002"
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "bGVhZF9iMDAx",
+      "after": "bGVhZF9iMDAz"
+    }
+  }
+}
