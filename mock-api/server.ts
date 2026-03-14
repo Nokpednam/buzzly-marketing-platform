@@ -183,39 +183,13 @@ app.post("/api/connect", async (req, res) => {
     }
     const { data: adsData } = (await adsRes.json()) as { data: any[] };
 
-    // 3. Fetch campaign-level insights (Facebook path; other platforms may lack this)
-    //    Used for fallback campaign upsert only.
-    const insightsRes = await fetch(`${EXTERNAL_API_BASE_URL}/facebook/${tenant}/insights`);
-    const { data: campaignInsights } = insightsRes.ok
-      ? ((await insightsRes.json()) as { data: any[] })
-      : { data: [] };
-
-    // 4. Clear previous insights for this ad account (full replace sync)
+    // 3. Clear previous insights for this ad account (full replace sync)
     await supabase.from("ad_insights").delete().eq("ad_account_id", adAccountId);
 
-    // 5. Upsert individual ads with persona_data and generate daily ad_insights
+    // 4. Upsert individual ads with persona_data and generate daily ad_insights.
+    //    Ads are ingested as ORPHANS — they are NOT linked to any campaign.
+    //    Users manually assign ads to campaigns they create in the Campaign Builder.
     const insightRows: any[] = [];
-
-    // Upsert a synthetic campaign to anchor all ads from this connect session
-    const campaignName = campaignInsights[0]?.campaign_name
-      ?? `${platform.charAt(0).toUpperCase() + platform.slice(1)} Campaign – ${tenant}`;
-    const firstAd = adsData[0];
-    const { data: upsertedCampaign } = await supabase
-      .from("campaigns")
-      .upsert(
-        {
-          ad_account_id: adAccountId,
-          name: campaignName,
-          status: "active",
-          objective: campaignInsights[0]?.objective ?? null,
-          budget_amount: adsData.reduce((s: number, a: any) => s + Number(a.spend ?? 0), 0),
-          start_date: firstAd?.date_start ?? null,
-          end_date: firstAd?.date_stop ?? null,
-        },
-        { onConflict: "id" }
-      )
-      .select("id")
-      .single();
 
     for (const ad of adsData) {
       // Upsert ad row with persona_data
@@ -238,17 +212,9 @@ app.post("/api/connect", async (req, res) => {
 
       const adId = upsertedAd?.id ?? null;
 
-      // Link ad to campaign via campaign_ads junction (ignore duplicate errors)
-      if (upsertedCampaign?.id && adId) {
-        await (supabase as any)
-          .from("campaign_ads")
-          .upsert(
-            { campaign_id: upsertedCampaign.id, ad_id: adId },
-            { onConflict: "campaign_id,ad_id", ignoreDuplicates: true }
-          );
-      }
-
-      // Generate daily insight rows for this ad
+      // Generate daily insight rows for this ad.
+      // campaign_id is intentionally null — insights belong to the ad, not a campaign,
+      // until the user assigns this ad to a campaign in the Campaign Builder.
       const startDate = new Date(ad.date_start);
       const endDate = new Date(ad.date_stop);
       const totalDays = Math.max(
@@ -261,16 +227,9 @@ app.post("/api/connect", async (req, res) => {
         date.setDate(date.getDate() + d);
         const jitter = 0.7 + Math.random() * 0.6;
 
-        // Extract action values safely
-        const actions = (campaignInsights[0] as any)?.actions || [];
-        const leadAction = actions.find((a: any) => a.action_type === 'lead');
-        const addToCartAction = actions.find((a: any) => a.action_type === 'add_to_cart');
-        const rawLeads = leadAction ? parseInt(leadAction.value) : 0;
-        const rawAddsToCart = addToCartAction ? parseInt(addToCartAction.value) : 0;
-
         insightRows.push({
           ad_account_id: adAccountId,
-          campaign_id: upsertedCampaign?.id ?? null,
+          campaign_id: null,
           ads_id: adId,
           date: date.toISOString().split("T")[0],
           impressions: Math.round((Number(ad.impressions) / totalDays) * jitter),
@@ -291,7 +250,7 @@ app.post("/api/connect", async (req, res) => {
       .insert(insightRows);
     if (insertError) throw insertError;
 
-    // 6. Return only a success status — raw external data stays on the server
+    // 5. Return only a success status — raw external data stays on the server
     res.json({
       message: "Data synced successfully",
       adsUpserted: adsData.length,

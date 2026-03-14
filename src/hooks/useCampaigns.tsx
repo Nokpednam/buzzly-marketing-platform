@@ -121,10 +121,11 @@ export function useCampaigns() {
         }, {});
 
       // Aggregate insights via two paths:
-      //   Primary:   ad_insights.campaign_id (direct link — how mock data is structured)
-      //   Secondary: campaign_ads → ad_insights.ads_id (for ad-level assignments)
-      // Rows that have campaign_id go into campaignDirectMap; rows with only ads_id (and no
-      // campaign_id) go into adInsightsMap to avoid double-counting.
+      //   Primary:   campaign_ads → ad_insights.ads_id (user-assigned ads; standard path)
+      //   Fallback:  ad_insights.campaign_id (legacy direct link; not set by current ingestion)
+      // Ingested ads always have campaign_id = null — their insights only surface once the user
+      // assigns them to a campaign in the Campaign Builder (which populates campaign_ads).
+      // Rows with a direct campaign_id still work to avoid breaking any legacy data.
       const { data: insights, error: insightsError } = await (supabase as any)
         .from("ad_insights")
         .select("campaign_id, ads_id, impressions, reach, clicks, conversions, spend");
