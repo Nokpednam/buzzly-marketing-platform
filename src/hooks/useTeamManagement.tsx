@@ -62,6 +62,9 @@ export interface TeamInvitation {
     full_name: string | null;
     email: string | null;
   };
+  team?: {
+    name: string;
+  };
 }
 
 export interface TeamActivityLog {
@@ -159,6 +162,8 @@ export function useTeamManagement() {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<TeamRole | null>(null);
+  const [receivedInvitations, setReceivedInvitations] = useState<TeamInvitation[]>([]);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchTeamData = useCallback(async () => {
@@ -172,6 +177,7 @@ export function useTeamManagement() {
       }
 
       setCurrentUserId(user.id);
+      setCurrentUserEmail(user.email ?? null);
 
       // Fetch user's workspace (first one they're a member of or own)
       const { data: teamData } = await supabase
@@ -307,6 +313,43 @@ export function useTeamManagement() {
     setInvitations(invitationsWithInviters);
   }, [team]);
 
+  const fetchReceivedInvitations = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.email) return;
+
+    const { data, error } = await supabase
+      .from("team_invitations")
+      .select("*, workspaces(name)")
+      .eq("email", user.email)
+      .eq("status", "pending" as InvitationStatus)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching received invitations:", error);
+      return;
+    }
+
+    // Fetch inviter profiles
+    const inviterIds = [...new Set(data?.map(i => i.invited_by) || [])];
+    const { data: profiles } = await supabase
+      .from("customer")
+      .select("id, email, full_name")
+      .in("id", inviterIds);
+
+    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+    const invitationsWithJoinedData: TeamInvitation[] = (data || []).map(inv => ({
+      ...inv,
+      role: inv.role as TeamRole,
+      status: inv.status as InvitationStatus,
+      custom_permissions: inv.custom_permissions as unknown as TeamPermissions | null,
+      inviter: profileMap.get(inv.invited_by) || undefined,
+      team: (inv as any).workspaces,
+    }));
+
+    setReceivedInvitations(invitationsWithJoinedData);
+  }, []);
+
   const fetchActivityLogs = useCallback(async () => {
     if (!team) return;
 
@@ -350,7 +393,8 @@ export function useTeamManagement() {
       fetchInvitations();
       fetchActivityLogs();
     }
-  }, [team, fetchMembers, fetchInvitations, fetchActivityLogs]);
+    fetchReceivedInvitations();
+  }, [team, fetchMembers, fetchInvitations, fetchActivityLogs, fetchReceivedInvitations]);
 
   const sendInvitation = async (email: string, role: TeamRole, customPermissions?: TeamPermissions) => {
     if (!team || !currentUserId) return false;
@@ -641,6 +685,87 @@ export function useTeamManagement() {
     }
   };
 
+  const acceptInvitation = async (invitationId: string) => {
+    if (!currentUserId || !currentUserEmail) return false;
+
+    try {
+      const invitation = receivedInvitations.find(i => i.id === invitationId);
+      if (!invitation) return false;
+
+      // 1. Update invitation status
+      const { error: updateError } = await supabase
+        .from("team_invitations")
+        .update({ status: "accepted" as InvitationStatus })
+        .eq("id", invitationId);
+
+      if (updateError) throw updateError;
+
+      // 2. Add to workspace_members
+      const { error: memberError } = await supabase
+        .from("workspace_members")
+        .insert({
+          team_id: invitation.team_id,
+          user_id: currentUserId,
+          role: invitation.role,
+          custom_permissions: invitation.custom_permissions ? JSON.parse(JSON.stringify(invitation.custom_permissions)) : null,
+          status: "active" as MemberStatus,
+        });
+
+      if (memberError) throw memberError;
+
+      // 3. Log activity
+      await supabase.from("team_activity_logs").insert({
+        team_id: invitation.team_id,
+        user_id: currentUserId,
+        action: "invitation_accepted",
+      });
+
+      toast({
+        title: "Invitation Accepted",
+        description: `You have joined the team`,
+      });
+
+      await fetchReceivedInvitations();
+      await fetchTeamData(); // Refresh to potentially show the new team if it's the only one
+      return true;
+    } catch (error) {
+      console.error("Error accepting invitation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to accept invitation",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const declineInvitation = async (invitationId: string) => {
+    try {
+      const { error } = await supabase
+        .from("team_invitations")
+        .update({ status: "declined" as InvitationStatus })
+        .eq("id", invitationId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Invitation Declined",
+        description: "The invitation has been declined",
+      });
+
+      await fetchReceivedInvitations();
+      return true;
+    } catch (error) {
+      console.error("Error declining invitation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to decline invitation",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const canManageTeam = currentUserRole === "owner" || currentUserRole === "admin";
 
   return {
@@ -663,6 +788,10 @@ export function useTeamManagement() {
       fetchMembers();
       fetchInvitations();
       fetchActivityLogs();
+      fetchReceivedInvitations();
     },
+    receivedInvitations,
+    acceptInvitation,
+    declineInvitation,
   };
 }

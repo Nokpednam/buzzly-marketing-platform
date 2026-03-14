@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Zap, Bell, LogOut, Settings, ChevronUp, Gift, TrendingUp, History, ArrowUp, ArrowDown, ArrowUpRight } from "lucide-react";
+import { Zap, Bell, LogOut, Settings, ChevronUp, Gift, TrendingUp, History, ArrowUp, ArrowDown, ArrowUpRight, Users } from "lucide-react";
 import { RewardsCenterModal } from "@/components/customer/RewardsCenterModal";
 import { MyCouponsModal } from "@/components/customer/MyCouponsModal";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,7 @@ import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { MessageSquarePlus, Ticket } from "lucide-react";
 import { auditAuth } from "@/lib/auditLogger";
 import { useCustomerCoupons } from "@/hooks/useCustomerCoupons";
+import { useTeamManagement } from "@/hooks/useTeamManagement";
 import { NotificationCenterDialog } from "@/components/customer/NotificationCenterDialog";
 import { useProfileCustomer } from "@/hooks/useProfileCustomer";
 
@@ -75,7 +76,12 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
   const { currentPlan, loading } = usePlanAccess();
   const { userLoyalty, getNextTier, getProgressToNextTier } = useLoyaltyTier();
   const { notifications } = useCustomerCoupons();
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const { receivedInvitations, acceptInvitation, declineInvitation } = useTeamManagement();
+
+  const unreadNotifs = notifications.filter(n => !n.is_read).length;
+  const unreadInvites = receivedInvitations.length; // Pending invitations are always "unread" for this purpose
+  const unreadCount = unreadNotifs + unreadInvites;
+
   const navigate = useNavigate();
 
   // Use the shared hook for profile data
@@ -476,9 +482,25 @@ function TierPopoverContent({
 // ── Mini Notification Popover ─────────────────────────────────────────────────
 function MiniNotifPopover({ unreadCount, onViewAll }: { unreadCount: number; onViewAll: () => void }) {
   const { notifications, markNotificationRead, collectCoupon, collectedCoupons } = useCustomerCoupons();
+  const { receivedInvitations, acceptInvitation, declineInvitation } = useTeamManagement();
+
   const collectedDiscountIds = new Set(collectedCoupons.map((c) => c.discount_id));
   const [collectingId, setCollectingId] = useState<string | null>(null);
-  const recent = notifications.slice(0, 4);
+  const [actioningId, setActioningId] = useState<string | null>(null);
+
+  // Merge recent notifications and invitations
+  const recent = [
+    ...notifications.slice(0, 4).map(n => ({ ...n, itemType: 'notification' as const })),
+    ...receivedInvitations.slice(0, 2).map(inv => ({
+      id: inv.id,
+      title: "Team Invitation",
+      message: `${inv.team?.name || 'A team'} invited you`,
+      type: "team_invite",
+      is_read: false,
+      created_at: inv.created_at,
+      itemType: 'invitation' as const,
+    }))
+  ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
 
   const handleCollect = async (notif: { id: string; related_id: string | null }) => {
     if (!notif.related_id) return;
@@ -506,7 +528,9 @@ function MiniNotifPopover({ unreadCount, onViewAll }: { unreadCount: number; onV
           <p className="text-xs text-muted-foreground text-center py-6">No notifications yet</p>
         ) : (
           recent.map((notif) => {
-            const alreadyCollected = notif.related_id ? collectedDiscountIds.has(notif.related_id) : false;
+            const isDiscount = notif.itemType === 'notification' && notif.type === "discount";
+            const alreadyCollected = isDiscount && notif.related_id ? collectedDiscountIds.has(notif.related_id) : false;
+
             return (
               <div
                 key={notif.id}
@@ -514,15 +538,21 @@ function MiniNotifPopover({ unreadCount, onViewAll }: { unreadCount: number; onV
                   "flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors",
                   !notif.is_read ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/40"
                 )}
-                onClick={() => { if (!notif.is_read) markNotificationRead.mutate(notif.id); }}
+                onClick={() => {
+                  if (notif.itemType === 'notification' && !notif.is_read) {
+                    markNotificationRead.mutate(notif.id);
+                  }
+                }}
               >
                 <div className={cn(
                   "h-7 w-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5",
-                  notif.type === "discount" ? "bg-emerald-500/10" : "bg-primary/10"
+                  isDiscount ? "bg-emerald-500/10" : "bg-primary/10"
                 )}>
-                  {notif.type === "discount"
+                  {isDiscount
                     ? <Ticket className="h-3.5 w-3.5 text-emerald-600" />
-                    : <Zap className="h-3.5 w-3.5 text-primary" />}
+                    : notif.itemType === 'invitation'
+                      ? <Users className="h-3.5 w-3.5 text-primary" />
+                      : <Zap className="h-3.5 w-3.5 text-primary" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
@@ -530,18 +560,46 @@ function MiniNotifPopover({ unreadCount, onViewAll }: { unreadCount: number; onV
                     {!notif.is_read && <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />}
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{notif.message}</p>
-                  {notif.type === "discount" && notif.related_id && !alreadyCollected && (
-                    <Button
-                      size="sm"
-                      className="mt-1.5 h-6 text-[11px] font-bold w-full"
-                      onClick={(e) => { e.stopPropagation(); handleCollect(notif); }}
-                      disabled={collectingId === notif.id}
-                    >
-                      {collectingId === notif.id ? "Collecting..." : "Collect Coupon"}
-                    </Button>
-                  )}
-                  {alreadyCollected && (
-                    <p className="text-[10px] text-emerald-600 mt-1 font-medium">✓ Collected</p>
+
+                  {notif.itemType === 'invitation' ? (
+                    <div className="flex gap-1.5 mt-2">
+                      <Button
+                        size="sm"
+                        className="h-6 text-[10px] font-bold flex-1"
+                        onClick={(e) => { e.stopPropagation(); acceptInvitation(notif.id); }}
+                        disabled={actioningId === notif.id}
+                      >
+                        Accept
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 text-[10px] font-bold flex-1"
+                        onClick={(e) => { e.stopPropagation(); declineInvitation(notif.id); }}
+                        disabled={actioningId === notif.id}
+                      >
+                        Decline
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      {isDiscount && notif.related_id && !alreadyCollected && (
+                        <Button
+                          size="sm"
+                          className="mt-1.5 h-6 text-[11px] font-bold w-full"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCollect({ id: notif.id, related_id: notif.related_id });
+                          }}
+                          disabled={collectingId === notif.id}
+                        >
+                          {collectingId === notif.id ? "Collecting..." : "Collect Coupon"}
+                        </Button>
+                      )}
+                      {alreadyCollected && (
+                        <p className="text-[10px] text-emerald-600 mt-1 font-medium">✓ Collected</p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
