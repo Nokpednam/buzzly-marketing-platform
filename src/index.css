@@ -182,6 +182,61 @@
   }
 }
 
+/* ─── Landing Page Animations ──────────────────────────────────────────── */
+@keyframes landing-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes landing-float-delayed {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes cloud-drift-slow {
+  0% { transform: translateX(0px); }
+  50% { transform: translateX(20px); }
+  100% { transform: translateX(0px); }
+}
+
+@keyframes cloud-drift-reverse {
+  0% { transform: translateX(0px); }
+  50% { transform: translateX(-15px); }
+  100% { transform: translateX(0px); }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-landing-float {
+  animation: landing-float 6s ease-in-out infinite;
+}
+
+.animate-landing-float-delayed {
+  animation: landing-float-delayed 7s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.animate-cloud-drift-slow {
+  animation: cloud-drift-slow 15s ease-in-out infinite;
+}
+
+.animate-cloud-drift-reverse {
+  animation: cloud-drift-reverse 12s ease-in-out infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.8s ease-out both;
+}
+
 @layer utilities {
   /* Retro-Tech Utilities */
 
