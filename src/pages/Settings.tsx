@@ -688,10 +688,55 @@ function PaymentMethodsSection() {
   const getCardIcon = (brand: string | null) => {
     if (!brand) return "💳";
     const b = brand.toLowerCase();
-    if (b.includes("visa")) return "💳";
+    if (b.includes("visa")) return "💳"; // You can replace with an actual SVG if preferred
     if (b.includes("master")) return "💳";
     if (b.includes("amex")) return "💳";
+    if (b.includes("jcb")) return "💳";
+    if (b.includes("discover")) return "💳";
+    if (b.includes("diners")) return "💳";
     return "🏦";
+  };
+
+  const formatCardNumber = (value: string) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    let parts = [];
+
+    // AMEX: 4-6-5
+    if (/^3[47]/.test(v)) {
+      parts.push(v.substring(0, 4));
+      if (v.length > 4) parts.push(v.substring(4, 10));
+      if (v.length > 10) parts.push(v.substring(10, 15));
+    }
+    // Diners: 4-6-4
+    else if (/^3(?:0[0-5]|[68])/.test(v)) {
+      parts.push(v.substring(0, 4));
+      if (v.length > 4) parts.push(v.substring(4, 10));
+      if (v.length > 10) parts.push(v.substring(10, 14));
+    }
+    // Default: 4-4-4-4
+    else {
+      for (let i = 0; i < v.length && i < 16; i += 4) {
+        parts.push(v.substring(i, i + 4));
+      }
+    }
+
+    return parts.join(' ').trim();
+  };
+
+  const detectCardBrand = (number: string) => {
+    const num = number.replace(/\s+/g, '');
+    if (!num) return "unknown";
+
+    if (/^4/.test(num)) return "visa";
+    if (/^(5[1-5]|2[2-7])/.test(num)) return "mastercard";
+    if (/^3[47]/.test(num)) return "amex";
+    if (/^3(?:0[0-5]|[68])/.test(num)) return "diners club";
+    if (/^6(?:011|5)/.test(num)) return "discover";
+    if (/^(?:2131|1800|35\d{3})/.test(num)) return "jcb";
+    if (/^(?:62|81)/.test(num)) return "unionpay";
+    if (/^(?:5018|5020|5038|6304|6759|6761|6763)/.test(num)) return "maestro";
+
+    return "unknown";
   };
 
   const handleAddCard = async () => {
@@ -718,15 +763,13 @@ function PaymentMethodsSection() {
     const expMonth = parseInt(expMonthStr, 10);
     const expYear = 2000 + parseInt(expYearStr, 10); // Assume 20xx
 
-    // Determine brand based on number (simple check)
-    let brand = "unknown";
-    if (newCard.number.startsWith("4")) brand = "visa";
-    if (newCard.number.startsWith("5")) brand = "mastercard";
+    // Determine brand based on number using regex
+    const brand = detectCardBrand(newCard.number).toLowerCase();
 
     try {
       await addMethod.mutateAsync({
         brand,
-        last4: newCard.number.slice(-4),
+        last4: newCard.number.replace(/\s+/g, '').slice(-4),
         expMonth,
         expYear,
         name: newCard.name
@@ -879,11 +922,21 @@ function PaymentMethodsSection() {
                 <Input
                   id="number"
                   placeholder="0000 0000 0000 0000"
+                  maxLength={19} // 16 digits + 3 spaces
                   value={newCard.number}
-                  onChange={(e) => setNewCard({ ...newCard, number: e.target.value })}
-                  className="pl-10"
+                  onChange={(e) => {
+                    const formatted = formatCardNumber(e.target.value);
+                    setNewCard({ ...newCard, number: formatted });
+                  }}
+                  className="pl-10 uppercase"
                 />
-                <CreditCard className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <div className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground flex items-center justify-center">
+                  {newCard.number ? (
+                    <span className="text-xs font-bold w-6 text-center">{getCardIcon(detectCardBrand(newCard.number))}</span>
+                  ) : (
+                    <CreditCard className="h-4 w-4" />
+                  )}
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
