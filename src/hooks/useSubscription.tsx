@@ -51,8 +51,8 @@ export function useSubscription() {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       setUserId(user?.id || null);
@@ -157,20 +157,11 @@ export function useSubscription() {
   };
 
   const getUserCreditBalance = async (userId: string): Promise<number> => {
-    const { data, error } = await supabase
-      .from("customer")
-      .select("subscription_credit_balance") // เลือก column โดยตรง
-      .eq("id", userId)
-      .single();
-
-    if (error) {
-      // ถ้า error อาจเป็นเพราะไม่มี column หรือ user ไม่ถูกต้อง ให้ return 0
-      console.warn("Warning fetching credit balance (may be 0):", error.message);
-      return 0;
-    }
-
-    const anyData = data as any;
-    return Number(anyData?.subscription_credit_balance ?? 0);
+    // Note: The 'subscription_credit_balance' column has been dropped from the 'customer' table 
+    // in migration 20260224000001_drop_customer_legacy_columns.sql.
+    // If a new wallet/credit system is implemented, this function should query that system instead.
+    // For now, return 0 to prevent schema errors during plan changes.
+    return 0;
   };
 
   const createSubscription = async (
@@ -395,7 +386,7 @@ export function useSubscription() {
         .from("customer")
         .update({
           plan_type: newPlan.slug, // เช่น 'pro', 'team'
-          subscription_credit_balance: newCreditBalance, // เก็บเครดิตไว้
+          // 'subscription_credit_balance' has been dropped, do not try to update it
           updated_at: new Date().toISOString()
         })
         .eq("id", userId);
@@ -407,8 +398,8 @@ export function useSubscription() {
         throw profileError;
       }
 
-      // 6. Refresh ข้อมูลหน้าจอใหม่
-      await fetchData();
+      // 6. Refresh ข้อมูลหน้าจอใหม่แบบเงียบๆ
+      await fetchData(true);
 
       return { success: true, subscriptionId: subscription.id };
 
@@ -432,7 +423,7 @@ export function useSubscription() {
 
       if (error) throw error;
 
-      await fetchData();
+      await fetchData(true);
       return true;
     } catch (error) {
       console.error("Error cancelling subscription:", error);
@@ -451,6 +442,6 @@ export function useSubscription() {
     getSavingsPercent,
     createSubscription,
     cancelSubscription,
-    refetch: fetchData,
+    refetch: (silent = false) => fetchData(silent),
   };
 }
