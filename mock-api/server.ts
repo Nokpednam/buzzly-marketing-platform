@@ -3,7 +3,7 @@ import cors from "cors";
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 // Load .env from mock-api directory (tsx doesn't auto-load it)
 try {
   const envPath = new URL(".env", import.meta.url).pathname;
@@ -31,7 +31,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "http://127.0.0.1:54321";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 // Lazy Supabase client (service role — bypasses RLS for server-side writes)
-let _supabase: ReturnType<typeof createClient> | null = null;
+let _supabase: SupabaseClient<any> | null = null;
 function getSupabaseClient() {
   if (!SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error(
@@ -162,7 +162,7 @@ app.post("/api/connect", async (req, res) => {
     await supabase.from("ad_insights").delete().eq("ad_account_id", adAccountId);
 
     // 4. Transform and ingest — upsert campaigns + generate daily ad_insights
-    const insightRows: object[] = [];
+    const insightRows: any[] = [];
 
     for (const campaign of campaigns) {
       // Upsert campaign record linked to this ad account
