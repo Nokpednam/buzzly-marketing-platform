@@ -262,7 +262,7 @@ app.post("/api/connect", async (req, res) => {
         const jitter = 0.7 + Math.random() * 0.6;
 
         // Extract action values safely
-        const actions = campaign.actions || [];
+        const actions = (campaignInsights[0] as any)?.actions || [];
         const leadAction = actions.find((a: any) => a.action_type === 'lead');
         const addToCartAction = actions.find((a: any) => a.action_type === 'add_to_cart');
         const rawLeads = leadAction ? parseInt(leadAction.value) : 0;

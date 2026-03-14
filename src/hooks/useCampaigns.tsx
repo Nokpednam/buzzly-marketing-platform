@@ -120,46 +120,60 @@ export function useCampaigns() {
           return acc;
         }, {});
 
-      // Aggregate insights via campaign_ads → ad_insights.ads_id
-      // This ensures campaign KPIs always reflect the currently assigned ads' actual performance.
+      // Aggregate insights via two paths:
+      //   Primary:   ad_insights.campaign_id (direct link — how mock data is structured)
+      //   Secondary: campaign_ads → ad_insights.ads_id (for ad-level assignments)
+      // Rows that have campaign_id go into campaignDirectMap; rows with only ads_id (and no
+      // campaign_id) go into adInsightsMap to avoid double-counting.
       const { data: insights, error: insightsError } = await (supabase as any)
         .from("ad_insights")
-        .select("ads_id, impressions, reach, clicks, conversions, spend");
+        .select("campaign_id, ads_id, impressions, reach, clicks, conversions, spend");
 
       if (insightsError) throw insightsError;
 
-      const adInsightsMap = ((insights ?? []) as any[]).reduce<
-        Record<string, { impressions: number; reach: number; clicks: number; conversions: number; spend: number }>
-      >((acc, row) => {
-        if (row.ads_id) {
-          if (!acc[row.ads_id]) acc[row.ads_id] = { impressions: 0, reach: 0, clicks: 0, conversions: 0, spend: 0 };
-          acc[row.ads_id].impressions += row.impressions || 0;
-          acc[row.ads_id].reach += row.reach || 0;
-          acc[row.ads_id].clicks += row.clicks || 0;
-          acc[row.ads_id].conversions += row.conversions || 0;
-          acc[row.ads_id].spend += Number(row.spend || 0);
-        }
-        return acc;
-      }, {});
+      type Metrics = { impressions: number; reach: number; clicks: number; conversions: number; spend: number };
+      const zero: Metrics = { impressions: 0, reach: 0, clicks: 0, conversions: 0, spend: 0 };
 
-      const zero = { impressions: 0, reach: 0, clicks: 0, conversions: 0, spend: 0 };
+      const campaignDirectMap: Record<string, Metrics> = {};
+      const adInsightsMap: Record<string, Metrics> = {};
+
+      for (const row of (insights ?? []) as any[]) {
+        const addTo = (map: Record<string, Metrics>, key: string) => {
+          if (!map[key]) map[key] = { ...zero };
+          map[key].impressions  += row.impressions  || 0;
+          map[key].reach        += row.reach        || 0;
+          map[key].clicks       += row.clicks       || 0;
+          map[key].conversions  += row.conversions  || 0;
+          map[key].spend        += Number(row.spend || 0);
+        };
+        if (row.campaign_id) {
+          addTo(campaignDirectMap, row.campaign_id);
+        } else if (row.ads_id) {
+          // Only use ads_id path when there is no direct campaign_id to avoid double-counting
+          addTo(adInsightsMap, row.ads_id);
+        }
+      }
 
       return (campaignsData ?? []).map((campaign: any) => {
         const adIds = campaignAdsMap[campaign.id] ?? [];
-        const agg = adIds.reduce(
-          (sum, adId) => {
-            const m = adInsightsMap[adId];
-            if (!m) return sum;
-            return {
-              impressions: sum.impressions + m.impressions,
-              reach: sum.reach + m.reach,
-              clicks: sum.clicks + m.clicks,
-              conversions: sum.conversions + m.conversions,
-              spend: sum.spend + m.spend,
-            };
-          },
-          { ...zero },
-        );
+
+        // Prefer direct campaign-level insights; otherwise sum via ad assignments
+        const agg: Metrics = campaignDirectMap[campaign.id]
+          ? { ...campaignDirectMap[campaign.id] }
+          : adIds.reduce(
+              (sum, adId) => {
+                const m = adInsightsMap[adId];
+                if (!m) return sum;
+                return {
+                  impressions: sum.impressions + m.impressions,
+                  reach:       sum.reach       + m.reach,
+                  clicks:      sum.clicks      + m.clicks,
+                  conversions: sum.conversions + m.conversions,
+                  spend:       sum.spend       + m.spend,
+                };
+              },
+              { ...zero },
+            );
         return {
           ...campaign,
           ...agg,
