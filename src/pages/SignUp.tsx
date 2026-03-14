@@ -154,8 +154,16 @@ const SignUp = () => {
         navigate("/auth");
       }
     } catch (error: any) {
+      console.error("Signup error:", error);
+      
+      // Safely extract error message
+      const errorMessage = error?.message || 
+                          (typeof error === 'string' ? error : null) || 
+                          JSON.stringify(error) || 
+                          "เกิดข้อผิดพลาดในการสมัครสมาชิก";
+
       // Handle "User already registered" specifically
-      if (error.message.includes("already registered") || error.message.includes("User already exists")) {
+      if (errorMessage.includes("already registered") || errorMessage.includes("User already exists")) {
         toast.info("บัญชีนี้มีอยู่ในระบบแล้ว กำลังพยายามเข้าสู่ระบบ...");
         // Try to sign in instead
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -165,14 +173,13 @@ const SignUp = () => {
 
         if (signInError) {
           toast.error("บัญชีนี้มีอยู่แล้ว แต่รหัสผ่านไม่ถูกต้อง กรุณาเข้าสู่ระบบ");
-          // Optional: navigate("/auth");
         } else if (signInData.user) {
           toast.success("เข้าสู่ระบบสำเร็จ!");
           navigate("/dashboard");
           return;
         }
       } else {
-        toast.error(error.message);
+        toast.error(errorMessage);
       }
     } finally {
       setIsLoading(false);

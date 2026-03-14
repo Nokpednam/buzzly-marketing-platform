@@ -23,9 +23,11 @@ import {
   Calendar,
   ArrowUpRight,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useSubscription, BillingCycle } from "@/hooks/useSubscription";
 import { useInvoices } from "@/hooks/useInvoices";
 import { useUserPaymentMethods } from "@/hooks/useUserPaymentMethods";
+import { usePlanContext } from "@/contexts/PlanContext";
 import { PaymentMethodDialog } from "@/components/subscription/PaymentMethodDialog";
 
 interface BillingTabProps {
@@ -42,6 +44,7 @@ export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
     getSavingsPercent,
     createSubscription,
     cancelSubscription,
+    refetch: refetchSubscriptionData,
   } = useSubscription();
 
   const {
@@ -52,9 +55,12 @@ export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
     formatCurrency,
   } = useInvoices();
 
+  const { refetch: refetchPlan } = usePlanContext();
+
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const currentPlan = plans.find(p => p.id === currentSubscription?.plan_id);
 
@@ -65,10 +71,22 @@ export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
 
   const handlePaymentConfirm = async (methodId: string, discountCode?: string) => {
     if (!selectedPlanId) return;
-    const result = await createSubscription(selectedPlanId, methodId, billingCycle, discountCode);
-    if (result.success) {
-      setPaymentDialogOpen(false);
-      setSelectedPlanId(null);
+    setIsProcessingPayment(true);
+    try {
+      const result = await createSubscription(selectedPlanId, methodId, billingCycle, discountCode);
+      if (result.success) {
+        toast.success("ชำระเงินสำเร็จ เปลี่ยนแพ็กเกจเรียบร้อยแล้ว");
+        setPaymentDialogOpen(false);
+        setSelectedPlanId(null);
+        await refetchSubscriptionData(true); // Silent update local subscription state for the UI
+        await refetchPlan(true); // Silent update global plan state
+      } else {
+        toast.error(result.error || "เกิดข้อผิดพลาดในการชำระเงิน");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "เกิดข้อผิดพลาดไม่ทราบสาเหตุ");
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -76,9 +94,8 @@ export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
     if (!confirm("คุณต้องการยกเลิกแผนปัจจุบันใช่หรือไม่? สิทธิพิเศษจะสิ้นสุดลงเมื่อครบรอบบิล")) return;
     const success = await cancelSubscription();
     if (success) {
-      // Toast is handled by hook or we can add one here if needed, but hook usually returns boolean
-      // Ideally we should use toast() here if available, but let's rely on the return for now/UI update
-      window.location.reload(); // Simple refresh to update state
+      await refetchSubscriptionData(true); // Silent update local subscription state for the UI
+      await refetchPlan(true); // Silent update global plan state
     }
   };
 
@@ -314,7 +331,7 @@ export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
         paymentMethods={paymentMethods}
         onConfirmPayment={handlePaymentConfirm}
         onBack={() => setPaymentDialogOpen(false)}
-        isProcessing={false}
+        isProcessing={isProcessingPayment}
       />
     </div >
   );

@@ -86,7 +86,7 @@ interface PlanContextValue {
   getRequiredPlan: (feature: keyof PlanFeatures) => PlanType;
   getFeatureName: (feature: keyof PlanFeatures) => string;
   updatePlan: (newPlan: PlanType) => Promise<boolean>;
-  refetch: () => Promise<void>;
+  refetch: (silent?: boolean) => Promise<void>;
 }
 
 const PlanContext = createContext<PlanContextValue | undefined>(undefined);
@@ -96,7 +96,8 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
-  const fetchUserPlan = useCallback(async () => {
+  const fetchUserPlan = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
@@ -139,7 +140,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       console.error("Error fetching user plan:", error);
       setCurrentPlan("free");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -223,7 +224,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
       // Update state immediately for reactive UI
       setCurrentPlan(newPlan);
-      await fetchUserPlan(); // Refetch to ensure everything is synced
+      await fetchUserPlan(true); // Refetch to ensure everything is synced silently
       return true;
     } catch (error) {
       console.error("Error updating plan:", error);
