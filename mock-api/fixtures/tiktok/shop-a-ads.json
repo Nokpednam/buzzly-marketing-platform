@@ -1,0 +1,179 @@
+{
+  "data": [
+    {
+      "external_ad_id": "tt_ad_5001",
+      "ad_name": "Trending Dance – TopView",
+      "status": "ACTIVE",
+      "platform": "tiktok",
+      "impressions": 892000,
+      "reach": 714000,
+      "clicks": 26760,
+      "conversions": 312,
+      "spend": 2230.00,
+      "ctr": 3.00,
+      "cpc": 0.083,
+      "cpm": 2.50,
+      "roas": 3.80,
+      "date_start": "2026-03-01",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.18, "18-24": 0.44, "25-34": 0.27, "35-44": 0.08, "45-54": 0.02, "55+": 0.01 },
+        "gender": { "male": 0.42, "female": 0.55, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.36 },
+          { "name": "Chiang Mai", "pct": 0.15 },
+          { "name": "Nakhon Ratchasima", "pct": 0.09 },
+          { "name": "Udon Thani", "pct": 0.08 },
+          { "name": "Khon Kaen", "pct": 0.07 }
+        ],
+        "interests": [
+          { "name": "Entertainment", "pct": 0.72 },
+          { "name": "Music & Dance", "pct": 0.68 },
+          { "name": "Fashion", "pct": 0.45 },
+          { "name": "Gaming", "pct": 0.38 }
+        ],
+        "device_type": { "mobile": 0.95, "desktop": 0.03, "tablet": 0.02 }
+      }
+    },
+    {
+      "external_ad_id": "tt_ad_5002",
+      "ad_name": "Product Unboxing – In-Feed",
+      "status": "ACTIVE",
+      "platform": "tiktok",
+      "impressions": 641200,
+      "reach": 512000,
+      "clicks": 16030,
+      "conversions": 224,
+      "spend": 1603.00,
+      "ctr": 2.50,
+      "cpc": 0.10,
+      "cpm": 2.50,
+      "roas": 4.20,
+      "date_start": "2026-03-01",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.14, "18-24": 0.46, "25-34": 0.28, "35-44": 0.09, "45-54": 0.02, "55+": 0.01 },
+        "gender": { "male": 0.44, "female": 0.53, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.38 },
+          { "name": "Chiang Mai", "pct": 0.14 },
+          { "name": "Phuket", "pct": 0.09 },
+          { "name": "Nakhon Ratchasima", "pct": 0.08 },
+          { "name": "Hat Yai", "pct": 0.06 }
+        ],
+        "interests": [
+          { "name": "Shopping & E-commerce", "pct": 0.65 },
+          { "name": "Entertainment", "pct": 0.58 },
+          { "name": "Technology", "pct": 0.41 },
+          { "name": "Food & Recipes", "pct": 0.36 }
+        ],
+        "device_type": { "mobile": 0.94, "desktop": 0.04, "tablet": 0.02 }
+      }
+    },
+    {
+      "external_ad_id": "tt_ad_5003",
+      "ad_name": "Hashtag Challenge – #BuzzlyStyle",
+      "status": "ACTIVE",
+      "platform": "tiktok",
+      "impressions": 1243800,
+      "reach": 985000,
+      "clicks": 24876,
+      "conversions": 487,
+      "spend": 3108.00,
+      "ctr": 2.00,
+      "cpc": 0.12,
+      "cpm": 2.50,
+      "roas": 5.10,
+      "date_start": "2026-02-20",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.20, "18-24": 0.47, "25-34": 0.24, "35-44": 0.07, "45-54": 0.01, "55+": 0.01 },
+        "gender": { "male": 0.38, "female": 0.59, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.35 },
+          { "name": "Chiang Mai", "pct": 0.16 },
+          { "name": "Khon Kaen", "pct": 0.10 },
+          { "name": "Udon Thani", "pct": 0.09 },
+          { "name": "Phuket", "pct": 0.07 }
+        ],
+        "interests": [
+          { "name": "Fashion & Style", "pct": 0.75 },
+          { "name": "Music & Dance", "pct": 0.64 },
+          { "name": "Trending Content", "pct": 0.59 },
+          { "name": "Beauty", "pct": 0.48 }
+        ],
+        "device_type": { "mobile": 0.96, "desktop": 0.02, "tablet": 0.02 }
+      }
+    },
+    {
+      "external_ad_id": "tt_ad_5004",
+      "ad_name": "LIVE Shopping – Flash Deal",
+      "status": "ACTIVE",
+      "platform": "tiktok",
+      "impressions": 427600,
+      "reach": 341000,
+      "clicks": 12828,
+      "conversions": 389,
+      "spend": 1069.00,
+      "ctr": 3.00,
+      "cpc": 0.083,
+      "cpm": 2.50,
+      "roas": 6.90,
+      "date_start": "2026-03-08",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.12, "18-24": 0.43, "25-34": 0.31, "35-44": 0.10, "45-54": 0.03, "55+": 0.01 },
+        "gender": { "male": 0.36, "female": 0.61, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.40 },
+          { "name": "Chiang Mai", "pct": 0.13 },
+          { "name": "Nakhon Ratchasima", "pct": 0.09 },
+          { "name": "Udon Thani", "pct": 0.08 },
+          { "name": "Phuket", "pct": 0.07 }
+        ],
+        "interests": [
+          { "name": "Online Shopping", "pct": 0.78 },
+          { "name": "LIVE Streaming", "pct": 0.65 },
+          { "name": "Beauty & Skincare", "pct": 0.50 },
+          { "name": "Food & Cooking", "pct": 0.38 }
+        ],
+        "device_type": { "mobile": 0.97, "desktop": 0.02, "tablet": 0.01 }
+      }
+    },
+    {
+      "external_ad_id": "tt_ad_5005",
+      "ad_name": "Spark Ads – Viral Collab",
+      "status": "ACTIVE",
+      "platform": "tiktok",
+      "impressions": 318400,
+      "reach": 254000,
+      "clicks": 7960,
+      "conversions": 178,
+      "spend": 954.00,
+      "ctr": 2.50,
+      "cpc": 0.12,
+      "cpm": 3.00,
+      "roas": 4.50,
+      "date_start": "2026-03-05",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.16, "18-24": 0.45, "25-34": 0.27, "35-44": 0.09, "45-54": 0.02, "55+": 0.01 },
+        "gender": { "male": 0.47, "female": 0.50, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.37 },
+          { "name": "Chiang Mai", "pct": 0.14 },
+          { "name": "Phuket", "pct": 0.10 },
+          { "name": "Khon Kaen", "pct": 0.09 },
+          { "name": "Hat Yai", "pct": 0.07 }
+        ],
+        "interests": [
+          { "name": "Entertainment", "pct": 0.70 },
+          { "name": "Lifestyle", "pct": 0.55 },
+          { "name": "Fashion", "pct": 0.49 },
+          { "name": "Comedy & Humor", "pct": 0.43 }
+        ],
+        "device_type": { "mobile": 0.95, "desktop": 0.03, "tablet": 0.02 }
+      }
+    }
+  ]
+}

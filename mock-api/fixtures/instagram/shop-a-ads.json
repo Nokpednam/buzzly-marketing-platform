@@ -1,0 +1,179 @@
+{
+  "data": [
+    {
+      "external_ad_id": "ig_ad_3001",
+      "ad_name": "Explore Feed – Summer Collection",
+      "status": "ACTIVE",
+      "platform": "instagram",
+      "impressions": 384200,
+      "reach": 267000,
+      "clicks": 7684,
+      "conversions": 198,
+      "spend": 1152.60,
+      "ctr": 2.00,
+      "cpc": 0.15,
+      "cpm": 3.00,
+      "roas": 4.20,
+      "date_start": "2026-03-01",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.07, "18-24": 0.41, "25-34": 0.33, "35-44": 0.12, "45-54": 0.05, "55+": 0.02 },
+        "gender": { "male": 0.33, "female": 0.63, "unknown": 0.04 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.43 },
+          { "name": "Chiang Mai", "pct": 0.14 },
+          { "name": "Phuket", "pct": 0.11 },
+          { "name": "Pattaya", "pct": 0.07 },
+          { "name": "Hat Yai", "pct": 0.05 }
+        ],
+        "interests": [
+          { "name": "Fashion & Beauty", "pct": 0.71 },
+          { "name": "Travel", "pct": 0.52 },
+          { "name": "Photography", "pct": 0.44 },
+          { "name": "Lifestyle", "pct": 0.38 }
+        ],
+        "device_type": { "mobile": 0.88, "desktop": 0.07, "tablet": 0.05 }
+      }
+    },
+    {
+      "external_ad_id": "ig_ad_3002",
+      "ad_name": "Reels – Product Demo",
+      "status": "ACTIVE",
+      "platform": "instagram",
+      "impressions": 528600,
+      "reach": 391000,
+      "clicks": 10572,
+      "conversions": 89,
+      "spend": 792.90,
+      "ctr": 2.00,
+      "cpc": 0.075,
+      "cpm": 1.50,
+      "roas": 2.80,
+      "date_start": "2026-03-01",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.10, "18-24": 0.45, "25-34": 0.29, "35-44": 0.10, "45-54": 0.04, "55+": 0.02 },
+        "gender": { "male": 0.38, "female": 0.59, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.39 },
+          { "name": "Chiang Mai", "pct": 0.16 },
+          { "name": "Phuket", "pct": 0.12 },
+          { "name": "Udon Thani", "pct": 0.07 },
+          { "name": "Nakhon Ratchasima", "pct": 0.06 }
+        ],
+        "interests": [
+          { "name": "Entertainment", "pct": 0.65 },
+          { "name": "Food & Dining", "pct": 0.48 },
+          { "name": "Music", "pct": 0.42 },
+          { "name": "Dance & Fitness", "pct": 0.35 }
+        ],
+        "device_type": { "mobile": 0.91, "desktop": 0.05, "tablet": 0.04 }
+      }
+    },
+    {
+      "external_ad_id": "ig_ad_3003",
+      "ad_name": "Story Ads – Flash Sale 24H",
+      "status": "ACTIVE",
+      "platform": "instagram",
+      "impressions": 214700,
+      "reach": 156000,
+      "clicks": 6441,
+      "conversions": 312,
+      "spend": 643.00,
+      "ctr": 3.00,
+      "cpc": 0.10,
+      "cpm": 2.99,
+      "roas": 6.80,
+      "date_start": "2026-03-10",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.06, "18-24": 0.38, "25-34": 0.35, "35-44": 0.14, "45-54": 0.05, "55+": 0.02 },
+        "gender": { "male": 0.30, "female": 0.67, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.47 },
+          { "name": "Chiang Mai", "pct": 0.13 },
+          { "name": "Phuket", "pct": 0.10 },
+          { "name": "Pattaya", "pct": 0.08 },
+          { "name": "Samut Prakan", "pct": 0.05 }
+        ],
+        "interests": [
+          { "name": "Fashion & Beauty", "pct": 0.69 },
+          { "name": "Online Shopping", "pct": 0.58 },
+          { "name": "Lifestyle", "pct": 0.41 },
+          { "name": "Food & Dining", "pct": 0.29 }
+        ],
+        "device_type": { "mobile": 0.93, "desktop": 0.04, "tablet": 0.03 }
+      }
+    },
+    {
+      "external_ad_id": "ig_ad_3004",
+      "ad_name": "Shopping Ads – Top Products",
+      "status": "ACTIVE",
+      "platform": "instagram",
+      "impressions": 296100,
+      "reach": 198000,
+      "clicks": 4441,
+      "conversions": 221,
+      "spend": 1332.30,
+      "ctr": 1.50,
+      "cpc": 0.30,
+      "cpm": 4.50,
+      "roas": 5.10,
+      "date_start": "2026-03-01",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.02, "18-24": 0.26, "25-34": 0.38, "35-44": 0.22, "45-54": 0.09, "55+": 0.03 },
+        "gender": { "male": 0.36, "female": 0.61, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.45 },
+          { "name": "Nonthaburi", "pct": 0.10 },
+          { "name": "Chiang Mai", "pct": 0.09 },
+          { "name": "Pathum Thani", "pct": 0.08 },
+          { "name": "Phuket", "pct": 0.06 }
+        ],
+        "interests": [
+          { "name": "Online Shopping", "pct": 0.74 },
+          { "name": "Fashion & Beauty", "pct": 0.60 },
+          { "name": "Home Decor", "pct": 0.33 },
+          { "name": "Health & Wellness", "pct": 0.27 }
+        ],
+        "device_type": { "mobile": 0.86, "desktop": 0.09, "tablet": 0.05 }
+      }
+    },
+    {
+      "external_ad_id": "ig_ad_3005",
+      "ad_name": "Influencer Collab – UGC Collection",
+      "status": "ACTIVE",
+      "platform": "instagram",
+      "impressions": 172400,
+      "reach": 128000,
+      "clicks": 3448,
+      "conversions": 156,
+      "spend": 862.00,
+      "ctr": 2.00,
+      "cpc": 0.25,
+      "cpm": 5.00,
+      "roas": 4.80,
+      "date_start": "2026-03-05",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.09, "18-24": 0.42, "25-34": 0.31, "35-44": 0.12, "45-54": 0.04, "55+": 0.02 },
+        "gender": { "male": 0.29, "female": 0.68, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.41 },
+          { "name": "Chiang Mai", "pct": 0.15 },
+          { "name": "Phuket", "pct": 0.11 },
+          { "name": "Khon Kaen", "pct": 0.07 },
+          { "name": "Udon Thani", "pct": 0.06 }
+        ],
+        "interests": [
+          { "name": "Fashion & Beauty", "pct": 0.73 },
+          { "name": "Social Media", "pct": 0.61 },
+          { "name": "Photography", "pct": 0.47 },
+          { "name": "Celebrities & Influencers", "pct": 0.44 }
+        ],
+        "device_type": { "mobile": 0.90, "desktop": 0.06, "tablet": 0.04 }
+      }
+    }
+  ]
+}

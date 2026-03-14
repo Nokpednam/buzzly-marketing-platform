@@ -108,14 +108,7 @@ export function useCampaigns() {
 
       if (campaignsError) throw campaignsError;
 
-      // Get aggregated insights per campaign
-      const { data: insights, error: insightsError } = await supabase
-        .from("ad_insights")
-        .select("campaign_id, impressions, reach, clicks, conversions, spend");
-
-      if (insightsError) throw insightsError;
-
-      // Get campaign → ad assignments (Phase 3)
+      // Get campaign → ad assignments
       const { data: campaignAdsData } = await (supabase as any)
         .from("campaign_ads")
         .select("campaign_id, ad_id");
@@ -127,32 +120,54 @@ export function useCampaigns() {
           return acc;
         }, {});
 
-      // Aggregate insights by campaign
-      const insightsMap = insights?.reduce((acc, insight) => {
-        if (insight.campaign_id) {
-          if (!acc[insight.campaign_id]) {
-            acc[insight.campaign_id] = { impressions: 0, reach: 0, clicks: 0, conversions: 0, spend: 0 };
-          }
-          acc[insight.campaign_id].impressions += insight.impressions || 0;
-          acc[insight.campaign_id].reach += insight.reach || 0;
-          acc[insight.campaign_id].clicks += insight.clicks || 0;
-          acc[insight.campaign_id].conversions += insight.conversions || 0;
-          acc[insight.campaign_id].spend += Number(insight.spend || 0);
+      // Aggregate insights via campaign_ads → ad_insights.ads_id
+      // This ensures campaign KPIs always reflect the currently assigned ads' actual performance.
+      const { data: insights, error: insightsError } = await (supabase as any)
+        .from("ad_insights")
+        .select("ads_id, impressions, reach, clicks, conversions, spend");
+
+      if (insightsError) throw insightsError;
+
+      const adInsightsMap = ((insights ?? []) as any[]).reduce<
+        Record<string, { impressions: number; reach: number; clicks: number; conversions: number; spend: number }>
+      >((acc, row) => {
+        if (row.ads_id) {
+          if (!acc[row.ads_id]) acc[row.ads_id] = { impressions: 0, reach: 0, clicks: 0, conversions: 0, spend: 0 };
+          acc[row.ads_id].impressions += row.impressions || 0;
+          acc[row.ads_id].reach += row.reach || 0;
+          acc[row.ads_id].clicks += row.clicks || 0;
+          acc[row.ads_id].conversions += row.conversions || 0;
+          acc[row.ads_id].spend += Number(row.spend || 0);
         }
         return acc;
-      }, {} as Record<string, { impressions: number; reach: number; clicks: number; conversions: number; spend: number }>) || {};
+      }, {});
 
-      return (campaignsData ?? []).map((campaign: any) => ({
-        ...campaign,
-        impressions: insightsMap[campaign.id]?.impressions || 0,
-        reach: insightsMap[campaign.id]?.reach || 0,
-        clicks: insightsMap[campaign.id]?.clicks || 0,
-        conversions: insightsMap[campaign.id]?.conversions || 0,
-        spend: insightsMap[campaign.id]?.spend || 0,
-        tags: campaign.campaign_tags?.map((ct: any) => ct.tags).filter(Boolean) || [],
-        ad_account_name: (campaign.ad_accounts as any)?.account_name ?? null,
-        ad_ids: campaignAdsMap[campaign.id] || [],
-      })) as CampaignWithInsights[];
+      const zero = { impressions: 0, reach: 0, clicks: 0, conversions: 0, spend: 0 };
+
+      return (campaignsData ?? []).map((campaign: any) => {
+        const adIds = campaignAdsMap[campaign.id] ?? [];
+        const agg = adIds.reduce(
+          (sum, adId) => {
+            const m = adInsightsMap[adId];
+            if (!m) return sum;
+            return {
+              impressions: sum.impressions + m.impressions,
+              reach: sum.reach + m.reach,
+              clicks: sum.clicks + m.clicks,
+              conversions: sum.conversions + m.conversions,
+              spend: sum.spend + m.spend,
+            };
+          },
+          { ...zero },
+        );
+        return {
+          ...campaign,
+          ...agg,
+          tags: campaign.campaign_tags?.map((ct: any) => ct.tags).filter(Boolean) || [],
+          ad_account_name: (campaign.ad_accounts as any)?.account_name ?? null,
+          ad_ids: adIds,
+        };
+      }) as CampaignWithInsights[];
     },
   });
 

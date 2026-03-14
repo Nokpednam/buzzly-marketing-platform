@@ -1,0 +1,179 @@
+{
+  "data": [
+    {
+      "external_ad_id": "tt_ad_6001",
+      "ad_name": "Niche Gadget Review – In-Feed",
+      "status": "ACTIVE",
+      "platform": "tiktok",
+      "impressions": 124300,
+      "reach": 98000,
+      "clicks": 4972,
+      "conversions": 298,
+      "spend": 2485.00,
+      "ctr": 4.00,
+      "cpc": 0.50,
+      "cpm": 20.00,
+      "roas": 8.20,
+      "date_start": "2026-03-01",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.08, "18-24": 0.40, "25-34": 0.34, "35-44": 0.13, "45-54": 0.04, "55+": 0.01 },
+        "gender": { "male": 0.65, "female": 0.32, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.42 },
+          { "name": "Chiang Mai", "pct": 0.12 },
+          { "name": "Phuket", "pct": 0.08 },
+          { "name": "Nakhon Ratchasima", "pct": 0.07 },
+          { "name": "Hat Yai", "pct": 0.06 }
+        ],
+        "interests": [
+          { "name": "Technology & Gadgets", "pct": 0.83 },
+          { "name": "Gaming", "pct": 0.62 },
+          { "name": "DIY & Maker", "pct": 0.41 },
+          { "name": "Online Shopping", "pct": 0.38 }
+        ],
+        "device_type": { "mobile": 0.93, "desktop": 0.05, "tablet": 0.02 }
+      }
+    },
+    {
+      "external_ad_id": "tt_ad_6002",
+      "ad_name": "Specialty Snacks – Taste Test",
+      "status": "ACTIVE",
+      "platform": "tiktok",
+      "impressions": 98700,
+      "reach": 79000,
+      "clicks": 3948,
+      "conversions": 241,
+      "spend": 1974.00,
+      "ctr": 4.00,
+      "cpc": 0.50,
+      "cpm": 20.00,
+      "roas": 7.50,
+      "date_start": "2026-03-01",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.10, "18-24": 0.42, "25-34": 0.30, "35-44": 0.12, "45-54": 0.05, "55+": 0.01 },
+        "gender": { "male": 0.45, "female": 0.52, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.39 },
+          { "name": "Chiang Mai", "pct": 0.14 },
+          { "name": "Khon Kaen", "pct": 0.10 },
+          { "name": "Udon Thani", "pct": 0.08 },
+          { "name": "Nakhon Ratchasima", "pct": 0.07 }
+        ],
+        "interests": [
+          { "name": "Food & Recipes", "pct": 0.80 },
+          { "name": "Snacks & Street Food", "pct": 0.72 },
+          { "name": "Cooking", "pct": 0.54 },
+          { "name": "Lifestyle", "pct": 0.38 }
+        ],
+        "device_type": { "mobile": 0.95, "desktop": 0.03, "tablet": 0.02 }
+      }
+    },
+    {
+      "external_ad_id": "tt_ad_6003",
+      "ad_name": "Indie Music Merch – Spark",
+      "status": "ACTIVE",
+      "platform": "tiktok",
+      "impressions": 143600,
+      "reach": 115000,
+      "clicks": 4308,
+      "conversions": 187,
+      "spend": 2871.00,
+      "ctr": 3.00,
+      "cpc": 0.67,
+      "cpm": 20.00,
+      "roas": 6.10,
+      "date_start": "2026-02-25",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.15, "18-24": 0.48, "25-34": 0.26, "35-44": 0.08, "45-54": 0.02, "55+": 0.01 },
+        "gender": { "male": 0.50, "female": 0.47, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.43 },
+          { "name": "Chiang Mai", "pct": 0.17 },
+          { "name": "Phuket", "pct": 0.09 },
+          { "name": "Khon Kaen", "pct": 0.07 },
+          { "name": "Hat Yai", "pct": 0.06 }
+        ],
+        "interests": [
+          { "name": "Music & Indie", "pct": 0.82 },
+          { "name": "Concerts & Events", "pct": 0.61 },
+          { "name": "Merchandise", "pct": 0.49 },
+          { "name": "Arts & Culture", "pct": 0.43 }
+        ],
+        "device_type": { "mobile": 0.94, "desktop": 0.04, "tablet": 0.02 }
+      }
+    },
+    {
+      "external_ad_id": "tt_ad_6004",
+      "ad_name": "Home Fitness – LIVE Demo",
+      "status": "ACTIVE",
+      "platform": "tiktok",
+      "impressions": 76400,
+      "reach": 61000,
+      "clicks": 3056,
+      "conversions": 192,
+      "spend": 1528.00,
+      "ctr": 4.00,
+      "cpc": 0.50,
+      "cpm": 20.00,
+      "roas": 9.30,
+      "date_start": "2026-03-05",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.04, "18-24": 0.31, "25-34": 0.38, "35-44": 0.19, "45-54": 0.06, "55+": 0.02 },
+        "gender": { "male": 0.38, "female": 0.60, "unknown": 0.02 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.45 },
+          { "name": "Chiang Mai", "pct": 0.13 },
+          { "name": "Phuket", "pct": 0.10 },
+          { "name": "Nonthaburi", "pct": 0.08 },
+          { "name": "Pathum Thani", "pct": 0.06 }
+        ],
+        "interests": [
+          { "name": "Fitness & Workout", "pct": 0.85 },
+          { "name": "Health & Nutrition", "pct": 0.68 },
+          { "name": "Home Gym", "pct": 0.54 },
+          { "name": "Yoga & Wellness", "pct": 0.42 }
+        ],
+        "device_type": { "mobile": 0.94, "desktop": 0.04, "tablet": 0.02 }
+      }
+    },
+    {
+      "external_ad_id": "tt_ad_6005",
+      "ad_name": "Vintage Fashion – Hashtag",
+      "status": "ACTIVE",
+      "platform": "tiktok",
+      "impressions": 111200,
+      "reach": 89000,
+      "clicks": 3336,
+      "conversions": 156,
+      "spend": 2224.00,
+      "ctr": 3.00,
+      "cpc": 0.67,
+      "cpm": 20.00,
+      "roas": 7.10,
+      "date_start": "2026-03-01",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.13, "18-24": 0.46, "25-34": 0.28, "35-44": 0.10, "45-54": 0.02, "55+": 0.01 },
+        "gender": { "male": 0.25, "female": 0.72, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.44 },
+          { "name": "Chiang Mai", "pct": 0.16 },
+          { "name": "Phuket", "pct": 0.09 },
+          { "name": "Khon Kaen", "pct": 0.08 },
+          { "name": "Hat Yai", "pct": 0.06 }
+        ],
+        "interests": [
+          { "name": "Vintage & Retro Fashion", "pct": 0.84 },
+          { "name": "Thrift Shopping", "pct": 0.72 },
+          { "name": "Sustainability", "pct": 0.55 },
+          { "name": "Art & Aesthetics", "pct": 0.47 }
+        ],
+        "device_type": { "mobile": 0.95, "desktop": 0.03, "tablet": 0.02 }
+      }
+    }
+  ]
+}

@@ -13,6 +13,8 @@ export type AdWithPublishStatus = Ad & {
   platform: string | null;
   external_status: "pending" | "published" | "failed" | null;
   external_error: string | null;
+  // persona_data added by migration 20260314004004
+  persona_data: any | null;
 };
 
 export function useAds() {

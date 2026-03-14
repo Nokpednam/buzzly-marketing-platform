@@ -1,0 +1,179 @@
+{
+  "data": [
+    {
+      "external_ad_id": "shp_ad_7001",
+      "ad_name": "Search Ads – Summer Collection Keywords",
+      "status": "ACTIVE",
+      "platform": "shopee",
+      "impressions": 312400,
+      "reach": 218000,
+      "clicks": 9372,
+      "conversions": 621,
+      "spend": 1873.00,
+      "ctr": 3.00,
+      "cpc": 0.20,
+      "cpm": 5.99,
+      "roas": 7.20,
+      "date_start": "2026-03-01",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.04, "18-24": 0.30, "25-34": 0.36, "35-44": 0.20, "45-54": 0.08, "55+": 0.02 },
+        "gender": { "male": 0.32, "female": 0.65, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.41 },
+          { "name": "Chiang Mai", "pct": 0.12 },
+          { "name": "Nakhon Ratchasima", "pct": 0.09 },
+          { "name": "Udon Thani", "pct": 0.08 },
+          { "name": "Khon Kaen", "pct": 0.07 }
+        ],
+        "interests": [
+          { "name": "Fashion & Apparel", "pct": 0.64 },
+          { "name": "Online Shopping", "pct": 0.79 },
+          { "name": "Deals & Promotions", "pct": 0.71 },
+          { "name": "Beauty & Personal Care", "pct": 0.42 }
+        ],
+        "device_type": { "mobile": 0.84, "desktop": 0.12, "tablet": 0.04 }
+      }
+    },
+    {
+      "external_ad_id": "shp_ad_7002",
+      "ad_name": "Discovery Ads – Trending Products",
+      "status": "ACTIVE",
+      "platform": "shopee",
+      "impressions": 478600,
+      "reach": 334000,
+      "clicks": 9572,
+      "conversions": 478,
+      "spend": 1435.80,
+      "ctr": 2.00,
+      "cpc": 0.15,
+      "cpm": 3.00,
+      "roas": 6.40,
+      "date_start": "2026-03-01",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.05, "18-24": 0.28, "25-34": 0.35, "35-44": 0.22, "45-54": 0.08, "55+": 0.02 },
+        "gender": { "male": 0.35, "female": 0.62, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.38 },
+          { "name": "Chiang Mai", "pct": 0.13 },
+          { "name": "Nakhon Ratchasima", "pct": 0.10 },
+          { "name": "Khon Kaen", "pct": 0.09 },
+          { "name": "Udon Thani", "pct": 0.07 }
+        ],
+        "interests": [
+          { "name": "Trending Products", "pct": 0.75 },
+          { "name": "Online Shopping", "pct": 0.82 },
+          { "name": "Home & Living", "pct": 0.43 },
+          { "name": "Electronics", "pct": 0.37 }
+        ],
+        "device_type": { "mobile": 0.87, "desktop": 0.09, "tablet": 0.04 }
+      }
+    },
+    {
+      "external_ad_id": "shp_ad_7003",
+      "ad_name": "Flash Sale Banner – Homepage",
+      "status": "ACTIVE",
+      "platform": "shopee",
+      "impressions": 892300,
+      "reach": 678000,
+      "clicks": 13384,
+      "conversions": 1072,
+      "spend": 2676.90,
+      "ctr": 1.50,
+      "cpc": 0.20,
+      "cpm": 3.00,
+      "roas": 8.90,
+      "date_start": "2026-03-10",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.06, "18-24": 0.32, "25-34": 0.34, "35-44": 0.18, "45-54": 0.07, "55+": 0.03 },
+        "gender": { "male": 0.36, "female": 0.61, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.40 },
+          { "name": "Chiang Mai", "pct": 0.12 },
+          { "name": "Nakhon Ratchasima", "pct": 0.10 },
+          { "name": "Udon Thani", "pct": 0.09 },
+          { "name": "Khon Kaen", "pct": 0.08 }
+        ],
+        "interests": [
+          { "name": "Flash Sales & Deals", "pct": 0.88 },
+          { "name": "Online Shopping", "pct": 0.81 },
+          { "name": "Fashion & Beauty", "pct": 0.55 },
+          { "name": "Electronics", "pct": 0.42 }
+        ],
+        "device_type": { "mobile": 0.86, "desktop": 0.10, "tablet": 0.04 }
+      }
+    },
+    {
+      "external_ad_id": "shp_ad_7004",
+      "ad_name": "Product Boost – Electronics",
+      "status": "ACTIVE",
+      "platform": "shopee",
+      "impressions": 241800,
+      "reach": 172000,
+      "clicks": 4836,
+      "conversions": 386,
+      "spend": 1450.80,
+      "ctr": 2.00,
+      "cpc": 0.30,
+      "cpm": 6.00,
+      "roas": 9.40,
+      "date_start": "2026-03-01",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.03, "18-24": 0.24, "25-34": 0.38, "35-44": 0.24, "45-54": 0.08, "55+": 0.03 },
+        "gender": { "male": 0.62, "female": 0.35, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.44 },
+          { "name": "Chiang Mai", "pct": 0.11 },
+          { "name": "Chonburi", "pct": 0.09 },
+          { "name": "Phuket", "pct": 0.07 },
+          { "name": "Nakhon Ratchasima", "pct": 0.07 }
+        ],
+        "interests": [
+          { "name": "Electronics & Gadgets", "pct": 0.79 },
+          { "name": "Technology", "pct": 0.67 },
+          { "name": "Gaming", "pct": 0.51 },
+          { "name": "Smart Home", "pct": 0.38 }
+        ],
+        "device_type": { "mobile": 0.81, "desktop": 0.14, "tablet": 0.05 }
+      }
+    },
+    {
+      "external_ad_id": "shp_ad_7005",
+      "ad_name": "Brand Ads – Shop Profile Boost",
+      "status": "ACTIVE",
+      "platform": "shopee",
+      "impressions": 158700,
+      "reach": 112000,
+      "clicks": 2380,
+      "conversions": 168,
+      "spend": 950.20,
+      "ctr": 1.50,
+      "cpc": 0.40,
+      "cpm": 5.99,
+      "roas": 5.60,
+      "date_start": "2026-03-01",
+      "date_stop": "2026-03-13",
+      "persona_data": {
+        "age_distribution": { "13-17": 0.03, "18-24": 0.22, "25-34": 0.36, "35-44": 0.26, "45-54": 0.10, "55+": 0.03 },
+        "gender": { "male": 0.40, "female": 0.57, "unknown": 0.03 },
+        "top_locations": [
+          { "name": "Bangkok", "pct": 0.43 },
+          { "name": "Chiang Mai", "pct": 0.12 },
+          { "name": "Nakhon Ratchasima", "pct": 0.09 },
+          { "name": "Phuket", "pct": 0.07 },
+          { "name": "Hat Yai", "pct": 0.06 }
+        ],
+        "interests": [
+          { "name": "Online Shopping", "pct": 0.80 },
+          { "name": "Brand Discovery", "pct": 0.58 },
+          { "name": "Deals & Coupons", "pct": 0.67 },
+          { "name": "Home & Living", "pct": 0.34 }
+        ],
+        "device_type": { "mobile": 0.85, "desktop": 0.11, "tablet": 0.04 }
+      }
+    }
+  ]
+}

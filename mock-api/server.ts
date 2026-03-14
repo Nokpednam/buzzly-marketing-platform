@@ -82,6 +82,20 @@ app.get("/facebook/:tenant/leads", (req, res) => {
   res.json(loadFixture("facebook", req.params.tenant, "leads"));
 });
 
+app.get("/facebook/:tenant/ads", (req, res) => {
+  res.json(loadFixture("facebook", req.params.tenant, "ads"));
+});
+
+// ─── Instagram Endpoints ─────────────────────────────────────────────
+app.get("/instagram/:tenant/ads", (req, res) => {
+  res.json(loadFixture("instagram", req.params.tenant, "ads"));
+});
+
+// ─── TikTok Endpoints ────────────────────────────────────────────────
+app.get("/tiktok/:tenant/ads", (req, res) => {
+  res.json(loadFixture("tiktok", req.params.tenant, "ads"));
+});
+
 // ─── Shopee Endpoints ────────────────────────────────────────────────
 app.get("/shopee/:tenant/orders/list", (req, res) => {
   res.json(loadFixture("shopee", req.params.tenant, "orders"));
@@ -89,6 +103,15 @@ app.get("/shopee/:tenant/orders/list", (req, res) => {
 
 app.get("/shopee/:tenant/marketing/shop_performance", (req, res) => {
   res.json(loadFixture("shopee", req.params.tenant, "performance"));
+});
+
+app.get("/shopee/:tenant/ads", (req, res) => {
+  res.json(loadFixture("shopee", req.params.tenant, "ads"));
+});
+
+// ─── Google Endpoints ────────────────────────────────────────────────
+app.get("/google/:tenant/ads", (req, res) => {
+  res.json(loadFixture("google", req.params.tenant, "ads"));
 });
 
 // ─── Validate API Key ────────────────────────────────────────────────
@@ -146,47 +169,87 @@ app.post("/api/connect", async (req, res) => {
 
   try {
     const supabase = getSupabaseClient();
+    const platform = keyInfo.platform;
 
-    // 2. Fetch raw data from the external API (EXTERNAL_API_BASE_URL)
-    //    In dev this points back to our own mock endpoints.
-    //    In production, swap EXTERNAL_API_BASE_URL to the real platform URL.
-    const externalRes = await fetch(
-      `${EXTERNAL_API_BASE_URL}/facebook/${tenant}/insights`
-    );
-    if (!externalRes.ok) {
-      throw new Error(`External API responded with ${externalRes.status}`);
+    // 2. Fetch individual ads with persona_data from /:platform/:tenant/ads
+    const adsRes = await fetch(`${EXTERNAL_API_BASE_URL}/${platform}/${tenant}/ads`);
+    if (!adsRes.ok) {
+      throw new Error(`Ads endpoint responded with ${adsRes.status}`);
     }
-    const { data: campaigns } = (await externalRes.json()) as { data: any[] };
+    const { data: adsData } = (await adsRes.json()) as { data: any[] };
 
-    // 3. Clear previous insights for this ad account (full replace sync)
+    // 3. Fetch campaign-level insights (Facebook path; other platforms may lack this)
+    //    Used for fallback campaign upsert only.
+    const insightsRes = await fetch(`${EXTERNAL_API_BASE_URL}/facebook/${tenant}/insights`);
+    const { data: campaignInsights } = insightsRes.ok
+      ? ((await insightsRes.json()) as { data: any[] })
+      : { data: [] };
+
+    // 4. Clear previous insights for this ad account (full replace sync)
     await supabase.from("ad_insights").delete().eq("ad_account_id", adAccountId);
 
-    // 4. Transform and ingest — upsert campaigns + generate daily ad_insights
+    // 5. Upsert individual ads with persona_data and generate daily ad_insights
     const insightRows: any[] = [];
 
-    for (const campaign of campaigns) {
-      // Upsert campaign record linked to this ad account
-      const { data: upsertedCampaign } = await supabase
-        .from("campaigns")
+    // Upsert a synthetic campaign to anchor all ads from this connect session
+    const campaignName = campaignInsights[0]?.campaign_name
+      ?? `${platform.charAt(0).toUpperCase() + platform.slice(1)} Campaign – ${tenant}`;
+    const firstAd = adsData[0];
+    const { data: upsertedCampaign } = await supabase
+      .from("campaigns")
+      .upsert(
+        {
+          ad_account_id: adAccountId,
+          name: campaignName,
+          status: "active",
+          objective: campaignInsights[0]?.objective ?? null,
+          budget_amount: adsData.reduce((s: number, a: any) => s + Number(a.spend ?? 0), 0),
+          start_date: firstAd?.date_start ?? null,
+          end_date: firstAd?.date_stop ?? null,
+        },
+        { onConflict: "id" }
+      )
+      .select("id")
+      .single();
+
+    for (const ad of adsData) {
+      // Upsert ad row with persona_data
+      const { data: upsertedAd } = await (supabase as any)
+        .from("ads")
         .upsert(
           {
             ad_account_id: adAccountId,
-            name: campaign.campaign_name,
-            status: "active",
-            objective: campaign.objective ?? null,
-            budget_amount: parseFloat(campaign.spend),
-            start_date: campaign.date_start,
-            end_date: campaign.date_stop,
+            name: ad.ad_name,
+            status: ad.status === "ACTIVE" ? "active" : "paused",
+            platform: platform,
+            platform_ad_id: ad.external_ad_id,
+            external_status: "published",
+            persona_data: ad.persona_data ?? null,
           },
-          { onConflict: "id" }
+          { onConflict: "platform_ad_id" }
         )
         .select("id")
         .single();
 
-      const startDate = new Date(campaign.date_start);
-      const endDate = new Date(campaign.date_stop);
-      const totalDays =
-        Math.ceil((endDate.getTime() - startDate.getTime()) / 86_400_000) + 1;
+      const adId = upsertedAd?.id ?? null;
+
+      // Link ad to campaign via campaign_ads junction (ignore duplicate errors)
+      if (upsertedCampaign?.id && adId) {
+        await (supabase as any)
+          .from("campaign_ads")
+          .upsert(
+            { campaign_id: upsertedCampaign.id, ad_id: adId },
+            { onConflict: "campaign_id,ad_id", ignoreDuplicates: true }
+          );
+      }
+
+      // Generate daily insight rows for this ad
+      const startDate = new Date(ad.date_start);
+      const endDate = new Date(ad.date_stop);
+      const totalDays = Math.max(
+        1,
+        Math.ceil((endDate.getTime() - startDate.getTime()) / 86_400_000) + 1
+      );
 
       for (let d = 0; d < totalDays; d++) {
         const date = new Date(startDate);
@@ -196,16 +259,17 @@ app.post("/api/connect", async (req, res) => {
         insightRows.push({
           ad_account_id: adAccountId,
           campaign_id: upsertedCampaign?.id ?? null,
+          ads_id: adId,
           date: date.toISOString().split("T")[0],
-          impressions: Math.round((parseInt(campaign.impressions) / totalDays) * jitter),
-          clicks: Math.round((parseInt(campaign.clicks) / totalDays) * jitter),
-          spend: parseFloat(((parseFloat(campaign.spend) / totalDays) * jitter).toFixed(2)),
-          reach: Math.round((parseInt(campaign.reach) / totalDays) * jitter),
-          conversions: Math.round((parseInt(campaign.conversions) / totalDays) * jitter),
-          ctr: parseFloat(campaign.ctr),
-          cpc: parseFloat(campaign.cpc),
-          cpm: parseFloat(campaign.cpm),
-          roas: parseFloat(campaign.roas),
+          impressions: Math.round((Number(ad.impressions) / totalDays) * jitter),
+          clicks: Math.round((Number(ad.clicks) / totalDays) * jitter),
+          spend: parseFloat(((Number(ad.spend) / totalDays) * jitter).toFixed(2)),
+          reach: Math.round((Number(ad.reach) / totalDays) * jitter),
+          conversions: Math.round((Number(ad.conversions) / totalDays) * jitter),
+          ctr: Number(ad.ctr),
+          cpc: Number(ad.cpc),
+          cpm: Number(ad.cpm),
+          roas: Number(ad.roas),
         });
       }
     }
@@ -215,11 +279,12 @@ app.post("/api/connect", async (req, res) => {
       .insert(insightRows);
     if (insertError) throw insertError;
 
-    // 5. Return only a success status — raw external data stays on the server
+    // 6. Return only a success status — raw external data stays on the server
     res.json({
       message: "Data synced successfully",
+      adsUpserted: adsData.length,
       rowsInserted: insightRows.length,
-      platform: platformSlug ?? keyInfo.platform,
+      platform: platform,
       tenant,
     });
   } catch (err: any) {
@@ -243,8 +308,13 @@ app.get("/", (_req, res) => {
       "POST /api/connect                           — ingest external data → Supabase (returns status only)",
       "GET  /facebook/:tenant/insights",
       "GET  /facebook/:tenant/leads",
+      "GET  /facebook/:tenant/ads",
+      "GET  /instagram/:tenant/ads",
+      "GET  /tiktok/:tenant/ads",
       "GET  /shopee/:tenant/orders/list",
       "GET  /shopee/:tenant/marketing/shop_performance",
+      "GET  /shopee/:tenant/ads",
+      "GET  /google/:tenant/ads",
       "GET  /health",
     ],
     tenants: ["shop-a", "shop-b"],
@@ -260,8 +330,13 @@ app.listen(PORT, () => {
   console.log(`   POST /validate-key`);
   console.log(`   GET  /facebook/:tenant/insights`);
   console.log(`   GET  /facebook/:tenant/leads`);
+  console.log(`   GET  /facebook/:tenant/ads`);
+  console.log(`   GET  /instagram/:tenant/ads`);
+  console.log(`   GET  /tiktok/:tenant/ads`);
   console.log(`   GET  /shopee/:tenant/orders/list`);
   console.log(`   GET  /shopee/:tenant/marketing/shop_performance`);
+  console.log(`   GET  /shopee/:tenant/ads`);
+  console.log(`   GET  /google/:tenant/ads`);
   console.log(`\n   Valid API Keys:`);
   Object.entries(MOCK_API_KEYS).forEach(([key, val]) => {
     console.log(`   ${key.padEnd(22)} → ${val.shopLabel}`);
