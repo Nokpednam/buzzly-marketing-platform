@@ -66,7 +66,7 @@ function AARRRDashboardContent() {
     if (realAarrrData.length === 0) return [];
     return realAarrrData.map((stage, index) => {
       const nextStage = realAarrrData[index + 1];
-      const conversionRate = nextStage ? (nextStage.value / stage.value) * 100 : 0;
+      const conversionRate = nextStage && stage.value > 0 ? (nextStage.value / stage.value) * 100 : 0;
       const growth = stage.prevValue != null && stage.prevValue > 0
         ? ((stage.value - stage.prevValue) / stage.prevValue) * 100
         : null;
@@ -208,11 +208,17 @@ function AARRRDashboardContent() {
                     <stage.icon className="h-5 w-5" />
                   </div>
                   <div className="text-right">
-                    <div className={`flex items-center text-xs font-bold ${stage.growth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                      {stage.growth >= 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : null}
-                      {stage.growth.toFixed(1)}%
-                    </div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest">vs last month</p>
+                    {stage.growth !== null ? (
+                      <>
+                        <div className={`flex items-center text-xs font-bold ${stage.growth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {stage.growth >= 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : null}
+                          {stage.growth.toFixed(1)}%
+                        </div>
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest">vs last month</p>
+                      </>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest">No history</p>
+                    )}
                   </div>
                 </div>
 

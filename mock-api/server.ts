@@ -56,16 +56,16 @@ app.use(express.json());
 // ─── Mock API Key Dictionary ──────────────────────────────────────────
 // Each key maps to a { tenant, platform, shopLabel }
 const MOCK_API_KEYS: Record<string, { tenant: string; platform: string; shopLabel: string }> = {
-  "FB_TEST_KEY_SHOP_A":  { tenant: "shop-a", platform: "facebook",  shopLabel: "Shop A – High Volume" },
-  "FB_TEST_KEY_SHOP_B":  { tenant: "shop-b", platform: "facebook",  shopLabel: "Shop B – Niche/High-Conversion" },
-  "IG_TEST_KEY_SHOP_A":  { tenant: "shop-a", platform: "instagram", shopLabel: "Shop A – High Volume" },
-  "IG_TEST_KEY_SHOP_B":  { tenant: "shop-b", platform: "instagram", shopLabel: "Shop B – Niche/High-Conversion" },
-  "TT_TEST_KEY_SHOP_A":  { tenant: "shop-a", platform: "tiktok",    shopLabel: "Shop A – High Volume" },
-  "TT_TEST_KEY_SHOP_B":  { tenant: "shop-b", platform: "tiktok",    shopLabel: "Shop B – Niche/High-Conversion" },
-  "SHP_TEST_KEY_SHOP_A": { tenant: "shop-a", platform: "shopee",    shopLabel: "Shop A – High Volume" },
-  "SHP_TEST_KEY_SHOP_B": { tenant: "shop-b", platform: "shopee",    shopLabel: "Shop B – Niche/High-Conversion" },
-  "GG_TEST_KEY_SHOP_A":  { tenant: "shop-a", platform: "google",    shopLabel: "Shop A – High Volume" },
-  "GG_TEST_KEY_SHOP_B":  { tenant: "shop-b", platform: "google",    shopLabel: "Shop B – Niche/High-Conversion" },
+  "FB_TEST_KEY_SHOP_A": { tenant: "shop-a", platform: "facebook", shopLabel: "Shop A – High Volume" },
+  "FB_TEST_KEY_SHOP_B": { tenant: "shop-b", platform: "facebook", shopLabel: "Shop B – Niche/High-Conversion" },
+  "IG_TEST_KEY_SHOP_A": { tenant: "shop-a", platform: "instagram", shopLabel: "Shop A – High Volume" },
+  "IG_TEST_KEY_SHOP_B": { tenant: "shop-b", platform: "instagram", shopLabel: "Shop B – Niche/High-Conversion" },
+  "TT_TEST_KEY_SHOP_A": { tenant: "shop-a", platform: "tiktok", shopLabel: "Shop A – High Volume" },
+  "TT_TEST_KEY_SHOP_B": { tenant: "shop-b", platform: "tiktok", shopLabel: "Shop B – Niche/High-Conversion" },
+  "SHP_TEST_KEY_SHOP_A": { tenant: "shop-a", platform: "shopee", shopLabel: "Shop A – High Volume" },
+  "SHP_TEST_KEY_SHOP_B": { tenant: "shop-b", platform: "shopee", shopLabel: "Shop B – Niche/High-Conversion" },
+  "GG_TEST_KEY_SHOP_A": { tenant: "shop-a", platform: "google", shopLabel: "Shop A – High Volume" },
+  "GG_TEST_KEY_SHOP_B": { tenant: "shop-b", platform: "google", shopLabel: "Shop B – Niche/High-Conversion" },
 };
 
 // Helper: load fixture JSON
@@ -240,6 +240,42 @@ app.post("/api/connect", async (req, res) => {
     console.error("[POST /api/connect] ingestion error:", err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ─── Ad Creation Endpoint (Simulated) ──────────────────────────────────
+// This simulates the creation of an ad on an external platform.
+// Called by the create-platform-ad Edge Function.
+app.post("/api/ads", async (req, res) => {
+  const { ad, platform } = req.body as { ad: any; platform: string };
+
+  if (!ad || !platform) {
+    res.status(400).json({ error: "ad and platform are required" });
+    return;
+  }
+
+  console.log(`[POST /api/ads] Simulating ad creation on ${platform} for: ${ad.name}`);
+
+  // Simulating platform latency
+  await new Promise(r => setTimeout(r, 1200));
+
+  // 10% chance of failure to test error handling
+  if (Math.random() < 0.1) {
+    console.error(`[POST /api/ads] Simulated platform error for ${platform}`);
+    res.status(502).json({ error: `Simulated ${platform} API error` });
+    return;
+  }
+
+  const externalId = `${platform.slice(0, 2)}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+  res.json({
+    success: true,
+    platform_ad_id: externalId,
+    status: "active",
+    metadata: {
+      creative_id: `ct_${Math.random().toString(36).substring(7)}`,
+      published_at: new Date().toISOString()
+    }
+  });
 });
 
 // ─── Health Check ────────────────────────────────────────────────────
