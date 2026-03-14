@@ -317,6 +317,7 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       await queryClient.invalidateQueries({ queryKey: ["ad-accounts"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
       await queryClient.invalidateQueries({ queryKey: ["ad-insights"] });
+      await queryClient.invalidateQueries({ queryKey: ["ad_insights_funnel_totals"] });
       await queryClient.invalidateQueries({ queryKey: ["revenue-metrics-dashboard"] });
       await fetchPlatforms();
 
@@ -342,6 +343,13 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
 
       if (error) throw error;
 
+      // Mark the ad_account as inactive so its data is hidden from charts/funnel
+      await supabase
+        .from('ad_accounts')
+        .update({ is_active: false })
+        .eq('team_id', teamId)
+        .eq('platform_id', id);
+
       setPlatforms((prev) =>
         prev.map((p) =>
           p.id === id
@@ -359,6 +367,10 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       toast.success(`${platform?.name} ถูกยกเลิกการเชื่อมต่อ`);
       await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
+      await queryClient.invalidateQueries({ queryKey: ["ad-accounts"] });
+      await queryClient.invalidateQueries({ queryKey: ["ad-insights"] });
+      await queryClient.invalidateQueries({ queryKey: ["ad_insights_funnel_totals"] });
+      await fetchPlatforms();
       return true;
     } catch (error: any) {
       toast.error(`ยกเลิกการเชื่อมต่อล้มเหลว: ${error.message}`);

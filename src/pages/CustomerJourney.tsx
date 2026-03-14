@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +25,7 @@ import {
   Database,
   Activity,
   ChevronRight,
+  LayoutGrid,
 } from "lucide-react";
 import { PlanRestrictedPage } from "@/components/PlanRestrictedPage";
 import { useFunnelData } from "@/hooks/useFunnelData";
@@ -40,7 +43,24 @@ const stageConfig = [
 function CustomerJourneyContent() {
   const navigate = useNavigate();
   const [selectedPeriod, setSelectedPeriod] = useState("30d");
-  const { funnelStages, isLoading } = useFunnelData(selectedPeriod);
+  const [selectedPlatform, setSelectedPlatform] = useState<string>("all");
+
+  // Fetch only ACTIVE ad accounts for the platform filter
+  const { data: adAccounts = [] } = useQuery({
+    queryKey: ["ad-accounts-active-filter"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ad_accounts")
+        .select("id, account_name, platform_id, is_active")
+        .eq("is_active", true)
+        .order("account_name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const platformIdFilter = selectedPlatform === "all" ? undefined : selectedPlatform;
+  const { funnelStages, isLoading } = useFunnelData(selectedPeriod, platformIdFilter);
 
   const journeyStages = useMemo(() => {
     if (!funnelStages || funnelStages.length === 0) return [];
@@ -104,7 +124,26 @@ function CustomerJourneyContent() {
           <p className="text-muted-foreground italic">Visualizing the transition from first-touch to loyal customer.</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Platform Filter */}
+          {adAccounts.length > 0 && (
+            <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+              <SelectTrigger className="w-[180px] bg-background rounded-xl border-none shadow-sm ring-1 ring-border h-11">
+                <LayoutGrid className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
+                <SelectValue placeholder="All Platforms" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="all">All Platforms</SelectItem>
+                {adAccounts.map(acc => (
+                  <SelectItem key={acc.id} value={acc.platform_id ?? acc.id}>
+                    {acc.account_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          {/* Period Filter */}
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
             <SelectTrigger className="w-[160px] bg-background rounded-xl border-none shadow-sm ring-1 ring-border h-11">
               <SelectValue placeholder="Period" />

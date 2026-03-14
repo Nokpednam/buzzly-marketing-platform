@@ -23,7 +23,7 @@ interface AdInsightsTotals {
   conversions: number;
 }
 
-export function useFunnelData(period?: string) {
+export function useFunnelData(period?: string, platformId?: string) {
   // Convert "7d" / "30d" / "90d" → ISO date string for filtering
   const dateFrom = period
     ? (() => {
@@ -60,27 +60,33 @@ export function useFunnelData(period?: string) {
     },
   });
 
-  // ── Ad Insights Aggregation (real API-driven data) ─────────────────
+  // ── Ad Insights Aggregation (only from active platforms) ───────────
   const { data: adTotals, isLoading: insightsLoading } = useQuery<AdInsightsTotals>({
-    queryKey: ["ad_insights_funnel_totals", period],
+    queryKey: ["ad_insights_funnel_totals", period, platformId],
     queryFn: async () => {
+      // Join with ad_accounts to filter only active platform connections
       let query = supabase
         .from("ad_insights")
-        .select("impressions, clicks, leads, adds_to_cart, conversions");
+        .select("impressions, clicks, leads, adds_to_cart, conversions, ad_accounts!inner(is_active, platform_id)")
+        .eq("ad_accounts.is_active", true);
 
       if (dateFrom) {
         query = query.gte("date", dateFrom);
       }
 
+      if (platformId) {
+        query = query.eq("ad_accounts.platform_id", platformId);
+      }
+
       const { data, error } = await query;
       if (error) throw error;
 
-      return (data || []).reduce(
-        (acc, row) => ({
+      return ((data as any[]) || []).reduce(
+        (acc: AdInsightsTotals, row: any) => ({
           impressions:  acc.impressions  + (row.impressions  ?? 0),
           clicks:       acc.clicks       + (row.clicks       ?? 0),
-          leads:        acc.leads        + ((row as any).leads        ?? 0),
-          adds_to_cart: acc.adds_to_cart + ((row as any).adds_to_cart ?? 0),
+          leads:        acc.leads        + (row.leads        ?? 0),
+          adds_to_cart: acc.adds_to_cart + (row.adds_to_cart ?? 0),
           conversions:  acc.conversions  + (row.conversions  ?? 0),
         }),
         { impressions: 0, clicks: 0, leads: 0, adds_to_cart: 0, conversions: 0 }
