@@ -75,7 +75,7 @@ BEGIN
     VALUES (v_aa_gg, v_ws, v_gg,
       (SELECT name FROM public.workspaces WHERE id = v_ws) || ' — Google Ads',
       floor(random()*900000000+100000000)::text || '-' || floor(random()*9000+1000)::text,
-      true, NOW() - (random()*INTERVAL '180 days'))
+      false, NOW() - (random()*INTERVAL '180 days'))
     ON CONFLICT DO NOTHING;
 
     -- 2-3 campaigns per workspace

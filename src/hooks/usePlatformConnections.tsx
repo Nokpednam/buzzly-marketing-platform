@@ -259,7 +259,7 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
         .eq('platform_id', id)
         .maybeSingle();
 
-      // ── Step 4: Ingest via backend OR fall back to demo seed ──────
+      // ── Step 4: Ingest via backend (API key required) ─────────────
       if (adAccount?.id) {
         if (tenant && apiKey?.trim()) {
           // Delegate to backend ingestion endpoint.
@@ -283,8 +283,8 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
           const result = await ingestRes.json() as { message: string; rowsInserted: number };
           toast.success(`${result.message} · ${result.rowsInserted} วันข้อมูล`);
         } else {
-          // No API key → generic demo data
-          await (supabase as any).rpc('seed_demo_insights', { p_ad_account_id: adAccount.id });
+          // No API key → connection saved but no data ingested
+          toast.warning(`${platform?.name} เชื่อมต่อแล้ว แต่ยังไม่มีข้อมูล — กรุณาใส่ API Key เพื่อซิงค์ข้อมูล`);
         }
       }
 
@@ -315,6 +315,7 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       // ── Step 7: Invalidate caches → frontend re-fetches from DB ──
       await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       await queryClient.invalidateQueries({ queryKey: ["ad-accounts"] });
+      await queryClient.invalidateQueries({ queryKey: ["ad-accounts-active-filter"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
       await queryClient.invalidateQueries({ queryKey: ["ad-insights"] });
       await queryClient.invalidateQueries({ queryKey: ["ad_insights_funnel_totals"] });
@@ -368,6 +369,7 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
       await queryClient.invalidateQueries({ queryKey: ["ad-accounts"] });
+      await queryClient.invalidateQueries({ queryKey: ["ad-accounts-active-filter"] });
       await queryClient.invalidateQueries({ queryKey: ["ad-insights"] });
       await queryClient.invalidateQueries({ queryKey: ["ad_insights_funnel_totals"] });
       await fetchPlatforms();
