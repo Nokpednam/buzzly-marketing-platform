@@ -2,64 +2,54 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 
 // ---------------------------------------------------------------------------
-// Platform adapters
-// In production: replace each stub with the real SDK / HTTP call for that
-// platform (Facebook Graph API, Shopee Marketing API, TikTok Ads API, etc.).
-// The contract: receive the ad row, return the external ad ID assigned by the
-// platform, or throw with a descriptive message.
+// Helper: call the mock API server
 // ---------------------------------------------------------------------------
 type AdRow = Record<string, unknown>;
+
+async function callMockApi(ad: AdRow, platform: string) {
+  const mockApiUrl = "http://host.docker.internal:3001/api/ads";
+
+  const response = await fetch(mockApiUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ad, platform }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Platform API returned status ${response.status}`);
+  }
+
+  return await response.json() as { platform_ad_id: string };
+}
 
 const platformAdapters: Record<
   string,
   (ad: AdRow) => Promise<{ externalId: string }>
 > = {
   facebook: async (ad) => {
-    // Production:
-    //   POST https://graph.facebook.com/v19.0/act_{ad_account_id}/ads
-    //   Headers: { Authorization: `Bearer ${Deno.env.get("FB_ACCESS_TOKEN")}` }
-    //   Body: { name, creative, status, ... }
-    await new Promise((r) => setTimeout(r, 400)); // simulate network latency
-    return {
-      externalId: `fb_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
-    };
+    const data = await callMockApi(ad, "facebook");
+    return { externalId: data.platform_ad_id };
   },
 
-  instagram: async (_ad) => {
-    // Instagram ads are created through the Facebook Marketing API using the
-    // same ad account. Separate adapter kept for clarity.
-    await new Promise((r) => setTimeout(r, 400));
-    return {
-      externalId: `ig_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
-    };
+  instagram: async (ad) => {
+    const data = await callMockApi(ad, "instagram");
+    return { externalId: data.platform_ad_id };
   },
 
-  shopee: async (_ad) => {
-    // Production:
-    //   POST https://partner.shopeemobile.com/api/v2/ads/create_ad
-    //   Signed with HMAC-SHA256 using Deno.env.get("SHOPEE_PARTNER_KEY")
-    await new Promise((r) => setTimeout(r, 400));
-    return {
-      externalId: `shopee_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
-    };
+  shopee: async (ad) => {
+    const data = await callMockApi(ad, "shopee");
+    return { externalId: data.platform_ad_id };
   },
 
-  tiktok: async (_ad) => {
-    // Production:
-    //   POST https://business-api.tiktok.com/open_api/v1.3/ad/create/
-    //   Headers: { Access-Token: Deno.env.get("TIKTOK_ACCESS_TOKEN") }
-    await new Promise((r) => setTimeout(r, 400));
-    return {
-      externalId: `tt_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
-    };
+  tiktok: async (ad) => {
+    const data = await callMockApi(ad, "tiktok");
+    return { externalId: data.platform_ad_id };
   },
 
-  linkedin: async (_ad) => {
-    // Production: LinkedIn Marketing API v2
-    await new Promise((r) => setTimeout(r, 400));
-    return {
-      externalId: `li_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
-    };
+  linkedin: async (ad) => {
+    const data = await callMockApi(ad, "linkedin");
+    return { externalId: data.platform_ad_id };
   },
 };
 

@@ -6,18 +6,23 @@ import { fileURLToPath } from "url";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 // Load .env from mock-api directory (tsx doesn't auto-load it)
 try {
-  const envPath = new URL(".env", import.meta.url).pathname;
+  const envPath = fileURLToPath(new URL(".env", import.meta.url));
   const envContent = readFileSync(envPath, "utf-8");
-  for (const line of envContent.split("\n")) {
+  for (const line of envContent.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
     const eqIdx = trimmed.indexOf("=");
     if (eqIdx === -1) continue;
     const key = trimmed.slice(0, eqIdx).trim();
-    const val = trimmed.slice(eqIdx + 1).trim();
+    let val = trimmed.slice(eqIdx + 1).trim();
+    if (val.startsWith('"') && val.endsWith('"')) {
+      val = val.slice(1, -1);
+    }
     if (!(key in process.env)) process.env[key] = val;
   }
-} catch { /* .env is optional */ }
+} catch (e) {
+  console.error("Failed to load .env:", e);
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -51,16 +56,16 @@ app.use(express.json());
 // ─── Mock API Key Dictionary ──────────────────────────────────────────
 // Each key maps to a { tenant, platform, shopLabel }
 const MOCK_API_KEYS: Record<string, { tenant: string; platform: string; shopLabel: string }> = {
-  "FB_TEST_KEY_SHOP_A":  { tenant: "shop-a", platform: "facebook",  shopLabel: "Shop A – High Volume" },
-  "FB_TEST_KEY_SHOP_B":  { tenant: "shop-b", platform: "facebook",  shopLabel: "Shop B – Niche/High-Conversion" },
-  "IG_TEST_KEY_SHOP_A":  { tenant: "shop-a", platform: "instagram", shopLabel: "Shop A – High Volume" },
-  "IG_TEST_KEY_SHOP_B":  { tenant: "shop-b", platform: "instagram", shopLabel: "Shop B – Niche/High-Conversion" },
-  "TT_TEST_KEY_SHOP_A":  { tenant: "shop-a", platform: "tiktok",    shopLabel: "Shop A – High Volume" },
-  "TT_TEST_KEY_SHOP_B":  { tenant: "shop-b", platform: "tiktok",    shopLabel: "Shop B – Niche/High-Conversion" },
-  "SHP_TEST_KEY_SHOP_A": { tenant: "shop-a", platform: "shopee",    shopLabel: "Shop A – High Volume" },
-  "SHP_TEST_KEY_SHOP_B": { tenant: "shop-b", platform: "shopee",    shopLabel: "Shop B – Niche/High-Conversion" },
-  "GG_TEST_KEY_SHOP_A":  { tenant: "shop-a", platform: "google",    shopLabel: "Shop A – High Volume" },
-  "GG_TEST_KEY_SHOP_B":  { tenant: "shop-b", platform: "google",    shopLabel: "Shop B – Niche/High-Conversion" },
+  "FB_TEST_KEY_SHOP_A": { tenant: "shop-a", platform: "facebook", shopLabel: "Shop A – High Volume" },
+  "FB_TEST_KEY_SHOP_B": { tenant: "shop-b", platform: "facebook", shopLabel: "Shop B – Niche/High-Conversion" },
+  "IG_TEST_KEY_SHOP_A": { tenant: "shop-a", platform: "instagram", shopLabel: "Shop A – High Volume" },
+  "IG_TEST_KEY_SHOP_B": { tenant: "shop-b", platform: "instagram", shopLabel: "Shop B – Niche/High-Conversion" },
+  "TT_TEST_KEY_SHOP_A": { tenant: "shop-a", platform: "tiktok", shopLabel: "Shop A – High Volume" },
+  "TT_TEST_KEY_SHOP_B": { tenant: "shop-b", platform: "tiktok", shopLabel: "Shop B – Niche/High-Conversion" },
+  "SHP_TEST_KEY_SHOP_A": { tenant: "shop-a", platform: "shopee", shopLabel: "Shop A – High Volume" },
+  "SHP_TEST_KEY_SHOP_B": { tenant: "shop-b", platform: "shopee", shopLabel: "Shop B – Niche/High-Conversion" },
+  "GG_TEST_KEY_SHOP_A": { tenant: "shop-a", platform: "google", shopLabel: "Shop A – High Volume" },
+  "GG_TEST_KEY_SHOP_B": { tenant: "shop-b", platform: "google", shopLabel: "Shop B – Niche/High-Conversion" },
 };
 
 // Helper: load fixture JSON
@@ -256,6 +261,13 @@ app.post("/api/connect", async (req, res) => {
         date.setDate(date.getDate() + d);
         const jitter = 0.7 + Math.random() * 0.6;
 
+        // Extract action values safely
+        const actions = campaign.actions || [];
+        const leadAction = actions.find((a: any) => a.action_type === 'lead');
+        const addToCartAction = actions.find((a: any) => a.action_type === 'add_to_cart');
+        const rawLeads = leadAction ? parseInt(leadAction.value) : 0;
+        const rawAddsToCart = addToCartAction ? parseInt(addToCartAction.value) : 0;
+
         insightRows.push({
           ad_account_id: adAccountId,
           campaign_id: upsertedCampaign?.id ?? null,
@@ -291,6 +303,42 @@ app.post("/api/connect", async (req, res) => {
     console.error("[POST /api/connect] ingestion error:", err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ─── Ad Creation Endpoint (Simulated) ──────────────────────────────────
+// This simulates the creation of an ad on an external platform.
+// Called by the create-platform-ad Edge Function.
+app.post("/api/ads", async (req, res) => {
+  const { ad, platform } = req.body as { ad: any; platform: string };
+
+  if (!ad || !platform) {
+    res.status(400).json({ error: "ad and platform are required" });
+    return;
+  }
+
+  console.log(`[POST /api/ads] Simulating ad creation on ${platform} for: ${ad.name}`);
+
+  // Simulating platform latency
+  await new Promise(r => setTimeout(r, 1200));
+
+  // 10% chance of failure to test error handling
+  if (Math.random() < 0.1) {
+    console.error(`[POST /api/ads] Simulated platform error for ${platform}`);
+    res.status(502).json({ error: `Simulated ${platform} API error` });
+    return;
+  }
+
+  const externalId = `${platform.slice(0, 2)}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+  res.json({
+    success: true,
+    platform_ad_id: externalId,
+    status: "active",
+    metadata: {
+      creative_id: `ct_${Math.random().toString(36).substring(7)}`,
+      published_at: new Date().toISOString()
+    }
+  });
 });
 
 // ─── Health Check ────────────────────────────────────────────────────
