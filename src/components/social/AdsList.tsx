@@ -61,8 +61,19 @@ import {
   Calendar,
   Link2,
   Loader2,
+  Send,
+  AlertCircle,
+  Clock,
 } from "lucide-react";
-import { useAds, Ad } from "@/hooks/useAds";
+import { useAds, AdWithPublishStatus as Ad } from "@/hooks/useAds";
+
+const PUBLISH_PLATFORMS = [
+  { id: "facebook",  label: "Facebook Ads",  emoji: "📘" },
+  { id: "instagram", label: "Instagram Ads", emoji: "📸" },
+  { id: "tiktok",   label: "TikTok Ads",    emoji: "🎵" },
+  { id: "shopee",   label: "Shopee Ads",    emoji: "🛍️" },
+  { id: "linkedin", label: "LinkedIn Ads",  emoji: "💼" },
+];
 
 const creativeTypes = [
   { id: "image", name: "Image", icon: Image },
@@ -85,10 +96,12 @@ interface AdsListProps {
 }
 
 export function AdsList({ adGroups }: AdsListProps) {
-  const { ads, isLoading, createAd, updateAd, deleteAd } = useAds();
+  const { ads, isLoading, createAd, updateAd, deleteAd, publishAd } = useAds();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [publishPlatform, setPublishPlatform] = useState("facebook");
   const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
 
   const [formData, setFormData] = useState({
@@ -183,6 +196,29 @@ export function AdsList({ adGroups }: AdsListProps) {
     setDetailDialogOpen(true);
   };
 
+  const openPublishDialog = (ad: Ad) => {
+    setSelectedAd(ad);
+    setPublishPlatform(ad.platform || "facebook");
+    setPublishDialogOpen(true);
+  };
+
+  const handlePublish = () => {
+    if (!selectedAd) return;
+    publishAd.mutate({ adId: selectedAd.id, platform: publishPlatform });
+    setPublishDialogOpen(false);
+  };
+
+  const getExternalStatusBadge = (ad: Ad) => {
+    if (!ad.external_status) return null;
+    if (ad.external_status === "pending")
+      return <span className="inline-flex items-center gap-1 text-xs text-amber-600"><Clock className="h-3 w-3" />Publishing…</span>;
+    if (ad.external_status === "published")
+      return <span className="inline-flex items-center gap-1 text-xs text-green-600"><CheckCircle2 className="h-3 w-3" />{ad.platform}</span>;
+    if (ad.external_status === "failed")
+      return <span className="inline-flex items-center gap-1 text-xs text-destructive"><AlertCircle className="h-3 w-3" />Failed</span>;
+    return null;
+  };
+
   const getStatusIcon = (status: string | null) => {
     switch (status) {
       case "active":
@@ -242,19 +278,20 @@ export function AdsList({ adGroups }: AdsListProps) {
                 <TableHead>Headline</TableHead>
                 <TableHead>CTA</TableHead>
                 <TableHead className="text-center">สถานะ</TableHead>
+                <TableHead>Platform</TableHead>
                 <TableHead className="w-[100px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12">
+                  <TableCell colSpan={8} className="text-center py-12">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                   </TableCell>
                 </TableRow>
               ) : ads.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     ยังไม่มีโฆษณา
                   </TableCell>
                 </TableRow>
@@ -324,6 +361,11 @@ export function AdsList({ adGroups }: AdsListProps) {
                         </Tooltip>
                       </TableCell>
                       <TableCell>
+                        {getExternalStatusBadge(ad) ?? (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
                         <div className="flex items-center gap-1">
                           {ad.preview_url && (
                             <Button
@@ -350,6 +392,12 @@ export function AdsList({ adGroups }: AdsListProps) {
                                 <Pencil className="h-4 w-4 mr-2" />
                                 แก้ไข
                               </DropdownMenuItem>
+                              {ad.external_status !== "published" && (
+                                <DropdownMenuItem onClick={() => openPublishDialog(ad)}>
+                                  <Send className="h-4 w-4 mr-2" />
+                                  เผยแพร่บน Platform
+                                </DropdownMenuItem>
+                              )}
                               {(ad.status === "active" || ad.status === "paused") && (
                                 <DropdownMenuItem onClick={() => handleToggleStatus(ad.id, ad.status)}>
                                   {ad.status === "active" ? (
@@ -745,6 +793,53 @@ export function AdsList({ adGroups }: AdsListProps) {
               >
                 <Pencil className="h-4 w-4 mr-2" />
                 แก้ไข
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        {/* Publish Dialog */}
+        <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Send className="h-5 w-5" />
+                เผยแพร่โฆษณา
+              </DialogTitle>
+              <DialogDescription>
+                เลือก Platform ที่ต้องการเผยแพร่ &ldquo;{selectedAd?.name}&rdquo;
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-3">
+              {PUBLISH_PLATFORMS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setPublishPlatform(p.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium transition-colors ${
+                    publishPlatform === p.id
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-border hover:border-primary/40 hover:bg-muted"
+                  }`}
+                >
+                  <span className="text-lg">{p.emoji}</span>
+                  {p.label}
+                  {publishPlatform === p.id && (
+                    <CheckCircle2 className="h-4 w-4 ml-auto" />
+                  )}
+                </button>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPublishDialogOpen(false)}>
+                ยกเลิก
+              </Button>
+              <Button onClick={handlePublish} disabled={publishAd.isPending}>
+                {publishAd.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4 mr-2" />
+                )}
+                เผยแพร่
               </Button>
             </DialogFooter>
           </DialogContent>

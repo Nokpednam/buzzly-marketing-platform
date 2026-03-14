@@ -40,7 +40,7 @@ import {
   AreaChart,
   Area,
 } from "recharts";
-import { useCampaigns, CampaignWithInsights } from "@/hooks/useCampaigns";
+import { useCampaigns, calculateCampaignProgress } from "@/hooks/useCampaigns";
 import { useCampaignInsights } from "@/hooks/useAdInsights";
 import { useTags, useCampaignTags } from "@/hooks/useTags";
 import { useState, useMemo } from "react";
@@ -55,16 +55,6 @@ const statusStyles: Record<string, string> = {
   completed: "bg-primary/10 text-primary border-primary/20",
 };
 
-function calculateProgress(startDate: string | null, endDate: string | null): number {
-  if (!startDate || !endDate) return 0;
-  const now = Date.now();
-  const start = new Date(startDate).getTime();
-  const end = new Date(endDate).getTime();
-  if (end <= start) return 0;
-  if (now <= start) return 0;
-  if (now >= end) return 100;
-  return Math.round(((now - start) / (end - start)) * 100);
-}
 
 export default function CampaignDetail() {
   const { id } = useParams();
@@ -135,7 +125,7 @@ export default function CampaignDetail() {
     );
   }
 
-  const progress = calculateProgress(campaign.start_date, campaign.end_date);
+  const progressResult = calculateCampaignProgress(campaign);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -329,12 +319,72 @@ export default function CampaignDetail() {
 
       {/* Progress */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Campaign Progress</span>
-            <span className="text-sm font-bold">{progress}%</span>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Target className="h-4 w-4" />
+            Campaign Progress
+            {progressResult.overallProgress >= 100 && (
+              <Badge className="bg-emerald-500 text-white text-xs ml-1">Complete</Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Overall */}
+          <div>
+            <div className="flex items-center justify-between text-sm font-medium mb-1.5">
+              <span>Overall Completion</span>
+              <span className="font-bold tabular-nums">{progressResult.overallProgress}%</span>
+            </div>
+            <Progress value={progressResult.overallProgress} className="h-3" />
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Auto-stops when <strong>both</strong> time and KPI independently reach 100%
+            </p>
           </div>
-          <Progress value={progress} className="h-3" />
+
+          {/* Time + KPI side-by-side */}
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> Time Elapsed
+                </span>
+                <span className="font-semibold tabular-nums">{progressResult.timeProgress}%</span>
+              </div>
+              <Progress value={progressResult.timeProgress} className="h-2" />
+              {campaign.start_date && campaign.end_date && (
+                <p className="text-xs text-muted-foreground mt-1 truncate">
+                  {new Date(campaign.start_date).toLocaleDateString("th-TH")}
+                  {" → "}
+                  {new Date(campaign.end_date).toLocaleDateString("th-TH")}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                <span className="flex items-center gap-1">
+                  <Target className="h-3 w-3" /> {progressResult.kpiLabel}
+                </span>
+                <span className="font-semibold tabular-nums">{progressResult.kpiProgress}%</span>
+              </div>
+              <Progress value={progressResult.kpiProgress} className="h-2" />
+              {progressResult.kpiTarget > 0 ? (
+                <p className="text-xs text-muted-foreground mt-1 tabular-nums">
+                  {progressResult.kpiActual.toLocaleString()} / {progressResult.kpiTarget.toLocaleString()}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-1 italic">No KPI target set</p>
+              )}
+            </div>
+          </div>
+
+          {/* Assigned ads count */}
+          {(campaign.ad_ids?.length ?? 0) > 0 && (
+            <p className="text-xs text-muted-foreground border-t pt-3 flex items-center gap-1">
+              <Megaphone className="h-3 w-3" />
+              {campaign.ad_ids?.length} ad{campaign.ad_ids?.length !== 1 ? "s" : ""} assigned — all pause automatically on all platforms when complete
+            </p>
+          )}
         </CardContent>
       </Card>
 

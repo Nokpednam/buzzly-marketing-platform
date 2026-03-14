@@ -4,6 +4,57 @@ import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { useWorkspace } from "@/hooks/useWorkspace";
 
+// ─── Client-side progress calculator (mirrors supabase/functions/_shared/campaignProgress.ts) ──
+
+export interface ProgressResult {
+  timeProgress:    number;
+  kpiProgress:     number;
+  overallProgress: number;
+  kpiLabel:        string;
+  kpiActual:       number;
+  kpiTarget:       number;
+}
+
+export function calculateCampaignProgress(
+  c: Pick<
+    CampaignWithInsights,
+    | "start_date" | "end_date"
+    | "target_kpi_metric" | "target_kpi_value"
+    | "clicks" | "spend" | "conversions" | "impressions"
+  >,
+  nowMs?: number,
+): ProgressResult {
+  const now = nowMs ?? Date.now();
+
+  const start = c.start_date ? new Date(c.start_date).getTime() : null;
+  const end   = c.end_date   ? new Date(c.end_date).getTime()   : null;
+
+  let timeProgress = 0;
+  if (start !== null && end !== null && end > start) {
+    if (now >= end)       timeProgress = 100;
+    else if (now > start) timeProgress = Math.min(100, Math.round(((now - start) / (end - start)) * 100));
+  }
+
+  const KPI_MAP: Record<string, { label: string; value: number }> = {
+    clicks:      { label: "Clicks",      value: c.clicks      ?? 0 },
+    spend:       { label: "Spend",       value: c.spend       ?? 0 },
+    conversions: { label: "Conversions", value: c.conversions ?? 0 },
+    impressions: { label: "Impressions", value: c.impressions ?? 0 },
+  };
+
+  const kpiTarget  = c.target_kpi_value  ?? 0;
+  const kpiDef     = c.target_kpi_metric ? KPI_MAP[c.target_kpi_metric] : null;
+  const kpiActual  = kpiDef?.value ?? 0;
+  const kpiLabel   = kpiDef?.label ?? "No KPI set";
+  const kpiProgress = kpiTarget > 0
+    ? Math.min(100, Math.round((kpiActual / kpiTarget) * 100))
+    : 0;
+
+  const overallProgress = Math.round((kpiProgress * 0.5) + (timeProgress * 0.5));
+
+  return { timeProgress, kpiProgress, overallProgress, kpiLabel, kpiActual, kpiTarget };
+}
+
 export type Campaign = Database["public"]["Tables"]["campaigns"]["Row"];
 export type CampaignInsert = Database["public"]["Tables"]["campaigns"]["Insert"];
 export type CampaignUpdate = Database["public"]["Tables"]["campaigns"]["Update"];
@@ -21,6 +72,10 @@ export interface CampaignWithInsights extends Campaign {
   ad_account_name?: string | null;
   // team_id added by migration — cast via any until types.ts is regenerated
   team_id?: string | null;
+  // Phase 3 — from migration 20260314000002 (not yet in types.ts)
+  target_kpi_metric?: string | null;
+  target_kpi_value?: number | null;
+  ad_ids?: string[];
 }
 
 export function useCampaigns() {
@@ -60,6 +115,18 @@ export function useCampaigns() {
 
       if (insightsError) throw insightsError;
 
+      // Get campaign → ad assignments (Phase 3)
+      const { data: campaignAdsData } = await (supabase as any)
+        .from("campaign_ads")
+        .select("campaign_id, ad_id");
+
+      const campaignAdsMap = ((campaignAdsData ?? []) as { campaign_id: string; ad_id: string }[])
+        .reduce<Record<string, string[]>>((acc, row) => {
+          if (!acc[row.campaign_id]) acc[row.campaign_id] = [];
+          acc[row.campaign_id].push(row.ad_id);
+          return acc;
+        }, {});
+
       // Aggregate insights by campaign
       const insightsMap = insights?.reduce((acc, insight) => {
         if (insight.campaign_id) {
@@ -84,18 +151,29 @@ export function useCampaigns() {
         spend: insightsMap[campaign.id]?.spend || 0,
         tags: campaign.campaign_tags?.map((ct: any) => ct.tags).filter(Boolean) || [],
         ad_account_name: (campaign.ad_accounts as any)?.account_name ?? null,
+        ad_ids: campaignAdsMap[campaign.id] || [],
       })) as CampaignWithInsights[];
     },
   });
 
   const createCampaign = useMutation({
-    mutationFn: async (newCampaign: CampaignInsert) => {
+    mutationFn: async (input: CampaignInsert & { adIds?: string[] }) => {
+      const { adIds = [], ...newCampaign } = input as any;
+
       const { data, error } = await supabase
         .from("campaigns")
         .insert({ ...newCampaign, team_id: workspaceId } as any)
         .select()
         .single();
       if (error) throw error;
+
+      if (adIds.length > 0) {
+        const { error: junctionError } = await (supabase as any)
+          .from("campaign_ads")
+          .insert(adIds.map((adId: string) => ({ campaign_id: data.id, ad_id: adId })));
+        if (junctionError) throw junctionError;
+      }
+
       return data;
     },
     onSuccess: () => {
@@ -108,7 +186,15 @@ export function useCampaigns() {
   });
 
   const updateCampaign = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: CampaignUpdate }) => {
+    mutationFn: async ({
+      id,
+      updates,
+      adIds,
+    }: {
+      id: string;
+      updates: CampaignUpdate;
+      adIds?: string[];
+    }) => {
       const { data, error } = await supabase
         .from("campaigns")
         .update(updates)
@@ -116,6 +202,23 @@ export function useCampaigns() {
         .select()
         .single();
       if (error) throw error;
+
+      // Replace ad assignments when adIds is explicitly provided
+      if (adIds !== undefined) {
+        const { error: deleteError } = await (supabase as any)
+          .from("campaign_ads")
+          .delete()
+          .eq("campaign_id", id);
+        if (deleteError) throw deleteError;
+
+        if (adIds.length > 0) {
+          const { error: insertError } = await (supabase as any)
+            .from("campaign_ads")
+            .insert(adIds.map((adId) => ({ campaign_id: id, ad_id: adId })));
+          if (insertError) throw insertError;
+        }
+      }
+
       return data;
     },
     onSuccess: () => {

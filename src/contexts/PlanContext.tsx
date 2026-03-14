@@ -13,6 +13,7 @@ export interface PlanFeatures {
   unlimitedPlatforms: boolean;
   prioritySupport: boolean;
   reportHistory: "7d" | "90d" | "unlimited";
+  campaigns: boolean;
 }
 
 const planFeatures: Record<PlanType, PlanFeatures> = {
@@ -26,6 +27,7 @@ const planFeatures: Record<PlanType, PlanFeatures> = {
     unlimitedPlatforms: false,
     prioritySupport: false,
     reportHistory: "7d",
+    campaigns: false,
   },
   pro: {
     aiInsights: true,
@@ -37,6 +39,7 @@ const planFeatures: Record<PlanType, PlanFeatures> = {
     unlimitedPlatforms: true,
     prioritySupport: true,
     reportHistory: "90d",
+    campaigns: true,
   },
   team: {
     aiInsights: true,
@@ -48,6 +51,7 @@ const planFeatures: Record<PlanType, PlanFeatures> = {
     unlimitedPlatforms: true,
     prioritySupport: true,
     reportHistory: "unlimited",
+    campaigns: true,
   },
 };
 
@@ -62,6 +66,7 @@ export const featureRequiredPlan: Record<keyof PlanFeatures, PlanType> = {
   unlimitedPlatforms: "pro",
   prioritySupport: "pro",
   reportHistory: "pro",
+  campaigns: "pro",
 };
 
 // Human-readable feature names
@@ -75,6 +80,7 @@ export const featureNames: Record<keyof PlanFeatures, string> = {
   unlimitedPlatforms: "Unlimited Platforms",
   prioritySupport: "Priority Support",
   reportHistory: "Extended Report History",
+  campaigns: "Campaigns & Ads Management",
 };
 
 interface PlanContextValue {

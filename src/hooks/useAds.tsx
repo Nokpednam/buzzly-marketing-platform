@@ -8,6 +8,13 @@ export type Ad = Database["public"]["Tables"]["ads"]["Row"];
 export type AdInsert = Database["public"]["Tables"]["ads"]["Insert"];
 export type AdUpdate = Database["public"]["Tables"]["ads"]["Update"];
 
+// Extends Ad with fields added by migration 20260314000001 (not yet in generated types.ts)
+export type AdWithPublishStatus = Ad & {
+  platform: string | null;
+  external_status: "pending" | "published" | "failed" | null;
+  external_error: string | null;
+};
+
 export function useAds() {
   const queryClient = useQueryClient();
   const { workspace } = useWorkspace();
@@ -24,7 +31,7 @@ export function useAds() {
         .eq("team_id", workspace.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as Ad[];
+      return data as AdWithPublishStatus[];
     },
   });
 
@@ -85,6 +92,25 @@ export function useAds() {
     },
   });
 
+  const publishAd = useMutation({
+    mutationFn: async ({ adId, platform }: { adId: string; platform: string }) => {
+      const { data, error } = await supabase.functions.invoke("create-platform-ad", {
+        body: { ad_id: adId, platform },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      return data as { success: boolean; platform_ad_id: string; status: string };
+    },
+    onSuccess: (_data, { platform }) => {
+      queryClient.invalidateQueries({ queryKey: ["ads"] });
+      toast.success(`เผยแพร่โฆษณาบน ${platform} สำเร็จ`);
+    },
+    onError: (error: Error) => {
+      queryClient.invalidateQueries({ queryKey: ["ads"] }); // refresh to show 'failed' state
+      toast.error(`ไม่สามารถเผยแพร่โฆษณา: ${error.message}`);
+    },
+  });
+
   return {
     ads,
     isLoading,
@@ -92,5 +118,6 @@ export function useAds() {
     createAd,
     updateAd,
     deleteAd,
+    publishAd,
   };
 }

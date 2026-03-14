@@ -11,6 +11,7 @@ import { EmployeeProtectedRoute } from "@/components/EmployeeProtectedRoute";
 import { PlatformConnectionsProvider } from "@/hooks/usePlatformConnections";
 import { SidebarStateProvider } from "@/hooks/useSidebarState";
 import { PlanProvider } from "@/contexts/PlanContext";
+import { PlanGate } from "@/components/layout/PlanGate";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { logError } from "@/services/errorLogger";
 import Landing from "./pages/Landing";
@@ -101,8 +102,8 @@ const App = () => (
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/personas" element={<Prospects />} />
                     <Route path="/prospects" element={<Navigate to="/personas" replace />} />
-                    <Route path="/campaigns" element={<Campaigns />} />
-                    <Route path="/campaigns/:id" element={<CampaignDetail />} />
+                    <Route path="/campaigns" element={<PlanGate feature="campaigns"><Campaigns /></PlanGate>} />
+                    <Route path="/campaigns/:id" element={<PlanGate feature="campaigns"><CampaignDetail /></PlanGate>} />
                     <Route path="/social-analytics" element={<SocialAnalytics />} />
 
                     <Route path="/customer-journey" element={<CustomerJourney />} />

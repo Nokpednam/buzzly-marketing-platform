@@ -71,8 +71,9 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { useCampaigns, CampaignWithInsights } from "@/hooks/useCampaigns";
+import { useCampaigns, CampaignWithInsights, calculateCampaignProgress } from "@/hooks/useCampaigns";
 import { supabase } from "@/integrations/supabase/client";
+import { AdAllocator } from "@/components/campaigns/AdAllocator";
 
 const statusStyles: Record<string, string> = {
   active: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
@@ -99,6 +100,7 @@ export default function Campaigns() {
   const [editingCampaign, setEditingCampaign] =
     useState<CampaignWithInsights | null>(null);
   const [deletingCampaignId, setDeletingCampaignId] = useState<string | null>(null);
+  const [selectedAdIds, setSelectedAdIds] = useState<string[]>([]);
 
   const handleDuplicate = async (campaign: CampaignWithInsights) => {
     try {
@@ -151,13 +153,15 @@ export default function Campaigns() {
     endDate: "",
     status: "draft",
     adAccountId: "",
+    kpiMetric: "",
+    kpiValue: "",
   });
 
   const campaigns = useMemo(() => {
     return dbCampaigns.map((c) => ({
       ...c,
       displayStatus: c.status || "draft",
-      progress: calculateProgress(c.start_date, c.end_date),
+      progress: calculateCampaignProgress(c).overallProgress,
     }));
   }, [dbCampaigns]);
 
@@ -209,6 +213,7 @@ export default function Campaigns() {
 
   const openCreateDialog = () => {
     setEditingCampaign(null);
+    setSelectedAdIds([]);
     setFormData({
       name: "",
       objective: "",
@@ -217,12 +222,15 @@ export default function Campaigns() {
       endDate: "",
       status: "draft",
       adAccountId: selectedAdAccount || "",
+      kpiMetric: "",
+      kpiValue: "",
     });
     setIsDialogOpen(true);
   };
 
   const openEditDialog = (campaign: CampaignWithInsights) => {
     setEditingCampaign(campaign);
+    setSelectedAdIds(campaign.ad_ids || []);
     setFormData({
       name: campaign.name,
       objective: campaign.objective || "",
@@ -231,6 +239,8 @@ export default function Campaigns() {
       endDate: campaign.end_date?.split("T")[0] || "",
       status: campaign.status || "draft",
       adAccountId: campaign.ad_account_id || selectedAdAccount || "",
+      kpiMetric: campaign.target_kpi_metric || "",
+      kpiValue: campaign.target_kpi_value?.toString() || "",
     });
     setIsDialogOpen(true);
   };
@@ -248,15 +258,18 @@ export default function Campaigns() {
         start_date: formData.startDate || null,
         end_date: formData.endDate || null,
         ad_account_id: adAccountId,
-      };
+        target_kpi_metric: formData.kpiMetric || null,
+        target_kpi_value: formData.kpiValue ? Number(formData.kpiValue) : null,
+      } as any; // new columns not yet in generated types.ts
 
       if (editingCampaign) {
         await updateCampaign.mutateAsync({
           id: editingCampaign.id,
           updates: payload,
+          adIds: selectedAdIds,
         });
       } else {
-        await createCampaign.mutateAsync({ ...payload, status: "draft" });
+        await createCampaign.mutateAsync({ ...payload, status: "draft", adIds: selectedAdIds });
       }
       setIsDialogOpen(false);
     } catch (e: any) {
@@ -603,7 +616,7 @@ export default function Campaigns() {
               Set up your delivery parameters and budget.
             </DialogDescription>
           </DialogHeader>
-          <div className="p-8 space-y-5">
+          <div className="p-8 space-y-5 overflow-y-auto max-h-[65vh]">
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 Ad Account
@@ -699,6 +712,53 @@ export default function Campaigns() {
                 />
               </div>
             </div>
+
+            {/* KPI Target */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                KPI Target
+              </Label>
+              <div className="grid grid-cols-2 gap-4">
+                <Select
+                  value={formData.kpiMetric}
+                  onValueChange={(v) => setFormData((p) => ({ ...p, kpiMetric: v }))}
+                >
+                  <SelectTrigger className="h-12 rounded-xl bg-muted/30 border-none shadow-none focus:ring-2 ring-primary/20">
+                    <SelectValue placeholder="Select Metric" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-none shadow-xl">
+                    <SelectItem value="clicks">Clicks</SelectItem>
+                    <SelectItem value="conversions">Conversions</SelectItem>
+                    <SelectItem value="spend">Spend (฿)</SelectItem>
+                    <SelectItem value="impressions">Impressions</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  placeholder="Target value"
+                  className="h-12 rounded-xl bg-muted/30 border-none shadow-none"
+                  value={formData.kpiValue}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, kpiValue: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Assign Ads */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  Assign Ads
+                </Label>
+                {selectedAdIds.length > 0 && (
+                  <span className="text-xs text-primary font-semibold">
+                    {selectedAdIds.length} selected
+                  </span>
+                )}
+              </div>
+              <AdAllocator value={selectedAdIds} onChange={setSelectedAdIds} />
+            </div>
           </div>
           <DialogFooter className="p-8 bg-muted/20 border-t flex items-center justify-between sm:justify-between">
             <Button
@@ -719,18 +779,6 @@ export default function Campaigns() {
       </Dialog>
     </div>
   );
-}
-
-// HELPERS
-function calculateProgress(startDate: string | null, endDate: string | null): number {
-  if (!startDate || !endDate) return 0;
-  const now = Date.now();
-  const start = new Date(startDate).getTime();
-  const end = new Date(endDate).getTime();
-  if (end <= start) return 0;
-  if (now <= start) return 0;
-  if (now >= end) return 100;
-  return Math.round(((now - start) / (end - start)) * 100);
 }
 
 // UI HELPERS
