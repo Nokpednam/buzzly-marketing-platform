@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { MOCK_API_BASE_URL } from '@/lib/mockApiKeys';
 
 interface Platform {
   id: string;
@@ -38,9 +40,57 @@ interface PlatformWithConnection extends Platform {
 // Show these 5 platforms: Instagram, Facebook, TikTok, Shopee, Google
 const ALLOWED_PLATFORM_SLUGS = ['facebook', 'instagram', 'tiktok', 'shopee', 'google'];
 
+/**
+ * Fetches Facebook insights from the mock API for a given tenant, then upserts
+ * daily records into the Supabase `ad_insights` table for the specified ad account.
+ * We use Facebook fixtures for all platform types in mock mode.
+ */
+async function seedInsightsFromMockAPI(
+  tenant: "shop-a" | "shop-b",
+  adAccountId: string,
+): Promise<number> {
+  const res = await fetch(`${MOCK_API_BASE_URL}/facebook/${tenant}/insights`);
+  if (!res.ok) throw new Error("Mock API unreachable");
+  const { data: campaigns } = await res.json() as { data: any[] };
+
+  const insightRows: object[] = [];
+  for (const campaign of campaigns) {
+    const startDate = new Date(campaign.date_start);
+    const endDate = new Date(campaign.date_stop);
+    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / 86_400_000) + 1;
+
+    for (let d = 0; d < totalDays; d++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + d);
+      const jitter = 0.7 + Math.random() * 0.6;
+
+      insightRows.push({
+        ad_account_id: adAccountId,
+        date: date.toISOString().split("T")[0],
+        impressions: Math.round((parseInt(campaign.impressions) / totalDays) * jitter),
+        clicks: Math.round((parseInt(campaign.clicks) / totalDays) * jitter),
+        spend: parseFloat((parseFloat(campaign.spend) / totalDays * jitter).toFixed(2)),
+        reach: Math.round((parseInt(campaign.reach) / totalDays) * jitter),
+        conversions: Math.round((parseInt(campaign.conversions) / totalDays) * jitter),
+        ctr: parseFloat(campaign.ctr),
+        cpc: parseFloat(campaign.cpc),
+        cpm: parseFloat(campaign.cpm),
+        roas: parseFloat(campaign.roas),
+      });
+    }
+  }
+
+  // Wipe previous data for this account and insert fresh shop-specific rows
+  await supabase.from("ad_insights").delete().eq("ad_account_id", adAccountId);
+  const { error } = await supabase.from("ad_insights").insert(insightRows);
+  if (error) throw error;
+  return insightRows.length;
+}
+
 export function usePlatformsDB(teamId: string | null | undefined) {
   const [platforms, setPlatforms] = useState<PlatformWithConnection[]>([]);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Fetch platforms and connections
   useEffect(() => {
@@ -183,8 +233,8 @@ export function usePlatformsDB(teamId: string | null | undefined) {
     }
   }, [teamId]);
 
-  // Connect platform (simulate OAuth)
-  const connectPlatform = async (platformId: string) => {
+  // Connect platform — optionally with a mock API key to seed shop-specific data
+  const connectPlatform = async (platformId: string, apiKey?: string): Promise<boolean> => {
     if (!teamId) {
       toast.error('กรุณาสร้าง Workspace ก่อน');
       return false;
@@ -192,62 +242,120 @@ export function usePlatformsDB(teamId: string | null | undefined) {
 
     try {
       const platform = platforms.find(p => p.id === platformId);
-      toast.info(`กำลังเชื่อมต่อ ${platform?.name}...`);
+      let tenant: "shop-a" | "shop-b" | null = null;
+      let accessToken = apiKey?.trim() || `oauth_${platform?.slug || 'key'}_${Date.now().toString(36)}`;
 
-      // Simulate delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Simulate OAuth token
-      const mockToken = `oauth_${platform?.slug || 'key'}_${Date.now().toString(36)}`;
-
-      // Optimistic update
-      setPlatforms(prev => prev.map(p => {
-        if (p.id === platformId) {
-          return {
-            ...p,
-            status: 'connected',
-            accessToken: mockToken,
-            lastSync: new Date().toLocaleString(),
-            connection: {
-              ...(p.connection || {}),
-              id: p.connection?.id || crypto.randomUUID(),
-              team_id: teamId,
-              platform_id: platformId,
-              access_token: mockToken,
-              sync_status: 'connected',
-              is_active: true,
-              last_synced_at: new Date().toISOString(),
-              error_message: null,
-              account_id_on_platform: null,
-              api_key_encrypted: null
-            }
+      // ── Step 1: Validate the API key against the mock server ───────
+      if (apiKey?.trim()) {
+        toast.info('กำลังตรวจสอบ API Key...');
+        try {
+          const validateRes = await fetch(`${MOCK_API_BASE_URL}/validate-key`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey: apiKey.trim(), platformSlug: platform?.slug }),
+          });
+          const validation = await validateRes.json() as {
+            valid: boolean; tenant?: string; shopLabel?: string; error?: string;
           };
-        }
-        return p;
-      }));
 
-      // Try actual DB update
-      const { error } = await supabase
+          if (!validation.valid) {
+            toast.error(`API Key ไม่ถูกต้อง: ${validation.error ?? 'Unknown key'}`);
+            return false;
+          }
+          tenant = validation.tenant as "shop-a" | "shop-b";
+          toast.info(`พบ ${validation.shopLabel} · กำลังโหลดข้อมูล...`);
+        } catch {
+          toast.error('ไม่สามารถติดต่อ Mock API Server ได้ — รัน: cd mock-api && npm start');
+          return false;
+        }
+      } else {
+        toast.info(`กำลังเชื่อมต่อ ${platform?.name}...`);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // ── Step 2: Upsert workspace_api_keys ────────────────────────
+      const { error: keyError } = await supabase
         .from('workspace_api_keys')
         .upsert({
           team_id: teamId,
           platform_id: platformId,
-          access_token: mockToken,
+          access_token: accessToken,
           sync_status: 'connected',
           is_active: true,
           last_synced_at: new Date().toISOString(),
           error_message: null,
-        }, {
-          onConflict: 'team_id,platform_id',
-        });
+        }, { onConflict: 'team_id,platform_id' });
 
-      if (error) {
-        console.warn("DB update failed, using optimistic UI:", error);
-        // Don't throw - user gains "connected" state locally for now
+      if (keyError) {
+        console.warn('workspace_api_keys upsert failed, using optimistic UI:', keyError);
       }
 
-      // await refetch(); // Skip refetch to keep optimistic state if DB failed
+      // ── Step 3: Ensure ad_account exists for this team+platform ──
+      await supabase.from('ad_accounts').upsert({
+        team_id: teamId,
+        platform_id: platformId,
+        account_name: `${platform?.name || 'Platform'} Account`,
+        is_active: true,
+      }, { onConflict: 'team_id,platform_id', ignoreDuplicates: false });
+
+      const { data: adAccount } = await supabase
+        .from('ad_accounts')
+        .select('id')
+        .eq('team_id', teamId)
+        .eq('platform_id', platformId)
+        .maybeSingle();
+
+      // ── Step 4: Seed insights data ───────────────────────────────
+      if (adAccount?.id) {
+        if (tenant) {
+          // Valid mock key → fetch and upsert shop-specific fixture data
+          try {
+            const count = await seedInsightsFromMockAPI(tenant, adAccount.id);
+            toast.success(`โหลดข้อมูล ${count} วันสำเร็จ!`);
+          } catch (seedErr) {
+            console.warn('Mock API seed failed, falling back to generic demo:', seedErr);
+            await (supabase as any).rpc('seed_demo_insights', { p_ad_account_id: adAccount.id });
+          }
+        } else {
+          // No API key → use generic demo seed
+          await (supabase as any).rpc('seed_demo_insights', { p_ad_account_id: adAccount.id });
+        }
+      }
+
+      // ── Step 5: Optimistic local state update ─────────────────────
+      setPlatforms(prev => prev.map(p => {
+        if (p.id !== platformId) return p;
+        return {
+          ...p,
+          status: 'connected',
+          accessToken,
+          lastSync: new Date().toLocaleString(),
+          connection: {
+            ...(p.connection || {}),
+            id: p.connection?.id || crypto.randomUUID(),
+            team_id: teamId,
+            platform_id: platformId,
+            access_token: accessToken,
+            sync_status: 'connected',
+            is_active: true,
+            last_synced_at: new Date().toISOString(),
+            error_message: null,
+            account_id_on_platform: null,
+            api_key_encrypted: null,
+          },
+        };
+      }));
+
       toast.success(`${platform?.name} เชื่อมต่อสำเร็จ!`);
+
+      // ── Step 6: Invalidate React Query caches ─────────────────────
+      await queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      await queryClient.invalidateQueries({ queryKey: ['ad-accounts'] });
+      await queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+      await queryClient.invalidateQueries({ queryKey: ['ad-insights'] });
+      await queryClient.invalidateQueries({ queryKey: ['revenue-metrics-dashboard'] });
+
       return true;
     } catch (error: any) {
       toast.error(`เชื่อมต่อล้มเหลว: ${error.message}`);
@@ -272,6 +380,8 @@ export function usePlatformsDB(teamId: string | null | undefined) {
 
       await refetch();
       toast.success(`${platform?.name} ถูกยกเลิกการเชื่อมต่อ`);
+      await queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+      await queryClient.invalidateQueries({ queryKey: ['ad-insights'] });
       return true;
     } catch (error: any) {
       toast.error(`ยกเลิกการเชื่อมต่อล้มเหลว: ${error.message}`);

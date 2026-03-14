@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,11 +23,13 @@ import {
   Building2,
   Link2,
   Unlink,
+  FlaskConical,
 } from "lucide-react";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { usePlatformsDB } from "@/hooks/usePlatformsDB";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { KEYS_BY_PLATFORM } from "@/lib/mockApiKeys";
 
 const statusConfig = {
   connected: {
@@ -58,11 +61,22 @@ export function PlatformConnectionsTab() {
   } = usePlatformsDB(workspace.id);
 
   const [connecting, setConnecting] = useState<string | null>(null);
+  // Platform ID whose connect form is currently expanded
+  const [openFormId, setOpenFormId] = useState<string | null>(null);
+  // API key input value per platform
+  const [apiKeyInputs, setApiKeyInputs] = useState<Record<string, string>>({});
 
   const handleConnect = async (platformId: string) => {
     setConnecting(platformId);
-    await connectPlatform(platformId);
+    const key = apiKeyInputs[platformId]?.trim() || undefined;
+    await connectPlatform(platformId, key);
     setConnecting(null);
+    setOpenFormId(null);
+    setApiKeyInputs(prev => { const next = { ...prev }; delete next[platformId]; return next; });
+  };
+
+  const handleOpenForm = (platformId: string) => {
+    setOpenFormId(prev => prev === platformId ? null : platformId);
   };
 
   const handleDisconnect = async (platformId: string) => {
@@ -125,6 +139,9 @@ export function PlatformConnectionsTab() {
           const status = statusConfig[platform.status];
           const StatusIcon = status.icon;
           const isConnecting = connecting === platform.id;
+          const isFormOpen = openFormId === platform.id;
+          const platformSlug = platform.slug ?? "";
+          const devHints = KEYS_BY_PLATFORM[platformSlug] ?? [];
 
           return (
             <Card key={platform.id} className="relative overflow-hidden">
@@ -158,25 +175,26 @@ export function PlatformConnectionsTab() {
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="pt-0">
+              <CardContent className="pt-0 space-y-3">
                 {platform.description && (
-                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                  <p className="text-sm text-muted-foreground line-clamp-2">
                     {platform.description}
                   </p>
                 )}
 
                 {platform.lastSync && (
-                  <p className="text-xs text-muted-foreground mb-3">
+                  <p className="text-xs text-muted-foreground">
                     Last sync: {platform.lastSync}
                   </p>
                 )}
 
                 {platform.error && (
-                  <p className="text-xs text-destructive mb-3">
+                  <p className="text-xs text-destructive">
                     Error: {platform.error}
                   </p>
                 )}
 
+                {/* ── Action Buttons ── */}
                 <div className="flex gap-2">
                   {platform.status === "connected" ? (
                     <>
@@ -215,19 +233,78 @@ export function PlatformConnectionsTab() {
                   ) : (
                     <Button
                       size="sm"
+                      variant={isFormOpen ? "secondary" : "default"}
                       className="w-full gap-2"
-                      onClick={() => handleConnect(platform.id)}
+                      onClick={() => handleOpenForm(platform.id)}
                       disabled={isConnecting}
                     >
-                      {isConnecting ? (
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Link2 className="h-4 w-4" />
-                      )}
-                      {isConnecting ? "กำลังเชื่อมต่อ..." : "เชื่อมต่อ"}
+                      <Link2 className="h-4 w-4" />
+                      {isFormOpen ? "ยกเลิก" : "เชื่อมต่อ"}
                     </Button>
                   )}
                 </div>
+
+                {/* ── API Key Input Form (expands on "Connect" click) ── */}
+                {isFormOpen && platform.status !== "connected" && (
+                  <div className="space-y-2 pt-1 border-t">
+                    <p className="text-xs text-muted-foreground font-medium">
+                      ใส่ API Key (ไม่บังคับ — ถ้าเว้นว่างจะใช้ demo data)
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder={`เช่น FB_TEST_KEY_SHOP_A`}
+                        value={apiKeyInputs[platform.id] ?? ""}
+                        onChange={e =>
+                          setApiKeyInputs(prev => ({ ...prev, [platform.id]: e.target.value }))
+                        }
+                        onKeyDown={e => e.key === "Enter" && !isConnecting && handleConnect(platform.id)}
+                        className="h-8 text-xs font-mono"
+                        disabled={isConnecting}
+                      />
+                      <Button
+                        size="sm"
+                        className="h-8 shrink-0"
+                        onClick={() => handleConnect(platform.id)}
+                        disabled={isConnecting}
+                      >
+                        {isConnecting ? (
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                        ) : (
+                          "ยืนยัน"
+                        )}
+                      </Button>
+                    </div>
+
+                    {/* ── Dev Hint (only in development builds) ── */}
+                    {import.meta.env.DEV && devHints.length > 0 && (
+                      <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-2 space-y-1">
+                        <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                          <FlaskConical className="h-3 w-3" /> Dev — Valid Test Keys
+                        </p>
+                        {devHints.map(hint => (
+                          <button
+                            key={hint.key}
+                            type="button"
+                            className="block w-full text-left"
+                            onClick={() =>
+                              setApiKeyInputs(prev => ({ ...prev, [platform.id]: hint.key }))
+                            }
+                          >
+                            <code className="text-[11px] text-amber-800 dark:text-amber-300 hover:underline cursor-pointer">
+                              {hint.key}
+                            </code>
+                            <span className="text-[10px] text-amber-600 dark:text-amber-500 ml-1">
+                              — {hint.shopLabel}
+                            </span>
+                          </button>
+                        ))}
+                        <p className="text-[10px] text-amber-600 dark:text-amber-500">
+                          คลิกที่ key เพื่อใส่อัตโนมัติ · Mock server ต้องรันที่ :3001
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           );

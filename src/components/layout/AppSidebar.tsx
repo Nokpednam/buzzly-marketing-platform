@@ -37,7 +37,6 @@ const navGroups = [
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, requiresPlan: null },
       { title: "Campaigns", url: "/campaigns", icon: Megaphone, requiresPlan: null },
-      { title: "Email Marketing", url: "/email", icon: Mail, requiresPlan: null },
       { title: "Customer Personas", url: "/personas", icon: Users, requiresPlan: null },
       { title: "Social Analytics", url: "/social-analytics", icon: Share2, requiresPlan: null },
     ]
@@ -47,8 +46,6 @@ const navGroups = [
     items: [
       { title: "Customer Journey", url: "/customer-journey", icon: Route, requiresPlan: "pro" as const },
       { title: "AARRR Funnel", url: "/aarrr-funnel", icon: TrendingUp, requiresPlan: "pro" as const },
-      { title: "Engagement", url: "/engagement", icon: HeartIcon, requiresPlan: "pro" as const },
-      { title: "AI Insights", url: "/ai-insights", icon: Brain, requiresPlan: "pro" as const },
       { title: "Analytics", url: "/analytics", icon: BarChart3, requiresPlan: "pro" as const },
     ]
   },
