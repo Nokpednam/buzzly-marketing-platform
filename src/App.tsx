@@ -104,9 +104,6 @@ const App = () => (
                     <Route path="/campaigns" element={<Campaigns />} />
                     <Route path="/campaigns/:id" element={<CampaignDetail />} />
                     <Route path="/social-analytics" element={<SocialAnalytics />} />
-                    <Route path="/email" element={<Email />} />
-                    <Route path="/engagement" element={<Engagement />} />
-                    <Route path="/ai-insights" element={<AIInsights />} />
 
                     <Route path="/customer-journey" element={<CustomerJourney />} />
                     <Route path="/aarrr-funnel" element={<AARRRFunnel />} />
