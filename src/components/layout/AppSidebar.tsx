@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -30,15 +31,16 @@ import { Badge } from "@/components/ui/badge";
 import { SidebarBottomSection } from "@/components/sidebar/SidebarBottomSection";
 import { useSidebarState } from "@/hooks/useSidebarState";
 import { useWorkspaceInfo } from "@/hooks/useWorkspaceInfo";
+import { PlanSelectionDialog } from "@/components/PlanSelectionDialog";
 
 const navGroups = [
   {
     label: "Main",
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, requiresPlan: null },
-      { title: "Campaigns", url: "/campaigns", icon: Megaphone, requiresPlan: null },
-      { title: "Customer Personas", url: "/personas", icon: Users, requiresPlan: null },
       { title: "Social Analytics", url: "/social-analytics", icon: Share2, requiresPlan: null },
+      { title: "Customer Personas", url: "/personas", icon: Users, requiresPlan: null },
+      { title: "Campaigns", url: "/campaigns", icon: Megaphone, requiresPlan: "pro" as const },
     ]
   },
   {
@@ -70,6 +72,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { currentPlan } = usePlanAccess();
   const { data: workspaceInfo } = useWorkspaceInfo();
+  const [planDialogOpen, setPlanDialogOpen] = useState(false);
 
   const isItemAccessible = (requiresPlan: "pro" | "team" | null) => {
     if (!requiresPlan) return true;
@@ -135,6 +138,39 @@ export function AppSidebar() {
                 const accessible = isItemAccessible(item.requiresPlan);
                 const isActive = location.pathname === item.url;
 
+                if (!accessible) {
+                  // Locked item: render a button that opens the plan dialog directly
+                  return (
+                    <button
+                      key={item.title}
+                      onClick={() => setPlanDialogOpen(true)}
+                      className={cn(
+                        "group relative flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-300 border border-transparent w-full text-left",
+                        "text-muted-foreground opacity-50 cursor-pointer grayscale hover:opacity-70",
+                        collapsed && "justify-center px-0 h-11 w-11 mx-auto"
+                      )}
+                    >
+                      <div className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all",
+                        "bg-muted/50"
+                      )}>
+                        <item.icon className="h-4.5 w-4.5 transition-transform" />
+                      </div>
+                      {!collapsed && <span className="flex-1 truncate tracking-tight">{item.title}</span>}
+                      {!collapsed && (
+                        <div className="bg-muted p-1 rounded-md">
+                          <Lock className="h-3 w-3 text-muted-foreground" />
+                        </div>
+                      )}
+                      {collapsed && (
+                        <div className="absolute left-16 scale-0 group-hover:scale-100 transition-all origin-left bg-popover text-popover-foreground text-xs font-bold py-2 px-3 rounded-lg shadow-xl border z-50 whitespace-nowrap">
+                          {item.title} 🔒
+                        </div>
+                      )}
+                    </button>
+                  );
+                }
+
                 return (
                   <NavLink
                     key={item.title}
@@ -145,7 +181,6 @@ export function AppSidebar() {
                         ? "bg-slate-900 text-white shadow-[0_10px_20px_rgba(15,23,42,0.15)] border-slate-800"
                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground hover:border-border/30",
                       collapsed && "justify-center px-0 h-11 w-11 mx-auto",
-                      !accessible && "opacity-50 cursor-not-allowed grayscale"
                     )}
                   >
                     <div className={cn(
@@ -160,16 +195,10 @@ export function AppSidebar() {
 
                     {!collapsed && <span className="flex-1 truncate tracking-tight">{item.title}</span>}
 
-                    {!collapsed && !accessible && (
-                      <div className="bg-muted p-1 rounded-md">
-                        <Lock className="h-3 w-3 text-muted-foreground" />
-                      </div>
-                    )}
-
                     {/* Tooltip for collapsed state */}
                     {collapsed && (
                       <div className="absolute left-16 scale-0 group-hover:scale-100 transition-all origin-left bg-popover text-popover-foreground text-xs font-bold py-2 px-3 rounded-lg shadow-xl border z-50 whitespace-nowrap">
-                        {item.title} {!accessible && "🔒"}
+                        {item.title}
                       </div>
                     )}
                   </NavLink>
@@ -195,6 +224,9 @@ export function AppSidebar() {
       >
         {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
       </Button>
+
+      {/* 6. PLAN SELECTION DIALOG (opened by locked nav items) */}
+      <PlanSelectionDialog open={planDialogOpen} onOpenChange={setPlanDialogOpen} />
     </aside>
   );
 }
