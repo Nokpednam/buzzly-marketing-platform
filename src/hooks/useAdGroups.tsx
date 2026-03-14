@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { useWorkspace } from "./useWorkspace";
 
 export type AdGroup = Database["public"]["Tables"]["ad_groups"]["Row"];
 export type AdGroupInsert = Database["public"]["Tables"]["ad_groups"]["Insert"];
@@ -14,23 +15,28 @@ export interface AdGroupWithCount extends AdGroup {
 
 export function useAdGroups() {
   const queryClient = useQueryClient();
+  const { workspace } = useWorkspace();
 
   const { data: adGroups = [], isLoading, error } = useQuery({
-    queryKey: ["ad_groups"],
+    queryKey: ["ad_groups", workspace?.id],
+    enabled: !!workspace?.id,
     queryFn: async () => {
+      if (!workspace?.id) return [];
+
       // Get ad groups
       const { data: groups, error: groupsError } = await supabase
         .from("ad_groups")
         .select("*")
+        .eq("team_id", workspace.id)
         .order("created_at", { ascending: false });
-      
+
       if (groupsError) throw groupsError;
 
       // Get ads count for each group
       const { data: ads, error: adsError } = await supabase
         .from("ads")
         .select("ad_group_id");
-      
+
       if (adsError) throw adsError;
 
       // Count ads per group
@@ -50,9 +56,10 @@ export function useAdGroups() {
 
   const createAdGroup = useMutation({
     mutationFn: async (newGroup: AdGroupInsert) => {
+      if (!workspace?.id) throw new Error("No active workspace");
       const { data, error } = await supabase
         .from("ad_groups")
-        .insert(newGroup)
+        .insert({ ...newGroup, team_id: workspace.id })
         .select()
         .single();
       if (error) throw error;

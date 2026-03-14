@@ -53,6 +53,7 @@ import { SocialPostsList } from "@/components/social/SocialPostsList";
 import { AdsList } from "@/components/social/AdsList";
 import { AdGroupsList } from "@/components/social/AdGroupsList";
 import { AdInsightsSummary } from "@/components/social/AdInsightsSummary";
+import { useAdGroups } from "@/hooks/useAdGroups";
 
 // Helper to render platform icons with a "connected" dot
 const getPlatformIcon = (platform: Platform, isActive: boolean) => {
@@ -87,7 +88,8 @@ export default function SocialAnalytics() {
   const { state: onboardingState } = useOnboardingGuard();
 
   const { posts } = useSocialPosts(dateRange);
-  const { summary: adSummary } = useAdInsights(dateRange);
+  const { summary: adSummary } = useAdInsights(dateRange, activePlatforms);
+  const { adGroups } = useAdGroups();
 
   // Derived comparison logic using real post data
   const compareChartData = useMemo(() => {
@@ -242,13 +244,13 @@ export default function SocialAnalytics() {
                 />
               </TabsContent>
               <TabsContent value="ads" className="m-0 border-none outline-none">
-                <AdsList adGroups={[]} />
+                <AdsList adGroups={adGroups} />
               </TabsContent>
               <TabsContent value="groups" className="m-0 border-none outline-none">
                 <AdGroupsList />
               </TabsContent>
               <TabsContent value="insights" className="m-0 border-none outline-none">
-                <AdInsightsSummary dateRange={dateRange} />
+                <AdInsightsSummary dateRange={dateRange} activePlatforms={activePlatforms} />
               </TabsContent>
             </div>
           </Tabs>

@@ -27,10 +27,11 @@ import { useAdInsights } from "@/hooks/useAdInsights";
 
 interface AdInsightsSummaryProps {
   dateRange: string; // "7" | "30" | "90"
+  activePlatforms: string[];
 }
 
-export function AdInsightsSummary({ dateRange }: AdInsightsSummaryProps) {
-  const { summary, isLoading, error } = useAdInsights(dateRange);
+export function AdInsightsSummary({ dateRange, activePlatforms }: AdInsightsSummaryProps) {
+  const { summary, isLoading, error } = useAdInsights(dateRange, activePlatforms);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { useWorkspace } from "./useWorkspace";
 
 export type Ad = Database["public"]["Tables"]["ads"]["Row"];
 export type AdInsert = Database["public"]["Tables"]["ads"]["Insert"];
@@ -9,13 +10,18 @@ export type AdUpdate = Database["public"]["Tables"]["ads"]["Update"];
 
 export function useAds() {
   const queryClient = useQueryClient();
+  const { workspace } = useWorkspace();
 
   const { data: ads = [], isLoading, error } = useQuery({
-    queryKey: ["ads"],
+    queryKey: ["ads", workspace?.id],
+    enabled: !!workspace?.id,
     queryFn: async () => {
+      if (!workspace?.id) return [];
+
       const { data, error } = await supabase
         .from("ads")
         .select("*")
+        .eq("team_id", workspace.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Ad[];
@@ -24,9 +30,10 @@ export function useAds() {
 
   const createAd = useMutation({
     mutationFn: async (newAd: AdInsert) => {
+      if (!workspace?.id) throw new Error("No active workspace");
       const { data, error } = await supabase
         .from("ads")
-        .insert(newAd)
+        .insert({ ...newAd, team_id: workspace.id })
         .select()
         .single();
       if (error) throw error;

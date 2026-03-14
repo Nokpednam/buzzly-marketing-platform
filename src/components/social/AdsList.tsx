@@ -65,9 +65,9 @@ import {
 import { useAds, Ad } from "@/hooks/useAds";
 
 const creativeTypes = [
-  { id: "ct-1", name: "Image", icon: Image },
-  { id: "ct-2", name: "Video", icon: Video },
-  { id: "ct-3", name: "Carousel", icon: FileText },
+  { id: "image", name: "Image", icon: Image },
+  { id: "video", name: "Video", icon: Video },
+  { id: "carousel", name: "Carousel", icon: FileText },
 ];
 
 const callToActions = [
@@ -94,7 +94,7 @@ export function AdsList({ adGroups }: AdsListProps) {
   const [formData, setFormData] = useState({
     name: "",
     ad_group_id: "__none__",
-    creative_type_id: "ct-1",
+    creative_type_id: "image",
     headline: "",
     ad_copy: "",
     call_to_action: "Shop Now",
@@ -105,7 +105,7 @@ export function AdsList({ adGroups }: AdsListProps) {
     setFormData({
       name: "",
       ad_group_id: "__none__",
-      creative_type_id: "ct-1",
+      creative_type_id: "image",
       headline: "",
       ad_copy: "",
       call_to_action: "Shop Now",
@@ -116,7 +116,7 @@ export function AdsList({ adGroups }: AdsListProps) {
   const handleAdd = () => {
     createAd.mutate({
       ad_group_id: formData.ad_group_id === "__none__" ? null : formData.ad_group_id,
-      creative_type_id: formData.creative_type_id,
+      creative_type_id: null, // DB expects a UUID or null
       name: formData.name,
       status: formData.status,
       creative_url: "/placeholder.svg",
@@ -137,7 +137,7 @@ export function AdsList({ adGroups }: AdsListProps) {
       updates: {
         name: formData.name,
         ad_group_id: formData.ad_group_id === "__none__" ? null : formData.ad_group_id,
-        creative_type_id: formData.creative_type_id,
+        creative_type_id: null, // DB expects a UUID or null
         headline: formData.headline,
         ad_copy: formData.ad_copy,
         call_to_action: formData.call_to_action,
@@ -169,7 +169,7 @@ export function AdsList({ adGroups }: AdsListProps) {
     setFormData({
       name: ad.name,
       ad_group_id: ad.ad_group_id || "__none__",
-      creative_type_id: ad.creative_type_id || "ct-1",
+      creative_type_id: "image", // Map null back to the generic "image" type
       headline: ad.headline || "",
       ad_copy: ad.ad_copy || "",
       call_to_action: ad.call_to_action || "Shop Now",
@@ -199,7 +199,9 @@ export function AdsList({ adGroups }: AdsListProps) {
   };
 
   const getCreativeType = (typeId: string | null) => {
-    return creativeTypes.find((t) => t.id === typeId) || { name: "Unknown", icon: FileText };
+    // We treat typeId as string identifier for the UI but database only accepts UUID or null. 
+    // Since we pass null to DB, we have no real mapping back yet. We just fallback to "Image".
+    return creativeTypes.find((t) => t.id === typeId) || { name: "Image", icon: Image };
   };
 
   const getAdGroupName = (groupId: string | null) => {

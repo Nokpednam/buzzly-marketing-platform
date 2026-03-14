@@ -23,7 +23,7 @@ export interface AdInsightsSummary {
   }[];
 }
 
-export function useAdInsights(dateRange?: string) {
+export function useAdInsights(dateRange?: string, activePlatforms?: string[]) {
   // Calculate date filter based on dateRange
   const getDateFilter = () => {
     if (!dateRange) return null;
@@ -34,11 +34,16 @@ export function useAdInsights(dateRange?: string) {
   };
 
   const { data: insights = [], isLoading, error } = useQuery({
-    queryKey: ["ad_insights", dateRange],
+    queryKey: ["ad_insights", dateRange, activePlatforms],
     queryFn: async () => {
+      // If activePlatforms is defined but empty, return empty array immediately
+      if (activePlatforms && activePlatforms.length === 0) {
+        return [];
+      }
+
       let query = supabase
         .from("ad_insights")
-        .select("*")
+        .select("*, ad_accounts!inner(platform_id)")
         .order("date", { ascending: true });
 
       const dateFilter = getDateFilter();
@@ -46,9 +51,13 @@ export function useAdInsights(dateRange?: string) {
         query = query.gte("date", dateFilter);
       }
 
+      if (activePlatforms && activePlatforms.length > 0) {
+        query = query.in("ad_accounts.platform_id", activePlatforms);
+      }
+
       const { data, error } = await query;
       if (error) throw error;
-      return data as AdInsight[];
+      return data as unknown as AdInsight[];
     },
   });
 
