@@ -3,6 +3,7 @@ import { FacebookLogo, InstagramLogo, TikTokLogo, ShopeeLogo, GoogleLogo } from 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { MOCK_API_BASE_URL } from "@/lib/mockApiKeys";
 
 export type PlatformStatus = "connected" | "disconnected" | "error";
 
@@ -39,7 +40,7 @@ interface PlatformConnectionsContextType {
   platforms: Platform[];
   connectedPlatforms: Platform[];
   loading: boolean;
-  connectPlatform: (id: string, token?: string) => Promise<boolean>;
+  connectPlatform: (id: string, apiKey?: string) => Promise<boolean>;
   disconnectPlatform: (id: string) => Promise<boolean>;
   updatePlatformToken: (id: string, token: string) => Promise<boolean>;
   refreshPlatformStatus: (id: string) => Promise<void>;
@@ -184,8 +185,8 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
   }, []);
 
 
-  // Connect platform (simulate OAuth + DB Write)
-  const connectPlatform = async (id: string, token: string = ""): Promise<boolean> => {
+  // Connect platform — with optional API key for real data ingestion
+  const connectPlatform = async (id: string, apiKey?: string): Promise<boolean> => {
     if (!teamId) {
       toast.error('กรุณาสร้าง Workspace ก่อน');
       return false;
@@ -193,75 +194,115 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
 
     try {
       const platform = platforms.find(p => p.id === id);
-      toast.info(`กำลังเชื่อมต่อ ${platform?.name}...`);
+      let tenant: string | null = null;
+      const accessToken = apiKey?.trim() || `oauth_${platform?.slug || 'key'}_${Date.now().toString(36)}`;
 
-      // Simulate delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // ── Step 1: Validate the API key against the backend ──────────
+      if (apiKey?.trim()) {
+        toast.info('กำลังตรวจสอบ API Key...');
+        try {
+          const validateRes = await fetch(`${MOCK_API_BASE_URL}/validate-key`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey: apiKey.trim(), platformSlug: platform?.slug }),
+          });
+          const validation = await validateRes.json() as {
+            valid: boolean; tenant?: string; shopLabel?: string; error?: string;
+          };
+          if (!validation.valid) {
+            toast.error(`API Key ไม่ถูกต้อง: ${validation.error ?? 'Unknown key'}`);
+            return false;
+          }
+          tenant = validation.tenant ?? null;
+          toast.info(`พบ ${validation.shopLabel} · กำลังนำเข้าข้อมูล...`);
+        } catch {
+          toast.error('ไม่สามารถติดต่อ Backend ได้ — รัน: cd mock-api && npm start');
+          return false;
+        }
+      } else {
+        toast.info(`กำลังเชื่อมต่อ ${platform?.name}...`);
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
 
-      // Use provided token or simulate one
-      const accessToken = token || `oauth_${platform?.slug || 'key'}_${Date.now().toString(36)}`;
-
-      // Try actual DB update first
-      const { error } = await supabase
+      // ── Step 2: Save connection record (sync_status=pending) ──────
+      const { error: keyError } = await supabase
         .from('workspace_api_keys')
         .upsert({
           team_id: teamId,
           platform_id: id,
           access_token: accessToken,
-          sync_status: 'connected',
+          sync_status: 'pending',
           is_active: true,
           last_synced_at: new Date().toISOString(),
           error_message: null,
-        }, {
-          onConflict: 'team_id,platform_id',
-        });
+        }, { onConflict: 'team_id,platform_id' });
 
-      if (error) {
-        console.error("DB update failed:", error);
-        throw error;
+      if (keyError) {
+        console.error("workspace_api_keys upsert failed:", keyError);
+        throw keyError;
       }
 
-      // Auto-create ad_account row for this platform+team (required for campaigns/insights data chain)
-      // If it already exists, just ensure it's active (idempotent)
-      const { error: adAccountError } = await supabase
+      // ── Step 3: Ensure ad_account exists, get its ID ──────────────
+      await supabase
         .from('ad_accounts')
         .upsert({
           team_id: teamId,
           platform_id: id,
           account_name: `${platform?.name || 'Platform'} Account`,
           is_active: true,
-        }, {
-          onConflict: 'team_id,platform_id',
-          ignoreDuplicates: false,
-        });
+        }, { onConflict: 'team_id,platform_id', ignoreDuplicates: false });
 
-      if (adAccountError) {
-        // Non-blocking: log but don't fail the connection
-        console.warn('Could not create ad_account (non-critical):', adAccountError.message);
-      } else {
-        // Seed 30 days of demo insights so dashboard shows data immediately
-        // This is idempotent - won't duplicate if already seeded
-        const { data: newAccount } = await supabase
-          .from('ad_accounts')
-          .select('id')
-          .eq('team_id', teamId)
-          .eq('platform_id', id)
-          .maybeSingle();
+      const { data: adAccount } = await supabase
+        .from('ad_accounts')
+        .select('id')
+        .eq('team_id', teamId)
+        .eq('platform_id', id)
+        .maybeSingle();
 
-        if (newAccount?.id) {
-          // Cast to any: seed_demo_insights exists in DB but not yet in generated types
-          await (supabase as any).rpc('seed_demo_insights', { p_ad_account_id: newAccount.id });
+      // ── Step 4: Ingest via backend OR fall back to demo seed ──────
+      if (adAccount?.id) {
+        if (tenant && apiKey?.trim()) {
+          // Delegate to backend ingestion endpoint.
+          // The server fetches from EXTERNAL_API_BASE_URL and writes to DB.
+          // Raw external API data is never forwarded to the browser.
+          toast.info('กำลังซิงค์ข้อมูลจาก API...');
+          const ingestRes = await fetch(`${MOCK_API_BASE_URL}/api/connect`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              apiKey: apiKey.trim(),
+              platformSlug: platform?.slug,
+              workspaceId: teamId,
+              adAccountId: adAccount.id,
+            }),
+          });
+          if (!ingestRes.ok) {
+            const err = await ingestRes.json().catch(() => ({ error: `HTTP ${ingestRes.status}` }));
+            throw new Error((err as any).error ?? `Ingestion failed: ${ingestRes.status}`);
+          }
+          const result = await ingestRes.json() as { message: string; rowsInserted: number };
+          toast.success(`${result.message} · ${result.rowsInserted} วันข้อมูล`);
+        } else {
+          // No API key → generic demo data
+          await (supabase as any).rpc('seed_demo_insights', { p_ad_account_id: adAccount.id });
         }
       }
 
-      // Update local state ONLY on success
+      // ── Step 5: Mark connection as fully synced ───────────────────
+      await supabase
+        .from('workspace_api_keys')
+        .update({ sync_status: 'connected' })
+        .eq('team_id', teamId)
+        .eq('platform_id', id);
+
+      // ── Step 6: Update local state ────────────────────────────────
       setPlatforms((prev) =>
         prev.map((p) =>
           p.id === id
             ? {
               ...p,
               status: "connected" as PlatformStatus,
-              accessToken: accessToken,
+              accessToken,
               lastSync: new Date().toLocaleString(),
               error: undefined,
             }
@@ -271,14 +312,12 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
 
       toast.success(`${platform?.name} เชื่อมต่อสำเร็จ!`);
 
-      // Invalidate ALL downstream React Query caches so every page
-      // (Dashboard, Campaigns, Analytics) refreshes immediately without a manual page refresh
+      // ── Step 7: Invalidate caches → frontend re-fetches from DB ──
       await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       await queryClient.invalidateQueries({ queryKey: ["ad-accounts"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
       await queryClient.invalidateQueries({ queryKey: ["ad-insights"] });
       await queryClient.invalidateQueries({ queryKey: ["revenue-metrics-dashboard"] });
-      // Also refetch platforms so connected count in Dashboard header is current
       await fetchPlatforms();
 
       return true;

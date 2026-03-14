@@ -41,50 +41,28 @@ interface PlatformWithConnection extends Platform {
 const ALLOWED_PLATFORM_SLUGS = ['facebook', 'instagram', 'tiktok', 'shopee', 'google'];
 
 /**
- * Fetches Facebook insights from the mock API for a given tenant, then upserts
- * daily records into the Supabase `ad_insights` table for the specified ad account.
- * We use Facebook fixtures for all platform types in mock mode.
+ * Calls the backend ingestion endpoint which:
+ *  1. Validates the API key
+ *  2. Fetches data from the external API (EXTERNAL_API_BASE_URL on the server)
+ *  3. Writes campaigns + ad_insights into Supabase via service role
+ *  4. Returns { message, rowsInserted } — raw external data never reaches the browser
  */
-async function seedInsightsFromMockAPI(
-  tenant: "shop-a" | "shop-b",
-  adAccountId: string,
-): Promise<number> {
-  const res = await fetch(`${MOCK_API_BASE_URL}/facebook/${tenant}/insights`);
-  if (!res.ok) throw new Error("Mock API unreachable");
-  const { data: campaigns } = await res.json() as { data: any[] };
-
-  const insightRows: object[] = [];
-  for (const campaign of campaigns) {
-    const startDate = new Date(campaign.date_start);
-    const endDate = new Date(campaign.date_stop);
-    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / 86_400_000) + 1;
-
-    for (let d = 0; d < totalDays; d++) {
-      const date = new Date(startDate);
-      date.setDate(date.getDate() + d);
-      const jitter = 0.7 + Math.random() * 0.6;
-
-      insightRows.push({
-        ad_account_id: adAccountId,
-        date: date.toISOString().split("T")[0],
-        impressions: Math.round((parseInt(campaign.impressions) / totalDays) * jitter),
-        clicks: Math.round((parseInt(campaign.clicks) / totalDays) * jitter),
-        spend: parseFloat((parseFloat(campaign.spend) / totalDays * jitter).toFixed(2)),
-        reach: Math.round((parseInt(campaign.reach) / totalDays) * jitter),
-        conversions: Math.round((parseInt(campaign.conversions) / totalDays) * jitter),
-        ctr: parseFloat(campaign.ctr),
-        cpc: parseFloat(campaign.cpc),
-        cpm: parseFloat(campaign.cpm),
-        roas: parseFloat(campaign.roas),
-      });
-    }
+async function callBackendIngest(params: {
+  apiKey: string;
+  platformSlug: string;
+  workspaceId: string;
+  adAccountId: string;
+}): Promise<{ message: string; rowsInserted: number }> {
+  const res = await fetch(`${MOCK_API_BASE_URL}/api/connect`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    throw new Error((err as any).error ?? `Ingestion failed: ${res.status}`);
   }
-
-  // Wipe previous data for this account and insert fresh shop-specific rows
-  await supabase.from("ad_insights").delete().eq("ad_account_id", adAccountId);
-  const { error } = await supabase.from("ad_insights").insert(insightRows);
-  if (error) throw error;
-  return insightRows.length;
+  return res.json() as Promise<{ message: string; rowsInserted: number }>;
 }
 
 export function usePlatformsDB(teamId: string | null | undefined) {
@@ -281,7 +259,7 @@ export function usePlatformsDB(teamId: string | null | undefined) {
           team_id: teamId,
           platform_id: platformId,
           access_token: accessToken,
-          sync_status: 'connected',
+          sync_status: 'pending',
           is_active: true,
           last_synced_at: new Date().toISOString(),
           error_message: null,
@@ -306,24 +284,34 @@ export function usePlatformsDB(teamId: string | null | undefined) {
         .eq('platform_id', platformId)
         .maybeSingle();
 
-      // ── Step 4: Seed insights data ───────────────────────────────
+      // ── Step 4: Ingest data via backend endpoint ─────────────────
       if (adAccount?.id) {
-        if (tenant) {
-          // Valid mock key → fetch and upsert shop-specific fixture data
-          try {
-            const count = await seedInsightsFromMockAPI(tenant, adAccount.id);
-            toast.success(`โหลดข้อมูล ${count} วันสำเร็จ!`);
-          } catch (seedErr) {
-            console.warn('Mock API seed failed, falling back to generic demo:', seedErr);
-            await (supabase as any).rpc('seed_demo_insights', { p_ad_account_id: adAccount.id });
-          }
+        if (tenant && apiKey?.trim()) {
+          // Valid key → delegate fetch + DB write to backend ingestion service.
+          // The backend fetches from EXTERNAL_API_BASE_URL and writes to DB;
+          // raw external data is never returned to the browser.
+          toast.info('กำลังซิงค์ข้อมูลจาก API...');
+          const result = await callBackendIngest({
+            apiKey: apiKey.trim(),
+            platformSlug: platform?.slug ?? '',
+            workspaceId: teamId,
+            adAccountId: adAccount.id,
+          });
+          toast.success(`${result.message} · ${result.rowsInserted} วันข้อมูล`);
         } else {
           // No API key → use generic demo seed
           await (supabase as any).rpc('seed_demo_insights', { p_ad_account_id: adAccount.id });
         }
       }
 
-      // ── Step 5: Optimistic local state update ─────────────────────
+      // ── Step 5: Mark connection as fully synced ───────────────────
+      await supabase
+        .from('workspace_api_keys')
+        .update({ sync_status: 'connected' })
+        .eq('team_id', teamId)
+        .eq('platform_id', platformId);
+
+      // ── Step 6: Optimistic local state update ─────────────────────
       setPlatforms(prev => prev.map(p => {
         if (p.id !== platformId) return p;
         return {
@@ -349,7 +337,7 @@ export function usePlatformsDB(teamId: string | null | undefined) {
 
       toast.success(`${platform?.name} เชื่อมต่อสำเร็จ!`);
 
-      // ── Step 6: Invalidate React Query caches ─────────────────────
+      // ── Step 7: Invalidate React Query caches → frontend re-fetches from DB ──
       await queryClient.invalidateQueries({ queryKey: ['campaigns'] });
       await queryClient.invalidateQueries({ queryKey: ['ad-accounts'] });
       await queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });

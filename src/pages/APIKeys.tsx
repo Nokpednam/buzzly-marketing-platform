@@ -41,12 +41,14 @@ import {
   ChevronRight,
   Rocket,
   Lock,
+  FlaskConical,
 } from "lucide-react";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { usePlatformConnections } from "@/hooks/usePlatformConnections";
 import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { KEYS_BY_PLATFORM } from "@/lib/mockApiKeys";
 
 const statusConfig = {
   connected: {
@@ -89,6 +91,9 @@ export default function APIKeys() {
   const [visibleTokens, setVisibleTokens] = useState<string[]>([]);
   const [newToken, setNewToken] = useState("");
   const [connecting, setConnecting] = useState<string | null>(null);
+  // API key input form state (per platform)
+  const [openFormId, setOpenFormId] = useState<string | null>(null);
+  const [apiKeyInputs, setApiKeyInputs] = useState<Record<string, string>>({});
 
   const isLoading = workspaceLoading || platformsLoading;
 
@@ -219,6 +224,67 @@ export default function APIKeys() {
                           <p className="text-[10px] font-medium text-destructive leading-normal">ERROR: {platform.error}</p>
                         </div>
                       )}
+
+                      {/* ── Inline API Key Form (expands on Connect click) ── */}
+                      {openFormId === platform.id && platform.status !== "connected" && (
+                        <div className="space-y-3 pt-2 border-t border-border/50">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                            API Key — ใส่ Key เพื่อดึงข้อมูลจริง (ไม่ใส่ = demo data)
+                          </p>
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder={`เช่น FB_TEST_KEY_SHOP_A`}
+                              value={apiKeyInputs[platform.id] ?? ""}
+                              onChange={e =>
+                                setApiKeyInputs(prev => ({ ...prev, [platform.id]: e.target.value }))
+                              }
+                              onKeyDown={e => e.key === "Enter" && connecting !== platform.id && handleConnect(platform.id)}
+                              className="h-10 font-mono text-xs rounded-xl bg-muted/50 border-border/50"
+                              disabled={connecting === platform.id}
+                            />
+                            <Button
+                              className="h-10 px-5 rounded-xl shrink-0"
+                              onClick={() => handleConnect(platform.id)}
+                              disabled={connecting === platform.id}
+                            >
+                              {connecting === platform.id ? (
+                                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                "Confirm"
+                              )}
+                            </Button>
+                          </div>
+
+                          {/* Dev hints — only in development builds */}
+                          {import.meta.env.DEV && (KEYS_BY_PLATFORM[platform.slug ?? ""] ?? []).length > 0 && (
+                            <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 space-y-1.5">
+                              <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">
+                                <FlaskConical className="h-3 w-3" /> Dev — Valid Test Keys
+                              </p>
+                              {(KEYS_BY_PLATFORM[platform.slug ?? ""] ?? []).map(hint => (
+                                <button
+                                  key={hint.key}
+                                  type="button"
+                                  className="block w-full text-left"
+                                  onClick={() =>
+                                    setApiKeyInputs(prev => ({ ...prev, [platform.id]: hint.key }))
+                                  }
+                                >
+                                  <code className="text-[11px] text-amber-800 dark:text-amber-300 hover:underline cursor-pointer font-mono">
+                                    {hint.key}
+                                  </code>
+                                  <span className="text-[10px] text-amber-600 dark:text-amber-500 ml-2">
+                                    — {hint.shopLabel}
+                                  </span>
+                                </button>
+                              ))}
+                              <p className="text-[10px] text-amber-600 dark:text-amber-500">
+                                คลิก key เพื่อใส่อัตโนมัติ · Mock server ต้องรันที่ :3001
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Actions Section */}
@@ -233,8 +299,12 @@ export default function APIKeys() {
                         </>
                       ) : (
                         <Button
-                          className="w-full md:w-auto px-6 rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]"
-                          onClick={() => handleConnect(platform.id)}
+                          className={cn(
+                            "w-full md:w-auto px-6 rounded-xl shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]",
+                            openFormId === platform.id && "bg-secondary text-secondary-foreground shadow-none hover:scale-100"
+                          )}
+                          variant={openFormId === platform.id ? "secondary" : "default"}
+                          onClick={() => setOpenFormId(prev => prev === platform.id ? null : platform.id)}
                           disabled={connecting === platform.id}
                         >
                           {connecting === platform.id ? (
@@ -242,7 +312,7 @@ export default function APIKeys() {
                           ) : (
                             <Link2 className="h-4 w-4 mr-2" />
                           )}
-                          {connecting === platform.id ? "Linking..." : "Connect"}
+                          {connecting === platform.id ? "Linking..." : openFormId === platform.id ? "Cancel" : "Connect"}
                         </Button>
                       )}
                     </div>
@@ -275,8 +345,11 @@ export default function APIKeys() {
 
   async function handleConnect(platformId: string) {
     setConnecting(platformId);
-    await connectPlatform(platformId);
+    const key = apiKeyInputs[platformId]?.trim() || undefined;
+    await connectPlatform(platformId, key);
     setConnecting(null);
+    setOpenFormId(null);
+    setApiKeyInputs(prev => { const next = { ...prev }; delete next[platformId]; return next; });
   }
 }
 

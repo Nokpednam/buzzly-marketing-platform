@@ -7,7 +7,9 @@
  * The mock server must be running: cd mock-api && npm start   (port 3001)
  */
 
-export const MOCK_API_BASE_URL = "http://localhost:3001";
+// Backend/Mock API server URL — override via VITE_BACKEND_API_URL in .env
+export const MOCK_API_BASE_URL =
+  import.meta.env.VITE_BACKEND_API_URL ?? "http://localhost:3001";
 
 export interface MockKeyInfo {
   tenant: "shop-a" | "shop-b";
