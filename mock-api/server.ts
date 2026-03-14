@@ -6,18 +6,23 @@ import { fileURLToPath } from "url";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 // Load .env from mock-api directory (tsx doesn't auto-load it)
 try {
-  const envPath = new URL(".env", import.meta.url).pathname;
+  const envPath = fileURLToPath(new URL(".env", import.meta.url));
   const envContent = readFileSync(envPath, "utf-8");
-  for (const line of envContent.split("\n")) {
+  for (const line of envContent.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
     const eqIdx = trimmed.indexOf("=");
     if (eqIdx === -1) continue;
     const key = trimmed.slice(0, eqIdx).trim();
-    const val = trimmed.slice(eqIdx + 1).trim();
+    let val = trimmed.slice(eqIdx + 1).trim();
+    if (val.startsWith('"') && val.endsWith('"')) {
+      val = val.slice(1, -1);
+    }
     if (!(key in process.env)) process.env[key] = val;
   }
-} catch { /* .env is optional */ }
+} catch (e) {
+  console.error("Failed to load .env:", e);
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -193,6 +198,13 @@ app.post("/api/connect", async (req, res) => {
         date.setDate(date.getDate() + d);
         const jitter = 0.7 + Math.random() * 0.6;
 
+        // Extract action values safely
+        const actions = campaign.actions || [];
+        const leadAction = actions.find((a: any) => a.action_type === 'lead');
+        const addToCartAction = actions.find((a: any) => a.action_type === 'add_to_cart');
+        const rawLeads = leadAction ? parseInt(leadAction.value) : 0;
+        const rawAddsToCart = addToCartAction ? parseInt(addToCartAction.value) : 0;
+
         insightRows.push({
           ad_account_id: adAccountId,
           campaign_id: upsertedCampaign?.id ?? null,
@@ -202,6 +214,8 @@ app.post("/api/connect", async (req, res) => {
           spend: parseFloat(((parseFloat(campaign.spend) / totalDays) * jitter).toFixed(2)),
           reach: Math.round((parseInt(campaign.reach) / totalDays) * jitter),
           conversions: Math.round((parseInt(campaign.conversions) / totalDays) * jitter),
+          leads: Math.round((rawLeads / totalDays) * jitter),
+          adds_to_cart: Math.round((rawAddsToCart / totalDays) * jitter),
           ctr: parseFloat(campaign.ctr),
           cpc: parseFloat(campaign.cpc),
           cpm: parseFloat(campaign.cpm),

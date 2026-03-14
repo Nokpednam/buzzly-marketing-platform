@@ -42,7 +42,6 @@ import {
 
 // Import your custom sub-components
 import { WorkspaceSettings } from "@/components/settings/WorkspaceSettings";
-import { PlatformConnectionsTab } from "@/components/settings/PlatformConnectionsTab";
 import { BillingTab } from "@/components/settings/BillingTab";
 import { LoyaltyTab } from "@/components/settings/LoyaltyTab";
 import { useUserPaymentMethods } from "@/hooks/useUserPaymentMethods";
@@ -57,7 +56,6 @@ const settingsGroups = [
     items: [
       { id: "workspace", label: "Workspace", icon: Building2 },
       { id: "company", label: "Company", icon: Building },
-      { id: "platforms", label: "Platforms", icon: Link2 },
     ],
   },
   {
@@ -337,10 +335,6 @@ export default function Settings() {
           {/* Workspace & Platforms (Subcomponents) */}
           <TabsContent value="workspace" className="mt-0 focus-visible:ring-0">
             <WorkspaceSettings />
-          </TabsContent>
-
-          <TabsContent value="platforms" className="mt-0 focus-visible:ring-0">
-            <PlatformConnectionsTab />
           </TabsContent>
 
           {/* Profile Section */}
