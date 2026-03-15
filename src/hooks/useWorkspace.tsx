@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAwardMission } from '@/hooks/useAwardMission';
 
 interface Team {
   id: string;
@@ -46,6 +47,7 @@ interface WorkspaceData {
 export function useWorkspace() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { awardMission } = useAwardMission();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [workspace, setWorkspace] = useState<WorkspaceData>({
@@ -199,6 +201,15 @@ export function useWorkspace() {
         title: 'สร้าง Workspace สำเร็จ',
         description: `Workspace "${name}" ถูกสร้างแล้ว`,
       });
+
+      // Mission 1: award points for creating the first workspace (one-time)
+      const missionResult = await awardMission('create_workspace');
+      if (missionResult?.success) {
+        toast({
+          title: '🎉 Mission Complete!',
+          description: `+${missionResult.points_awarded} Points for creating your Workspace!`,
+        });
+      }
 
       return data;
     } catch (error: any) {
