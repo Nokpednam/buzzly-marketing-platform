@@ -6,6 +6,7 @@ import { USE_MOCK_DATA, MOCK_CALENDAR_DAYS } from "@/lib/mock-api-data";
 export interface CalendarItem {
   ad_group_id: string | null;
   ad_group_name: string | null;
+  created_at: string | null;
   id: string;
   type: "post" | "ad";
   title: string;
@@ -50,6 +51,8 @@ function groupByDate(items: CalendarItem[]): UnifiedCalendarDay[] {
       ? toDateString(item.scheduled_at)
       : item.published_at
         ? toDateString(item.published_at)
+        : item.created_at
+          ? toDateString(item.created_at)
         : null;
     if (!dateStr) continue;
     const existing = map.get(dateStr) ?? [];
@@ -118,6 +121,7 @@ export function useUnifiedCalendar(dateRange: string) {
           id: row.id,
           ad_group_id: row.ad_group_id ?? null,
           ad_group_name: row.ad_groups?.name ?? null,
+          created_at: row.created_at ?? null,
           type: isAd ? ("ad" as const) : ("post" as const),
           title: row.name ?? row.content ?? "Untitled Post",
           status: row.status ?? "draft",

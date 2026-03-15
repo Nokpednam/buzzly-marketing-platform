@@ -106,10 +106,12 @@ interface ExternalAdRecord {
   reach?: number | string | null;
   roas?: number | string | null;
   spend?: number | string | null;
+  start_time?: string | null;
   status?: string | null;
   targeting?: {
     interests?: string[] | null;
   } | null;
+  created_at?: string | null;
 }
 
 interface ExternalAdGroupRecord {
@@ -365,6 +367,26 @@ async function resolvePlatformId(supabase: SupabaseClient, platformSlug: string)
   return data?.id ?? null;
 }
 
+function resolveAdPublishedAt(ad: ExternalAdRecord): string {
+  const rawTimestamp = ad.start_time ?? ad.created_at ?? null;
+
+  if (rawTimestamp) {
+    const parsed = new Date(rawTimestamp);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  }
+
+  if (ad.date_start) {
+    const parsed = new Date(`${ad.date_start}T09:00:00.000Z`);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  }
+
+  return new Date().toISOString();
+}
+
 async function upsertSyncedAdPost(params: {
   ad: ExternalAdRecord;
   adId: string;
@@ -374,9 +396,7 @@ async function upsertSyncedAdPost(params: {
   workspaceId: string;
 }) {
   const { ad, adGroupId = null, adId, platformId, supabase, workspaceId } = params;
-  const publishedAt = ad.date_start
-    ? new Date(`${ad.date_start}T09:00:00.000Z`).toISOString()
-    : new Date().toISOString();
+  const publishedAt = resolveAdPublishedAt(ad);
 
   const payload = {
     id: adId,
@@ -966,15 +986,21 @@ app.post("/api/ad-groups", async (req, res) => {
     }
 
     if (adIds.length > 0) {
-      const { error: adsError } = await supabase
-        .from("ads")
-        .update({ ad_group_id: createdGroup.id })
-        .eq("team_id", workspaceId)
-        .in("id", adIds);
+      const [{ error: adsError }, { error: postsError }] = await Promise.all([
+        supabase
+          .from("ads")
+          .update({ ad_group_id: createdGroup.id })
+          .eq("team_id", workspaceId)
+          .in("id", adIds),
+        supabase
+          .from("social_posts")
+          .update({ ad_group_id: createdGroup.id })
+          .eq("team_id", workspaceId)
+          .in("id", adIds),
+      ]);
 
-      if (adsError) {
-        throw adsError;
-      }
+      if (adsError) throw adsError;
+      if (postsError) throw postsError;
     }
 
     res.status(201).json({ data: createdGroup });
@@ -1045,27 +1071,39 @@ app.put("/api/ad-groups/:id", async (req, res) => {
         .filter((adId) => !adIds.includes(adId));
 
       if (adIdsToClear.length > 0) {
-        const { error: clearError } = await supabase
-          .from("ads")
-          .update({ ad_group_id: null })
-          .eq("team_id", workspaceId)
-          .in("id", adIdsToClear);
+        const [{ error: clearAdsError }, { error: clearPostsError }] = await Promise.all([
+          supabase
+            .from("ads")
+            .update({ ad_group_id: null })
+            .eq("team_id", workspaceId)
+            .in("id", adIdsToClear),
+          supabase
+            .from("social_posts")
+            .update({ ad_group_id: null })
+            .eq("team_id", workspaceId)
+            .in("id", adIdsToClear),
+        ]);
 
-        if (clearError) {
-          throw clearError;
-        }
+        if (clearAdsError) throw clearAdsError;
+        if (clearPostsError) throw clearPostsError;
       }
 
       if (adIds.length > 0) {
-        const { error: assignError } = await supabase
-          .from("ads")
-          .update({ ad_group_id: groupId })
-          .eq("team_id", workspaceId)
-          .in("id", adIds);
+        const [{ error: assignAdsError }, { error: assignPostsError }] = await Promise.all([
+          supabase
+            .from("ads")
+            .update({ ad_group_id: groupId })
+            .eq("team_id", workspaceId)
+            .in("id", adIds),
+          supabase
+            .from("social_posts")
+            .update({ ad_group_id: groupId })
+            .eq("team_id", workspaceId)
+            .in("id", adIds),
+        ]);
 
-        if (assignError) {
-          throw assignError;
-        }
+        if (assignAdsError) throw assignAdsError;
+        if (assignPostsError) throw assignPostsError;
       }
     }
 

@@ -43,7 +43,10 @@ function formatTime(isoString: string | null): string | null {
 }
 
 export function ScheduledPostCard({ item, onClick }: ScheduledPostCardProps) {
-  const time = formatTime(item.scheduled_at) ?? formatTime(item.published_at);
+  const time =
+    formatTime(item.scheduled_at) ??
+    formatTime(item.published_at) ??
+    formatTime(item.created_at);
   const isAd = item.type === "ad";
   const statusStyle = isAd
     ? (AD_STATUS_STYLES[item.status] ?? AD_STATUS_STYLES.draft)

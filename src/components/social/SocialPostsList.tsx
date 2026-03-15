@@ -242,10 +242,10 @@ export function SocialPostsList({
                               {post.ad_group_name}
                             </Badge>
                           )}
-                          {post.published_at && (
+                          {(post.published_at ?? post.created_at) && (
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
-                              {new Date(post.published_at).toLocaleDateString("th-TH", {
+                              {new Date(post.published_at ?? post.created_at ?? "").toLocaleDateString("th-TH", {
                                 day: "numeric",
                                 month: "short",
                               })}

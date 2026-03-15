@@ -59,6 +59,23 @@ export function useAdGroups() {
     ]);
   };
 
+  const syncAdGroupOnSyncedPosts = async (adIds: string[], adGroupId: string | null) => {
+    if (!workspaceId || adIds.length === 0) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from("social_posts")
+      .update({ ad_group_id: adGroupId })
+      .eq("team_id", workspaceId)
+      .eq("post_channel", "ad")
+      .in("id", adIds);
+
+    if (error) {
+      throw error;
+    }
+  };
+
   const { data: adGroups = [], isLoading, error } = useQuery({
     queryKey: adGroupKeys.list(workspaceId),
     enabled: !!workspaceId,
@@ -184,6 +201,7 @@ export function useAdGroups() {
             .in("id", adIds)
             .then(({ error }) => { if (error) throw error; })
         );
+        ops.push(syncAdGroupOnSyncedPosts(adIds, groupId));
       }
       if (postIds && postIds.length > 0) {
         ops.push(
@@ -218,6 +236,10 @@ export function useAdGroups() {
         .update({ ad_group_id: null })
         .eq("id", itemId);
       if (error) throw error;
+
+      if (table === "ads") {
+        await syncAdGroupOnSyncedPosts([itemId], null);
+      }
     },
     onSuccess: async () => {
       await invalidateAdGroupQueries();
@@ -263,6 +285,8 @@ export function useAdGroups() {
         if (clearError) {
           throw clearError;
         }
+
+        await syncAdGroupOnSyncedPosts(adIdsToClear, null);
       }
 
       if (normalizedAdIds.length === 0) {
@@ -278,6 +302,8 @@ export function useAdGroups() {
       if (error) {
         throw error;
       }
+
+      await syncAdGroupOnSyncedPosts(normalizedAdIds, groupId);
     },
     onSuccess: async () => {
       await invalidateAdGroupQueries();

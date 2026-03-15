@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { PlatformPublishSelector } from "@/components/social/planner/PlatformPublishSelector";
 import { PersonaSelector } from "@/components/persona/PersonaSelector";
 import { useWorkspace } from "@/hooks/useWorkspace";
@@ -115,49 +116,50 @@ export function PostComposer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent className="max-w-lg gap-0 overflow-hidden p-0 sm:max-h-[90vh]">
+        <DialogHeader className="px-6 pb-4 pt-6">
           <DialogTitle>{titleMap[mode]}</DialogTitle>
           {isCreate && (
             <DialogDescription>สร้างโพสต์ social media ใหม่</DialogDescription>
           )}
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
-          <div className="space-y-2">
-            <Label>Platforms</Label>
-            <div className={isPreview ? "pointer-events-none opacity-60" : undefined}>
-              <PlatformPublishSelector
-                selectedIds={formData.platform_ids}
-                onChange={(ids) => update({ platform_ids: ids })}
-              />
+        <ScrollArea className="max-h-[calc(90vh-9rem)] px-6">
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Platforms</Label>
+              <div className={isPreview ? "pointer-events-none opacity-60" : undefined}>
+                <PlatformPublishSelector
+                  selectedIds={formData.platform_ids}
+                  onChange={(ids) => update({ platform_ids: ids })}
+                />
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label>ประเภทโพสต์</Label>
-            <RadioGroup
-              value={formData.content_kind}
-              onValueChange={(value: "organic" | "paid") => update({ content_kind: value })}
-              disabled={isPreview || !isCreate}
-              className="grid grid-cols-2 gap-2"
-            >
-              <Label
-                htmlFor="content-kind-organic"
-                className="flex cursor-pointer items-center gap-2 rounded-lg border p-3"
+            <div className="space-y-2">
+              <Label>ประเภทโพสต์</Label>
+              <RadioGroup
+                value={formData.content_kind}
+                onValueChange={(value: "organic" | "paid") => update({ content_kind: value })}
+                disabled={isPreview || !isCreate}
+                className="grid grid-cols-2 gap-2"
               >
-                <RadioGroupItem id="content-kind-organic" value="organic" />
-                Organic Post
-              </Label>
-              <Label
-                htmlFor="content-kind-paid"
-                className="flex cursor-pointer items-center gap-2 rounded-lg border p-3"
-              >
-                <RadioGroupItem id="content-kind-paid" value="paid" />
-                Paid Ad
-              </Label>
-            </RadioGroup>
-          </div>
+                <Label
+                  htmlFor="content-kind-organic"
+                  className="flex cursor-pointer items-center gap-2 rounded-lg border p-3"
+                >
+                  <RadioGroupItem id="content-kind-organic" value="organic" />
+                  Organic Post
+                </Label>
+                <Label
+                  htmlFor="content-kind-paid"
+                  className="flex cursor-pointer items-center gap-2 rounded-lg border p-3"
+                >
+                  <RadioGroupItem id="content-kind-paid" value="paid" />
+                  Paid Ad
+                </Label>
+              </RadioGroup>
+            </div>
 
           <div className="space-y-2">
             <Label>Creative Format</Label>
@@ -313,23 +315,24 @@ export function PostComposer({
           )}
 
           {isPreview && (formData.media_urls?.length || formData.media_url) && (
-            <div className="space-y-2">
-              <Label>รูปภาพ / มีเดีย</Label>
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {(formData.media_urls?.length ? formData.media_urls : [formData.media_url]).map((url, i) => (
-                  <img
-                    key={i}
-                    src={url}
-                    alt={`media-${i}`}
-                    className="h-20 w-20 shrink-0 rounded-md object-cover border"
-                  />
-                ))}
+              <div className="space-y-2">
+                <Label>รูปภาพ / มีเดีย</Label>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {(formData.media_urls?.length ? formData.media_urls : [formData.media_url]).map((url, i) => (
+                    <img
+                      key={i}
+                      src={url}
+                      alt={`media-${i}`}
+                      className="h-20 w-20 shrink-0 rounded-md object-cover border"
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
           )}
-        </div>
+          </div>
+        </ScrollArea>
 
-        <DialogFooter>
+        <DialogFooter className="border-t bg-background px-6 py-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {isPreview ? "ปิด" : "ยกเลิก"}
           </Button>

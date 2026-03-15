@@ -5,6 +5,7 @@ import { useWorkspace } from "@/hooks/useWorkspace";
 export interface CalendarPost {
   id: string;
   content: string | null;
+  created_at: string | null;
   platform_id: string | null;
   platform_name: string;
   platform_slug: string;
@@ -41,6 +42,8 @@ function groupByDate(posts: CalendarPost[]): CalendarDay[] {
       ? toDateString(post.scheduled_at)
       : post.published_at
         ? toDateString(post.published_at)
+        : post.created_at
+          ? toDateString(post.created_at)
         : null;
     if (!dateStr) continue;
     const existing = map.get(dateStr) ?? [];
@@ -76,6 +79,7 @@ export function useSocialCalendar(dateRange: string) {
         return {
           id: row.id,
           content: row.content,
+          created_at: row.created_at ?? null,
           platform_id: row.platform_id,
           platform_name: platform?.name ?? "Unknown",
           platform_slug: platform?.slug ?? "",
