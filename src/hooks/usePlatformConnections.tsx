@@ -320,8 +320,10 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       await queryClient.invalidateQueries({ queryKey: ["ad-insights"] });
       await queryClient.invalidateQueries({ queryKey: ["ad_insights_funnel_totals"] });
       await queryClient.invalidateQueries({ queryKey: ["revenue-metrics-dashboard"] });
-      await queryClient.invalidateQueries({ queryKey: ["customer_personas"] });
+      await queryClient.invalidateQueries({ queryKey: ["customer-personas"] });
       await queryClient.invalidateQueries({ queryKey: ["social_posts"] });
+      await queryClient.invalidateQueries({ queryKey: ["audience-discovery"] });
+      await queryClient.invalidateQueries({ queryKey: ["sync_history"] });
       await fetchPlatforms();
 
       return true;
