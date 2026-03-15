@@ -8,13 +8,18 @@ export type Ad = Database["public"]["Tables"]["ads"]["Row"];
 export type AdInsert = Database["public"]["Tables"]["ads"]["Insert"];
 export type AdUpdate = Database["public"]["Tables"]["ads"]["Update"];
 
-// Extends Ad with fields added by migration 20260314000001 (not yet in generated types.ts)
+export interface AdPersonaLink {
+  persona_id: string;
+  customer_personas: {
+    id: string;
+    persona_name: string;
+    avatar_url: string | null;
+  } | null;
+}
+
+// Extends Ad with joined relations and fields not yet fully typed
 export type AdWithPublishStatus = Ad & {
-  platform: string | null;
-  external_status: "pending" | "published" | "failed" | null;
-  external_error: string | null;
-  // persona_data added by migration 20260314004004
-  persona_data: any | null;
+  ad_personas: AdPersonaLink[] | null;
 };
 
 export function useAds() {
@@ -29,7 +34,7 @@ export function useAds() {
 
       const { data, error } = await supabase
         .from("ads")
-        .select("*")
+        .select("*, ad_personas(persona_id, customer_personas(id, persona_name, avatar_url))")
         .eq("team_id", workspace.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -108,8 +113,35 @@ export function useAds() {
       toast.success(`เผยแพร่โฆษณาบน ${platform} สำเร็จ`);
     },
     onError: (error: Error) => {
-      queryClient.invalidateQueries({ queryKey: ["ads"] }); // refresh to show 'failed' state
+      queryClient.invalidateQueries({ queryKey: ["ads"] });
       toast.error(`ไม่สามารถเผยแพร่โฆษณา: ${error.message}`);
+    },
+  });
+
+  /**
+   * Replace all persona links for an ad in one operation.
+   * Deletes existing rows then inserts the new set.
+   */
+  const linkPersonas = useMutation({
+    mutationFn: async ({ adId, personaIds }: { adId: string; personaIds: string[] }) => {
+      const { error: deleteError } = await supabase
+        .from("ad_personas")
+        .delete()
+        .eq("ad_id", adId);
+      if (deleteError) throw deleteError;
+
+      if (personaIds.length === 0) return;
+
+      const { error: insertError } = await supabase
+        .from("ad_personas")
+        .insert(personaIds.map((persona_id) => ({ ad_id: adId, persona_id })));
+      if (insertError) throw insertError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ads"] });
+    },
+    onError: (error: Error) => {
+      toast.error(`ไม่สามารถลิงก์ Persona: ${error.message}`);
     },
   });
 
@@ -121,5 +153,6 @@ export function useAds() {
     updateAd,
     deleteAd,
     publishAd,
+    linkPersonas,
   };
 }

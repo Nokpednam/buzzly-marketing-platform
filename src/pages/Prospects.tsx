@@ -16,15 +16,14 @@ import {
   Smartphone,
   TrendingUp,
   Loader2,
-  Database,
   LayoutGrid,
   BarChart3,
   UserCheck,
   Target,
   Search,
   Filter,
-  ArrowUpRight,
   Activity,
+  LineChart as LineChartIcon,
 } from "lucide-react";
 import {
   PieChart,
@@ -46,6 +45,7 @@ import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
 import { OnboardingBanner } from "@/components/dashboard/OnboardingBanner";
 import { PersonaCard } from "@/components/persona/PersonaCard";
 import { CreatePersonaDialog } from "@/components/persona/CreatePersonaDialog";
+import { PersonaInsightsTab } from "@/components/persona/PersonaInsightsTab";
 import type { CustomerPersona } from "@/hooks/useCustomerPersonas";
 import { useAdPersonas, type AdAudienceMode, type PersonaData } from "@/hooks/useAdPersonas";
 import { useAds } from "@/hooks/useAds";
@@ -75,6 +75,7 @@ export default function Prospects() {
     isLoading,
     genders,
     createPersona,
+    updatePersona,
     deletePersona,
     getPersonaStats,
   } = useCustomerPersonas(workspace.id);
@@ -82,7 +83,7 @@ export default function Prospects() {
   type CustomerPersona = NonNullable<typeof personas>[number];
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cards" | "charts" | "ad-audience">("charts");
+  const [activeTab, setActiveTab] = useState<"cards" | "charts" | "ad-audience" | "insights">("charts");
   const [searchQuery, setSearchQuery] = useState("");
   const [editingPersona, setEditingPersona] = useState<CustomerPersona | null>(null);
 
@@ -177,8 +178,11 @@ export default function Prospects() {
             <TabsTrigger value="ad-audience" className="rounded-lg gap-2">
               <Activity className="h-4 w-4" /> Ad Audience
             </TabsTrigger>
+            <TabsTrigger value="insights" className="rounded-lg gap-2">
+              <LineChartIcon className="h-4 w-4" /> Insights
+            </TabsTrigger>
           </TabsList>
-          {activeTab !== "ad-audience" && (
+          {activeTab !== "ad-audience" && activeTab !== "insights" && (
             <Button variant="ghost" size="sm" className="text-muted-foreground" disabled title="Coming soon">
               <Filter className="h-4 w-4 mr-2" /> Filter
             </Button>
@@ -367,6 +371,10 @@ export default function Prospects() {
             <AdAudienceCharts data={adPersonaData} />
           )}
         </TabsContent>
+        {/* ── INSIGHTS TAB ── */}
+        <TabsContent value="insights" className="animate-in fade-in duration-500">
+          <PersonaInsightsTab teamId={workspace.id} />
+        </TabsContent>
       </Tabs>
 
       <CreatePersonaDialog
@@ -376,7 +384,26 @@ export default function Prospects() {
         teamId={workspace.id}
         genders={genders || []}
         isLoading={createPersona.isPending}
+        isOwner
       />
+
+      {editingPersona && (
+        <CreatePersonaDialog
+          open={!!editingPersona}
+          onOpenChange={(open) => { if (!open) setEditingPersona(null); }}
+          onSubmit={(data) =>
+            updatePersona.mutate(
+              { id: editingPersona.id, ...data },
+              { onSuccess: () => setEditingPersona(null) }
+            )
+          }
+          teamId={workspace.id}
+          genders={genders || []}
+          isLoading={updatePersona.isPending}
+          initialData={editingPersona}
+          isOwner
+        />
+      )}
     </div>
   );
 }

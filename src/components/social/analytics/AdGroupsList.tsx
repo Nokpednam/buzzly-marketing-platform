@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { useAdGroups, type AdGroupWithCount } from "@/hooks/useAdGroups";
 import { LinkItemsDialog } from "@/components/social/analytics/LinkItemsDialog";
+import { AdFormDialog } from "@/components/social/analytics/AdFormDialog";
 
 interface AdGroupsListProps {
   onGroupsChange?: (groups: { id: string; name: string }[]) => void;
@@ -51,6 +52,7 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [linkDialogGroup, setLinkDialogGroup] = useState<AdGroupWithCount | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<AdGroupWithCount | null>(null);
+  const [createAdGroupId, setCreateAdGroupId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -232,6 +234,17 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
                   year: "numeric",
                 })}
               </p>
+              <div className="mt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-1 text-xs"
+                  onClick={() => setCreateAdGroupId(group.id)}
+                >
+                  <Plus className="h-3 w-3" />
+                  สร้างโฆษณา
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -302,6 +315,14 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
           onOpenChange={(open) => { if (!open) setLinkDialogGroup(null); }}
         />
       )}
+
+      {/* Create Ad Dialog — pre-filled with the group's id */}
+      <AdFormDialog
+        open={!!createAdGroupId}
+        onOpenChange={(open) => { if (!open) setCreateAdGroupId(null); }}
+        adGroups={adGroups.map((g) => ({ id: g.id, name: g.name }))}
+        initialAdGroupId={createAdGroupId ?? undefined}
+      />
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

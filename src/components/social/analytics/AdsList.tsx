@@ -16,16 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -41,6 +31,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
 import {
   MoreVertical,
   Pencil,
@@ -65,7 +56,8 @@ import {
   AlertCircle,
   Clock,
 } from "lucide-react";
-import { useAds, AdWithPublishStatus as Ad } from "@/hooks/useAds";
+import { useAds, type AdWithPublishStatus as Ad } from "@/hooks/useAds";
+import { AdFormDialog } from "@/components/social/analytics/AdFormDialog";
 
 const PUBLISH_PLATFORMS = [
   { id: "facebook",  label: "Facebook Ads",  emoji: "📘" },
@@ -76,19 +68,10 @@ const PUBLISH_PLATFORMS = [
 ];
 
 const creativeTypes = [
-  { id: "image", name: "Image", icon: Image },
-  { id: "video", name: "Video", icon: Video },
+  { id: "image",    name: "Image",    icon: Image },
+  { id: "video",    name: "Video",    icon: Video },
   { id: "carousel", name: "Carousel", icon: FileText },
-];
-
-const callToActions = [
-  "Shop Now",
-  "Learn More",
-  "Sign Up",
-  "Contact Us",
-  "Get Quote",
-  "Download",
-  "Book Now",
+  { id: "text",     name: "Text",     icon: FileText },
 ];
 
 interface AdsListProps {
@@ -96,72 +79,13 @@ interface AdsListProps {
 }
 
 export function AdsList({ adGroups }: AdsListProps) {
-  const { ads, isLoading, createAd, updateAd, deleteAd, publishAd } = useAds();
+  const { ads, isLoading, updateAd, deleteAd, publishAd } = useAds();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [publishPlatform, setPublishPlatform] = useState("facebook");
   const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
-
-  const [formData, setFormData] = useState({
-    name: "",
-    ad_group_id: "__none__",
-    creative_type_id: "image",
-    headline: "",
-    ad_copy: "",
-    call_to_action: "Shop Now",
-    status: "draft",
-  });
-
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      ad_group_id: "__none__",
-      creative_type_id: "image",
-      headline: "",
-      ad_copy: "",
-      call_to_action: "Shop Now",
-      status: "draft",
-    });
-  };
-
-  const handleAdd = () => {
-    createAd.mutate({
-      ad_group_id: formData.ad_group_id === "__none__" ? null : formData.ad_group_id,
-      creative_type_id: null, // DB expects a UUID or null
-      name: formData.name,
-      status: formData.status,
-      creative_url: "/placeholder.svg",
-      platform_ad_id: null,
-      ad_copy: formData.ad_copy,
-      preview_url: null,
-      headline: formData.headline,
-      call_to_action: formData.call_to_action,
-    });
-    setAddDialogOpen(false);
-    resetForm();
-  };
-
-  const handleEdit = () => {
-    if (!selectedAd) return;
-    updateAd.mutate({
-      id: selectedAd.id,
-      updates: {
-        name: formData.name,
-        ad_group_id: formData.ad_group_id === "__none__" ? null : formData.ad_group_id,
-        creative_type_id: null, // DB expects a UUID or null
-        headline: formData.headline,
-        ad_copy: formData.ad_copy,
-        call_to_action: formData.call_to_action,
-        status: formData.status,
-        updated_at: new Date().toISOString(),
-      }
-    });
-    setEditDialogOpen(false);
-    setSelectedAd(null);
-    resetForm();
-  };
 
   const handleDelete = (id: string) => {
     deleteAd.mutate(id);
@@ -173,21 +97,12 @@ export function AdsList({ adGroups }: AdsListProps) {
       updates: {
         status: currentStatus === "active" ? "paused" : "active",
         updated_at: new Date().toISOString(),
-      }
+      },
     });
   };
 
   const openEditDialog = (ad: Ad) => {
     setSelectedAd(ad);
-    setFormData({
-      name: ad.name,
-      ad_group_id: ad.ad_group_id || "__none__",
-      creative_type_id: "image", // Map null back to the generic "image" type
-      headline: ad.headline || "",
-      ad_copy: ad.ad_copy || "",
-      call_to_action: ad.call_to_action || "Shop Now",
-      status: ad.status || "draft",
-    });
     setEditDialogOpen(true);
   };
 
@@ -234,10 +149,8 @@ export function AdsList({ adGroups }: AdsListProps) {
     }
   };
 
-  const getCreativeType = (typeId: string | null) => {
-    // We treat typeId as string identifier for the UI but database only accepts UUID or null. 
-    // Since we pass null to DB, we have no real mapping back yet. We just fallback to "Image".
-    return creativeTypes.find((t) => t.id === typeId) || { name: "Image", icon: Image };
+  const getCreativeType = (type: string | null) => {
+    return creativeTypes.find((t) => t.id === type) ?? { name: "Image", icon: Image };
   };
 
   const getAdGroupName = (groupId: string | null) => {
@@ -297,7 +210,7 @@ export function AdsList({ adGroups }: AdsListProps) {
                 </TableRow>
               ) : (
                 ads.map((ad) => {
-                  const creativeType = getCreativeType(ad.creative_type_id);
+                  const creativeType = getCreativeType(ad.creative_type);
                   const CreativeIcon = creativeType.icon;
                   const statusInfo = getStatusIcon(ad.status);
                   const StatusIcon = statusInfo.icon;
@@ -433,240 +346,23 @@ export function AdsList({ adGroups }: AdsListProps) {
           </Table>
         </div>
 
-        {/* Add Dialog */}
-        <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>สร้างโฆษณาใหม่</DialogTitle>
-              <DialogDescription>สร้าง Ad ใหม่สำหรับแคมเปญของคุณ</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label>ชื่อโฆษณา</Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Summer Sale Ad"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>กลุ่มโฆษณา</Label>
-                  <Select
-                    value={formData.ad_group_id}
-                    onValueChange={(v) => setFormData({ ...formData, ad_group_id: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="เลือกกลุ่ม" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">ไม่ระบุ</SelectItem>
-                      {adGroups.map((g) => (
-                        <SelectItem key={g.id} value={g.id}>
-                          {g.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>ประเภท Creative</Label>
-                  <Select
-                    value={formData.creative_type_id}
-                    onValueChange={(v) => setFormData({ ...formData, creative_type_id: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {creativeTypes.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Headline</Label>
-                <Input
-                  value={formData.headline}
-                  onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
-                  placeholder="Summer Sale 50% Off"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Ad Copy</Label>
-                <Textarea
-                  value={formData.ad_copy}
-                  onChange={(e) => setFormData({ ...formData, ad_copy: e.target.value })}
-                  placeholder="เนื้อหาโฆษณา..."
-                  rows={3}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Call to Action</Label>
-                  <Select
-                    value={formData.call_to_action}
-                    onValueChange={(v) => setFormData({ ...formData, call_to_action: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {callToActions.map((cta) => (
-                        <SelectItem key={cta} value={cta}>
-                          {cta}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>สถานะ</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(v) => setFormData({ ...formData, status: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">แบบร่าง</SelectItem>
-                      <SelectItem value="active">เปิดใช้งาน</SelectItem>
-                      <SelectItem value="paused">หยุดชั่วคราว</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-                ยกเลิก
-              </Button>
-              <Button onClick={handleAdd} disabled={!formData.name}>
-                สร้างโฆษณา
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* Add Dialog — delegates to shared AdFormDialog */}
+        <AdFormDialog
+          open={addDialogOpen}
+          onOpenChange={setAddDialogOpen}
+          adGroups={adGroups}
+        />
 
-        {/* Edit Dialog */}
-        <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>แก้ไขโฆษณา</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label>ชื่อโฆษณา</Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>กลุ่มโฆษณา</Label>
-                  <Select
-                    value={formData.ad_group_id}
-                    onValueChange={(v) => setFormData({ ...formData, ad_group_id: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="เลือกกลุ่ม" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">ไม่ระบุ</SelectItem>
-                      {adGroups.map((g) => (
-                        <SelectItem key={g.id} value={g.id}>
-                          {g.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>ประเภท Creative</Label>
-                  <Select
-                    value={formData.creative_type_id}
-                    onValueChange={(v) => setFormData({ ...formData, creative_type_id: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {creativeTypes.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Headline</Label>
-                <Input
-                  value={formData.headline}
-                  onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Ad Copy</Label>
-                <Textarea
-                  value={formData.ad_copy}
-                  onChange={(e) => setFormData({ ...formData, ad_copy: e.target.value })}
-                  rows={3}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Call to Action</Label>
-                  <Select
-                    value={formData.call_to_action}
-                    onValueChange={(v) => setFormData({ ...formData, call_to_action: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {callToActions.map((cta) => (
-                        <SelectItem key={cta} value={cta}>
-                          {cta}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>สถานะ</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(v) => setFormData({ ...formData, status: v })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">แบบร่าง</SelectItem>
-                      <SelectItem value="active">เปิดใช้งาน</SelectItem>
-                      <SelectItem value="paused">หยุดชั่วคราว</SelectItem>
-                      <SelectItem value="archived">เก็บถาวร</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                ยกเลิก
-              </Button>
-              <Button onClick={handleEdit}>บันทึก</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        {/* Edit Dialog — delegates to shared AdFormDialog */}
+        <AdFormDialog
+          open={editDialogOpen}
+          onOpenChange={(open) => {
+            setEditDialogOpen(open);
+            if (!open) setSelectedAd(null);
+          }}
+          adGroups={adGroups}
+          adToEdit={selectedAd}
+        />
 
         {/* Detail Dialog */}
         <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
@@ -676,9 +372,9 @@ export function AdsList({ adGroups }: AdsListProps) {
                 {selectedAd && (
                   <>
                     {(() => {
-                      const creativeType = getCreativeType(selectedAd.creative_type_id);
-                      const CreativeIcon = creativeType.icon;
-                      return <CreativeIcon className="h-5 w-5 text-muted-foreground" />;
+                      const ct = getCreativeType(selectedAd.creative_type);
+                      const CtIcon = ct.icon;
+                      return <CtIcon className="h-5 w-5 text-muted-foreground" />;
                     })()}
                     {selectedAd.name}
                   </>
@@ -689,7 +385,6 @@ export function AdsList({ adGroups }: AdsListProps) {
 
             {selectedAd && (
               <div className="space-y-4 py-4">
-                {/* Status Badge */}
                 <div className="flex items-center gap-2">
                   {(() => {
                     const statusInfo = getStatusIcon(selectedAd.status);
@@ -705,20 +400,25 @@ export function AdsList({ adGroups }: AdsListProps) {
 
                 <Separator />
 
-                {/* Content Section */}
                 <div className="space-y-3">
                   <div>
                     <Label className="text-xs text-muted-foreground">Headline</Label>
                     <p className="text-sm font-medium mt-1">{selectedAd.headline || "-"}</p>
                   </div>
-
                   <div>
                     <Label className="text-xs text-muted-foreground">Ad Copy</Label>
                     <p className="text-sm mt-1 text-muted-foreground whitespace-pre-wrap">
                       {selectedAd.ad_copy || "-"}
                     </p>
                   </div>
-
+                  {selectedAd.content && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">เนื้อหา</Label>
+                      <p className="text-sm mt-1 text-muted-foreground whitespace-pre-wrap">
+                        {selectedAd.content}
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <Label className="text-xs text-muted-foreground">Call to Action</Label>
                     <div className="mt-1">
@@ -729,7 +429,6 @@ export function AdsList({ adGroups }: AdsListProps) {
 
                 <Separator />
 
-                {/* Meta Section */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs text-muted-foreground">กลุ่มโฆษณา</Label>
@@ -737,8 +436,26 @@ export function AdsList({ adGroups }: AdsListProps) {
                   </div>
                   <div>
                     <Label className="text-xs text-muted-foreground">ประเภท Creative</Label>
-                    <p className="text-sm mt-1">{getCreativeType(selectedAd.creative_type_id).name}</p>
+                    <p className="text-sm mt-1">{getCreativeType(selectedAd.creative_type).name}</p>
                   </div>
+                  {selectedAd.scheduled_at && (
+                    <div>
+                      <Label className="text-xs text-muted-foreground">กำหนดเผยแพร่</Label>
+                      <p className="text-sm mt-1">{formatDate(selectedAd.scheduled_at)}</p>
+                    </div>
+                  )}
+                  {selectedAd.media_urls && selectedAd.media_urls.length > 0 && (
+                    <div className="col-span-2">
+                      <Label className="text-xs text-muted-foreground">Media URLs</Label>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {selectedAd.media_urls.map((url, i) => (
+                          <Badge key={i} variant="outline" className="text-xs max-w-[200px] truncate">
+                            {url}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {selectedAd.platform_ad_id && (
@@ -767,15 +484,14 @@ export function AdsList({ adGroups }: AdsListProps) {
 
                 <Separator />
 
-                {/* Dates */}
                 <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
-                    <span>สร้างเมื่อ: {formatDate(selectedAd.created_at)}</span>
+                    <span>สร้างเมื่อ: {formatDate(selectedAd.created_at ?? "")}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
-                    <span>อัปเดต: {formatDate(selectedAd.updated_at)}</span>
+                    <span>อัปเดต: {formatDate(selectedAd.updated_at ?? "")}</span>
                   </div>
                 </div>
               </div>
@@ -797,6 +513,7 @@ export function AdsList({ adGroups }: AdsListProps) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
         {/* Publish Dialog */}
         <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
           <DialogContent className="max-w-sm">

@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 
 export interface CustomerPersona {
-  name: any;
   id: string;
   team_id: string;
   persona_name: string;
@@ -25,6 +24,9 @@ export interface CustomerPersona {
   goals: string[] | null;
   custom_fields: Json | null;
   is_active: boolean;
+  is_template: boolean;
+  psychographics: Json | null;
+  ad_targeting_mapping: Json | null;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -50,6 +52,9 @@ export interface CustomerPersonaInsert {
   goals?: string[] | null;
   custom_fields?: Json | null;
   is_active?: boolean;
+  is_template?: boolean;
+  psychographics?: Json | null;
+  ad_targeting_mapping?: Json | null;
 }
 
 export interface CustomerPersonaUpdate extends Partial<CustomerPersonaInsert> {
@@ -69,11 +74,10 @@ export const useCustomerPersonas = (teamId: string | null) => {
     queryKey: ["customer-personas", teamId],
     queryFn: async () => {
       if (!teamId) return [];
-      console.log('Fetching personas for team:', teamId);
       const { data, error } = await supabase
         .from("customer_personas")
         .select("*")
-        .or(`team_id.eq.${teamId},team_id.is.null`)
+        .or(`team_id.eq.${teamId},is_template.eq.true`)
         .eq("is_active", true)
         .order("created_at", { ascending: false });
 
@@ -134,6 +138,9 @@ export const useCustomerPersonas = (teamId: string | null) => {
           goals: newPersona.goals,
           custom_fields: newPersona.custom_fields,
           is_active: newPersona.is_active ?? true,
+          is_template: newPersona.is_template ?? false,
+          psychographics: newPersona.psychographics,
+          ad_targeting_mapping: newPersona.ad_targeting_mapping,
           created_by: user?.user?.id,
         })
         .select()
@@ -176,6 +183,9 @@ export const useCustomerPersonas = (teamId: string | null) => {
           goals: updates.goals,
           custom_fields: updates.custom_fields,
           is_active: updates.is_active,
+          is_template: updates.is_template,
+          psychographics: updates.psychographics,
+          ad_targeting_mapping: updates.ad_targeting_mapping,
         })
         .eq("id", id)
         .select()

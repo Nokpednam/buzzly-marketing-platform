@@ -1,0 +1,159 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useWorkspace } from "@/hooks/useWorkspace";
+
+export interface CalendarItem {
+  id: string;
+  type: "post" | "ad";
+  title: string;
+  status: string;
+  scheduled_at: string | null;
+  published_at: string | null;
+  platform_name: string;
+  platform_slug: string;
+  platform_icon_url: string | null;
+  media_urls: string[] | null;
+  creative_type: string | null;
+  persona_names: string[];
+  persona_ids: string[];
+  // Post-specific fields (populated for type === "post")
+  platform_id: string | null;
+  content: string | null;
+  post_type: string | null;
+  hashtags: string[] | null;
+}
+
+export interface UnifiedCalendarDay {
+  date: string;
+  items: CalendarItem[];
+}
+
+function getStartDate(dateRange: string): string {
+  const days = parseInt(dateRange, 10);
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  date.setHours(0, 0, 0, 0);
+  return date.toISOString();
+}
+
+function toDateString(isoString: string): string {
+  return isoString.slice(0, 10);
+}
+
+function groupByDate(items: CalendarItem[]): UnifiedCalendarDay[] {
+  const map = new Map<string, CalendarItem[]>();
+  for (const item of items) {
+    const dateStr = item.scheduled_at
+      ? toDateString(item.scheduled_at)
+      : item.published_at
+        ? toDateString(item.published_at)
+        : null;
+    if (!dateStr) continue;
+    const existing = map.get(dateStr) ?? [];
+    map.set(dateStr, [...existing, item]);
+  }
+  return Array.from(map.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, dayItems]) => ({ date, items: dayItems }));
+}
+
+export function useUnifiedCalendar(dateRange: string) {
+  const { workspace } = useWorkspace();
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["unified_calendar", workspace?.id, dateRange],
+    enabled: !!workspace?.id,
+    queryFn: async () => {
+      if (!workspace?.id) return [];
+
+      const startDate = getStartDate(dateRange);
+
+      const [postsResult, adsResult] = await Promise.all([
+        supabase
+          .from("social_posts")
+          .select("*, platforms(name, slug, icon_url), post_personas(persona_id, customer_personas(persona_name))")
+          .eq("team_id", workspace.id)
+          .or(`scheduled_at.gte.${startDate},and(scheduled_at.is.null,published_at.gte.${startDate})`)
+          .in("status", ["draft", "scheduled", "published"])
+          .order("scheduled_at", { ascending: true })
+          .order("published_at", { ascending: true }),
+
+        supabase
+          .from("ads")
+          .select("*, ad_personas(persona_id, customer_personas(persona_name))")
+          .eq("team_id", workspace.id)
+          .not("scheduled_at", "is", null)
+          .gte("scheduled_at", startDate)
+          .order("scheduled_at", { ascending: true }),
+      ]);
+
+      if (postsResult.error) throw postsResult.error;
+      if (adsResult.error) throw adsResult.error;
+
+      const postItems: CalendarItem[] = (postsResult.data ?? []).map((row) => {
+        const platform = row.platforms as
+          | { name: string; slug: string | null; icon_url: string | null }
+          | null;
+        const postPersonas = row.post_personas as
+          | Array<{ persona_id?: string; customer_personas: { persona_name: string } | null }>
+          | null;
+        return {
+          id: row.id,
+          type: "post" as const,
+          title: row.content ?? row.name ?? "Untitled Post",
+          status: row.status ?? "draft",
+          scheduled_at: row.scheduled_at,
+          published_at: row.published_at,
+          platform_name: platform?.name ?? "Unknown",
+          platform_slug: platform?.slug ?? "",
+          platform_icon_url: platform?.icon_url ?? null,
+          media_urls: row.media_urls,
+          creative_type: null,
+          persona_names: (postPersonas ?? [])
+            .map((pp) => pp.customer_personas?.persona_name ?? "")
+            .filter(Boolean),
+          persona_ids: (postPersonas ?? [])
+            .map((pp) => pp.persona_id ?? "")
+            .filter(Boolean),
+          platform_id: row.platform_id ?? null,
+          content: row.content ?? null,
+          post_type: row.post_type ?? null,
+          hashtags: (row.hashtags as string[] | null) ?? null,
+        };
+      });
+
+      const adItems: CalendarItem[] = (adsResult.data ?? []).map((row) => {
+        const adPersonas = row.ad_personas as
+          | Array<{ persona_id?: string; customer_personas: { persona_name: string } | null }>
+          | null;
+        return {
+          id: row.id,
+          type: "ad" as const,
+          title: row.name,
+          status: row.status ?? "draft",
+          scheduled_at: row.scheduled_at,
+          published_at: null,
+          platform_name: row.platform ?? "Ad",
+          platform_slug: row.platform ?? "",
+          platform_icon_url: null,
+          media_urls: row.media_urls,
+          creative_type: row.creative_type,
+          persona_names: (adPersonas ?? [])
+            .map((ap) => ap.customer_personas?.persona_name ?? "")
+            .filter(Boolean),
+          persona_ids: (adPersonas ?? [])
+            .map((ap) => ap.persona_id ?? "")
+            .filter(Boolean),
+          platform_id: null,
+          content: row.content ?? null,
+          post_type: null,
+          hashtags: null,
+        };
+      });
+
+      return groupByDate([...postItems, ...adItems]);
+    },
+  });
+
+  return { calendarDays: data ?? [], isLoading, error };
+}

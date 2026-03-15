@@ -5,13 +5,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScheduledPostCard } from "@/components/social/planner/ScheduledPostCard";
-import type { CalendarDay, CalendarPost } from "@/hooks/useSocialCalendar";
+import type { UnifiedCalendarDay, CalendarItem } from "@/hooks/useUnifiedCalendar";
+
+type FilterType = "all" | "post" | "ad";
 
 interface ContentCalendarProps {
-  calendarDays: CalendarDay[];
+  calendarDays: UnifiedCalendarDay[];
   isLoading: boolean;
   onDayClick: (dateISO: string) => void;
-  onPostClick: (post: CalendarPost) => void;
+  onItemClick: (item: CalendarItem) => void;
 }
 
 const WEEKDAY_LABELS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
@@ -20,6 +22,12 @@ const MONTH_LABELS = [
   "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน",
   "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม",
   "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
+];
+
+const FILTER_OPTIONS: { value: FilterType; label: string }[] = [
+  { value: "all", label: "ทั้งหมด" },
+  { value: "post", label: "Posts" },
+  { value: "ad", label: "Ads" },
 ];
 
 function toISODate(year: number, month: number, day: number): string {
@@ -63,14 +71,20 @@ export function ContentCalendar({
   calendarDays,
   isLoading,
   onDayClick,
-  onPostClick,
+  onItemClick,
 }: ContentCalendarProps) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
 
-  const postsByDate = new Map<string, CalendarPost[]>(
-    calendarDays.map((day) => [day.date, day.posts])
+  const itemsByDate = new Map<string, CalendarItem[]>(
+    calendarDays.map((day) => [
+      day.date,
+      activeFilter === "all"
+        ? day.items
+        : day.items.filter((item) => item.type === activeFilter),
+    ])
   );
 
   const rows = buildCalendarGrid(viewYear, viewMonth);
@@ -102,37 +116,58 @@ export function ContentCalendar({
 
   return (
     <Card className="overflow-hidden rounded-2xl border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white dark:bg-slate-900">
-      <CardHeader className="pb-3 px-6 pt-5 flex flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <CardHeader className="pb-3 px-6 pt-5 flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={goPrev}
+              className="h-8 w-8 rounded-xl"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <h2 className="text-base font-semibold tabular-nums min-w-[11rem] text-center">
+              {MONTH_LABELS[viewMonth]} {viewYear}
+            </h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={goNext}
+              className="h-8 w-8 rounded-xl"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
           <Button
-            variant="ghost"
-            size="icon"
-            onClick={goPrev}
-            className="h-8 w-8 rounded-xl"
+            variant="outline"
+            size="sm"
+            onClick={goToday}
+            className="rounded-xl text-xs"
           >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h2 className="text-base font-semibold tabular-nums min-w-[11rem] text-center">
-            {MONTH_LABELS[viewMonth]} {viewYear}
-          </h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={goNext}
-            className="h-8 w-8 rounded-xl"
-          >
-            <ChevronRight className="h-4 w-4" />
+            วันนี้
           </Button>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={goToday}
-          className="rounded-xl text-xs"
-        >
-          วันนี้
-        </Button>
+        {/* Filter toggle */}
+        <div className="flex items-center gap-1 self-start rounded-lg bg-muted p-1">
+          {FILTER_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setActiveFilter(opt.value)}
+              className={cn(
+                "px-3 py-1 text-xs font-medium rounded-md transition-colors",
+                activeFilter === opt.value
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </CardHeader>
 
       <CardContent className="px-4 pb-4">
@@ -155,7 +190,7 @@ export function ContentCalendar({
               }
 
               const dateISO = toISODate(viewYear, viewMonth, day);
-              const dayPosts = postsByDate.get(dateISO) ?? [];
+              const dayItems = itemsByDate.get(dateISO) ?? [];
               const isToday =
                 today.getFullYear() === viewYear &&
                 today.getMonth() === viewMonth &&
@@ -185,7 +220,6 @@ export function ContentCalendar({
                       type="button"
                       onClick={() => onDayClick(dateISO)}
                       className="h-5 w-5 rounded-md flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
-                      style={{ opacity: undefined }}
                       aria-label={`เพิ่มโพสต์ ${dateISO}`}
                     >
                       <Plus className="h-3 w-3" />
@@ -193,16 +227,16 @@ export function ContentCalendar({
                   </div>
 
                   <div className="flex flex-col gap-0.5 overflow-hidden">
-                    {dayPosts.slice(0, 3).map((post) => (
+                    {dayItems.slice(0, 3).map((item) => (
                       <ScheduledPostCard
-                        key={post.id}
-                        post={post}
-                        onClick={onPostClick}
+                        key={item.id}
+                        item={item}
+                        onClick={onItemClick}
                       />
                     ))}
-                    {dayPosts.length > 3 && (
+                    {dayItems.length > 3 && (
                       <span className="text-[10px] text-muted-foreground px-1">
-                        +{dayPosts.length - 3} เพิ่มเติม
+                        +{dayItems.length - 3} เพิ่มเติม
                       </span>
                     )}
                   </div>

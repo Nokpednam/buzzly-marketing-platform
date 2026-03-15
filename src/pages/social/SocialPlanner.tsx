@@ -1,22 +1,23 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { toast } from "sonner";
 import { PlatformFilterBar } from "@/components/social/layout/PlatformFilterBar";
 import { DateRangeSelector } from "@/components/social/layout/DateRangeSelector";
 import { ContentCalendar } from "@/components/social/planner/ContentCalendar";
 import { PostComposer, type SocialPostFormData } from "@/components/social/planner/PostComposer";
 import { SocialPostsList } from "@/components/social/SocialPostsList";
-import { useSocialCalendar } from "@/hooks/useSocialCalendar";
+import { useUnifiedCalendar, type CalendarItem } from "@/hooks/useUnifiedCalendar";
 import { useSocialPosts, type SocialPost } from "@/hooks/useSocialPosts";
+import { usePostPersonaLinks } from "@/hooks/usePostPersonaLinks";
 import { useSocialFilters } from "@/contexts/SocialFiltersContext";
 import { logError } from "@/services/errorLogger";
-import { toast } from "sonner";
-import type { CalendarPost } from "@/hooks/useSocialCalendar";
 
 export default function SocialPlanner() {
   const { dateRange } = useSocialFilters();
-  const { calendarDays, isLoading: calendarLoading } = useSocialCalendar(dateRange);
+  const { calendarDays, isLoading: calendarLoading } = useUnifiedCalendar(dateRange);
   const { createPost, updatePost } = useSocialPosts(dateRange);
+  const { linkPersonas } = usePostPersonaLinks();
 
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerMode, setComposerMode] = useState<"create" | "edit" | "preview">("create");
@@ -50,17 +51,22 @@ export default function SocialPlanner() {
     setComposerOpen(true);
   };
 
-  const openEditFromCalendar = (calendarPost: CalendarPost) => {
+  const openEditFromCalendar = (item: CalendarItem) => {
+    if (item.type === "ad") {
+      toast.info("แก้ไข Ad ได้ที่หน้า Social Analytics");
+      return;
+    }
     setComposerMode("preview");
-    setEditingPostId(calendarPost.id);
+    setEditingPostId(item.id);
     setComposerInitialData({
-      platform_ids: calendarPost.platform_id ? [calendarPost.platform_id] : [],
-      post_type: calendarPost.post_type ?? "image",
-      content: calendarPost.content ?? "",
-      status: calendarPost.status,
-      hashtags: calendarPost.hashtags?.join(", ") ?? "",
-      scheduled_at: calendarPost.scheduled_at ?? undefined,
-      media_urls: calendarPost.media_urls,
+      platform_ids: item.platform_id ? [item.platform_id] : [],
+      post_type: item.post_type ?? "image",
+      content: item.content ?? "",
+      status: item.status,
+      hashtags: item.hashtags?.join(", ") ?? "",
+      scheduled_at: item.scheduled_at ?? undefined,
+      media_urls: item.media_urls,
+      persona_ids: item.persona_ids,
     });
     setComposerOpen(true);
   };
@@ -80,23 +86,35 @@ export default function SocialPlanner() {
 
     try {
       if (composerMode === "create") {
-        // Create one post per selected platform
         const targets = data.platform_ids.length > 0 ? data.platform_ids : [null];
-        const mutations = targets.map((platformId) =>
-          createPost.mutateAsync({
-            platform_id: platformId,
-            post_type: data.post_type,
-            content: data.content,
-            status: data.status,
-            hashtags: hashtagArray.length > 0 ? hashtagArray : null,
-            scheduled_at:
-              data.status === "scheduled" && data.scheduled_at
-                ? new Date(data.scheduled_at).toISOString()
-                : null,
-            post_channel: "social",
-          })
+        const createdPosts = await Promise.all(
+          targets.map((platformId) =>
+            createPost.mutateAsync({
+              platform_id: platformId,
+              post_type: data.post_type,
+              content: data.content,
+              status: data.status,
+              hashtags: hashtagArray.length > 0 ? hashtagArray : null,
+              scheduled_at:
+                data.status === "scheduled" && data.scheduled_at
+                  ? new Date(data.scheduled_at).toISOString()
+                  : null,
+              post_channel: "social",
+            })
+          )
         );
-        await Promise.all(mutations);
+        if (data.persona_ids && data.persona_ids.length > 0) {
+          await Promise.all(
+            createdPosts
+              .filter(Boolean)
+              .map((post) =>
+                linkPersonas.mutateAsync({
+                  postId: post.id,
+                  personaIds: data.persona_ids!,
+                })
+              )
+          );
+        }
         if (data.platform_ids.length > 1) {
           toast.success(`สร้าง ${data.platform_ids.length} โพสต์สำเร็จ`);
         }
@@ -116,6 +134,9 @@ export default function SocialPlanner() {
                 : null,
           },
         });
+        if (data.persona_ids !== undefined) {
+          linkPersonas.mutate({ postId: editingPostId, personaIds: data.persona_ids });
+        }
       }
       setComposerOpen(false);
     } catch (err) {
@@ -151,7 +172,7 @@ export default function SocialPlanner() {
         calendarDays={calendarDays}
         isLoading={calendarLoading}
         onDayClick={openCreateComposer}
-        onPostClick={openEditFromCalendar}
+        onItemClick={openEditFromCalendar}
       />
 
       <div>

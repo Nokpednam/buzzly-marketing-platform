@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlatformPublishSelector } from "@/components/social/planner/PlatformPublishSelector";
+import { PersonaSelector } from "@/components/persona/PersonaSelector";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
 export interface SocialPostFormData {
   platform_ids: string[];
@@ -29,6 +31,7 @@ export interface SocialPostFormData {
   hashtags: string;
   scheduled_at?: string;
   media_urls?: string[] | null;
+  persona_ids?: string[];
 }
 
 export interface PostComposerProps {
@@ -67,6 +70,7 @@ export function PostComposer({
   isPending,
   onRequestEdit,
 }: PostComposerProps) {
+  const { workspace } = useWorkspace();
   const [formData, setFormData] = useState<SocialPostFormData>(DEFAULT_FORM);
 
   useEffect(() => {
@@ -168,6 +172,29 @@ export function PostComposer({
               <p className="text-xs text-muted-foreground">คั่นด้วยเครื่องหมาย ,</p>
             )}
           </div>
+
+          {workspace?.id && (
+            <div className="space-y-2">
+              <Label>กลุ่มเป้าหมาย (Personas)</Label>
+              {isPreview ? (
+                <div className="flex flex-wrap gap-1.5 min-h-[2rem]">
+                  {(formData.persona_ids ?? []).length > 0 ? (
+                    <span className="text-sm text-muted-foreground">
+                      {formData.persona_ids?.length} personas
+                    </span>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">—</span>
+                  )}
+                </div>
+              ) : (
+                <PersonaSelector
+                  selectedIds={formData.persona_ids ?? []}
+                  onChange={(ids) => update({ persona_ids: ids })}
+                  teamId={workspace.id}
+                />
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>สถานะ</Label>
