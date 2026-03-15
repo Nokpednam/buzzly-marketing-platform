@@ -62,13 +62,56 @@ export function useSocialAnalyticsSummary() {
   const { posts, isLoading: postsLoading, error: postsError } = useSocialPosts(dateRange);
   const { connectedPlatforms } = usePlatformConnections();
 
-  const platformMap = useMemo(
-    () => new Map(connectedPlatforms.map((p) => [p.id, p])),
+  const platformLookup = useMemo(
+    () =>
+      new Map(
+        connectedPlatforms.flatMap((platform) => [
+          [platform.id, platform] as const,
+          [platform.slug, platform] as const,
+        ])
+      ),
     [connectedPlatforms]
   );
 
   const analyticsSummary = useMemo<AnalyticsSummary>(() => {
     const rawInsights = insights as AdInsightWithAccount[];
+    const normalizePlatformId = (
+      platformId: string | null,
+      fallbackSlug?: string | null
+    ) => {
+      const directMatch = platformId ? platformLookup.get(platformId) : undefined;
+      if (directMatch) {
+        return directMatch.id;
+      }
+
+      const fallbackMatch = fallbackSlug ? platformLookup.get(fallbackSlug) : undefined;
+      if (fallbackMatch) {
+        return fallbackMatch.id;
+      }
+
+      return platformId ?? fallbackSlug ?? null;
+    };
+
+    const matchesActivePlatforms = (
+      platformId: string | null,
+      fallbackSlug?: string | null
+    ) => {
+      if (activePlatforms.length === 0) {
+        return true;
+      }
+
+      const normalizedPlatformId = normalizePlatformId(platformId, fallbackSlug);
+      return (
+        (normalizedPlatformId !== null &&
+          activePlatforms.includes(normalizedPlatformId)) ||
+        (platformId !== null && activePlatforms.includes(platformId)) ||
+        (!!fallbackSlug && activePlatforms.includes(fallbackSlug))
+      );
+    };
+
+    const filteredPosts = posts.filter((post) =>
+      matchesActivePlatforms(post.platform_id, post.post_channel)
+    );
 
     // ── Per-platform aggregation ──────────────────────────────────────────────
     const byPlatform = new Map<string, Omit<PlatformBreakdown, "platform_name" | "platform_slug">>();
@@ -97,24 +140,35 @@ export function useSocialAnalyticsSummary() {
     }
 
     // Count posts per platform
-    for (const post of posts) {
-      if (!post.platform_id) continue;
-      const entry = byPlatform.get(post.platform_id);
-      if (entry) {
-        entry.post_count += 1;
-      }
+    for (const post of filteredPosts) {
+      const platformId = normalizePlatformId(post.platform_id, post.post_channel);
+      if (!platformId) continue;
+
+      const entry = byPlatform.get(platformId) ?? {
+        platform_id: platformId,
+        impressions: 0,
+        reach: 0,
+        clicks: 0,
+        spend: 0,
+        conversions: 0,
+        engagement_rate: 0,
+        post_count: 0,
+      };
+
+      entry.post_count += 1;
+      byPlatform.set(platformId, entry);
     }
 
     // Resolve platform name/slug and compute engagement_rate
     const platformBreakdown: PlatformBreakdown[] = Array.from(byPlatform.values()).map((entry) => {
-      const platform = platformMap.get(entry.platform_id);
+      const platform = platformLookup.get(entry.platform_id);
       const engRate = entry.impressions > 0
         ? ((entry.clicks / entry.impressions) * 100)
         : 0;
       return {
         ...entry,
         platform_name: platform?.name ?? entry.platform_id,
-        platform_slug: platform?.slug ?? "",
+        platform_slug: platform?.slug ?? entry.platform_id,
         engagement_rate: engRate,
       };
     });
@@ -159,7 +213,7 @@ export function useSocialAnalyticsSummary() {
       totalEngagement,
       totalSpend: summary.totalSpend,
       totalConversions: summary.totalConversions,
-      totalPostCount: posts.length,
+      totalPostCount: filteredPosts.length,
       avgEngagementRate: totalImpressions > 0 ? (totalEngagement / totalImpressions) * 100 : 0,
       avgCtr: summary.avgCtr,
       avgCpc: summary.avgCpc,
@@ -167,7 +221,7 @@ export function useSocialAnalyticsSummary() {
     };
 
     return { overview, platformBreakdown, dailyTrend };
-  }, [insights, posts, platformMap, summary]);
+  }, [activePlatforms, insights, platformLookup, posts, summary]);
 
   return {
     ...analyticsSummary,

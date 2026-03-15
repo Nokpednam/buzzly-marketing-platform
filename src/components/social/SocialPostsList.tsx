@@ -66,16 +66,51 @@ export function SocialPostsList({
   const { posts, isLoading, deletePost } = useSocialPosts(dateRange);
   const { platforms } = usePlatformConnections();
 
-  const getPlatformInfo = (platformId: string | null) =>
-    platforms.find((p) => p.id === platformId) ?? {
-      name: "Unknown",
-      emoji: "📱",
-      id: platformId ?? "",
-    };
+  const getPlatformInfo = (post: SocialPost) => {
+    const resolvedPlatform = platforms.find(
+      (platform) =>
+        platform.id === post.platform_id ||
+        platform.slug === post.platform_id ||
+        platform.slug === post.post_channel
+    );
 
-  const visiblePosts = posts.filter((post) =>
-    activePlatforms.includes(post.platform_id ?? "")
-  );
+    if (resolvedPlatform) {
+      return resolvedPlatform;
+    }
+
+    const fallbackId = post.platform_id ?? post.post_channel ?? "";
+    const fallbackName = fallbackId
+      ? fallbackId.charAt(0).toUpperCase() + fallbackId.slice(1)
+      : "Unknown";
+
+    return {
+      name: fallbackName,
+      emoji: "📱",
+      id: fallbackId,
+      slug: fallbackId,
+      icon: null,
+      status: "disconnected" as const,
+    };
+  };
+
+  const matchesActivePlatforms = (post: SocialPost) => {
+    if (activePlatforms.length === 0) {
+      return true;
+    }
+
+    const platform = getPlatformInfo(post);
+    const candidateKeys = [
+      post.platform_id,
+      post.post_channel,
+      platform.id,
+      platform.slug,
+    ].filter((value): value is string => Boolean(value));
+
+    return candidateKeys.some((key) => activePlatforms.includes(key));
+  };
+
+  const visiblePosts = posts.filter(matchesActivePlatforms);
+  const hasFilteredOutPosts = posts.length > 0 && visiblePosts.length === 0;
 
   if (isLoading) {
     return (
@@ -105,8 +140,14 @@ export function SocialPostsList({
         <Card className="p-8">
           <div className="text-center text-muted-foreground">
             <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p className="font-medium">ยังไม่มีโพสต์</p>
-            <p className="text-sm">สร้างโพสต์แรกของคุณเพื่อเริ่มต้น</p>
+            <p className="font-medium">
+              {hasFilteredOutPosts ? "ไม่พบโพสต์ตามตัวกรอง" : "ยังไม่มีโพสต์"}
+            </p>
+            <p className="text-sm">
+              {hasFilteredOutPosts
+                ? "ลองเปลี่ยนแพลตฟอร์มหรือช่วงวันที่เพื่อดูโพสต์ที่ซิงค์แล้ว"
+                : "สร้างโพสต์แรกของคุณเพื่อเริ่มต้น"}
+            </p>
           </div>
         </Card>
       </div>
@@ -127,7 +168,7 @@ export function SocialPostsList({
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {visiblePosts.map((post) => {
-          const platform = getPlatformInfo(post.platform_id);
+          const platform = getPlatformInfo(post);
           return (
             <Card key={post.id} className="overflow-hidden">
               <div className="relative">
