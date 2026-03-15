@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Users } from "lucide-react";
+import { Loader2, Sparkles, Users, UserPlus, Mail, Phone, Building2 } from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -17,14 +17,17 @@ import {
 } from "recharts";
 import { useAudienceDiscovery, type PerformanceSummary } from "@/hooks/useAudienceDiscovery";
 import type { PersonaData } from "@/hooks/useAdPersonas";
+import type { MockLeadRecord } from "@/lib/mock-api-data";
+import { getLeadField } from "@/lib/mock-api-data";
 
 interface AudienceExplorerProps {
-  teamName: string | null;
+  workspaceId: string | null;
   onSaveAsPersona: (
     audienceData: PersonaData,
     platforms: string[],
     summary: PerformanceSummary,
   ) => void;
+  onImportLead: (lead: MockLeadRecord) => void;
 }
 
 const PLATFORMS = [
@@ -50,12 +53,12 @@ const DEVICE_COLORS: Record<string, string> = {
   tablet: "#F59E0B",
 };
 
-export const AudienceExplorer = ({ teamName, onSaveAsPersona }: AudienceExplorerProps) => {
+export const AudienceExplorer = ({ workspaceId, onSaveAsPersona, onImportLead }: AudienceExplorerProps) => {
   const [activePlatforms, setActivePlatforms] = useState<string[]>(["facebook", "instagram"]);
 
-  const { audienceData, performanceSummary, isLoading, error } = useAudienceDiscovery(
+  const { audienceData, performanceSummary, leads, isLoading, error } = useAudienceDiscovery(
     activePlatforms,
-    teamName,
+    workspaceId,
   );
 
   const togglePlatform = (platformId: string) => {
@@ -156,7 +159,7 @@ export const AudienceExplorer = ({ teamName, onSaveAsPersona }: AudienceExplorer
       {audienceData && performanceSummary && !isLoading && (
         <>
           {/* Performance KPIs */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <Card className="border-none shadow-none rounded-2xl bg-primary/5">
               <CardContent className="p-4 text-center">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
@@ -187,6 +190,16 @@ export const AudienceExplorer = ({ teamName, onSaveAsPersona }: AudienceExplorer
                 </p>
               </CardContent>
             </Card>
+            <Card className="border-none shadow-none rounded-2xl bg-violet-500/5">
+              <CardContent className="p-4 text-center">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Leads Captured
+                </p>
+                <p className="text-2xl font-black">
+                  {performanceSummary.totalLeads}
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Row 1: Age Distribution + Gender Split */}
@@ -212,11 +225,93 @@ export const AudienceExplorer = ({ teamName, onSaveAsPersona }: AudienceExplorer
               Save as Persona
             </Button>
           </div>
+
+          {/* Import from Leads Panel */}
+          {leads.length > 0 && (
+            <ImportLeadsPanel leads={leads} onImportLead={onImportLead} />
+          )}
         </>
       )}
     </div>
   );
 };
+
+// ── ImportLeadsPanel ──────────────────────────────────────────────────────────
+
+const ImportLeadsPanel = ({
+  leads,
+  onImportLead,
+}: {
+  leads: MockLeadRecord[];
+  onImportLead: (lead: MockLeadRecord) => void;
+}) => (
+  <Card className="rounded-3xl border-none shadow-sm bg-violet-500/5">
+    <CardHeader className="pb-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+            Facebook Leads
+          </CardTitle>
+          <CardDescription>
+            Contacts captured via Lead Ads — import any as a persona
+          </CardDescription>
+        </div>
+        <Badge variant="secondary" className="bg-violet-100 text-violet-700 border-none">
+          {leads.length} leads
+        </Badge>
+      </div>
+    </CardHeader>
+    <CardContent>
+      <div className="space-y-3">
+        {leads.map((lead) => {
+          const name = getLeadField(lead, "full_name");
+          const email = getLeadField(lead, "email");
+          const phone = getLeadField(lead, "phone_number");
+          const company = getLeadField(lead, "company_name");
+          return (
+            <div
+              key={lead.id}
+              className="flex items-center justify-between gap-4 rounded-2xl border border-border/50 bg-background p-4"
+            >
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="font-semibold text-sm truncate">{name}</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                  {email && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Mail className="h-3 w-3 shrink-0" />
+                      {email}
+                    </span>
+                  )}
+                  {phone && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Phone className="h-3 w-3 shrink-0" />
+                      {phone}
+                    </span>
+                  )}
+                  {company && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Building2 className="h-3 w-3 shrink-0" />
+                      {company}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 gap-1.5 rounded-xl border-violet-200 text-violet-700 hover:bg-violet-50 hover:border-violet-300"
+                onClick={() => onImportLead(lead)}
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                Import
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+    </CardContent>
+  </Card>
+);
 
 // ── Chart sub-components ──────────────────────────────────────────────────────
 

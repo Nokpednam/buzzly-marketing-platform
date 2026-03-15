@@ -1,0 +1,145 @@
+{
+  "conversations": [
+    {
+      "thread_id": "chat_b001",
+      "page_id": "page_shop_b",
+      "participant": {
+        "id": "user_fb001",
+        "name": "Pimchanok Aree",
+        "profile_pic": null
+      },
+      "last_message_time": "2026-03-13T14:20:00+0000",
+      "unread_count": 1,
+      "tags": ["potential_lead", "product_inquiry"],
+      "messages": [
+        {
+          "id": "msg_b001_1",
+          "from": "user",
+          "text": "สนใจ Vitamin C Serum ค่ะ เหมาะกับผิวแพ้ง่ายไหมคะ?",
+          "timestamp": "2026-03-13T13:50:00+0000"
+        },
+        {
+          "id": "msg_b001_2",
+          "from": "page",
+          "text": "สวัสดีค่ะคุณปิมชนก! Vitamin C Serum ของเราผ่านการทดสอบ Dermatologist-tested และปราศจากสารก่อการแพ้ทั่วไปค่ะ เหมาะมากสำหรับผิวแพ้ง่ายค่ะ",
+          "timestamp": "2026-03-13T14:00:00+0000"
+        },
+        {
+          "id": "msg_b001_3",
+          "from": "user",
+          "text": "ดีมากเลยค่ะ มี sample size ให้ทดลองก่อนไหมคะ?",
+          "timestamp": "2026-03-13T14:20:00+0000"
+        }
+      ]
+    },
+    {
+      "thread_id": "chat_b002",
+      "page_id": "page_shop_b",
+      "participant": {
+        "id": "user_fb002",
+        "name": "Natthida Kosolrak",
+        "profile_pic": null
+      },
+      "last_message_time": "2026-03-12T19:05:00+0000",
+      "unread_count": 0,
+      "tags": ["converted", "vip_customer"],
+      "messages": [
+        {
+          "id": "msg_b002_1",
+          "from": "user",
+          "text": "ฉันซื้อ Rose Water Toner มาแล้ว 6 เดือนค่ะ ผิวดีขึ้นมากเลย จะมี loyalty reward ไหมคะ?",
+          "timestamp": "2026-03-12T18:30:00+0000"
+        },
+        {
+          "id": "msg_b002_2",
+          "from": "page",
+          "text": "ขอบคุณมากเลยนะคะคุณณัฐธิดา! ดีใจที่ผิวดีขึ้นค่ะ สำหรับลูกค้า VIP ที่ซื้อต่อเนื่องมากกว่า 6 เดือน จะได้รับการอัปเกรดเป็น Gold Member พร้อมส่วนลด 25% และ free gift ทุกออร์เดอร์ค่ะ",
+          "timestamp": "2026-03-12T19:00:00+0000"
+        },
+        {
+          "id": "msg_b002_3",
+          "from": "user",
+          "text": "ยอดเยี่ยมมากค่ะ ขอบคุณนะคะ!",
+          "timestamp": "2026-03-12T19:05:00+0000"
+        }
+      ]
+    },
+    {
+      "thread_id": "chat_b003",
+      "page_id": "page_shop_b",
+      "participant": {
+        "id": "user_fb003",
+        "name": "Yui Nakamura",
+        "profile_pic": null
+      },
+      "last_message_time": "2026-03-11T10:40:00+0000",
+      "unread_count": 2,
+      "tags": ["potential_lead", "international", "wholesale"],
+      "messages": [
+        {
+          "id": "msg_b003_1",
+          "from": "user",
+          "text": "Hello! I run an organic beauty store in Japan and I'm interested in stocking your products. Do you offer wholesale or B2B partnerships?",
+          "timestamp": "2026-03-11T10:00:00+0000"
+        },
+        {
+          "id": "msg_b003_2",
+          "from": "page",
+          "text": "Hi Yui! We love partnering with like-minded organic beauty retailers. Yes, we do have a B2B program. Minimum order is 24 units per SKU and we offer 35% margin for authorized retailers.",
+          "timestamp": "2026-03-11T10:20:00+0000"
+        },
+        {
+          "id": "msg_b003_3",
+          "from": "user",
+          "text": "That sounds perfect! Do you have your product catalog with ingredient lists available?",
+          "timestamp": "2026-03-11T10:35:00+0000"
+        },
+        {
+          "id": "msg_b003_4",
+          "from": "user",
+          "text": "Also, are your products cruelty-free certified?",
+          "timestamp": "2026-03-11T10:40:00+0000"
+        }
+      ]
+    },
+    {
+      "thread_id": "chat_b004",
+      "page_id": "page_shop_b",
+      "participant": {
+        "id": "user_fb004",
+        "name": "Kittisak Boonma",
+        "profile_pic": null
+      },
+      "last_message_time": "2026-03-10T16:50:00+0000",
+      "unread_count": 0,
+      "tags": ["post_purchase", "feedback"],
+      "messages": [
+        {
+          "id": "msg_b004_1",
+          "from": "user",
+          "text": "ได้รับสินค้าแล้วครับ บรรจุภัณฑ์สวยมากเลย แต่ขนาดเล็กกว่าที่คิดไว้หน่อยครับ",
+          "timestamp": "2026-03-10T16:00:00+0000"
+        },
+        {
+          "id": "msg_b004_2",
+          "from": "page",
+          "text": "ขอบคุณมากสำหรับ feedback นะคะ! ขนาดของ Vitamin C Serum เป็น 30ml ซึ่งตามมาตรฐานสินค้า premium skincare ทั่วไปค่ะ ถ้าต้องการขนาดใหญ่ขึ้นเรามี 50ml edition ด้วยนะคะ",
+          "timestamp": "2026-03-10T16:30:00+0000"
+        },
+        {
+          "id": "msg_b004_3",
+          "from": "user",
+          "text": "โอ้ ไม่ทราบว่ามี 50ml ด้วย จะลองสั่งครั้งหน้าครับ ขอบคุณครับ",
+          "timestamp": "2026-03-10T16:50:00+0000"
+        }
+      ]
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "chat_b001",
+      "after": "chat_b004"
+    },
+    "total": 4
+  }
+}

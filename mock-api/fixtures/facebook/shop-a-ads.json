@@ -16,6 +16,25 @@
       "roas": 4.52,
       "date_start": "2026-03-01",
       "date_stop": "2026-03-13",
+      "creative": {
+        "headline": "Summer Mega Sale – Up to 70% Off",
+        "body": "Shop the biggest sale of the season. Limited time deals on fashion, gadgets and more.",
+        "call_to_action": "SHOP_NOW",
+        "image_url": null,
+        "video_url": null
+      },
+      "targeting": {
+        "age_min": 18,
+        "age_max": 45,
+        "genders": ["female", "male"],
+        "geo_locations": { "cities": ["Bangkok", "Chiang Mai", "Phuket"] },
+        "interests": ["Fashion & Beauty", "Online Shopping", "Lifestyle"]
+      },
+      "delivery_info": {
+        "status": "ACTIVE",
+        "budget_remaining": 537.50,
+        "bid_amount": 0.20
+      },
       "persona_data": {
         "age_distribution": { "13-17": 0.03, "18-24": 0.32, "25-34": 0.38, "35-44": 0.17, "45-54": 0.07, "55+": 0.03 },
         "gender": { "male": 0.41, "female": 0.55, "unknown": 0.04 },
@@ -51,6 +70,25 @@
       "roas": 0.00,
       "date_start": "2026-02-15",
       "date_stop": "2026-03-13",
+      "creative": {
+        "headline": "Discover What's Trending This Summer",
+        "body": "Watch our latest collection video and see why thousands of shoppers choose us every day.",
+        "call_to_action": "LEARN_MORE",
+        "image_url": null,
+        "video_url": "https://mock.cdn/videos/brand_awareness_v1.mp4"
+      },
+      "targeting": {
+        "age_min": 13,
+        "age_max": 44,
+        "genders": ["female", "male"],
+        "geo_locations": { "cities": ["Bangkok", "Chiang Mai", "Pattaya", "Hat Yai"] },
+        "interests": ["Entertainment", "Music", "Sports", "Gaming"]
+      },
+      "delivery_info": {
+        "status": "ACTIVE",
+        "budget_remaining": 1118.00,
+        "bid_amount": 0.10
+      },
       "persona_data": {
         "age_distribution": { "13-17": 0.08, "18-24": 0.35, "25-34": 0.30, "35-44": 0.15, "45-54": 0.08, "55+": 0.04 },
         "gender": { "male": 0.47, "female": 0.48, "unknown": 0.05 },
@@ -86,6 +124,26 @@
       "roas": 5.82,
       "date_start": "2026-03-01",
       "date_stop": "2026-03-13",
+      "creative": {
+        "headline": "You Left Something Behind 👀",
+        "body": "Your cart is waiting. Complete your order now and get free shipping on orders over ฿500.",
+        "call_to_action": "COMPLETE_PURCHASE",
+        "image_url": null,
+        "video_url": null
+      },
+      "targeting": {
+        "age_min": 18,
+        "age_max": 54,
+        "genders": ["female", "male"],
+        "geo_locations": { "cities": ["Bangkok", "Nonthaburi", "Pathum Thani", "Samut Prakan"] },
+        "interests": ["Fashion & Beauty", "Online Shopping"],
+        "custom_audiences": ["cart_abandoners_30d", "product_viewers_7d"]
+      },
+      "delivery_info": {
+        "status": "ACTIVE",
+        "budget_remaining": 420.20,
+        "bid_amount": 0.35
+      },
       "persona_data": {
         "age_distribution": { "13-17": 0.01, "18-24": 0.22, "25-34": 0.42, "35-44": 0.24, "45-54": 0.08, "55+": 0.03 },
         "gender": { "male": 0.38, "female": 0.59, "unknown": 0.03 },
@@ -121,6 +179,25 @@
       "roas": 0.00,
       "date_start": "2026-02-20",
       "date_stop": "2026-03-13",
+      "creative": {
+        "headline": "Start Your Free Trial Today",
+        "body": "Join thousands of businesses growing with our platform. No credit card required. Cancel anytime.",
+        "call_to_action": "SIGN_UP",
+        "image_url": null,
+        "video_url": null
+      },
+      "targeting": {
+        "age_min": 25,
+        "age_max": 54,
+        "genders": ["female", "male"],
+        "geo_locations": { "cities": ["Bangkok", "Chiang Mai", "Phuket", "Khon Kaen"] },
+        "interests": ["Business & Finance", "Technology", "Entrepreneurship", "Marketing"]
+      },
+      "delivery_info": {
+        "status": "ACTIVE",
+        "budget_remaining": 985.80,
+        "bid_amount": 0.50
+      },
       "persona_data": {
         "age_distribution": { "13-17": 0.01, "18-24": 0.19, "25-34": 0.40, "35-44": 0.27, "45-54": 0.09, "55+": 0.04 },
         "gender": { "male": 0.53, "female": 0.44, "unknown": 0.03 },
@@ -156,6 +233,25 @@
       "roas": 6.10,
       "date_start": "2026-03-07",
       "date_stop": "2026-03-13",
+      "creative": {
+        "headline": "⚡ Flash Sale – 24 Hours Only!",
+        "body": "Swipe up to grab deals up to 70% off. Offer ends midnight tonight.",
+        "call_to_action": "SHOP_NOW",
+        "image_url": null,
+        "video_url": null
+      },
+      "targeting": {
+        "age_min": 13,
+        "age_max": 44,
+        "genders": ["female", "male"],
+        "geo_locations": { "cities": ["Bangkok", "Chiang Mai", "Phuket", "Pattaya"] },
+        "interests": ["Fashion & Beauty", "Food & Dining", "Travel", "Photography"]
+      },
+      "delivery_info": {
+        "status": "ACTIVE",
+        "budget_remaining": 139.58,
+        "bid_amount": 0.12
+      },
       "persona_data": {
         "age_distribution": { "13-17": 0.06, "18-24": 0.38, "25-34": 0.34, "35-44": 0.14, "45-54": 0.05, "55+": 0.03 },
         "gender": { "male": 0.36, "female": 0.61, "unknown": 0.03 },

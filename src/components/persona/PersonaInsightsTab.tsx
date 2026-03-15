@@ -35,7 +35,7 @@ import type { PersonaData } from "@/hooks/useAdPersonas";
 
 interface PersonaInsightsTabProps {
   teamId: string;
-  teamName?: string | null;
+  workspaceId?: string | null;
 }
 
 // ── Match badge helpers ──────────────────────────────────────────────────────
@@ -65,10 +65,10 @@ function interestMatchBadge(savedInterests: string[], apiInterests: string[]) {
 interface ComparisonPanelProps {
   personaId: string;
   teamId: string;
-  teamName?: string | null;
+  workspaceId?: string | null;
 }
 
-const ComparisonPanel = ({ personaId, teamId, teamName }: ComparisonPanelProps) => {
+const ComparisonPanel = ({ personaId, teamId, workspaceId }: ComparisonPanelProps) => {
   const { personas, genders } = useCustomerPersonas(teamId);
   const persona = personas?.find((p) => p.id === personaId) ?? null;
 
@@ -78,7 +78,7 @@ const ComparisonPanel = ({ personaId, teamId, teamName }: ComparisonPanelProps) 
 
   const { audienceData: liveData, isLoading: liveLoading } = useAudienceDiscovery(
     hasDiscoveryData ? sourcePlatforms : [],
-    teamName,
+    workspaceId,
   );
 
   if (!persona) return null;
@@ -298,7 +298,7 @@ const ComparisonRow = ({
 
 // ── Main component ───────────────────────────────────────────────────────────
 
-export const PersonaInsightsTab = ({ teamId, teamName }: PersonaInsightsTabProps) => {
+export const PersonaInsightsTab = ({ teamId, workspaceId }: PersonaInsightsTabProps) => {
   const [selectedPersonaIds, setSelectedPersonaIds] = useState<string[]>([]);
   const [comparisonMode, setComparisonMode] = useState(false);
   const personaId = selectedPersonaIds[0];
@@ -342,7 +342,7 @@ export const PersonaInsightsTab = ({ teamId, teamName }: PersonaInsightsTabProps
 
       {/* Comparison Mode */}
       {personaId && comparisonMode && (
-        <ComparisonPanel personaId={personaId} teamId={teamId} teamName={teamName} />
+        <ComparisonPanel personaId={personaId} teamId={teamId} workspaceId={workspaceId} />
       )}
 
       {/* Standard Insights Mode */}

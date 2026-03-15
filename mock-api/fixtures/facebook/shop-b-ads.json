@@ -16,6 +16,26 @@
       "roas": 8.91,
       "date_start": "2026-03-01",
       "date_stop": "2026-03-13",
+      "creative": {
+        "headline": "Your Skin Deserves Better",
+        "body": "Discover clinically formulated skincare tailored for Thai skin. Free delivery on first order.",
+        "call_to_action": "SHOP_NOW",
+        "image_url": null,
+        "video_url": null
+      },
+      "targeting": {
+        "age_min": 25,
+        "age_max": 54,
+        "genders": ["female"],
+        "geo_locations": { "cities": ["Bangkok", "Nonthaburi", "Samut Prakan", "Pathum Thani"] },
+        "interests": ["Skincare & Beauty", "Health & Wellness", "Luxury Goods", "Online Shopping"],
+        "custom_audiences": ["skincare_purchasers_90d", "beauty_page_engagers"]
+      },
+      "delivery_info": {
+        "status": "ACTIVE",
+        "budget_remaining": 308.80,
+        "bid_amount": 0.55
+      },
       "persona_data": {
         "age_distribution": { "13-17": 0.01, "18-24": 0.18, "25-34": 0.36, "35-44": 0.29, "45-54": 0.12, "55+": 0.04 },
         "gender": { "male": 0.22, "female": 0.75, "unknown": 0.03 },
@@ -51,6 +71,25 @@
       "roas": 7.20,
       "date_start": "2026-03-01",
       "date_stop": "2026-03-13",
+      "creative": {
+        "headline": "Feel the Difference in 30 Days",
+        "body": "Premium supplements backed by science. Trusted by over 50,000 wellness enthusiasts in Thailand.",
+        "call_to_action": "LEARN_MORE",
+        "image_url": null,
+        "video_url": null
+      },
+      "targeting": {
+        "age_min": 25,
+        "age_max": 54,
+        "genders": ["female", "male"],
+        "geo_locations": { "cities": ["Bangkok", "Chiang Mai", "Phuket", "Hua Hin"] },
+        "interests": ["Health & Wellness", "Fitness & Sports", "Organic Food", "Yoga & Meditation"]
+      },
+      "delivery_info": {
+        "status": "ACTIVE",
+        "budget_remaining": 457.40,
+        "bid_amount": 0.72
+      },
       "persona_data": {
         "age_distribution": { "13-17": 0.00, "18-24": 0.12, "25-34": 0.30, "35-44": 0.35, "45-54": 0.17, "55+": 0.06 },
         "gender": { "male": 0.44, "female": 0.53, "unknown": 0.03 },
@@ -86,6 +125,25 @@
       "roas": 6.85,
       "date_start": "2026-02-25",
       "date_stop": "2026-03-13",
+      "creative": {
+        "headline": "The Perfect Cup, Every Morning",
+        "body": "Single-origin beans, roasted weekly. Experience specialty coffee delivered to your door.",
+        "call_to_action": "ORDER_NOW",
+        "image_url": null,
+        "video_url": "https://mock.cdn/videos/artisan_coffee_v2.mp4"
+      },
+      "targeting": {
+        "age_min": 18,
+        "age_max": 44,
+        "genders": ["female", "male"],
+        "geo_locations": { "cities": ["Bangkok", "Chiang Mai", "Khon Kaen", "Phuket"] },
+        "interests": ["Coffee & Café Culture", "Specialty Food", "Sustainability", "Travel"]
+      },
+      "delivery_info": {
+        "status": "ACTIVE",
+        "budget_remaining": 518.60,
+        "bid_amount": 0.62
+      },
       "persona_data": {
         "age_distribution": { "13-17": 0.01, "18-24": 0.24, "25-34": 0.38, "35-44": 0.24, "45-54": 0.10, "55+": 0.03 },
         "gender": { "male": 0.49, "female": 0.48, "unknown": 0.03 },
@@ -121,6 +179,26 @@
       "roas": 5.94,
       "date_start": "2026-03-05",
       "date_stop": "2026-03-13",
+      "creative": {
+        "headline": "Style That Speaks for Itself",
+        "body": "Curated boutique fashion for the modern Thai woman. New arrivals every week.",
+        "call_to_action": "SHOP_NOW",
+        "image_url": null,
+        "video_url": null
+      },
+      "targeting": {
+        "age_min": 18,
+        "age_max": 44,
+        "genders": ["female"],
+        "geo_locations": { "cities": ["Bangkok", "Chiang Mai", "Phuket", "Nonthaburi"] },
+        "interests": ["Fashion & Luxury", "Online Shopping", "Travel & Lifestyle", "Interior Design"],
+        "custom_audiences": ["lookalike_top_buyers_2pct"]
+      },
+      "delivery_info": {
+        "status": "ACTIVE",
+        "budget_remaining": 306.20,
+        "bid_amount": 0.68
+      },
       "persona_data": {
         "age_distribution": { "13-17": 0.01, "18-24": 0.20, "25-34": 0.37, "35-44": 0.28, "45-54": 0.11, "55+": 0.03 },
         "gender": { "male": 0.18, "female": 0.79, "unknown": 0.03 },
@@ -156,6 +234,25 @@
       "roas": 7.52,
       "date_start": "2026-03-01",
       "date_stop": "2026-03-13",
+      "creative": {
+        "headline": "Your Pet Deserves the Best",
+        "body": "Vet-approved, natural pet products. First bag ships free. 30-day money back guarantee.",
+        "call_to_action": "SHOP_NOW",
+        "image_url": null,
+        "video_url": null
+      },
+      "targeting": {
+        "age_min": 25,
+        "age_max": 54,
+        "genders": ["female", "male"],
+        "geo_locations": { "cities": ["Bangkok", "Chiang Mai", "Phuket", "Samut Prakan"] },
+        "interests": ["Pets & Animals", "Animal Welfare", "Organic & Natural Products", "Home & Garden"]
+      },
+      "delivery_info": {
+        "status": "ACTIVE",
+        "budget_remaining": 246.50,
+        "bid_amount": 0.52
+      },
       "persona_data": {
         "age_distribution": { "13-17": 0.01, "18-24": 0.15, "25-34": 0.34, "35-44": 0.32, "45-54": 0.13, "55+": 0.05 },
         "gender": { "male": 0.35, "female": 0.62, "unknown": 0.03 },

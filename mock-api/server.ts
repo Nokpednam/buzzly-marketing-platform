@@ -91,6 +91,10 @@ app.get("/facebook/:tenant/ads", (req, res) => {
   res.json(loadFixture("facebook", req.params.tenant, "ads"));
 });
 
+app.get("/facebook/:tenant/chats", (req, res) => {
+  res.json(loadFixture("facebook", req.params.tenant, "chats"));
+});
+
 // ─── Instagram Endpoints ─────────────────────────────────────────────
 app.get("/instagram/:tenant/ads", (req, res) => {
   res.json(loadFixture("instagram", req.params.tenant, "ads"));
@@ -316,6 +320,7 @@ app.get("/", (_req, res) => {
       "GET  /facebook/:tenant/insights",
       "GET  /facebook/:tenant/leads",
       "GET  /facebook/:tenant/ads",
+      "GET  /facebook/:tenant/chats",
       "GET  /instagram/:tenant/ads",
       "GET  /tiktok/:tenant/ads",
       "GET  /shopee/:tenant/orders/list",
@@ -338,6 +343,7 @@ app.listen(PORT, () => {
   console.log(`   GET  /facebook/:tenant/insights`);
   console.log(`   GET  /facebook/:tenant/leads`);
   console.log(`   GET  /facebook/:tenant/ads`);
+  console.log(`   GET  /facebook/:tenant/chats`);
   console.log(`   GET  /instagram/:tenant/ads`);
   console.log(`   GET  /tiktok/:tenant/ads`);
   console.log(`   GET  /shopee/:tenant/orders/list`);

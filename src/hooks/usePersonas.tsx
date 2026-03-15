@@ -1,3 +1,15 @@
+/**
+ * @deprecated usePersonas queries the legacy `persona_definition` table, which is
+ * an owner-level product-analytics table (AARRR funnel, user segmentation) and is
+ * NOT the same as the marketing persona system used across customer pages.
+ *
+ * For marketing/campaign personas (Prospects page, audience discovery, ad targeting)
+ * use `useCustomerPersonas` from "@/hooks/useCustomerPersonas" instead.
+ *
+ * This hook is retained only for `pages/owner/ProductUsage.tsx`, which manages
+ * internal Buzzly user-segment personas — a distinct concept from customer personas.
+ * Do NOT introduce new usages of this hook elsewhere.
+ */
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";

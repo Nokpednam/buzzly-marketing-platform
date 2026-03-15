@@ -23,6 +23,9 @@ import {
   Activity
 } from "lucide-react";
 import { useProductUsageMetrics, useUserSegments, useAARRRMetrics } from "@/hooks/useOwnerMetrics";
+// usePersonas (legacy) is intentionally used here — this page manages internal
+// Buzzly user-segment personas (AARRR analytics), not customer marketing personas.
+// For marketing personas use useCustomerPersonas instead.
 import { usePersonas } from "@/hooks/usePersonas";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";

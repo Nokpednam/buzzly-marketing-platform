@@ -10,6 +10,8 @@ export type SocialPostUpdate = Database["public"]["Tables"]["social_posts"]["Upd
 
 export function useSocialPosts(dateRange?: string) {
   const queryClient = useQueryClient();
+  const { workspace } = useWorkspace();
+  const workspaceId = workspace.id;
 
   // Calculate date filter based on dateRange
   const getDateFilter = () => {
@@ -21,11 +23,13 @@ export function useSocialPosts(dateRange?: string) {
   };
 
   const { data: posts = [], isLoading, error } = useQuery({
-    queryKey: ["social_posts", dateRange],
+    queryKey: ["social_posts", workspaceId, dateRange],
+    enabled: !!workspaceId,
     queryFn: async () => {
       let query = supabase
         .from("social_posts")
         .select("*")
+        .eq("team_id", workspaceId!)
         .order("created_at", { ascending: false });
 
       const dateFilter = getDateFilter();
@@ -38,8 +42,6 @@ export function useSocialPosts(dateRange?: string) {
       return data as SocialPost[];
     },
   });
-
-  const { workspace } = useWorkspace();
 
   const createPost = useMutation({
     mutationFn: async (newPost: SocialPostInsert) => {

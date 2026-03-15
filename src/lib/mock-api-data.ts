@@ -89,6 +89,34 @@ export interface MockAdFile {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// LEADS FIXTURE TYPES
+// Mirrors the Facebook Lead Ads API field_data schema.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface MockLeadFieldData {
+  name: string;
+  values: string[];
+}
+
+export interface MockLeadRecord {
+  id: string;
+  created_time: string;
+  field_data: MockLeadFieldData[];
+  form_id: string;
+  ad_id: string;
+}
+
+export interface MockLeadFile {
+  data: MockLeadRecord[];
+  paging: { cursors: { before: string; after: string } };
+}
+
+/** Convenience: pull a named field value from a lead's field_data array. */
+export function getLeadField(lead: MockLeadRecord, fieldName: string): string {
+  return lead.field_data.find((f) => f.name === fieldName)?.values[0] ?? "";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // RAW FIXTURE IMPORTS — INSIGHTS (campaign-level aggregates)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -128,6 +156,16 @@ import _ggShopAAds from "../../mock-api/fixtures/google/shop-a-ads.json";
 import _ggShopBAds from "../../mock-api/fixtures/google/shop-b-ads.json";
 import _spShopAAds from "../../mock-api/fixtures/shopee/shop-a-ads.json";
 import _spShopBAds from "../../mock-api/fixtures/shopee/shop-b-ads.json";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RAW FIXTURE IMPORTS — LEADS (Facebook Lead Ads form submissions)
+// ─────────────────────────────────────────────────────────────────────────────
+
+import _fbShopALeads from "../../mock-api/fixtures/facebook/shop-a-leads.json";
+import _fbShopBLeads from "../../mock-api/fixtures/facebook/shop-b-leads.json";
+
+export const FACEBOOK_SHOP_A_LEADS = _fbShopALeads as unknown as MockLeadFile;
+export const FACEBOOK_SHOP_B_LEADS = _fbShopBLeads as unknown as MockLeadFile;
 
 export const FACEBOOK_SHOP_A_ADS = _fbShopAAds as unknown as MockAdFile;
 export const FACEBOOK_SHOP_B_ADS = _fbShopBAds as unknown as MockAdFile;
@@ -703,23 +741,40 @@ export interface MockPersona {
 // SHOP RESOLUTION HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function resolveMockShop(teamName?: string | null): "shop-a" | "shop-b" {
-  if (!teamName) return "shop-a";
-  const lower = teamName.toLowerCase();
-  if (lower.includes("shop-b") || lower.includes("shopb") || lower.endsWith("-b")) {
-    return "shop-b";
-  }
-  return "shop-a";
+/**
+ * ID-based mock shop resolver.
+ *
+ * To test shop-b data locally, add your workspace UUID to .env.local:
+ *   VITE_MOCK_SHOP_B_IDS=<uuid1>,<uuid2>
+ *
+ * All other workspace IDs (and null/undefined) resolve to shop-a.
+ */
+const MOCK_SHOP_B_IDS = new Set<string>(
+  (import.meta.env.VITE_MOCK_SHOP_B_IDS ?? "")
+    .split(",")
+    .map((s: string) => s.trim())
+    .filter(Boolean),
+);
+
+export function resolveMockShop(workspaceId?: string | null): "shop-a" | "shop-b" {
+  if (!workspaceId) return "shop-a";
+  return MOCK_SHOP_B_IDS.has(workspaceId) ? "shop-b" : "shop-a";
 }
 
-export function getMockInsights(teamName?: string | null): AdInsightRow[] {
-  const shop = resolveMockShop(teamName);
+export function getMockInsights(workspaceId?: string | null): AdInsightRow[] {
+  const shop = resolveMockShop(workspaceId);
   if (shop === "shop-b") return MOCK_AD_INSIGHTS_SHOP_B;
   return MOCK_AD_INSIGHTS_SHOP_A;
 }
 
-export function getMockAds(teamName?: string | null): MockAdRecord[] {
-  return resolveMockShop(teamName) === "shop-b" ? ALL_SHOP_B_ADS : ALL_SHOP_A_ADS;
+export function getMockAds(workspaceId?: string | null): MockAdRecord[] {
+  return resolveMockShop(workspaceId) === "shop-b" ? ALL_SHOP_B_ADS : ALL_SHOP_A_ADS;
+}
+
+export function getMockLeads(workspaceId?: string | null): MockLeadRecord[] {
+  return resolveMockShop(workspaceId) === "shop-b"
+    ? FACEBOOK_SHOP_B_LEADS.data
+    : FACEBOOK_SHOP_A_LEADS.data;
 }
 
 export const MOCK_PERSONAS: MockPersona[] = [
@@ -860,6 +915,69 @@ export interface DiscoveryCustomFields {
  * NOTE: id = "" signals CREATE mode to the dialog. created_at = real ISO timestamp
  *       is used as the `key` prop to force dialog remount on each discovery click.
  */
+/**
+ * Transforms a Facebook Lead Ads submission into a CustomerPersona-shaped object
+ * ready to pre-fill CreatePersonaDialog.
+ *
+ * Lead data doesn't carry age/gender, so those fields are left null for the user
+ * to complete. The lead's contact info and company are stored in `custom_fields`
+ * so nothing is lost.
+ */
+export function transformLeadToPersona(
+  lead: MockLeadRecord,
+  workspaceId: string,
+): CustomerPersona {
+  const now = new Date().toISOString();
+  const fullName = getLeadField(lead, "full_name");
+  const email = getLeadField(lead, "email");
+  const phone = getLeadField(lead, "phone_number");
+  const company = getLeadField(lead, "company_name");
+
+  const customFields = {
+    lead_source: {
+      platform: "facebook",
+      form_id: lead.form_id,
+      ad_id: lead.ad_id,
+      captured_at: lead.created_time,
+    },
+    contact: {
+      full_name: fullName,
+      email,
+      phone,
+      company,
+    },
+  };
+
+  return {
+    id: "",
+    team_id: workspaceId,
+    persona_name: fullName,
+    description: `Lead captured from Facebook ad. Company: ${company || "N/A"}.`,
+    avatar_url: null,
+    gender_id: null,
+    age_min: null,
+    age_max: null,
+    location_id: null,
+    profession: company ? "Business Owner / Decision Maker" : null,
+    company_size: null,
+    salary_range: null,
+    industry: null,
+    preferred_devices: [],
+    active_hours: null,
+    interests: [],
+    pain_points: null,
+    goals: null,
+    custom_fields: customFields as unknown as import("@/integrations/supabase/types").Json,
+    is_active: true,
+    is_template: false,
+    psychographics: null,
+    ad_targeting_mapping: null,
+    created_at: now,
+    updated_at: now,
+    created_by: null,
+  };
+}
+
 export function transformDiscoveryToPersona(
   audienceData: MockPersonaData,
   activePlatforms: string[],

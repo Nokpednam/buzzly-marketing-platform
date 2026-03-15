@@ -32,7 +32,7 @@ export interface AdInsightsSummary {
 // useAdInsights
 // ---------------------------------------------------------------------------
 
-export function useAdInsights(dateRange?: string, activePlatforms?: string[], teamName?: string | null) {
+export function useAdInsights(dateRange?: string, activePlatforms?: string[], workspaceId?: string | null) {
   const getDateFilter = () => {
     if (!dateRange) return null;
     const days = parseInt(dateRange);
@@ -42,13 +42,13 @@ export function useAdInsights(dateRange?: string, activePlatforms?: string[], te
   };
 
   const { data: insights = [], isLoading, error } = useQuery({
-    queryKey: ["ad_insights", dateRange, activePlatforms, USE_MOCK_DATA ? "mock" : "live"],
+    queryKey: ["ad_insights", workspaceId, dateRange, activePlatforms, USE_MOCK_DATA ? "mock" : "live"],
     queryFn: async () => {
       // ── MOCK MODE ────────────────────────────────────────────────────────
       if (USE_MOCK_DATA) {
         if (activePlatforms && activePlatforms.length === 0) return [];
 
-        let rows = getMockInsights(teamName);
+        let rows = getMockInsights(workspaceId);
 
         const dateFilter = getDateFilter();
         if (dateFilter) {

@@ -52,7 +52,12 @@ import type { CustomerPersona } from "@/hooks/useCustomerPersonas";
 import { useAdPersonas, type AdAudienceMode, type PersonaData } from "@/hooks/useAdPersonas";
 import { useAds } from "@/hooks/useAds";
 import { useCampaigns } from "@/hooks/useCampaigns";
-import { transformDiscoveryToPersona, type MockPersonaData } from "@/lib/mock-api-data";
+import {
+  transformDiscoveryToPersona,
+  transformLeadToPersona,
+  type MockPersonaData,
+  type MockLeadRecord,
+} from "@/lib/mock-api-data";
 import type { PerformanceSummary } from "@/hooks/useAudienceDiscovery";
 
 const GENDER_COLORS: Record<string, string> = {
@@ -104,6 +109,12 @@ export default function Prospects() {
       genders ?? [],
       summary,
     );
+    setDiscoveryInitialData(transformed);
+    setShowCreateDialog(true);
+  };
+
+  const handleImportLead = (lead: MockLeadRecord) => {
+    const transformed = transformLeadToPersona(lead, workspace.id ?? "");
     setDiscoveryInitialData(transformed);
     setShowCreateDialog(true);
   };
@@ -397,14 +408,15 @@ export default function Prospects() {
         </TabsContent>
         {/* ── INSIGHTS TAB ── */}
         <TabsContent value="insights" className="animate-in fade-in duration-500">
-          <PersonaInsightsTab teamId={workspace.id} teamName={workspace.name} />
+          <PersonaInsightsTab teamId={workspace.id} workspaceId={workspace.id} />
         </TabsContent>
 
         {/* ── DISCOVERY TAB ── */}
         <TabsContent value="discovery" className="animate-in fade-in duration-500">
           <AudienceExplorer
-            teamName={workspace.name}
+            workspaceId={workspace.id}
             onSaveAsPersona={handleSaveAsPersona}
+            onImportLead={handleImportLead}
           />
         </TabsContent>
       </Tabs>

@@ -1,0 +1,183 @@
+{
+  "conversations": [
+    {
+      "thread_id": "chat_a001",
+      "page_id": "page_shop_a",
+      "participant": {
+        "id": "user_fa001",
+        "name": "Somchai Prasert",
+        "profile_pic": null
+      },
+      "last_message_time": "2026-03-13T10:45:00+0000",
+      "unread_count": 2,
+      "tags": ["potential_lead", "price_inquiry"],
+      "messages": [
+        {
+          "id": "msg_a001_1",
+          "from": "user",
+          "text": "สวัสดีครับ มีโปรโมชั่นส่วนลดสำหรับการสั่งซื้อครั้งแรกไหมครับ?",
+          "timestamp": "2026-03-13T10:30:00+0000"
+        },
+        {
+          "id": "msg_a001_2",
+          "from": "page",
+          "text": "สวัสดีค่ะ ขอบคุณที่สนใจนะคะ! สำหรับลูกค้าใหม่มีส่วนลด 15% สำหรับการสั่งซื้อครั้งแรกค่ะ ใช้โค้ด NEWCUSTOMER ได้เลยค่ะ",
+          "timestamp": "2026-03-13T10:35:00+0000"
+        },
+        {
+          "id": "msg_a001_3",
+          "from": "user",
+          "text": "ขอบคุณครับ แล้วมีสินค้าประเภท electronic มีอะไรบ้างครับ?",
+          "timestamp": "2026-03-13T10:45:00+0000"
+        }
+      ]
+    },
+    {
+      "thread_id": "chat_a002",
+      "page_id": "page_shop_a",
+      "participant": {
+        "id": "user_fa002",
+        "name": "Nattaporn Srisuk",
+        "profile_pic": null
+      },
+      "last_message_time": "2026-03-12T16:20:00+0000",
+      "unread_count": 0,
+      "tags": ["post_purchase", "complaint"],
+      "messages": [
+        {
+          "id": "msg_a002_1",
+          "from": "user",
+          "text": "สั่งไปเมื่อวานแต่ยังไม่ได้รับอีเมลยืนยันเลยค่ะ",
+          "timestamp": "2026-03-12T15:00:00+0000"
+        },
+        {
+          "id": "msg_a002_2",
+          "from": "page",
+          "text": "ขออภัยในความไม่สะดวกนะคะ กรุณาส่งหมายเลขคำสั่งซื้อมาให้เราตรวจสอบได้เลยค่ะ",
+          "timestamp": "2026-03-12T15:20:00+0000"
+        },
+        {
+          "id": "msg_a002_3",
+          "from": "user",
+          "text": "เลขคำสั่งซื้อคือ ORD-20260312-8847 ค่ะ",
+          "timestamp": "2026-03-12T15:25:00+0000"
+        },
+        {
+          "id": "msg_a002_4",
+          "from": "page",
+          "text": "ตรวจสอบแล้วค่ะ คำสั่งซื้อของคุณอยู่ระหว่างการดำเนินการและอีเมลยืนยันได้ถูกส่งไปแล้วค่ะ กรุณาตรวจสอบในโฟลเดอร์ spam ด้วยนะคะ",
+          "timestamp": "2026-03-12T16:20:00+0000"
+        }
+      ]
+    },
+    {
+      "thread_id": "chat_a003",
+      "page_id": "page_shop_a",
+      "participant": {
+        "id": "user_fa003",
+        "name": "Ploy Wattanasiri",
+        "profile_pic": null
+      },
+      "last_message_time": "2026-03-11T09:10:00+0000",
+      "unread_count": 1,
+      "tags": ["potential_lead", "bulk_order"],
+      "messages": [
+        {
+          "id": "msg_a003_1",
+          "from": "user",
+          "text": "Hello, I'm interested in bulk ordering for my online store. Do you have wholesale pricing?",
+          "timestamp": "2026-03-11T08:45:00+0000"
+        },
+        {
+          "id": "msg_a003_2",
+          "from": "page",
+          "text": "Hi! We do offer wholesale pricing for orders above 50 units. Please send us your contact details and we'll have our B2B team reach out to you within 24 hours.",
+          "timestamp": "2026-03-11T09:00:00+0000"
+        },
+        {
+          "id": "msg_a003_3",
+          "from": "user",
+          "text": "Great! My email is ploy.w@modernshop.com and I'm looking at the fashion category mainly.",
+          "timestamp": "2026-03-11T09:10:00+0000"
+        }
+      ]
+    },
+    {
+      "thread_id": "chat_a004",
+      "page_id": "page_shop_a",
+      "participant": {
+        "id": "user_fa004",
+        "name": "Thanawat Jirapon",
+        "profile_pic": null
+      },
+      "last_message_time": "2026-03-10T14:30:00+0000",
+      "unread_count": 0,
+      "tags": ["converted", "repeat_buyer"],
+      "messages": [
+        {
+          "id": "msg_a004_1",
+          "from": "user",
+          "text": "สั่งครั้งที่ 3 แล้วครับ ของดีมากเลย จะมีส่วนลดสำหรับ loyal customer บ้างไหมครับ?",
+          "timestamp": "2026-03-10T14:00:00+0000"
+        },
+        {
+          "id": "msg_a004_2",
+          "from": "page",
+          "text": "ขอบคุณมากเลยค่ะที่ไว้วางใจเรา! สำหรับลูกค้าที่สั่งซื้อตั้งแต่ 3 ครั้งขึ้นไป มีส่วนลด VIP 20% ค่ะ จะส่งโค้ดพิเศษไปทางอีเมลให้นะคะ",
+          "timestamp": "2026-03-10T14:30:00+0000"
+        }
+      ]
+    },
+    {
+      "thread_id": "chat_a005",
+      "page_id": "page_shop_a",
+      "participant": {
+        "id": "user_fa005",
+        "name": "Arisa Chen",
+        "profile_pic": null
+      },
+      "last_message_time": "2026-03-09T11:55:00+0000",
+      "unread_count": 3,
+      "tags": ["potential_lead", "product_question"],
+      "messages": [
+        {
+          "id": "msg_a005_1",
+          "from": "user",
+          "text": "Do you ship internationally? I'm in Singapore.",
+          "timestamp": "2026-03-09T11:00:00+0000"
+        },
+        {
+          "id": "msg_a005_2",
+          "from": "page",
+          "text": "Yes we do! We ship to Singapore with a delivery time of 5-7 business days. Shipping fee is ฿250 flat.",
+          "timestamp": "2026-03-09T11:20:00+0000"
+        },
+        {
+          "id": "msg_a005_3",
+          "from": "user",
+          "text": "Perfect! What payment methods do you accept?",
+          "timestamp": "2026-03-09T11:35:00+0000"
+        },
+        {
+          "id": "msg_a005_4",
+          "from": "user",
+          "text": "Also, do you have a loyalty program?",
+          "timestamp": "2026-03-09T11:50:00+0000"
+        },
+        {
+          "id": "msg_a005_5",
+          "from": "user",
+          "text": "And can I track my order?",
+          "timestamp": "2026-03-09T11:55:00+0000"
+        }
+      ]
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "chat_a001",
+      "after": "chat_a005"
+    },
+    "total": 5
+  }
+}

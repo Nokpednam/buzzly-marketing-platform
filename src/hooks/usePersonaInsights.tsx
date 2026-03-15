@@ -1,6 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  USE_MOCK_DATA,
+  MOCK_AD_INSIGHTS_SHOP_A,
+  FACEBOOK_SHOP_A_ADS,
+} from "@/lib/mock-api-data";
 
 export interface PersonaInsightsSummary {
   impressions: number;
@@ -53,12 +58,61 @@ interface AdInsightRow {
   roas: string | null;
 }
 
+// ── Mock data helpers ────────────────────────────────────────────────────────
+
+/** Deterministically pick top-N Facebook ads to "link" to a persona in mock mode. */
+function getMockLinkedAds(personaId: string): AdPersonaLinkRow[] {
+  // Use charCode sum of personaId as a seed to pick a stable subset of ads
+  const seed = personaId.split("").reduce((s, c) => s + c.charCodeAt(0), 0);
+  const ads = FACEBOOK_SHOP_A_ADS.data;
+  const startIdx = seed % ads.length;
+  // Always return 3 ads, wrapping around if needed
+  return [0, 1, 2].map((i) => {
+    const ad = ads[(startIdx + i) % ads.length];
+    return {
+      ad_id: ad.external_ad_id,
+      ads: {
+        id: ad.external_ad_id,
+        name: ad.ad_name,
+        creative_type: "carousel",
+        status: ad.status.toLowerCase(),
+        platform: ad.platform,
+      },
+    };
+  });
+}
+
+/** Generate daily insight rows from the global mock pool for given ad IDs. */
+function getMockInsightRows(adIds: string[]): AdInsightRow[] {
+  // Pull the first campaign's daily rows as a proxy for persona-linked insights
+  const adIdSet = new Set(adIds);
+  const rows = MOCK_AD_INSIGHTS_SHOP_A.filter(
+    (r) => r.ad_account_id?.includes("facebook"),
+  ).slice(0, 42); // ~6 weeks of rows from first FB campaign
+
+  // Re-label ads_id to cycle through the linked ad IDs so per-ad breakdowns work
+  const adArray = Array.from(adIdSet);
+  return rows.map((r, i) => ({
+    ...r,
+    ads_id: adArray[i % adArray.length],
+    // scale values slightly per ad to differentiate them
+    impressions: Math.round((r.impressions ?? 0) * (0.6 + (i % 3) * 0.2)),
+    clicks: Math.round((r.clicks ?? 0) * (0.6 + (i % 3) * 0.2)),
+    spend: parseFloat(((r.spend ?? 0) * (0.6 + (i % 3) * 0.2)).toFixed(2)),
+  })) as AdInsightRow[];
+}
+
+// ── Main hook ────────────────────────────────────────────────────────────────
+
 export function usePersonaInsights(personaId: string | undefined) {
-  // Step 1: Fetch ads linked to this persona via junction table
+  // Step 1: Fetch ads linked to this persona via junction table (or mock)
   const { data: adPersonaLinks = [], isLoading: linksLoading } = useQuery({
-    queryKey: ["persona-ad-links", personaId],
+    queryKey: ["persona-ad-links", personaId, USE_MOCK_DATA ? "mock" : "live"],
     enabled: !!personaId,
     queryFn: async () => {
+      if (USE_MOCK_DATA) {
+        return getMockLinkedAds(personaId!);
+      }
       const { data, error } = await supabase
         .from("ad_personas")
         .select("ad_id, ads(id, name, creative_type, status, platform)")
@@ -73,11 +127,14 @@ export function usePersonaInsights(personaId: string | undefined) {
     [adPersonaLinks]
   );
 
-  // Step 2: Fetch ad_insights for linked ads
+  // Step 2: Fetch ad_insights for linked ads (or mock)
   const { data: insightsRaw = [], isLoading: insightsLoading } = useQuery({
-    queryKey: ["persona-insights-data", personaId, adIds.join(",")],
+    queryKey: ["persona-insights-data", personaId, adIds.join(","), USE_MOCK_DATA ? "mock" : "live"],
     enabled: !!personaId && adIds.length > 0,
     queryFn: async () => {
+      if (USE_MOCK_DATA) {
+        return getMockInsightRows(adIds) as unknown as AdInsightRow[];
+      }
       const { data, error } = await supabase
         .from("ad_insights")
         .select("ads_id, date, impressions, clicks, spend, conversions, roas")

@@ -78,7 +78,7 @@ export function useAdPersonas({ mode, adId, campaignId }: AdPersonaFilter) {
       const { data, error } = await (supabase as any)
         .from("ads")
         .select("id, persona_data, name, platform")
-        .or(`team_id.eq.${workspaceId},team_id.is.null`)
+        .eq("team_id", workspaceId)
         .not("persona_data", "is", null);
       if (error) throw error;
       return data as { id: string; persona_data: PersonaData; name: string; platform: string | null }[];
