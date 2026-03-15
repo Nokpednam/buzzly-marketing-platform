@@ -312,6 +312,16 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
 
       toast.success(`${platform?.name} เชื่อมต่อสำเร็จ!`);
 
+      // Mission 2: award points for connecting the first API platform (one-time)
+      const { data: missionResult, error: missionError } = await supabase.rpc(
+        'award_loyalty_points' as any,
+        { p_action_type: 'connect_api' }
+      );
+      console.log('[Mission] connect_api result:', missionResult, missionError);
+      // Note: usePlatformConnections is a Context Provider — cannot call React hooks here.
+      // The sidebar will sync on the next natural refetch cycle (auth state change / navigation).
+      // For instant sync, call refetch() from the page that renders after connectPlatform() resolves.
+
       // ── Step 7: Invalidate caches → frontend re-fetches from DB ──
       await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       await queryClient.invalidateQueries({ queryKey: ["ad-accounts"] });

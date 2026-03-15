@@ -6,7 +6,6 @@ const TABS = [
   { value: "planner", label: "Planner", icon: Calendar, path: "/social/planner" },
   { value: "analytics", label: "Analytics", icon: BarChart3, path: "/social/analytics" },
   { value: "inbox", label: "Inbox", icon: MessageSquare, path: "/social/inbox" },
-  { value: "integrations", label: "Integrations", icon: Plug, path: "/social/integrations" },
 ] as const;
 
 type TabValue = (typeof TABS)[number]["value"];

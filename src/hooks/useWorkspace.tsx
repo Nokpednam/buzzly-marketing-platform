@@ -17,6 +17,7 @@ interface Team {
   industries_id: string | null;
   created_at: string;
   updated_at: string;
+  company_name: string | null;
 }
 
 interface BusinessType {
@@ -42,6 +43,7 @@ interface WorkspaceData {
   timezone: string;
   business_type_id: string;
   industries_id: string;
+  company_name: string;
 }
 
 export function useWorkspace() {
@@ -59,6 +61,7 @@ export function useWorkspace() {
     timezone: 'Asia/Bangkok',
     business_type_id: '',
     industries_id: '',
+    company_name: '',
   });
   const [businessTypes, setBusinessTypes] = useState<BusinessType[]>([]);
   const [industries, setIndustries] = useState<Industry[]>([]);
@@ -104,7 +107,7 @@ export function useWorkspace() {
           .from('workspaces')
           .select('*')
           .eq('owner_id', user.id)
-          .maybeSingle();
+          .maybeSingle() as { data: Team | null, error: any };
 
         if (workspaceData) {
           setHasTeam(true);
@@ -117,6 +120,7 @@ export function useWorkspace() {
             timezone: workspaceData.timezone || 'Asia/Bangkok',
             business_type_id: workspaceData.business_type_id || '',
             industries_id: workspaceData.industries_id || '',
+            company_name: workspaceData.company_name || '',
           });
         } else {
           // Check if user is a member of any workspace
@@ -139,6 +143,7 @@ export function useWorkspace() {
               timezone: workspace.timezone || 'Asia/Bangkok',
               business_type_id: workspace.business_type_id || '',
               industries_id: workspace.industries_id || '',
+              company_name: workspace.company_name || '',
             });
           }
         }
@@ -191,6 +196,7 @@ export function useWorkspace() {
         timezone: 'Asia/Bangkok',
         business_type_id: '',
         industries_id: '',
+        company_name: '',
       });
 
       // Notify usePlatformConnections (on any page) to re-fetch with new teamId
@@ -239,6 +245,7 @@ export function useWorkspace() {
         timezone: data.timezone || null,
         business_type_id: data.business_type_id || null,
         industries_id: data.industries_id || null,
+        company_name: data.company_name || null,
       };
 
       const { error } = await supabase
@@ -247,6 +254,17 @@ export function useWorkspace() {
         .eq('id', workspace.id);
 
       if (error) throw error;
+
+      // Sync company_name to customer table for consistent billing/profile data
+      if (data.company_name !== undefined) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase
+            .from('customer')
+            .update({ company_name: data.company_name })
+            .eq('id', user.id);
+        }
+      }
 
       setWorkspace(prev => ({ ...prev, ...data }));
 

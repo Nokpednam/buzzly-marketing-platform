@@ -1,5 +1,7 @@
-import { useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface LoyaltyTier {
   id: string;
@@ -23,27 +25,44 @@ export interface UserLoyaltyInfo {
   member_since: string | null;
 }
 
-// Tier colors for UI
+// ─── UI Helpers (unchanged — no side-effects, safe to export as-is) ──────────
+
 export const tierColors: Record<string, { bg: string; text: string; border: string }> = {
-  Bronze: { bg: "bg-amber-700/20", text: "text-amber-700", border: "border-amber-700" },
-  Silver: { bg: "bg-slate-400/20", text: "text-slate-500", border: "border-slate-400" },
-  Gold: { bg: "bg-yellow-500/20", text: "text-yellow-600", border: "border-yellow-500" },
-  Platinum: { bg: "bg-slate-300/20", text: "text-slate-600", border: "border-slate-400" },
+  Bronze:   { bg: "bg-amber-700/20",  text: "text-amber-700",  border: "border-amber-700" },
+  Silver:   { bg: "bg-slate-400/20",  text: "text-slate-500",  border: "border-slate-400" },
+  Gold:     { bg: "bg-yellow-500/20", text: "text-yellow-600", border: "border-yellow-500" },
+  Platinum: { bg: "bg-slate-300/20",  text: "text-slate-600",  border: "border-slate-400" },
 };
 
-// Tier icons
 export const tierIcons: Record<string, string> = {
   Bronze: "🥉",
   Silver: "🥈",
-  Gold: "🥇",
+  Gold:   "🥇",
   Platinum: "💎",
 };
 
-export function useLoyaltyTier() {
+// ─── Context ──────────────────────────────────────────────────────────────────
+
+interface LoyaltyContextType {
+  userLoyalty: UserLoyaltyInfo | null;
+  allTiers: LoyaltyTier[];
+  loading: boolean;
+  error: string | null;
+  getNextTier: () => LoyaltyTier | null;
+  getProgressToNextTier: () => number;
+  /** Call this after awarding mission points to instantly sync all consumers */
+  refetch: () => Promise<void>;
+}
+
+const LoyaltyContext = createContext<LoyaltyContextType | undefined>(undefined);
+
+// ─── Provider ─────────────────────────────────────────────────────────────────
+
+export function LoyaltyProvider({ children }: { children: ReactNode }) {
   const [userLoyalty, setUserLoyalty] = useState<UserLoyaltyInfo | null>(null);
-  const [allTiers, setAllTiers] = useState<LoyaltyTier[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [allTiers, setAllTiers]       = useState<LoyaltyTier[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState<string | null>(null);
 
   const fetchAllTiers = useCallback(async () => {
     try {
@@ -52,7 +71,6 @@ export function useLoyaltyTier() {
         .select("*")
         .eq("is_active", true)
         .order("priority_level", { ascending: true });
-
       if (error) throw error;
       setAllTiers(data || []);
     } catch (err) {
@@ -64,14 +82,12 @@ export function useLoyaltyTier() {
   const fetchUserLoyalty = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-
       if (!user) {
         setUserLoyalty(null);
         setLoading(false);
         return;
       }
 
-      // Fetch user profile with loyalty info
       const { data: profile, error: profileError } = await supabase
         .from("profile_customers")
         .select(`
@@ -84,9 +100,8 @@ export function useLoyaltyTier() {
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (profileError && profileError.code !== 'PGRST116') throw profileError;
+      if (profileError && profileError.code !== "PGRST116") throw profileError;
 
-      // Calculate total spend
       const { data: txs } = await supabase
         .from("payment_transactions")
         .select("amount")
@@ -94,27 +109,23 @@ export function useLoyaltyTier() {
 
       const totalSpend = txs?.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0) || 0;
 
-      const loyaltyData = profile?.loyalty_points?.[0] || profile?.loyalty_points; // array or single object depending on relation
-      let tier: LoyaltyTier | null = loyaltyData?.loyalty_tiers || null;
+      const loyaltyData = profile?.loyalty_points?.[0] || profile?.loyalty_points;
+      let tier: LoyaltyTier | null = (loyaltyData as any)?.loyalty_tiers || null;
 
       if (!tier) {
-        // Default to Bronze if no tier assigned
         const { data: bronzeTier } = await supabase
           .from("loyalty_tiers")
           .select("*")
           .eq("name", "Bronze")
           .single();
-
-        if (bronzeTier) {
-          tier = bronzeTier;
-        }
+        if (bronzeTier) tier = bronzeTier;
       }
 
       setUserLoyalty({
         tier,
-        points_balance: loyaltyData?.point_balance || 0,
-        total_spend_amount: totalSpend,
-        member_since: profile?.created_at || null,
+        points_balance:      (loyaltyData as any)?.point_balance || 0,
+        total_spend_amount:  totalSpend,
+        member_since:        profile?.created_at || null,
       });
     } catch (err) {
       console.error("Error fetching user loyalty:", err);
@@ -124,6 +135,7 @@ export function useLoyaltyTier() {
     }
   }, []);
 
+  // Initial load + re-fetch on auth change
   useEffect(() => {
     fetchAllTiers();
     fetchUserLoyalty();
@@ -137,33 +149,51 @@ export function useLoyaltyTier() {
 
   const getNextTier = useCallback((): LoyaltyTier | null => {
     if (!userLoyalty?.tier || allTiers.length === 0) return null;
-
     const currentLevel = userLoyalty.tier.priority_level || 0;
-    const nextTier = allTiers.find(t => (t.priority_level || 0) > currentLevel);
-    return nextTier || null;
+    return allTiers.find(t => (t.priority_level || 0) > currentLevel) || null;
   }, [userLoyalty, allTiers]);
 
   const getProgressToNextTier = useCallback((): number => {
     const nextTier = getNextTier();
     if (!nextTier || !userLoyalty?.tier) return 100;
 
-    const currentPoints = userLoyalty.points_balance;
-    const requiredPoints = nextTier.min_points || 0;
-    const currentTierPoints = userLoyalty.tier.min_points || 0;
+    const currentPoints      = userLoyalty.points_balance;
+    const requiredPoints     = nextTier.min_points || 0;
+    const currentTierPoints  = userLoyalty.tier.min_points || 0;
 
     if (requiredPoints <= currentTierPoints) return 100;
-
     const progress = ((currentPoints - currentTierPoints) / (requiredPoints - currentTierPoints)) * 100;
     return Math.min(Math.max(progress, 0), 100);
   }, [userLoyalty, getNextTier]);
 
-  return {
-    userLoyalty,
-    allTiers,
-    loading,
-    error,
-    getNextTier,
-    getProgressToNextTier,
-    refetch: fetchUserLoyalty,
-  };
+  return (
+    <LoyaltyContext.Provider
+      value={{
+        userLoyalty,
+        allTiers,
+        loading,
+        error,
+        getNextTier,
+        getProgressToNextTier,
+        refetch: fetchUserLoyalty,
+      }}
+    >
+      {children}
+    </LoyaltyContext.Provider>
+  );
+}
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Must be used inside <LoyaltyProvider>.
+ * All consumers (Sidebar, TierBadge, LoyaltyTab) share the SAME state.
+ * Calling refetch() in any one of them updates all simultaneously.
+ */
+export function useLoyaltyTier(): LoyaltyContextType {
+  const ctx = useContext(LoyaltyContext);
+  if (!ctx) {
+    throw new Error("useLoyaltyTier must be used inside <LoyaltyProvider>");
+  }
+  return ctx;
 }

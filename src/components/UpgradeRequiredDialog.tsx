@@ -15,6 +15,8 @@ import { useSubscription, BillingCycle } from "@/hooks/useSubscription";
 import { PaymentMethodDialog } from "@/components/subscription/PaymentMethodDialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { useLoyaltyTier } from "@/hooks/useLoyaltyTier";
+import { supabase } from "@/integrations/supabase/client";
 
 interface UpgradeRequiredDialogProps {
   open: boolean;
@@ -64,6 +66,7 @@ export function UpgradeRequiredDialog({
     refetch: refetchSubscription,
     loading: subscriptionLoading
   } = useSubscription();
+  const { refetch: refetchLoyalty } = useLoyaltyTier();
 
   useEffect(() => {
     if (open) {
@@ -132,13 +135,24 @@ export function UpgradeRequiredDialog({
         await refetchPlanAccess();
         await refetchSubscription();
 
-        // Update user profile plan_type locally if needed/handled by context?
-        // Context refetch should handle it.
-
         toast({
           title: "อัปเกรดสำเร็จ! 🎉",
           description: `คุณได้อัปเกรดเป็น ${selectedPlanType.toUpperCase()} Plan เรียบร้อยแล้ว`,
         });
+
+        // Mission 3: award points for upgrading to a paid plan (one-time)
+        const { data: missionResult, error: missionError } = await supabase.rpc(
+          'award_loyalty_points' as any,
+          { p_action_type: 'upgrade_plan' }
+        );
+        console.log('[Mission] upgrade_plan result:', missionResult, missionError);
+        if (missionResult?.success) {
+          toast({
+            title: '🎉 Mission Complete!',
+            description: `+${missionResult.points_awarded} Points for upgrading your plan!`,
+          });
+          await refetchLoyalty();
+        }
 
         setShowPaymentDialog(false);
         onOpenChange(false);

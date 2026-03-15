@@ -58,7 +58,6 @@ const settingsGroups = [
     label: "Organization",
     items: [
       { id: "workspace", label: "Workspace", icon: Building2 },
-      { id: "company", label: "Company", icon: Building },
     ],
   },
   {
@@ -451,35 +450,6 @@ export default function Settings() {
             </Card>
           </TabsContent>
 
-          {/* Company Section */}
-          <TabsContent value="company" className="mt-0 focus-visible:ring-0">
-            <Card className="border-none shadow-sm bg-muted/20 rounded-3xl">
-              <CardHeader className="p-8">
-                <CardTitle className="text-xl font-black uppercase tracking-tight">Organization Profile</CardTitle>
-                <CardDescription>Global information for Buzzly Ltd.</CardDescription>
-              </CardHeader>
-              <CardContent className="p-8 pt-0 space-y-6">
-                <div className="grid gap-6 md:grid-cols-2">
-                  <SettingInput label="Company Name" id="companyName" placeholder="กรุณาใส่ชื่อ Company" />
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground">Industry</Label>
-                    <Select>
-                      <SelectTrigger className="h-12 rounded-xl bg-background border-none ring-1 ring-border shadow-none">
-                        <SelectValue placeholder="เลือก Industry" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-none shadow-xl">
-                        <SelectItem value="ecommerce">E-commerce</SelectItem>
-                        <SelectItem value="saas">SaaS / Tech</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="flex justify-end pt-4">
-                  <Button className="rounded-xl px-8 shadow-lg shadow-primary/20 bg-primary">Update Company</Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* Notifications Section */}
           <TabsContent value="notifications" className="mt-0 focus-visible:ring-0">

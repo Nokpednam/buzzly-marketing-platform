@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Building2, Globe, Loader2 } from "lucide-react";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useAwardMission } from "@/hooks/useAwardMission";
+import { useLoyaltyTier } from "@/hooks/useLoyaltyTier";
 
 export function WorkspaceSettings() {
   const navigate = useNavigate();
@@ -27,8 +29,19 @@ export function WorkspaceSettings() {
 
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const { awardMission } = useAwardMission();
+  const { refetch: refetchLoyalty } = useLoyaltyTier();
 
   const handleSave = async () => {
+    // Merge data and log as JSON as requested
+    const submissionData = {
+      workspaceName: workspace.name,
+      companyName: workspace.company_name || "", // We'll add this to the local state/hook if possible, or just mock it here
+      ...workspace
+    };
+    
+    console.log("Saving Workspace & Company data:", JSON.stringify(submissionData, null, 2));
+    
     await saveWorkspace(workspace);
   };
 
@@ -38,6 +51,15 @@ export function WorkspaceSettings() {
     const result = await createWorkspace(newWorkspaceName.trim());
     if (result) {
       setNewWorkspaceName("");
+
+      // Mission 1: award points for creating the first workspace
+      const missionResult = await awardMission('create_workspace');
+      console.log('[Mission] create_workspace result:', missionResult);
+      if (missionResult?.success) {
+        // Instantly sync sidebar + TierBadge via shared LoyaltyProvider
+        await refetchLoyalty();
+      }
+
       navigate("/api-keys");
     }
     setIsCreating(false);
@@ -182,6 +204,15 @@ export function WorkspaceSettings() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
+              <Label htmlFor="companyName">ชื่อบริษัท (Company Name)</Label>
+              <Input
+                id="companyName"
+                value={workspace.company_name || ""}
+                onChange={(e) => setWorkspace({ ...workspace, company_name: e.target.value })}
+                placeholder="ระบุชื่อบริษัทจดทะเบียน (ถ้ามี)"
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="industry">อุตสาหกรรม (Industry)</Label>
               <Select
                 value={workspace.industries_id}
@@ -199,6 +230,9 @@ export function WorkspaceSettings() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="website" className="flex items-center gap-2">
                 <Globe className="h-4 w-4 text-muted-foreground" />
@@ -211,9 +245,6 @@ export function WorkspaceSettings() {
                 placeholder="https://example.com"
               />
             </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="timezone" className="flex items-center gap-2">
                 <Globe className="h-4 w-4 text-muted-foreground" />
