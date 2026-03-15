@@ -3,10 +3,37 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { useWorkspace } from "./useWorkspace";
+import { adsKeys } from "./useAds";
 
-export type AdGroup = Database["public"]["Tables"]["ad_groups"]["Row"];
-export type AdGroupInsert = Database["public"]["Tables"]["ad_groups"]["Insert"];
-export type AdGroupUpdate = Database["public"]["Tables"]["ad_groups"]["Update"];
+type AdGroupBase = Database["public"]["Tables"]["ad_groups"]["Row"];
+type AdGroupInsertBase = Database["public"]["Tables"]["ad_groups"]["Insert"];
+type AdGroupUpdateBase = Database["public"]["Tables"]["ad_groups"]["Update"];
+
+export interface AdGroup extends AdGroupBase {
+  description?: string | null;
+  external_group_id?: string | null;
+  group_type?: string | null;
+  source_platform?: string | null;
+}
+
+export interface AdGroupInsert extends Omit<AdGroupInsertBase, "description"> {
+  description?: string | null;
+  external_group_id?: string | null;
+  group_type?: string | null;
+  source_platform?: string | null;
+}
+
+export interface AdGroupUpdate extends Omit<AdGroupUpdateBase, "description"> {
+  description?: string | null;
+  external_group_id?: string | null;
+  group_type?: string | null;
+  source_platform?: string | null;
+}
+
+export const adGroupKeys = {
+  all: ["ad-groups"] as const,
+  list: (workspaceId?: string) => ["ad-groups", workspaceId] as const,
+};
 
 export interface AdGroupWithCount extends AdGroup {
   ads_count: number;
@@ -16,18 +43,33 @@ export interface AdGroupWithCount extends AdGroup {
 export function useAdGroups() {
   const queryClient = useQueryClient();
   const { workspace } = useWorkspace();
+  const workspaceId = workspace?.id;
+
+  const invalidateAdGroupQueries = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: adGroupKeys.all }),
+      queryClient.invalidateQueries({ queryKey: adsKeys.all }),
+      queryClient.invalidateQueries({ queryKey: ["social_posts"] }),
+      queryClient.invalidateQueries({ queryKey: ["social_calendar"] }),
+      queryClient.invalidateQueries({ queryKey: ["unified_calendar"] }),
+      queryClient.invalidateQueries({ queryKey: ["linkable_posts_unlinked"] }),
+      queryClient.invalidateQueries({ queryKey: ["linkable_ads_unlinked"] }),
+      queryClient.invalidateQueries({ queryKey: ["linkable_posts_linked"] }),
+      queryClient.invalidateQueries({ queryKey: ["linkable_ads_linked"] }),
+      queryClient.invalidateQueries({ queryKey: ["ad_insights"] }),
+    ]);
+  };
 
   const { data: adGroups = [], isLoading, error } = useQuery({
-    queryKey: ["ad_groups", workspace?.id],
-    enabled: !!workspace?.id,
+    queryKey: adGroupKeys.list(workspaceId),
+    enabled: !!workspaceId,
     queryFn: async () => {
-      if (!workspace?.id) return [];
+      if (!workspaceId) return [];
 
-      // Get ad groups
       const { data: groups, error: groupsError } = await supabase
         .from("ad_groups")
-        .select("*")
-        .eq("team_id", workspace.id)
+        .select("id, name, status, team_id, created_at, updated_at, description, group_type, external_group_id, source_platform")
+        .eq("team_id", workspaceId)
         .order("created_at", { ascending: false });
 
       if (groupsError) throw groupsError;
@@ -37,11 +79,11 @@ export function useAdGroups() {
           supabase
             .from("ads")
             .select("ad_group_id")
-            .eq("team_id", workspace.id),
+            .eq("team_id", workspaceId),
           supabase
             .from("social_posts")
             .select("ad_group_id")
-            .eq("team_id", workspace.id)
+            .eq("team_id", workspaceId)
             .not("ad_group_id", "is", null),
         ]);
 
@@ -69,17 +111,17 @@ export function useAdGroups() {
 
   const createAdGroup = useMutation({
     mutationFn: async (newGroup: AdGroupInsert) => {
-      if (!workspace?.id) throw new Error("No active workspace");
+      if (!workspaceId) throw new Error("No active workspace");
       const { data, error } = await supabase
         .from("ad_groups")
-        .insert({ ...newGroup, team_id: workspace.id })
+        .insert({ ...newGroup, team_id: workspaceId })
         .select()
         .single();
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ad_groups"] });
+    onSuccess: async () => {
+      await invalidateAdGroupQueries();
       toast.success("สร้างกลุ่มโฆษณาสำเร็จ");
     },
     onError: (error: Error) => {
@@ -98,8 +140,8 @@ export function useAdGroups() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ad_groups"] });
+    onSuccess: async () => {
+      await invalidateAdGroupQueries();
       toast.success("อัปเดตกลุ่มโฆษณาสำเร็จ");
     },
     onError: (error: Error) => {
@@ -115,8 +157,8 @@ export function useAdGroups() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ad_groups"] });
+    onSuccess: async () => {
+      await invalidateAdGroupQueries();
       toast.success("ลบกลุ่มโฆษณาสำเร็จ");
     },
     onError: (error: Error) => {
@@ -155,10 +197,8 @@ export function useAdGroups() {
       }
       await Promise.all(ops);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ad_groups"] });
-      queryClient.invalidateQueries({ queryKey: ["social_posts"] });
-      queryClient.invalidateQueries({ queryKey: ["social_calendar"] });
+    onSuccess: async () => {
+      await invalidateAdGroupQueries();
       toast.success("เชื่อมโยงรายการสำเร็จ");
     },
     onError: (error: Error) => {
@@ -180,14 +220,71 @@ export function useAdGroups() {
         .eq("id", itemId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ad_groups"] });
-      queryClient.invalidateQueries({ queryKey: ["social_posts"] });
-      queryClient.invalidateQueries({ queryKey: ["social_calendar"] });
+    onSuccess: async () => {
+      await invalidateAdGroupQueries();
       toast.success("ยกเลิกการเชื่อมโยงสำเร็จ");
     },
     onError: (error: Error) => {
       toast.error(`ไม่สามารถยกเลิกการเชื่อมโยง: ${error.message}`);
+    },
+  });
+
+  const syncGroupAds = useMutation({
+    mutationFn: async ({
+      groupId,
+      adIds,
+    }: {
+      groupId: string;
+      adIds: string[];
+    }) => {
+      if (!workspaceId) throw new Error("No active workspace");
+
+      const normalizedAdIds = Array.from(new Set(adIds));
+      const { data: currentlyLinkedAds, error: currentAdsError } = await supabase
+        .from("ads")
+        .select("id")
+        .eq("team_id", workspaceId)
+        .eq("ad_group_id", groupId);
+
+      if (currentAdsError) {
+        throw currentAdsError;
+      }
+
+      const adIdsToClear = (currentlyLinkedAds ?? [])
+        .map((ad) => ad.id)
+        .filter((id) => !normalizedAdIds.includes(id));
+
+      if (adIdsToClear.length > 0) {
+        const { error: clearError } = await supabase
+          .from("ads")
+          .update({ ad_group_id: null })
+          .eq("team_id", workspaceId)
+          .in("id", adIdsToClear);
+
+        if (clearError) {
+          throw clearError;
+        }
+      }
+
+      if (normalizedAdIds.length === 0) {
+        return;
+      }
+
+      const { error } = await supabase
+        .from("ads")
+        .update({ ad_group_id: groupId })
+        .eq("team_id", workspaceId)
+        .in("id", normalizedAdIds);
+
+      if (error) {
+        throw error;
+      }
+    },
+    onSuccess: async () => {
+      await invalidateAdGroupQueries();
+    },
+    onError: (error: Error) => {
+      toast.error(`ไม่สามารถอัปเดตโฆษณาในกลุ่ม: ${error.message}`);
     },
   });
 
@@ -199,6 +296,7 @@ export function useAdGroups() {
     updateAdGroup,
     deleteAdGroup,
     linkItemsToGroup,
+    syncGroupAds,
     unlinkItemFromGroup,
   };
 }

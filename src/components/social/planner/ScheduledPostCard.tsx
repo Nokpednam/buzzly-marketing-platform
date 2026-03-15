@@ -89,6 +89,14 @@ export function ScheduledPostCard({ item, onClick }: ScheduledPostCardProps) {
         </p>
       )}
 
+      {item.ad_group_name && (
+        <div className="mt-1">
+          <Badge variant="outline" className="h-4 px-1 text-[9px]">
+            {item.ad_group_name}
+          </Badge>
+        </div>
+      )}
+
       {time && (
         <div className="flex items-center gap-0.5 mt-0.5 opacity-60">
           <Clock className="h-2.5 w-2.5" />

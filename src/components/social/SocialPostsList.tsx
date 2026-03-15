@@ -27,7 +27,10 @@ import { useSocialPosts, type SocialPost } from "@/hooks/useSocialPosts";
 import { usePlatformConnections } from "@/hooks/usePlatformConnections";
 import { useSocialFilters } from "@/contexts/SocialFiltersContext";
 
+type GroupingMode = "none" | "ad-group";
+
 interface SocialPostsListProps {
+  groupingMode?: GroupingMode;
   selectedPosts: string[];
   onSelectPost: (id: string) => void;
   onRequestCreate: () => void;
@@ -57,6 +60,7 @@ function formatNumber(num: number | null) {
 }
 
 export function SocialPostsList({
+  groupingMode = "none",
   selectedPosts,
   onSelectPost,
   onRequestCreate,
@@ -110,6 +114,13 @@ export function SocialPostsList({
   };
 
   const visiblePosts = posts.filter(matchesActivePlatforms);
+  const groupedVisiblePosts = visiblePosts.reduce<Record<string, SocialPost[]>>((groups, post) => {
+    const groupLabel = groupingMode === "ad-group"
+      ? post.ad_group_name ?? "Unassigned Ad Group"
+      : "All Posts";
+    groups[groupLabel] = [...(groups[groupLabel] ?? []), post];
+    return groups;
+  }, {});
   const hasFilteredOutPosts = posts.length > 0 && visiblePosts.length === 0;
 
   if (isLoading) {
@@ -166,124 +177,147 @@ export function SocialPostsList({
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {visiblePosts.map((post) => {
-          const platform = getPlatformInfo(post);
-          return (
-            <Card key={post.id} className="overflow-hidden">
-              <div className="relative">
-                <img
-                  src={post.media_urls?.[0] ?? "/placeholder.svg"}
-                  alt={post.content?.slice(0, 30) ?? "Post"}
-                  className="h-40 w-full object-cover"
-                />
-                <div className="absolute top-2 left-2">
-                  <Checkbox
-                    checked={selectedPosts.includes(post.id)}
-                    onCheckedChange={() => onSelectPost(post.id)}
-                    disabled={
-                      !selectedPosts.includes(post.id) && selectedPosts.length >= 5
-                    }
-                    className="bg-background"
-                  />
+      <div className="space-y-6">
+        {Object.entries(groupedVisiblePosts).map(([groupLabel, groupedPosts]) => (
+          <div key={groupLabel} className="space-y-3">
+            {groupingMode === "ad-group" && (
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold">{groupLabel}</h4>
+                  <p className="text-xs text-muted-foreground">
+                    {groupedPosts.length} โพสต์
+                  </p>
                 </div>
-                <div className="absolute top-2 right-2 flex gap-1">
-                  {getStatusBadge(post.status)}
-                </div>
-                <div className="absolute bottom-2 left-2">
-                  <Badge variant="outline" className="bg-background/80 gap-1">
-                    <span>{platform.emoji}</span>
-                    {platform.name}
-                  </Badge>
-                </div>
+                <Badge variant="secondary">{groupedPosts.length}</Badge>
               </div>
+            )}
 
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Badge variant="outline" className="text-xs capitalize">
-                      <Image className="h-3 w-3 mr-1" />
-                      {post.post_type}
-                    </Badge>
-                    {post.published_at && (
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-3 w-3" />
-                        {new Date(post.published_at).toLocaleDateString("th-TH", {
-                          day: "numeric",
-                          month: "short",
-                        })}
-                      </span>
-                    )}
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onRequestEdit(post)}>
-                        <Pencil className="h-4 w-4 mr-2" />
-                        แก้ไข
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => deletePost.mutate(post.id)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        ลบ
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {groupedPosts.map((post) => {
+                const platform = getPlatformInfo(post);
+                return (
+                  <Card key={post.id} className="overflow-hidden">
+                    <div className="relative">
+                      <img
+                        src={post.media_urls?.[0] ?? "/placeholder.svg"}
+                        alt={post.content?.slice(0, 30) ?? "Post"}
+                        className="h-40 w-full object-cover"
+                      />
+                      <div className="absolute top-2 left-2">
+                        <Checkbox
+                          checked={selectedPosts.includes(post.id)}
+                          onCheckedChange={() => onSelectPost(post.id)}
+                          disabled={
+                            !selectedPosts.includes(post.id) && selectedPosts.length >= 5
+                          }
+                          className="bg-background"
+                        />
+                      </div>
+                      <div className="absolute top-2 right-2 flex gap-1">
+                        {getStatusBadge(post.status)}
+                      </div>
+                      <div className="absolute bottom-2 left-2">
+                        <Badge variant="outline" className="bg-background/80 gap-1">
+                          <span>{platform.emoji}</span>
+                          {platform.name}
+                        </Badge>
+                      </div>
+                    </div>
 
-                <p className="text-sm line-clamp-2 mb-3">{post.content}</p>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Badge variant="outline" className="text-xs capitalize">
+                            <Image className="h-3 w-3 mr-1" />
+                            {post.post_type}
+                          </Badge>
+                          {post.ad_group_name && (
+                            <Badge variant="secondary" className="text-xs">
+                              {post.ad_group_name}
+                            </Badge>
+                          )}
+                          {post.published_at && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {new Date(post.published_at).toLocaleDateString("th-TH", {
+                                day: "numeric",
+                                month: "short",
+                              })}
+                            </span>
+                          )}
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => onRequestEdit(post)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              แก้ไข
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => deletePost.mutate(post.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              ลบ
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
 
-                {post.status === "published" && (
-                  <div className="grid grid-cols-4 gap-2 text-xs">
-                    <div className="text-center p-2 bg-muted/50 rounded">
-                      <Eye className="h-3 w-3 mx-auto mb-1 text-muted-foreground" />
-                      <p className="font-medium">{formatNumber(post.impressions)}</p>
-                    </div>
-                    <div className="text-center p-2 bg-muted/50 rounded">
-                      <Heart className="h-3 w-3 mx-auto mb-1 text-muted-foreground" />
-                      <p className="font-medium">{formatNumber(post.likes)}</p>
-                    </div>
-                    <div className="text-center p-2 bg-muted/50 rounded">
-                      <MessageCircle className="h-3 w-3 mx-auto mb-1 text-muted-foreground" />
-                      <p className="font-medium">{formatNumber(post.comments)}</p>
-                    </div>
-                    <div className="text-center p-2 bg-muted/50 rounded">
-                      <TrendingUp className="h-3 w-3 mx-auto mb-1 text-muted-foreground" />
-                      <p className="font-medium">
-                        {post.engagement_rate
-                          ? Number(post.engagement_rate).toFixed(1)
-                          : "-"}
-                        %
-                      </p>
-                    </div>
-                  </div>
-                )}
+                      <p className="text-sm line-clamp-2 mb-3">{post.content}</p>
 
-                {post.hashtags && post.hashtags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {post.hashtags.slice(0, 3).map((tag) => (
-                      <span key={tag} className="text-xs text-primary">
-                        #{tag}
-                      </span>
-                    ))}
-                    {post.hashtags.length > 3 && (
-                      <span className="text-xs text-muted-foreground">
-                        +{post.hashtags.length - 3}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+                      {post.status === "published" && (
+                        <div className="grid grid-cols-4 gap-2 text-xs">
+                          <div className="text-center p-2 bg-muted/50 rounded">
+                            <Eye className="h-3 w-3 mx-auto mb-1 text-muted-foreground" />
+                            <p className="font-medium">{formatNumber(post.impressions)}</p>
+                          </div>
+                          <div className="text-center p-2 bg-muted/50 rounded">
+                            <Heart className="h-3 w-3 mx-auto mb-1 text-muted-foreground" />
+                            <p className="font-medium">{formatNumber(post.likes)}</p>
+                          </div>
+                          <div className="text-center p-2 bg-muted/50 rounded">
+                            <MessageCircle className="h-3 w-3 mx-auto mb-1 text-muted-foreground" />
+                            <p className="font-medium">{formatNumber(post.comments)}</p>
+                          </div>
+                          <div className="text-center p-2 bg-muted/50 rounded">
+                            <TrendingUp className="h-3 w-3 mx-auto mb-1 text-muted-foreground" />
+                            <p className="font-medium">
+                              {post.engagement_rate
+                                ? Number(post.engagement_rate).toFixed(1)
+                                : "-"}
+                              %
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {post.hashtags && post.hashtags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-3">
+                          {post.hashtags.slice(0, 3).map((tag) => (
+                            <span key={tag} className="text-xs text-primary">
+                              #{tag}
+                            </span>
+                          ))}
+                          {post.hashtags.length > 3 && (
+                            <span className="text-xs text-muted-foreground">
+                              +{post.hashtags.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { useAdInsights, type AdInsight } from "@/hooks/useAdInsights";
 import { useSocialPosts } from "@/hooks/useSocialPosts";
 import { usePlatformConnections } from "@/hooks/usePlatformConnections";
 import { useSocialFilters } from "@/contexts/SocialFiltersContext";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
 // ─── Analytics types ──────────────────────────────────────────────────────────
 
@@ -56,9 +57,15 @@ interface AdInsightWithAccount extends AdInsight {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useSocialAnalyticsSummary() {
+export function useSocialAnalyticsSummary(adGroupId?: string) {
   const { dateRange, activePlatforms } = useSocialFilters();
-  const { insights, summary, isLoading: insightsLoading, error: insightsError } = useAdInsights(dateRange, activePlatforms);
+  const { workspace } = useWorkspace();
+  const { insights, summary, isLoading: insightsLoading, error: insightsError } = useAdInsights(
+    dateRange,
+    activePlatforms,
+    workspace?.id,
+    adGroupId
+  );
   const { posts, isLoading: postsLoading, error: postsError } = useSocialPosts(dateRange);
   const { connectedPlatforms } = usePlatformConnections();
 
@@ -109,9 +116,17 @@ export function useSocialAnalyticsSummary() {
       );
     };
 
-    const filteredPosts = posts.filter((post) =>
-      matchesActivePlatforms(post.platform_id, post.post_channel)
-    );
+    const filteredPosts = posts.filter((post) => {
+      if (!matchesActivePlatforms(post.platform_id, post.post_channel)) {
+        return false;
+      }
+
+      if (adGroupId && post.ad_group_id !== adGroupId) {
+        return false;
+      }
+
+      return true;
+    });
 
     // ── Per-platform aggregation ──────────────────────────────────────────────
     const byPlatform = new Map<string, Omit<PlatformBreakdown, "platform_name" | "platform_slug">>();
@@ -221,7 +236,7 @@ export function useSocialAnalyticsSummary() {
     };
 
     return { overview, platformBreakdown, dailyTrend };
-  }, [activePlatforms, insights, platformLookup, posts, summary]);
+  }, [activePlatforms, adGroupId, insights, platformLookup, posts, summary]);
 
   return {
     ...analyticsSummary,

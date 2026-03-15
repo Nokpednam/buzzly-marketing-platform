@@ -7,6 +7,10 @@ import { useWorkspace } from "./useWorkspace";
 export type Ad = Database["public"]["Tables"]["ads"]["Row"];
 export type AdInsert = Database["public"]["Tables"]["ads"]["Insert"];
 export type AdUpdate = Database["public"]["Tables"]["ads"]["Update"];
+export const adsKeys = {
+  all: ["ads"] as const,
+  list: (workspaceId?: string) => ["ads", workspaceId] as const,
+};
 
 export interface AdPersonaLink {
   persona_id: string;
@@ -17,8 +21,14 @@ export interface AdPersonaLink {
   } | null;
 }
 
+export interface AdGroupSummary {
+  id: string;
+  name: string;
+}
+
 // Extends Ad with joined relations and fields not yet fully typed
 export type AdWithPublishStatus = Ad & {
+  ad_groups?: AdGroupSummary | null;
   ad_personas: AdPersonaLink[] | null;
 };
 
@@ -27,14 +37,16 @@ export function useAds() {
   const { workspace } = useWorkspace();
 
   const { data: ads = [], isLoading, error } = useQuery({
-    queryKey: ["ads", workspace?.id],
+    queryKey: adsKeys.list(workspace?.id),
     enabled: !!workspace?.id,
     queryFn: async () => {
       if (!workspace?.id) return [];
 
       const { data, error } = await supabase
         .from("ads")
-        .select("*, ad_personas(persona_id, customer_personas(id, persona_name, avatar_url))")
+        .select(
+          "*, ad_groups(id, name), ad_personas(persona_id, customer_personas(id, persona_name, avatar_url))"
+        )
         .eq("team_id", workspace.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -54,7 +66,7 @@ export function useAds() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ads"] });
+      queryClient.invalidateQueries({ queryKey: adsKeys.all });
       toast.success("สร้างโฆษณาสำเร็จ");
     },
     onError: (error: Error) => {
@@ -74,7 +86,7 @@ export function useAds() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ads"] });
+      queryClient.invalidateQueries({ queryKey: adsKeys.all });
       toast.success("อัปเดตโฆษณาสำเร็จ");
     },
     onError: (error: Error) => {
@@ -91,7 +103,7 @@ export function useAds() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ads"] });
+      queryClient.invalidateQueries({ queryKey: adsKeys.all });
       toast.success("ลบโฆษณาสำเร็จ");
     },
     onError: (error: Error) => {
@@ -109,11 +121,11 @@ export function useAds() {
       return data as { success: boolean; platform_ad_id: string; status: string };
     },
     onSuccess: (_data, { platform }) => {
-      queryClient.invalidateQueries({ queryKey: ["ads"] });
+      queryClient.invalidateQueries({ queryKey: adsKeys.all });
       toast.success(`เผยแพร่โฆษณาบน ${platform} สำเร็จ`);
     },
     onError: (error: Error) => {
-      queryClient.invalidateQueries({ queryKey: ["ads"] });
+      queryClient.invalidateQueries({ queryKey: adsKeys.all });
       toast.error(`ไม่สามารถเผยแพร่โฆษณา: ${error.message}`);
     },
   });
@@ -138,7 +150,7 @@ export function useAds() {
       if (insertError) throw insertError;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["ads"] });
+      queryClient.invalidateQueries({ queryKey: adsKeys.all });
     },
     onError: (error: Error) => {
       toast.error(`ไม่สามารถลิงก์ Persona: ${error.message}`);

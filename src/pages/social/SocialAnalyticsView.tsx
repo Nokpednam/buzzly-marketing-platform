@@ -4,6 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   TrendingUp,
   Layers,
   BarChart3,
@@ -17,8 +24,12 @@ import { AdGroupsList } from "@/components/social/analytics/AdGroupsList";
 import { useSocialAnalyticsSummary } from "@/hooks/useSocialAnalyticsSummary";
 import { useAdGroups } from "@/hooks/useAdGroups";
 
-function PlatformBreakdownTable() {
-  const { platformBreakdown, isLoading, error } = useSocialAnalyticsSummary();
+interface AdGroupScopedProps {
+  adGroupId?: string;
+}
+
+function PlatformBreakdownTable({ adGroupId }: AdGroupScopedProps) {
+  const { platformBreakdown, isLoading, error } = useSocialAnalyticsSummary(adGroupId);
 
   const formatNumber = (n: number) => {
     if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -116,8 +127,8 @@ function PlatformBreakdownTable() {
   );
 }
 
-function AnalyticsOverviewBar() {
-  const { overview, isLoading } = useSocialAnalyticsSummary();
+function AnalyticsOverviewBar({ adGroupId }: AdGroupScopedProps) {
+  const { overview, isLoading } = useSocialAnalyticsSummary(adGroupId);
 
   if (isLoading) {
     return (
@@ -155,7 +166,9 @@ function AnalyticsOverviewBar() {
 
 export default function SocialAnalyticsView() {
   const [adsTab, setAdsTab] = useState<"ad-groups" | "ads">("ad-groups");
+  const [selectedAdGroupId, setSelectedAdGroupId] = useState<string>("all");
   const { adGroups } = useAdGroups();
+  const activeAdGroupId = selectedAdGroupId === "all" ? undefined : selectedAdGroupId;
 
   return (
     <div className="space-y-6 p-1">
@@ -168,7 +181,29 @@ export default function SocialAnalyticsView() {
       </div>
 
       {/* Cross-platform summary pills */}
-      <AnalyticsOverviewBar />
+      <AnalyticsOverviewBar adGroupId={activeAdGroupId} />
+
+      <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-medium">Ad Group Filter</p>
+          <p className="text-sm text-muted-foreground">
+            กรองข้อมูล analytics และรายการโฆษณาตามกลุ่มโฆษณา
+          </p>
+        </div>
+        <Select value={selectedAdGroupId} onValueChange={setSelectedAdGroupId}>
+          <SelectTrigger className="w-full sm:w-[280px]">
+            <SelectValue placeholder="ทุกกลุ่มโฆษณา" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">ทุกกลุ่มโฆษณา</SelectItem>
+            {adGroups.map((group) => (
+              <SelectItem key={group.id} value={group.id}>
+                {group.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Ad insights: KPI cards + charts */}
       <section>
@@ -176,12 +211,12 @@ export default function SocialAnalyticsView() {
           <BarChart3 className="h-4 w-4" />
           Ad Performance
         </h2>
-        <AdInsightsSummary />
+        <AdInsightsSummary adGroupId={activeAdGroupId} />
       </section>
 
       {/* Platform breakdown table */}
       <section>
-        <PlatformBreakdownTable />
+        <PlatformBreakdownTable adGroupId={activeAdGroupId} />
       </section>
 
       {/* Ads / Ad Groups detail tabs */}
@@ -195,7 +230,10 @@ export default function SocialAnalyticsView() {
             <AdGroupsList />
           </TabsContent>
           <TabsContent value="ads" className="mt-4">
-            <AdsList adGroups={adGroups.map((g) => ({ id: g.id, name: g.name }))} />
+            <AdsList
+              adGroups={adGroups.map((g) => ({ id: g.id, name: g.name }))}
+              filterAdGroupId={activeAdGroupId}
+            />
           </TabsContent>
         </Tabs>
       </section>

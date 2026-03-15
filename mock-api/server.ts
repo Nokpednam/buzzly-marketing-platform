@@ -36,7 +36,7 @@ const SUPABASE_URL = process.env.SUPABASE_URL || "http://127.0.0.1:54321";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 // Lazy Supabase client (service role — bypasses RLS for server-side writes)
-let _supabase: SupabaseClient<any> | null = null;
+let _supabase: SupabaseClient | null = null;
 function getSupabaseClient() {
   if (!SUPABASE_SERVICE_ROLE_KEY) {
     throw new Error(
@@ -79,14 +79,26 @@ function loadFixture(platform: string, tenant: string, endpoint: string) {
 }
 
 interface ExternalAdRecord {
+  ad_group_external_id?: string | null;
+  ad_group_name?: string | null;
   ad_name?: string | null;
   ctr?: number | string | null;
   clicks?: number | string | null;
   cpc?: number | string | null;
   cpm?: number | string | null;
   conversions?: number | string | null;
+  creative?: {
+    body?: string | null;
+    call_to_action?: string | null;
+    headline?: string | null;
+    image_url?: string | null;
+    video_url?: string | null;
+  } | null;
   date_start: string;
   date_stop: string;
+  delivery_info?: {
+    status?: string | null;
+  } | null;
   external_ad_id?: string | null;
   impressions?: number | string | null;
   persona_data?: unknown;
@@ -95,6 +107,42 @@ interface ExternalAdRecord {
   roas?: number | string | null;
   spend?: number | string | null;
   status?: string | null;
+  targeting?: {
+    interests?: string[] | null;
+  } | null;
+}
+
+interface ExternalAdGroupRecord {
+  ads_external_ids?: string[] | null;
+  description?: string | null;
+  external_group_id?: string | null;
+  group_name?: string | null;
+  group_type?: string | null;
+}
+
+interface ExternalLeadField {
+  name: string;
+  values?: string[] | null;
+}
+
+interface ExternalLeadRecord {
+  ad_id?: string | null;
+  created_time?: string | null;
+  field_data?: ExternalLeadField[] | null;
+  form_id?: string | null;
+  id: string;
+}
+
+interface ExternalConversationRecord {
+  last_message_time?: string | null;
+  messages?: Array<{ text?: string | null }> | null;
+  participant?: { name?: string | null } | null;
+  thread_id?: string | null;
+  unread_count?: number | null;
+}
+
+interface SimulatedAdPayload {
+  name?: string | null;
 }
 
 interface InsertedPersonaRecord {
@@ -122,12 +170,21 @@ function logIngestionWarning(
 
 async function saveAdRecord(params: {
   ad: ExternalAdRecord;
+  adGroupId?: string | null;
   platform: string;
   supabase: SupabaseClient;
   workspaceId: string;
 }) {
-  const { ad, platform, supabase, workspaceId } = params;
+  const { ad, adGroupId = null, platform, supabase, workspaceId } = params;
   const adPayload = {
+    ad_copy: ad.creative?.body ?? null,
+    ad_group_id: adGroupId,
+    call_to_action: ad.creative?.call_to_action?.replace(/_/g, " ") ?? null,
+    creative_type: ad.creative?.video_url ? "video" : "image",
+    headline: ad.creative?.headline ?? null,
+    media_urls: [ad.creative?.image_url, ad.creative?.video_url].filter(
+      (url): url is string => Boolean(url)
+    ),
     team_id: workspaceId,
     name: ad.ad_name ?? "Untitled Ad",
     status: ad.status === "ACTIVE" ? "active" : "paused",
@@ -135,6 +192,9 @@ async function saveAdRecord(params: {
     platform_ad_id: ad.external_ad_id ?? null,
     external_status: "published",
     persona_data: ad.persona_data ?? null,
+    content: ad.targeting?.interests?.length
+      ? `Target interests: ${ad.targeting.interests.join(", ")}`
+      : null,
   };
 
   try {
@@ -182,6 +242,108 @@ async function saveAdRecord(params: {
     logIngestionWarning("ad save failed", error, {
       adName: ad.ad_name ?? null,
       externalAdId: ad.external_ad_id ?? null,
+      platform,
+      workspaceId,
+    });
+    return null;
+  }
+}
+
+async function saveAdGroupRecord(params: {
+  group: ExternalAdGroupRecord;
+  platform: string;
+  supabase: SupabaseClient;
+  workspaceId: string;
+}) {
+  const { group, platform, supabase, workspaceId } = params;
+  const groupName = group.group_name?.trim();
+
+  if (!groupName) {
+    return null;
+  }
+
+  const groupPayload = {
+    name: groupName,
+    description: group.description ?? null,
+    group_type: group.group_type ?? null,
+    source_platform: platform,
+    external_group_id: group.external_group_id ?? null,
+    status: "active",
+    team_id: workspaceId,
+    updated_at: new Date().toISOString(),
+  };
+
+  try {
+    if (group.external_group_id) {
+      const { data: existingGroup, error: existingGroupError } = await supabase
+        .from("ad_groups")
+        .select("id")
+        .eq("team_id", workspaceId)
+        .eq("source_platform", platform)
+        .eq("external_group_id", group.external_group_id)
+        .maybeSingle();
+
+      if (existingGroupError) {
+        throw existingGroupError;
+      }
+
+      if (existingGroup?.id) {
+        const { data: updatedGroup, error: updateError } = await supabase
+          .from("ad_groups")
+          .update(groupPayload)
+          .eq("id", existingGroup.id)
+          .select("id")
+          .single();
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        return updatedGroup?.id ?? null;
+      }
+    }
+
+    const { data: existingManualGroup, error: existingManualGroupError } = await supabase
+      .from("ad_groups")
+      .select("id")
+      .eq("team_id", workspaceId)
+      .eq("name", groupName)
+      .maybeSingle();
+
+    if (existingManualGroupError) {
+      throw existingManualGroupError;
+    }
+
+    if (existingManualGroup?.id) {
+      const { data: updatedGroup, error: updateError } = await supabase
+        .from("ad_groups")
+        .update(groupPayload)
+        .eq("id", existingManualGroup.id)
+        .select("id")
+        .single();
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      return updatedGroup?.id ?? null;
+    }
+
+    const { data: insertedGroup, error: insertError } = await supabase
+      .from("ad_groups")
+      .insert(groupPayload)
+      .select("id")
+      .single();
+
+    if (insertError) {
+      throw insertError;
+    }
+
+    return insertedGroup?.id ?? null;
+  } catch (error) {
+    logIngestionWarning("ad group save failed", error, {
+      groupName,
+      externalGroupId: group.external_group_id ?? null,
       platform,
       workspaceId,
     });
@@ -303,14 +465,20 @@ app.post("/api/connect", async (req, res) => {
     ]);
 
     if (!adsRes.ok) throw new Error(`Ads endpoint responded with ${adsRes.status}`);
-    const { data: adsData = [] } = (await adsRes.json()) as { data?: ExternalAdRecord[] };
+    const adsPayload = (await adsRes.json()) as {
+      ad_groups?: ExternalAdGroupRecord[];
+      data?: ExternalAdRecord[];
+      groups?: ExternalAdGroupRecord[];
+    };
+    const adsData = adsPayload.data ?? [];
+    const externalGroups = adsPayload.ad_groups ?? adsPayload.groups ?? [];
 
-    const leadsData: any[] = leadsRes?.ok
-      ? ((await leadsRes.json()) as { data: any[] }).data ?? []
+    const leadsData: ExternalLeadRecord[] = leadsRes?.ok
+      ? ((await leadsRes.json()) as { data?: ExternalLeadRecord[] }).data ?? []
       : [];
 
-    const chatsData: any[] = chatsRes?.ok
-      ? ((await chatsRes.json()) as { conversations: any[] }).conversations ?? []
+    const chatsData: ExternalConversationRecord[] = chatsRes?.ok
+      ? ((await chatsRes.json()) as { conversations?: ExternalConversationRecord[] }).conversations ?? []
       : [];
 
     // 3. Clear stale data for this workspace + platform (full-replace sync)
@@ -331,10 +499,65 @@ app.post("/api/connect", async (req, res) => {
     //    Users assign ads to campaigns in the Campaign Builder.
     const insightRows: Record<string, unknown>[] = [];
     const adIdByExternalId = new Map<string, string>();
+    const adGroupIdByExternalId = new Map<string, string>();
+    const adGroupIdByName = new Map<string, string>();
+
+    for (const group of externalGroups) {
+      const groupId = await saveAdGroupRecord({
+        group,
+        platform,
+        supabase,
+        workspaceId,
+      });
+
+      if (!groupId) {
+        continue;
+      }
+
+      if (group.external_group_id) {
+        adGroupIdByExternalId.set(group.external_group_id, groupId);
+      }
+
+      if (group.group_name) {
+        adGroupIdByName.set(group.group_name, groupId);
+      }
+    }
+
+    for (const group of externalGroups) {
+      const resolvedGroupId = group.external_group_id
+        ? adGroupIdByExternalId.get(group.external_group_id) ?? null
+        : group.group_name
+          ? adGroupIdByName.get(group.group_name) ?? null
+          : null;
+
+      if (!resolvedGroupId) {
+        continue;
+      }
+
+      for (const externalAdId of group.ads_external_ids ?? []) {
+        if (!externalAdId) {
+          continue;
+        }
+
+        const matchingAd = adsData.find((ad) => ad.external_ad_id === externalAdId);
+        if (matchingAd && !matchingAd.ad_group_external_id) {
+          matchingAd.ad_group_external_id = group.external_group_id ?? null;
+          matchingAd.ad_group_name = group.group_name ?? null;
+        }
+      }
+    }
 
     for (const ad of adsData) {
+      const adGroupId =
+        (ad.ad_group_external_id
+          ? adGroupIdByExternalId.get(ad.ad_group_external_id)
+          : undefined) ??
+        (ad.ad_group_name ? adGroupIdByName.get(ad.ad_group_name) : undefined) ??
+        null;
+
       const adId = await saveAdRecord({
         ad,
+        adGroupId,
         platform,
         supabase,
         workspaceId,
@@ -393,10 +616,10 @@ app.post("/api/connect", async (req, res) => {
     let personaLinksInserted = 0;
     let insertedPersonas: InsertedPersonaRecord[] = [];
     if (leadsData.length > 0) {
-      const getField = (lead: any, name: string): string | null =>
-        lead.field_data?.find((f: any) => f.name === name)?.values?.[0] ?? null;
+      const getField = (lead: ExternalLeadRecord, name: string): string | null =>
+        lead.field_data?.find((field) => field.name === name)?.values?.[0] ?? null;
 
-      const personaRows = leadsData.map((lead: any) => ({
+      const personaRows = leadsData.map((lead) => ({
         team_id: workspaceId,
         persona_name: getField(lead, "full_name") ?? `Lead ${lead.id}`,
         description: getField(lead, "company_name"),
@@ -473,8 +696,8 @@ app.post("/api/connect", async (req, res) => {
     // 7. Insert Facebook chats as social_posts (one row per conversation thread)
     let chatsInserted = 0;
     if (chatsData.length > 0) {
-      const chatRows = chatsData.map((conv: any) => {
-        const msgs: any[] = conv.messages ?? [];
+      const chatRows = chatsData.map((conv) => {
+        const msgs = conv.messages ?? [];
         const lastMsg = msgs[msgs.length - 1];
         return {
           team_id: workspaceId,
@@ -501,6 +724,7 @@ app.post("/api/connect", async (req, res) => {
     // 8. Return summary — raw external data stays on the server
     res.json({
       message: "Data synced successfully",
+      adGroupsUpserted: externalGroups.length,
       adsUpserted: adsData.length,
       rowsInserted: insightRows.length,
       personasInserted,
@@ -509,9 +733,10 @@ app.post("/api/connect", async (req, res) => {
       platform,
       tenant,
     });
-  } catch (err: any) {
-    console.error("[POST /api/connect] ingestion error:", err.message);
-    res.status(500).json({ error: err.message });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[POST /api/connect] ingestion error:", message);
+    res.status(500).json({ error: message });
   }
 });
 
@@ -519,14 +744,14 @@ app.post("/api/connect", async (req, res) => {
 // This simulates the creation of an ad on an external platform.
 // Called by the create-platform-ad Edge Function.
 app.post("/api/ads", async (req, res) => {
-  const { ad, platform } = req.body as { ad: any; platform: string };
+  const { ad, platform } = req.body as { ad: SimulatedAdPayload; platform: string };
 
   if (!ad || !platform) {
     res.status(400).json({ error: "ad and platform are required" });
     return;
   }
 
-  console.log(`[POST /api/ads] Simulating ad creation on ${platform} for: ${ad.name}`);
+  console.log(`[POST /api/ads] Simulating ad creation on ${platform} for: ${ad.name ?? "Unnamed Ad"}`);
 
   // Simulating platform latency
   await new Promise(r => setTimeout(r, 1200));
@@ -551,6 +776,212 @@ app.post("/api/ads", async (req, res) => {
   });
 });
 
+app.get("/api/ad-groups", async (req, res) => {
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
+
+  if (!workspaceId) {
+    res.status(400).json({ error: "workspaceId is required" });
+    return;
+  }
+
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from("ad_groups")
+      .select("id, name, description, group_type, status, team_id, created_at, updated_at")
+      .eq("team_id", workspaceId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    res.json({ data: data ?? [] });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  }
+});
+
+app.post("/api/ad-groups", async (req, res) => {
+  const {
+    adIds = [],
+    description = null,
+    groupType = null,
+    name,
+    status = "draft",
+    workspaceId,
+  } = req.body as {
+    adIds?: string[];
+    description?: string | null;
+    groupType?: string | null;
+    name?: string;
+    status?: string;
+    workspaceId?: string;
+  };
+
+  if (!workspaceId || !name?.trim()) {
+    res.status(400).json({ error: "workspaceId and name are required" });
+    return;
+  }
+
+  try {
+    const supabase = getSupabaseClient();
+    const { data: createdGroup, error: groupError } = await supabase
+      .from("ad_groups")
+      .insert({
+        description,
+        group_type: groupType,
+        name: name.trim(),
+        status,
+        team_id: workspaceId,
+      })
+      .select()
+      .single();
+
+    if (groupError) {
+      throw groupError;
+    }
+
+    if (adIds.length > 0) {
+      const { error: adsError } = await supabase
+        .from("ads")
+        .update({ ad_group_id: createdGroup.id })
+        .eq("team_id", workspaceId)
+        .in("id", adIds);
+
+      if (adsError) {
+        throw adsError;
+      }
+    }
+
+    res.status(201).json({ data: createdGroup });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  }
+});
+
+app.put("/api/ad-groups/:id", async (req, res) => {
+  const groupId = req.params.id;
+  const {
+    adIds,
+    description,
+    groupType,
+    name,
+    status,
+    workspaceId,
+  } = req.body as {
+    adIds?: string[];
+    description?: string | null;
+    groupType?: string | null;
+    name?: string;
+    status?: string;
+    workspaceId?: string;
+  };
+
+  if (!workspaceId) {
+    res.status(400).json({ error: "workspaceId is required" });
+    return;
+  }
+
+  try {
+    const supabase = getSupabaseClient();
+    const updatePayload = {
+      description,
+      group_type: groupType,
+      name,
+      status,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: updatedGroup, error: groupError } = await supabase
+      .from("ad_groups")
+      .update(updatePayload)
+      .eq("id", groupId)
+      .eq("team_id", workspaceId)
+      .select()
+      .single();
+
+    if (groupError) {
+      throw groupError;
+    }
+
+    if (Array.isArray(adIds)) {
+      const { data: currentlyLinkedAds, error: currentAdsError } = await supabase
+        .from("ads")
+        .select("id")
+        .eq("team_id", workspaceId)
+        .eq("ad_group_id", groupId);
+
+      if (currentAdsError) {
+        throw currentAdsError;
+      }
+
+      const adIdsToClear = (currentlyLinkedAds ?? [])
+        .map((ad) => ad.id)
+        .filter((adId) => !adIds.includes(adId));
+
+      if (adIdsToClear.length > 0) {
+        const { error: clearError } = await supabase
+          .from("ads")
+          .update({ ad_group_id: null })
+          .eq("team_id", workspaceId)
+          .in("id", adIdsToClear);
+
+        if (clearError) {
+          throw clearError;
+        }
+      }
+
+      if (adIds.length > 0) {
+        const { error: assignError } = await supabase
+          .from("ads")
+          .update({ ad_group_id: groupId })
+          .eq("team_id", workspaceId)
+          .in("id", adIds);
+
+        if (assignError) {
+          throw assignError;
+        }
+      }
+    }
+
+    res.json({ data: updatedGroup });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  }
+});
+
+app.delete("/api/ad-groups/:id", async (req, res) => {
+  const groupId = req.params.id;
+  const workspaceId = typeof req.query.workspaceId === "string" ? req.query.workspaceId : "";
+
+  if (!workspaceId) {
+    res.status(400).json({ error: "workspaceId is required" });
+    return;
+  }
+
+  try {
+    const supabase = getSupabaseClient();
+    const { error } = await supabase
+      .from("ad_groups")
+      .delete()
+      .eq("id", groupId)
+      .eq("team_id", workspaceId);
+
+    if (error) {
+      throw error;
+    }
+
+    res.status(204).send();
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  }
+});
+
 // ─── Health Check ────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", tenants: ["shop-a", "shop-b"] });
@@ -564,6 +995,10 @@ app.get("/", (_req, res) => {
     endpoints: [
       "POST /validate-key                          — validate a mock API key",
       "POST /api/connect                           — ingest external data → Supabase (returns status only)",
+      "GET  /api/ad-groups?workspaceId=<uuid>      — list ad groups for a workspace",
+      "POST /api/ad-groups                         — create an ad group and optionally assign ads",
+      "PUT  /api/ad-groups/:id                     — update an ad group and sync assigned ads",
+      "DELETE /api/ad-groups/:id?workspaceId=<id>  — delete an ad group",
       "GET  /facebook/:tenant/insights",
       "GET  /facebook/:tenant/leads",
       "GET  /facebook/:tenant/ads",
@@ -587,6 +1022,10 @@ app.listen(PORT, () => {
   console.log(`   Tenants: shop-a (high volume) | shop-b (niche)`);
   console.log(`\n   Endpoints:`);
   console.log(`   POST /validate-key`);
+  console.log(`   GET  /api/ad-groups?workspaceId=<uuid>`);
+  console.log(`   POST /api/ad-groups`);
+  console.log(`   PUT  /api/ad-groups/:id`);
+  console.log(`   DELETE /api/ad-groups/:id?workspaceId=<uuid>`);
   console.log(`   GET  /facebook/:tenant/insights`);
   console.log(`   GET  /facebook/:tenant/leads`);
   console.log(`   GET  /facebook/:tenant/ads`);

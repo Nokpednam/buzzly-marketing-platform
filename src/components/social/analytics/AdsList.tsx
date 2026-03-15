@@ -76,9 +76,10 @@ const creativeTypes = [
 
 interface AdsListProps {
   adGroups: { id: string; name: string }[];
+  filterAdGroupId?: string;
 }
 
-export function AdsList({ adGroups }: AdsListProps) {
+export function AdsList({ adGroups, filterAdGroupId }: AdsListProps) {
   const { ads, isLoading, updateAd, deleteAd, publishAd } = useAds();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -158,6 +159,10 @@ export function AdsList({ adGroups }: AdsListProps) {
     return adGroups.find((g) => g.id === groupId)?.name || groupId;
   };
 
+  const visibleAds = filterAdGroupId
+    ? ads.filter((ad) => ad.ad_group_id === filterAdGroupId)
+    : ads;
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("th-TH", {
       year: "numeric",
@@ -173,7 +178,7 @@ export function AdsList({ adGroups }: AdsListProps) {
       <div className="space-y-4">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <p className="text-sm text-muted-foreground">{ads.length} โฆษณา</p>
+          <p className="text-sm text-muted-foreground">{visibleAds.length} โฆษณา</p>
           <Button onClick={() => setAddDialogOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
             สร้างโฆษณา
@@ -202,14 +207,14 @@ export function AdsList({ adGroups }: AdsListProps) {
                     <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                   </TableCell>
                 </TableRow>
-              ) : ads.length === 0 ? (
+              ) : visibleAds.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    ยังไม่มีโฆษณา
+                    {filterAdGroupId ? "ไม่พบโฆษณาใน Ad Group นี้" : "ยังไม่มีโฆษณา"}
                   </TableCell>
                 </TableRow>
               ) : (
-                ads.map((ad) => {
+                visibleAds.map((ad) => {
                   const creativeType = getCreativeType(ad.creative_type);
                   const CreativeIcon = creativeType.icon;
                   const statusInfo = getStatusIcon(ad.status);

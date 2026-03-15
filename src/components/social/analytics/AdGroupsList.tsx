@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,23 +8,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -41,50 +24,19 @@ import {
 import { useAdGroups, type AdGroupWithCount } from "@/hooks/useAdGroups";
 import { LinkItemsDialog } from "@/components/social/analytics/LinkItemsDialog";
 import { AdFormDialog } from "@/components/social/analytics/AdFormDialog";
+import { AdGroupFormDialog } from "@/components/social/analytics/AdGroupFormDialog";
 
 interface AdGroupsListProps {
   onGroupsChange?: (groups: { id: string; name: string }[]) => void;
 }
 
 export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
-  const { adGroups, isLoading, createAdGroup, updateAdGroup, deleteAdGroup } = useAdGroups();
+  const { adGroups, isLoading, deleteAdGroup } = useAdGroups();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [linkDialogGroup, setLinkDialogGroup] = useState<AdGroupWithCount | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<AdGroupWithCount | null>(null);
   const [createAdGroupId, setCreateAdGroupId] = useState<string | null>(null);
-  
-  const [formData, setFormData] = useState({
-    name: "",
-    status: "draft",
-  });
-
-  const resetForm = () => {
-    setFormData({ name: "", status: "draft" });
-  };
-
-  const handleAdd = () => {
-    createAdGroup.mutate({
-      name: formData.name,
-      status: formData.status,
-    });
-    setAddDialogOpen(false);
-    resetForm();
-  };
-
-  const handleEdit = () => {
-    if (!selectedGroup) return;
-    updateAdGroup.mutate({
-      id: selectedGroup.id,
-      updates: {
-        name: formData.name,
-        status: formData.status,
-      },
-    });
-    setEditDialogOpen(false);
-    setSelectedGroup(null);
-    resetForm();
-  };
 
   const handleDelete = (id: string) => {
     deleteAdGroup.mutate(id);
@@ -101,12 +53,12 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
 
   const openEditDialog = (group: AdGroupWithCount) => {
     setSelectedGroup(group);
-    setFormData({
-      name: group.name,
-      status: group.status || "draft",
-    });
     setEditDialogOpen(true);
   };
+
+  useEffect(() => {
+    onGroupsChange?.(adGroups.map((group) => ({ id: group.id, name: group.name })));
+  }, [adGroups, onGroupsChange]);
 
   const getStatusBadge = (status: string | null) => {
     switch (status) {
@@ -213,6 +165,21 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
               </div>
             </CardHeader>
             <CardContent>
+              <div className="mb-3 flex flex-wrap gap-2">
+                {group.group_type && (
+                  <Badge variant="outline" className="capitalize">
+                    {group.group_type.replace("-", " ")}
+                  </Badge>
+                )}
+                {getStatusBadge(group.status)}
+              </div>
+
+              {group.description && (
+                <p className="mb-3 line-clamp-2 text-sm text-muted-foreground">
+                  {group.description}
+                </p>
+              )}
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">
@@ -224,7 +191,6 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
                     {group.posts_count} โพสต์
                   </span>
                 </div>
-                {getStatusBadge(group.status)}
               </div>
               <p className="text-xs text-muted-foreground mt-2">
                 อัปเดตล่าสุด:{" "}
@@ -260,51 +226,10 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
         </Card>
       )}
 
-      {/* Add Dialog */}
-      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>สร้างกลุ่มโฆษณาใหม่</DialogTitle>
-            <DialogDescription>
-              จัดกลุ่มโฆษณาเพื่อให้ง่ายต่อการจัดการ
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label>ชื่อกลุ่ม</Label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Summer Sale Campaign"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>สถานะ</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(v) => setFormData({ ...formData, status: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">แบบร่าง</SelectItem>
-                  <SelectItem value="active">เปิดใช้งาน</SelectItem>
-                  <SelectItem value="paused">หยุดชั่วคราว</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-              ยกเลิก
-            </Button>
-            <Button onClick={handleAdd} disabled={!formData.name || createAdGroup.isPending}>
-              {createAdGroup.isPending ? "กำลังสร้าง..." : "สร้างกลุ่ม"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AdGroupFormDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+      />
 
       {/* Link Items Dialog */}
       {linkDialogGroup && (
@@ -324,47 +249,16 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
         initialAdGroupId={createAdGroupId ?? undefined}
       />
 
-      {/* Edit Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>แก้ไขกลุ่มโฆษณา</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label>ชื่อกลุ่ม</Label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>สถานะ</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(v) => setFormData({ ...formData, status: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">แบบร่าง</SelectItem>
-                  <SelectItem value="active">เปิดใช้งาน</SelectItem>
-                  <SelectItem value="paused">หยุดชั่วคราว</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-              ยกเลิก
-            </Button>
-            <Button onClick={handleEdit} disabled={updateAdGroup.isPending}>
-              {updateAdGroup.isPending ? "กำลังบันทึก..." : "บันทึก"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AdGroupFormDialog
+        open={editDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) {
+            setSelectedGroup(null);
+          }
+        }}
+        group={selectedGroup}
+      />
     </div>
   );
 }

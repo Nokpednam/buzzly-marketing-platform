@@ -4,6 +4,8 @@ import { useWorkspace } from "@/hooks/useWorkspace";
 import { USE_MOCK_DATA, MOCK_CALENDAR_DAYS } from "@/lib/mock-api-data";
 
 export interface CalendarItem {
+  ad_group_id: string | null;
+  ad_group_name: string | null;
   id: string;
   type: "post" | "ad";
   title: string;
@@ -91,7 +93,7 @@ export function useUnifiedCalendar(dateRange: string) {
       const [postsResult, adsResult] = await Promise.all([
         supabase
           .from("social_posts")
-          .select("*, platforms(name, slug, icon_url), post_personas(persona_id, customer_personas(persona_name))")
+          .select("*, ad_groups(name), platforms(name, slug, icon_url), post_personas(persona_id, customer_personas(persona_name))")
           .eq("team_id", workspace.id)
           .or(`scheduled_at.gte.${startDate},and(scheduled_at.is.null,published_at.gte.${startDate})`)
           .in("status", ["draft", "scheduled", "published"])
@@ -100,7 +102,7 @@ export function useUnifiedCalendar(dateRange: string) {
 
         supabase
           .from("ads")
-          .select("*, ad_personas(persona_id, customer_personas(persona_name))")
+          .select("*, ad_groups(name), ad_personas(persona_id, customer_personas(persona_name))")
           .eq("team_id", workspace.id)
           .not("scheduled_at", "is", null)
           .gte("scheduled_at", startDate)
@@ -119,6 +121,8 @@ export function useUnifiedCalendar(dateRange: string) {
           | null;
         return {
           id: row.id,
+          ad_group_id: row.ad_group_id ?? null,
+          ad_group_name: row.ad_groups?.name ?? null,
           type: "post" as const,
           title: row.content ?? row.name ?? "Untitled Post",
           status: row.status ?? "draft",
@@ -148,6 +152,8 @@ export function useUnifiedCalendar(dateRange: string) {
           | null;
         return {
           id: row.id,
+          ad_group_id: row.ad_group_id ?? null,
+          ad_group_name: row.ad_groups?.name ?? null,
           type: "ad" as const,
           title: row.name,
           status: row.status ?? "draft",

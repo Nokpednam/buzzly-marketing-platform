@@ -1,5 +1,12 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { PlatformFilterBar } from "@/components/social/layout/PlatformFilterBar";
@@ -23,6 +30,7 @@ export default function SocialPlanner() {
   const [composerMode, setComposerMode] = useState<"create" | "edit" | "preview">("create");
   const [composerInitialData, setComposerInitialData] = useState<Partial<SocialPostFormData>>({});
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [postGrouping, setPostGrouping] = useState<"none" | "ad-group">("none");
 
   const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
 
@@ -176,10 +184,28 @@ export default function SocialPlanner() {
       />
 
       <div>
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          รายการโพสต์
-        </h3>
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            รายการโพสต์
+          </h3>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">จัดกลุ่ม</span>
+            <Select
+              value={postGrouping}
+              onValueChange={(value: "none" | "ad-group") => setPostGrouping(value)}
+            >
+              <SelectTrigger className="w-[190px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">ไม่จัดกลุ่ม</SelectItem>
+                <SelectItem value="ad-group">ตาม Ad Group</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <SocialPostsList
+          groupingMode={postGrouping}
           selectedPosts={selectedPosts}
           onSelectPost={handleSelectPost}
           onRequestCreate={() => openCreateComposer()}

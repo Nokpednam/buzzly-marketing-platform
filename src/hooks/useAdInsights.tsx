@@ -28,11 +28,24 @@ export interface AdInsightsSummary {
   }[];
 }
 
+interface AdInsightWithJoins extends AdInsight {
+  ad_accounts?: { platform_id: string; team_id?: string | null } | null;
+  ads?: {
+    ad_group_id: string | null;
+    ad_groups?: { name: string | null } | null;
+  } | null;
+}
+
 // ---------------------------------------------------------------------------
 // useAdInsights
 // ---------------------------------------------------------------------------
 
-export function useAdInsights(dateRange?: string, activePlatforms?: string[], workspaceId?: string | null) {
+export function useAdInsights(
+  dateRange?: string,
+  activePlatforms?: string[],
+  workspaceId?: string | null,
+  adGroupId?: string | null
+) {
   const getDateFilter = () => {
     if (!dateRange) return null;
     const days = parseInt(dateRange);
@@ -42,7 +55,14 @@ export function useAdInsights(dateRange?: string, activePlatforms?: string[], wo
   };
 
   const { data: insights = [], isLoading, error } = useQuery({
-    queryKey: ["ad_insights", workspaceId, dateRange, activePlatforms, USE_MOCK_DATA ? "mock" : "live"],
+    queryKey: [
+      "ad_insights",
+      workspaceId,
+      dateRange,
+      activePlatforms,
+      adGroupId,
+      USE_MOCK_DATA ? "mock" : "live",
+    ],
     queryFn: async () => {
       // ── MOCK MODE ────────────────────────────────────────────────────────
       if (USE_MOCK_DATA) {
@@ -70,7 +90,7 @@ export function useAdInsights(dateRange?: string, activePlatforms?: string[], wo
 
       let query = supabase
         .from("ad_insights")
-        .select("*, ad_accounts!inner(platform_id)")
+        .select("*, ad_accounts!inner(platform_id, team_id), ads!inner(ad_group_id, ad_groups(name))")
         .order("date", { ascending: true });
 
       const dateFilter = getDateFilter();
@@ -82,35 +102,45 @@ export function useAdInsights(dateRange?: string, activePlatforms?: string[], wo
         query = query.in("ad_accounts.platform_id", activePlatforms);
       }
 
+      if (workspaceId) {
+        query = query.eq("ad_accounts.team_id", workspaceId);
+      }
+
+      if (adGroupId) {
+        query = query.eq("ads.ad_group_id", adGroupId);
+      }
+
       const { data, error } = await query;
       if (error) throw error;
       return data as unknown as AdInsight[];
     },
   });
 
+  const insightRows = insights as AdInsightWithJoins[];
+
   const summary: AdInsightsSummary = {
-    totalImpressions: insights.reduce((sum, i) => sum + (i.impressions || 0), 0),
-    totalClicks: insights.reduce((sum, i) => sum + (i.clicks || 0), 0),
-    totalSpend: insights.reduce((sum, i) => sum + Number(i.spend || 0), 0),
-    totalConversions: insights.reduce((sum, i) => sum + (i.conversions || 0), 0),
-    totalReach: insights.reduce((sum, i) => sum + (i.reach || 0), 0),
+    totalImpressions: insightRows.reduce((sum, i) => sum + (i.impressions || 0), 0),
+    totalClicks: insightRows.reduce((sum, i) => sum + (i.clicks || 0), 0),
+    totalSpend: insightRows.reduce((sum, i) => sum + Number(i.spend || 0), 0),
+    totalConversions: insightRows.reduce((sum, i) => sum + (i.conversions || 0), 0),
+    totalReach: insightRows.reduce((sum, i) => sum + (i.reach || 0), 0),
     avgRoas:
-      insights.length > 0
-        ? insights.reduce((sum, i) => sum + Number(i.roas || 0), 0) / insights.length
+      insightRows.length > 0
+        ? insightRows.reduce((sum, i) => sum + Number(i.roas || 0), 0) / insightRows.length
         : 0,
     avgCtr:
-      insights.length > 0
-        ? insights.reduce((sum, i) => sum + Number(i.ctr || 0), 0) / insights.length
+      insightRows.length > 0
+        ? insightRows.reduce((sum, i) => sum + Number(i.ctr || 0), 0) / insightRows.length
         : 0,
     avgCpc:
-      insights.length > 0
-        ? insights.reduce((sum, i) => sum + Number(i.cpc || 0), 0) / insights.length
+      insightRows.length > 0
+        ? insightRows.reduce((sum, i) => sum + Number(i.cpc || 0), 0) / insightRows.length
         : 0,
     avgCpm:
-      insights.length > 0
-        ? insights.reduce((sum, i) => sum + Number(i.cpm || 0), 0) / insights.length
+      insightRows.length > 0
+        ? insightRows.reduce((sum, i) => sum + Number(i.cpm || 0), 0) / insightRows.length
         : 0,
-    dailyData: insights.map((i) => ({
+    dailyData: insightRows.map((i) => ({
       date: i.date,
       impressions: i.impressions || 0,
       clicks: i.clicks || 0,

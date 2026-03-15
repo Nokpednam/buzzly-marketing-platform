@@ -4,7 +4,11 @@ import { useWorkspace } from "@/hooks/useWorkspace";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
-export type SocialPost = Database["public"]["Tables"]["social_posts"]["Row"];
+type SocialPostRow = Database["public"]["Tables"]["social_posts"]["Row"];
+export type SocialPost = SocialPostRow & {
+  ad_groups?: { name: string | null } | null;
+  ad_group_name?: string | null;
+};
 export type SocialPostInsert = Database["public"]["Tables"]["social_posts"]["Insert"];
 export type SocialPostUpdate = Database["public"]["Tables"]["social_posts"]["Update"];
 
@@ -28,7 +32,7 @@ export function useSocialPosts(dateRange?: string) {
     queryFn: async () => {
       let query = supabase
         .from("social_posts")
-        .select("*")
+        .select("*, ad_groups(name)")
         .eq("team_id", workspaceId!)
         .order("created_at", { ascending: false });
 
@@ -39,7 +43,10 @@ export function useSocialPosts(dateRange?: string) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as SocialPost[];
+      return (data ?? []).map((post) => ({
+        ...post,
+        ad_group_name: post.ad_groups?.name ?? null,
+      })) as SocialPost[];
     },
   });
 

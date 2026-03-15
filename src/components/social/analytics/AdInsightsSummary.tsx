@@ -25,10 +25,21 @@ import {
 } from "recharts";
 import { useAdInsights } from "@/hooks/useAdInsights";
 import { useSocialFilters } from "@/contexts/SocialFiltersContext";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
-export function AdInsightsSummary() {
+interface AdInsightsSummaryProps {
+  adGroupId?: string;
+}
+
+export function AdInsightsSummary({ adGroupId }: AdInsightsSummaryProps) {
   const { dateRange, activePlatforms } = useSocialFilters();
-  const { summary, isLoading, error } = useAdInsights(dateRange, activePlatforms);
+  const { workspace } = useWorkspace();
+  const { summary, isLoading, error } = useAdInsights(
+    dateRange,
+    activePlatforms,
+    workspace?.id,
+    adGroupId
+  );
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
