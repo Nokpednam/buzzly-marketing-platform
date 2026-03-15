@@ -46,6 +46,7 @@ import {
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { usePlatformConnections } from "@/hooks/usePlatformConnections";
 import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
+import { useLoyaltyTier } from "@/hooks/useLoyaltyTier";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { KEYS_BY_PLATFORM } from "@/lib/mockApiKeys";
@@ -87,6 +88,7 @@ export default function APIKeys() {
     refetch,
   } = usePlatformConnections();
   const { state } = useOnboardingGuard();
+  const { refetch: refetchLoyalty } = useLoyaltyTier();
 
   // Re-fetch platform connections every time this page is entered via SPA navigation.
   // PlatformConnectionsProvider fetches once on app-level mount and holds the result
@@ -355,7 +357,11 @@ export default function APIKeys() {
   async function handleConnect(platformId: string) {
     setConnecting(platformId);
     const key = apiKeyInputs[platformId]?.trim() || undefined;
-    await connectPlatform(platformId, key);
+    const success = await connectPlatform(platformId, key);
+    if (success) {
+      // Sync sidebar loyalty widget immediately after mission award
+      await refetchLoyalty();
+    }
     setConnecting(null);
     setOpenFormId(null);
     setApiKeyInputs(prev => { const next = { ...prev }; delete next[platformId]; return next; });

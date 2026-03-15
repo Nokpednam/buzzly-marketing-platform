@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Building2, Globe, Loader2 } from "lucide-react";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useAwardMission } from "@/hooks/useAwardMission";
+import { useLoyaltyTier } from "@/hooks/useLoyaltyTier";
 
 export function WorkspaceSettings() {
   const navigate = useNavigate();
@@ -27,6 +29,8 @@ export function WorkspaceSettings() {
 
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const { awardMission } = useAwardMission();
+  const { refetch: refetchLoyalty } = useLoyaltyTier();
 
   const handleSave = async () => {
     await saveWorkspace(workspace);
@@ -38,6 +42,15 @@ export function WorkspaceSettings() {
     const result = await createWorkspace(newWorkspaceName.trim());
     if (result) {
       setNewWorkspaceName("");
+
+      // Mission 1: award points for creating the first workspace
+      const missionResult = await awardMission('create_workspace');
+      console.log('[Mission] create_workspace result:', missionResult);
+      if (missionResult?.success) {
+        // Instantly sync sidebar + TierBadge via shared LoyaltyProvider
+        await refetchLoyalty();
+      }
+
       navigate("/api-keys");
     }
     setIsCreating(false);
