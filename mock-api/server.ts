@@ -553,7 +553,8 @@ app.post("/api/connect", async (req, res) => {
         .from("social_posts")
         .delete()
         .eq("team_id", workspaceId)
-        .eq("post_channel", "facebook")
+        .eq("platform_id", platformId)
+        .eq("post_channel", "social")
         .eq("post_type", "chat");
     }
 
@@ -774,7 +775,7 @@ app.post("/api/connect", async (req, res) => {
         return {
           team_id: workspaceId,
           platform_id: platformId,
-          post_channel: "facebook",
+          post_channel: "social",
           post_type: "chat",
           platform_post_id: conv.thread_id,
           name: conv.participant?.name ?? "Unknown",
