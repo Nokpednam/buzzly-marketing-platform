@@ -17,14 +17,11 @@ import {
   TrendingUp,
   Loader2,
   LayoutGrid,
-  BarChart3,
   UserCheck,
   Target,
   Search,
   Filter,
   Activity,
-  LineChart as LineChartIcon,
-  Sparkles,
 } from "lucide-react";
 import {
   PieChart,
@@ -46,19 +43,14 @@ import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
 import { OnboardingBanner } from "@/components/dashboard/OnboardingBanner";
 import { PersonaCard } from "@/components/persona/PersonaCard";
 import { CreatePersonaDialog } from "@/components/persona/CreatePersonaDialog";
-import { PersonaInsightsTab } from "@/components/persona/PersonaInsightsTab";
-import { AudienceExplorer } from "@/components/persona/AudienceExplorer";
 import type { CustomerPersona } from "@/hooks/useCustomerPersonas";
 import { useAdPersonas, type AdAudienceMode, type PersonaData } from "@/hooks/useAdPersonas";
 import { useAds } from "@/hooks/useAds";
 import { useCampaigns } from "@/hooks/useCampaigns";
 import {
-  transformDiscoveryToPersona,
   transformLeadToPersona,
-  type MockPersonaData,
   type MockLeadRecord,
 } from "@/lib/mock-api-data";
-import type { PerformanceSummary } from "@/hooks/useAudienceDiscovery";
 
 const GENDER_COLORS: Record<string, string> = {
   Male: "#3B82F6",
@@ -92,31 +84,17 @@ export default function Prospects() {
   type CustomerPersona = NonNullable<typeof personas>[number];
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cards" | "charts" | "ad-audience" | "insights" | "discovery">("charts");
+  const [activeTab, setActiveTab] = useState<"cards" | "ad-audience">("ad-audience");
   const [searchQuery, setSearchQuery] = useState("");
   const [editingPersona, setEditingPersona] = useState<CustomerPersona | null>(null);
-  const [discoveryInitialData, setDiscoveryInitialData] = useState<CustomerPersona | null>(null);
-
-  const handleSaveAsPersona = (
-    audienceData: PersonaData,
-    platforms: string[],
-    summary: PerformanceSummary,
-  ) => {
-    const transformed = transformDiscoveryToPersona(
-      audienceData as MockPersonaData,
-      platforms,
-      workspace.id,
-      genders ?? [],
-      summary,
-    );
-    setDiscoveryInitialData(transformed);
-    setShowCreateDialog(true);
-  };
 
   const handleImportLead = (lead: MockLeadRecord) => {
     const transformed = transformLeadToPersona(lead, workspace.id ?? "");
-    setDiscoveryInitialData(transformed);
-    setShowCreateDialog(true);
+    createPersona.mutate(transformed, {
+      onSuccess: () => {
+        setShowCreateDialog(false);
+      },
+    });
   };
 
   // Ad Audience filter state
@@ -201,130 +179,19 @@ export default function Prospects() {
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-6">
         <div className="flex items-center justify-between">
           <TabsList className="bg-muted/50 p-1 rounded-xl">
-            <TabsTrigger value="charts" className="rounded-lg gap-2">
-              <BarChart3 className="h-4 w-4" /> Analytics
+            <TabsTrigger value="ad-audience" className="rounded-lg gap-2">
+              <Activity className="h-4 w-4" /> Ad Audience
             </TabsTrigger>
             <TabsTrigger value="cards" className="rounded-lg gap-2">
               <LayoutGrid className="h-4 w-4" /> Gallery
             </TabsTrigger>
-            <TabsTrigger value="ad-audience" className="rounded-lg gap-2">
-              <Activity className="h-4 w-4" /> Ad Audience
-            </TabsTrigger>
-            <TabsTrigger value="insights" className="rounded-lg gap-2">
-              <LineChartIcon className="h-4 w-4" /> Insights
-            </TabsTrigger>
-            <TabsTrigger value="discovery" className="rounded-lg gap-2">
-              <Sparkles className="h-4 w-4" /> Discovery
-            </TabsTrigger>
           </TabsList>
-          {activeTab !== "ad-audience" && activeTab !== "insights" && activeTab !== "discovery" && (
+          {activeTab !== "ad-audience" && (
             <Button variant="ghost" size="sm" className="text-muted-foreground" disabled title="Coming soon">
               <Filter className="h-4 w-4 mr-2" /> Filter
             </Button>
           )}
         </div>
-
-        {/* ── ANALYTICS TAB ── */}
-        <TabsContent value="charts" className="animate-in fade-in duration-500">
-          {!hasPersonas ? (
-            <EmptyPersonaState onGetStarted={() => setShowCreateDialog(true)} />
-          ) : (
-            <div className="space-y-8">
-              <div className="grid gap-6 lg:grid-cols-3">
-                <Card className="lg:col-span-1 rounded-3xl overflow-hidden border-none shadow-sm bg-muted/30">
-                  <CardHeader>
-                    <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Gender Split</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[280px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={stats.genderDistribution}
-                            innerRadius={60}
-                            outerRadius={90}
-                            paddingAngle={5}
-                            dataKey="value"
-                          >
-                            {stats.genderDistribution.map((entry, index) => (
-                              <Cell key={index} fill={GENDER_COLORS[entry.name] || "#8b5cf6"} stroke="none" />
-                            ))}
-                          </Pie>
-                          <Tooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 mt-4">
-                      {stats.genderDistribution.map((item) => (
-                        <div key={item.name} className="flex items-center gap-2 p-2 rounded-lg bg-background/50">
-                          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: GENDER_COLORS[item.name] }} />
-                          <span className="text-xs font-bold">{item.name}</span>
-                          <span className="text-xs text-muted-foreground ml-auto">{item.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="lg:col-span-2 rounded-3xl border-none shadow-sm bg-muted/10">
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <div>
-                      <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Market Interests</CardTitle>
-                      <CardDescription>Top categories your personas are engaged with</CardDescription>
-                    </div>
-                    <BarChart3 className="h-5 w-5 text-muted-foreground opacity-50" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[350px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={stats.interestDistribution} layout="vertical" margin={{ left: 30 }}>
-                          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--muted))" />
-                          <XAxis type="number" hide />
-                          <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 500 }} />
-                          <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '12px', border: 'none' }} />
-                          <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 10, 10, 0]} barSize={24} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <DistributionProgress title="Income Segments" data={stats.salaryDistribution} color="bg-emerald-500" icon={TrendingUp} />
-                  <DistributionProgress title="Device Preference" data={stats.deviceDistribution} color="bg-purple-500" icon={Smartphone} />
-                </div>
-              </div>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ── GALLERY TAB ── */}
-        <TabsContent value="cards" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {!hasPersonas ? (
-            <EmptyPersonaState onGetStarted={() => setShowCreateDialog(true)} />
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredPersonas?.map((persona) => (
-                <PersonaCard
-                  key={persona.id}
-                  persona={persona}
-                  genderName={genders?.find((g) => g.id === persona.gender_id)?.name_gender}
-                  onEdit={(persona) => setEditingPersona(persona as CustomerPersona)}
-                  onDelete={(id) => deletePersona.mutate(id)}
-                />
-              ))}
-              <button
-                onClick={() => setShowCreateDialog(true)}
-                className="group border-2 border-dashed rounded-3xl flex flex-col items-center justify-center p-8 hover:bg-primary/5 hover:border-primary/50 transition-all min-h-[300px]"
-              >
-                <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
-                  <Plus className="h-6 w-6" />
-                </div>
-                <p className="mt-4 font-bold text-muted-foreground group-hover:text-primary">Add New Persona</p>
-              </button>
-            </div>
-          )}
-        </TabsContent>
 
         {/* ── AD AUDIENCE TAB ── */}
         <TabsContent value="ad-audience" className="space-y-6 animate-in fade-in duration-500">
@@ -406,44 +273,48 @@ export default function Prospects() {
             <AdAudienceCharts data={adPersonaData} />
           )}
         </TabsContent>
-        {/* ── INSIGHTS TAB ── */}
-        <TabsContent value="insights" className="animate-in fade-in duration-500">
-          <PersonaInsightsTab teamId={workspace.id} workspaceId={workspace.id} />
-        </TabsContent>
 
-        {/* ── DISCOVERY TAB ── */}
-        <TabsContent value="discovery" className="animate-in fade-in duration-500">
-          <AudienceExplorer
-            workspaceId={workspace.id}
-            onSaveAsPersona={handleSaveAsPersona}
-            onImportLead={handleImportLead}
-          />
+        <TabsContent value="cards" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          {!hasPersonas ? (
+            <EmptyPersonaState onGetStarted={() => setShowCreateDialog(true)} />
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {filteredPersonas?.map((persona) => (
+                <PersonaCard
+                  key={persona.id}
+                  persona={persona}
+                  genderName={genders?.find((g) => g.id === persona.gender_id)?.name_gender}
+                  onEdit={(persona) => setEditingPersona(persona as CustomerPersona)}
+                  onDelete={(id) => deletePersona.mutate(id)}
+                />
+              ))}
+              <button
+                onClick={() => setShowCreateDialog(true)}
+                className="group border-2 border-dashed rounded-3xl flex flex-col items-center justify-center p-8 hover:bg-primary/5 hover:border-primary/50 transition-all min-h-[300px]"
+              >
+                <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
+                  <Plus className="h-6 w-6" />
+                </div>
+                <p className="mt-4 font-bold text-muted-foreground group-hover:text-primary">Add New Persona</p>
+              </button>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
       <CreatePersonaDialog
-        key={
-          discoveryInitialData
-            ? `discovery-${discoveryInitialData.created_at}`
-            : "create"
-        }
         open={showCreateDialog}
-        onOpenChange={(open) => {
-          setShowCreateDialog(open);
-          if (!open) setDiscoveryInitialData(null);
-        }}
+        onOpenChange={(open) => setShowCreateDialog(open)}
         onSubmit={(data) =>
           createPersona.mutate(data, {
             onSuccess: () => {
               setShowCreateDialog(false);
-              setDiscoveryInitialData(null);
             },
           })
         }
         teamId={workspace.id}
         genders={genders || []}
         isLoading={createPersona.isPending}
-        initialData={discoveryInitialData}
         isOwner
       />
 

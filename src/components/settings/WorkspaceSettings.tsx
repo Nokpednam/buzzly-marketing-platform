@@ -29,6 +29,15 @@ export function WorkspaceSettings() {
   const [isCreating, setIsCreating] = useState(false);
 
   const handleSave = async () => {
+    // Merge data and log as JSON as requested
+    const submissionData = {
+      workspaceName: workspace.name,
+      companyName: workspace.company_name || "", // We'll add this to the local state/hook if possible, or just mock it here
+      ...workspace
+    };
+    
+    console.log("Saving Workspace & Company data:", JSON.stringify(submissionData, null, 2));
+    
     await saveWorkspace(workspace);
   };
 
@@ -182,6 +191,15 @@ export function WorkspaceSettings() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
+              <Label htmlFor="companyName">ชื่อบริษัท (Company Name)</Label>
+              <Input
+                id="companyName"
+                value={workspace.company_name || ""}
+                onChange={(e) => setWorkspace({ ...workspace, company_name: e.target.value })}
+                placeholder="ระบุชื่อบริษัทจดทะเบียน (ถ้ามี)"
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="industry">อุตสาหกรรม (Industry)</Label>
               <Select
                 value={workspace.industries_id}
@@ -199,6 +217,9 @@ export function WorkspaceSettings() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="website" className="flex items-center gap-2">
                 <Globe className="h-4 w-4 text-muted-foreground" />
@@ -211,9 +232,6 @@ export function WorkspaceSettings() {
                 placeholder="https://example.com"
               />
             </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="timezone" className="flex items-center gap-2">
                 <Globe className="h-4 w-4 text-muted-foreground" />
