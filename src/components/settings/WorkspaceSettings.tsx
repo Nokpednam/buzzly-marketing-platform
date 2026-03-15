@@ -188,7 +188,7 @@ export function WorkspaceSettings() {
                 onValueChange={(value) => setWorkspace({ ...workspace, industries_id: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="เลือกอุตสาหกรรม" />
+                  <SelectValue placeholder="เลือกประเภทอุตสาหกรรม" />
                 </SelectTrigger>
                 <SelectContent>
                   {industries.map((industry) => (

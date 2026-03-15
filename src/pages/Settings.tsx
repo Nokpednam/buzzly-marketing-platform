@@ -32,13 +32,18 @@ import {
   Crown,
   Camera,
   Globe,
-  ShieldCheck,
   ChevronRight,
-  Wallet,
   Star,
   Trash2,
+  AlertTriangle,
+  Wallet,
+  ShieldCheck,
   CheckCircle2,
+  Plus, Info
 } from "lucide-react";
+import { CreateBudgetDialog } from "@/components/settings/CreateBudgetDialog";
+import { BudgetDetailDialog } from "@/components/settings/BudgetDetailDialog";
+import { Progress } from "@/components/ui/progress";
 
 // Import your custom sub-components
 import { WorkspaceSettings } from "@/components/settings/WorkspaceSettings";
@@ -47,8 +52,6 @@ import { LoyaltyTab } from "@/components/settings/LoyaltyTab";
 import { useUserPaymentMethods } from "@/hooks/useUserPaymentMethods";
 import { useBudgets } from "@/hooks/useBudgets";
 import { useProfileCustomer } from "@/hooks/useProfileCustomer";
-import { Plus, AlertTriangle } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
 
 const settingsGroups = [
   {
@@ -457,12 +460,12 @@ export default function Settings() {
               </CardHeader>
               <CardContent className="p-8 pt-0 space-y-6">
                 <div className="grid gap-6 md:grid-cols-2">
-                  <SettingInput label="Company Name" id="companyName" defaultValue="Buzzly Ltd." />
+                  <SettingInput label="Company Name" id="companyName" placeholder="กรุณาใส่ชื่อ Company" />
                   <div className="space-y-2">
                     <Label className="text-xs font-bold uppercase text-muted-foreground">Industry</Label>
-                    <Select defaultValue="ecommerce">
+                    <Select>
                       <SelectTrigger className="h-12 rounded-xl bg-background border-none ring-1 ring-border shadow-none">
-                        <SelectValue />
+                        <SelectValue placeholder="เลือก Industry" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl border-none shadow-xl">
                         <SelectItem value="ecommerce">E-commerce</SelectItem>
@@ -526,8 +529,8 @@ export default function Settings() {
             <PaymentMethodsSection />
           </TabsContent>
         </div>
-      </Tabs >
-    </div >
+      </Tabs>
+    </div>
   );
 }
 
@@ -562,6 +565,14 @@ function NotificationSwitch({ title, desc, checked, onCheckedChange }: any) {
 
 function BudgetSection() {
   const { budgets, isLoading, totalBudget, totalSpent, totalRemaining, alertBudgets, deleteBudget } = useBudgets();
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [selectedBudget, setSelectedBudget] = useState<any>(null);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+
+  const handleShowDetail = (budget: any) => {
+    setSelectedBudget(budget);
+    setIsDetailDialogOpen(true);
+  };
 
   const getSpendPercent = (budget: any) =>
     budget.amount > 0 ? Math.min((budget.spent_amount / budget.amount) * 100, 100) : 0;
@@ -579,11 +590,19 @@ function BudgetSection() {
             </CardTitle>
             <CardDescription>ติดตามงบประมาณแคมเปญจากฐานข้อมูลจริง</CardDescription>
           </div>
-          {alertBudgets.length > 0 && (
-            <Badge className="bg-destructive/10 text-destructive border-destructive/20 gap-1">
-              <AlertTriangle className="h-3 w-3" /> {alertBudgets.length} Alert{alertBudgets.length > 1 ? "s" : ""}
-            </Badge>
-          )}
+          <div className="flex items-center gap-3">
+            <Button 
+              onClick={() => setIsAddDialogOpen(true)} 
+              className="rounded-xl shadow-md bg-primary hover:bg-primary/90 h-10 px-4"
+            >
+              <Plus className="h-4 w-4 mr-2" /> New Budget
+            </Button>
+            {alertBudgets.length > 0 && (
+              <Badge className="bg-destructive/10 text-destructive border-destructive/20 gap-1 h-10 px-3">
+                <AlertTriangle className="h-3 w-3" /> {alertBudgets.length} Alert{alertBudgets.length > 1 ? "s" : ""}
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="p-8 pt-0 space-y-6">
@@ -622,14 +641,18 @@ function BudgetSection() {
               return (
                 <div
                   key={budget.id}
+                  onClick={() => handleShowDetail(budget)}
                   className={cn(
-                    "p-5 rounded-2xl border bg-background transition-all",
+                    "p-5 rounded-2xl border bg-background transition-all cursor-pointer hover:shadow-md hover:border-primary/20",
                     alert && "border-destructive/30 bg-destructive/5"
                   )}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <p className="font-bold text-sm">{budget.name}</p>
+                       <p className="font-bold text-sm flex items-center gap-1.5">
+                        {budget.name}
+                        <Info className="h-3 w-3 text-muted-foreground/50" />
+                      </p>
                       {budget.campaign_name && (
                         <Badge variant="secondary" className="text-[10px] h-4 px-1.5">{budget.campaign_name}</Badge>
                       )}
@@ -648,7 +671,10 @@ function BudgetSection() {
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive"
-                        onClick={() => deleteBudget.mutate(budget.id)}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent opening detail dialog
+                          deleteBudget.mutate(budget.id);
+                        }}
                         disabled={deleteBudget.isPending}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -669,6 +695,15 @@ function BudgetSection() {
           </div>
         )}
       </CardContent>
+      <CreateBudgetDialog 
+        open={isAddDialogOpen} 
+        onOpenChange={setIsAddDialogOpen} 
+      />
+      <BudgetDetailDialog
+        budget={selectedBudget}
+        open={isDetailDialogOpen}
+        onOpenChange={setIsDetailDialogOpen}
+      />
     </Card>
   );
 }
