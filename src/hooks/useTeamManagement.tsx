@@ -187,35 +187,10 @@ export function useTeamManagement() {
         .maybeSingle();
 
       if (!teamData) {
-        // Create a default workspace for the user
-        const { data: newTeam, error: createError } = await supabase
-          .from("workspaces")
-          .insert({
-            name: "My Workspace",
-            description: "Default workspace",
-            owner_id: user.id,
-          })
-          .select()
-          .single();
-
-        if (createError) {
-          console.error("Error creating team:", createError);
-          setLoading(false);
-          return;
-        }
-
-        // Add owner as workspace member
-        await supabase
-          .from("workspace_members")
-          .insert({
-            team_id: newTeam.id,
-            user_id: user.id,
-            role: "owner" as TeamRole,
-            status: "active" as MemberStatus,
-          });
-
-        setTeam(newTeam);
-        setCurrentUserRole("owner");
+        // No workspace yet — user must complete Onboarding Step 1.
+        // Do NOT auto-create. The useOnboardingGuard hook handles this state.
+        setTeam(null);
+        setCurrentUserRole(null);
       } else {
         setTeam(teamData);
 
