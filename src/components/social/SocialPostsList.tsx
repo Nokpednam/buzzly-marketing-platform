@@ -39,6 +39,10 @@ interface SocialPostsListProps {
 
 function getStatusBadge(status: string | null) {
   switch (status) {
+    case "active":
+      return <Badge className="bg-success text-success-foreground">กำลังทำงาน</Badge>;
+    case "paused":
+      return <Badge variant="outline">หยุดชั่วคราว</Badge>;
     case "published":
       return <Badge className="bg-success text-success-foreground">เผยแพร่แล้ว</Badge>;
     case "scheduled":
@@ -113,7 +117,9 @@ export function SocialPostsList({
     return candidateKeys.some((key) => activePlatforms.includes(key));
   };
 
-  const visiblePosts = posts.filter(matchesActivePlatforms);
+  const visiblePosts = posts
+    .filter((post) => post.post_type !== "chat")
+    .filter(matchesActivePlatforms);
   const groupedVisiblePosts = visiblePosts.reduce<Record<string, SocialPost[]>>((groups, post) => {
     const groupLabel = groupingMode === "ad-group"
       ? post.ad_group_name ?? "Unassigned Ad Group"

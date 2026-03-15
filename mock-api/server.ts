@@ -351,6 +351,59 @@ async function saveAdGroupRecord(params: {
   }
 }
 
+async function resolvePlatformId(supabase: SupabaseClient, platformSlug: string) {
+  const { data, error } = await supabase
+    .from("platforms")
+    .select("id")
+    .eq("slug", platformSlug)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data?.id ?? null;
+}
+
+async function upsertSyncedAdPost(params: {
+  ad: ExternalAdRecord;
+  adId: string;
+  adGroupId?: string | null;
+  platformId: string | null;
+  supabase: SupabaseClient;
+  workspaceId: string;
+}) {
+  const { ad, adGroupId = null, adId, platformId, supabase, workspaceId } = params;
+  const publishedAt = ad.date_start
+    ? new Date(`${ad.date_start}T09:00:00.000Z`).toISOString()
+    : new Date().toISOString();
+
+  const payload = {
+    id: adId,
+    team_id: workspaceId,
+    platform_id: platformId,
+    ad_group_id: adGroupId,
+    post_channel: "ad",
+    post_type: ad.creative?.video_url ? "video" : "image",
+    platform_post_id: ad.external_ad_id ?? adId,
+    name: ad.creative?.headline ?? ad.ad_name ?? "Untitled Ad",
+    content: ad.creative?.body ?? null,
+    media_urls: [ad.creative?.image_url, ad.creative?.video_url].filter(
+      (url): url is string => Boolean(url)
+    ),
+    published_at: publishedAt,
+    status: ad.status === "ACTIVE" ? "active" : "paused",
+  };
+
+  const { error } = await supabase.from("social_posts").upsert(payload, { onConflict: "id" });
+
+  if (error) {
+    throw error;
+  }
+
+  return payload.id;
+}
+
 // ─── Facebook Endpoints ──────────────────────────────────────────────
 app.get("/facebook/:tenant/insights", (req, res) => {
   res.json(loadFixture("facebook", req.params.tenant, "insights"));
@@ -452,6 +505,7 @@ app.post("/api/connect", async (req, res) => {
 
   try {
     const supabase = getSupabaseClient();
+    const platformId = await resolvePlatformId(supabase, platform);
 
     // 2. Fetch ads and (for Facebook) leads + chats in parallel
     const [adsRes, leadsRes, chatsRes] = await Promise.all([
@@ -484,6 +538,15 @@ app.post("/api/connect", async (req, res) => {
     // 3. Clear stale data for this workspace + platform (full-replace sync)
     await supabase.from("ad_insights").delete().eq("ad_account_id", adAccountId);
     await supabase.from("ads").delete().eq("team_id", workspaceId).eq("platform", platform);
+    if (platformId) {
+      await supabase
+        .from("social_posts")
+        .delete()
+        .eq("team_id", workspaceId)
+        .eq("post_channel", "ad")
+        .eq("platform_id", platformId)
+        .not("platform_post_id", "is", null);
+    }
     if (platform === "facebook") {
       // Remove previously synced chats so we don't accumulate duplicates
       await supabase
@@ -574,6 +637,15 @@ app.post("/api/connect", async (req, res) => {
       if (ad.external_ad_id) {
         adIdByExternalId.set(ad.external_ad_id, adId);
       }
+
+      await upsertSyncedAdPost({
+        ad,
+        adId,
+        adGroupId,
+        platformId,
+        supabase,
+        workspaceId,
+      });
 
       // Spread totals evenly over the flight window with light jitter
       const startDate = new Date(ad.date_start);
@@ -701,7 +773,7 @@ app.post("/api/connect", async (req, res) => {
         const lastMsg = msgs[msgs.length - 1];
         return {
           team_id: workspaceId,
-          platform_id: platform,
+          platform_id: platformId,
           post_channel: "facebook",
           post_type: "chat",
           platform_post_id: conv.thread_id,
@@ -713,11 +785,60 @@ app.post("/api/connect", async (req, res) => {
         };
       });
 
-      const { error: chatError } = await supabase.from("social_posts").insert(chatRows);
+      const { data: insertedChats, error: chatError } = await supabase
+        .from("social_posts")
+        .insert(chatRows)
+        .select("id, platform_post_id");
+
       if (chatError) {
         console.warn("[/api/connect] chats insert warn:", chatError.message);
       } else {
-        chatsInserted = chatsData.length;
+        const postIdByThreadId = new Map(
+          (insertedChats ?? []).map((chat) => [chat.platform_post_id, chat.id])
+        );
+
+        const commentRows = chatsData
+          .map((conv) => {
+            const postId = conv.thread_id ? postIdByThreadId.get(conv.thread_id) : null;
+            const msgs = conv.messages ?? [];
+            const lastMsg = msgs[msgs.length - 1];
+
+            if (!postId || !lastMsg?.text) {
+              return null;
+            }
+
+            return {
+              post_id: postId,
+              team_id: workspaceId,
+              platform_id: platformId,
+              author_name: conv.participant?.name ?? "Unknown",
+              content: lastMsg.text,
+              is_read: (conv.unread_count ?? 0) === 0,
+              created_at: conv.last_message_time ?? new Date().toISOString(),
+            };
+          })
+          .filter(
+            (
+              row,
+            ): row is {
+              post_id: string;
+              team_id: string;
+              platform_id: string | null;
+              author_name: string;
+              content: string;
+              is_read: boolean;
+              created_at: string;
+            } => Boolean(row)
+          );
+
+        if (commentRows.length > 0) {
+          const { error: commentsError } = await supabase.from("social_comments").insert(commentRows);
+          if (commentsError) {
+            console.warn("[/api/connect] chat comments insert warn:", commentsError.message);
+          }
+        }
+
+        chatsInserted = insertedChats?.length ?? 0;
       }
     }
 

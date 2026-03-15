@@ -1,8 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { invalidateSocialRealtimeQueries } from "@/lib/socialQueryInvalidation";
 
 type SocialPostRow = Database["public"]["Tables"]["social_posts"]["Row"];
 export type SocialPost = SocialPostRow & {
@@ -12,10 +13,25 @@ export type SocialPost = SocialPostRow & {
 export type SocialPostInsert = Database["public"]["Tables"]["social_posts"]["Insert"];
 export type SocialPostUpdate = Database["public"]["Tables"]["social_posts"]["Update"];
 
-export function useSocialPosts(dateRange?: string) {
+interface SocialPostsOptions {
+  dateRange?: string;
+  postType?: string;
+  postChannel?: string;
+}
+
+function getNormalizedOptions(options?: string | SocialPostsOptions): SocialPostsOptions {
+  if (typeof options === "string") {
+    return { dateRange: options };
+  }
+
+  return options ?? {};
+}
+
+export function useSocialPosts(options?: string | SocialPostsOptions) {
   const queryClient = useQueryClient();
   const { workspace } = useWorkspace();
   const workspaceId = workspace.id;
+  const { dateRange, postChannel, postType } = getNormalizedOptions(options);
 
   // Calculate date filter based on dateRange
   const getDateFilter = () => {
@@ -27,18 +43,34 @@ export function useSocialPosts(dateRange?: string) {
   };
 
   const { data: posts = [], isLoading, error } = useQuery({
-    queryKey: ["social_posts", workspaceId, dateRange],
+    queryKey: ["social_posts", workspaceId, dateRange, postChannel ?? "all", postType ?? "all"],
     enabled: !!workspaceId,
     queryFn: async () => {
+      if (!workspaceId) {
+        return [];
+      }
+
       let query = supabase
         .from("social_posts")
         .select("*, ad_groups(name)")
-        .eq("team_id", workspaceId!)
-        .order("created_at", { ascending: false });
+        .eq("team_id", workspaceId)
+        .order("scheduled_at", { ascending: false, nullsFirst: false })
+        .order("published_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false, nullsFirst: false });
+
+      if (postType) {
+        query = query.eq("post_type", postType);
+      }
+
+      if (postChannel) {
+        query = query.eq("post_channel", postChannel);
+      }
 
       const dateFilter = getDateFilter();
       if (dateFilter) {
-        query = query.gte("created_at", dateFilter);
+        query = query.or(
+          `scheduled_at.gte.${dateFilter},and(scheduled_at.is.null,published_at.gte.${dateFilter}),and(scheduled_at.is.null,published_at.is.null,created_at.gte.${dateFilter})`
+        );
       }
 
       const { data, error } = await query;
@@ -66,7 +98,7 @@ export function useSocialPosts(dateRange?: string) {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["social_posts"] });
+      void invalidateSocialRealtimeQueries(queryClient);
       toast.success("สร้างโพสต์สำเร็จ");
     },
     onError: (error: Error) => {
@@ -86,7 +118,7 @@ export function useSocialPosts(dateRange?: string) {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["social_posts"] });
+      void invalidateSocialRealtimeQueries(queryClient);
       toast.success("อัปเดตโพสต์สำเร็จ");
     },
     onError: (error: Error) => {
@@ -103,7 +135,7 @@ export function useSocialPosts(dateRange?: string) {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["social_posts"] });
+      void invalidateSocialRealtimeQueries(queryClient);
       toast.success("ลบโพสต์สำเร็จ");
     },
     onError: (error: Error) => {

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { useWorkspace } from "./useWorkspace";
 import { adsKeys } from "./useAds";
+import { invalidateSocialRealtimeQueries } from "@/lib/socialQueryInvalidation";
 
 type AdGroupBase = Database["public"]["Tables"]["ad_groups"]["Row"];
 type AdGroupInsertBase = Database["public"]["Tables"]["ad_groups"]["Insert"];
@@ -47,11 +48,9 @@ export function useAdGroups() {
 
   const invalidateAdGroupQueries = async () => {
     await Promise.all([
+      invalidateSocialRealtimeQueries(queryClient),
       queryClient.invalidateQueries({ queryKey: adGroupKeys.all }),
       queryClient.invalidateQueries({ queryKey: adsKeys.all }),
-      queryClient.invalidateQueries({ queryKey: ["social_posts"] }),
-      queryClient.invalidateQueries({ queryKey: ["social_calendar"] }),
-      queryClient.invalidateQueries({ queryKey: ["unified_calendar"] }),
       queryClient.invalidateQueries({ queryKey: ["linkable_posts_unlinked"] }),
       queryClient.invalidateQueries({ queryKey: ["linkable_ads_unlinked"] }),
       queryClient.invalidateQueries({ queryKey: ["linkable_posts_linked"] }),

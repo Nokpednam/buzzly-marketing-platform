@@ -16,6 +16,7 @@ import { PostComposer, type SocialPostFormData } from "@/components/social/plann
 import { SocialPostsList } from "@/components/social/SocialPostsList";
 import { useUnifiedCalendar, type CalendarItem } from "@/hooks/useUnifiedCalendar";
 import { useSocialPosts, type SocialPost } from "@/hooks/useSocialPosts";
+import { useAds } from "@/hooks/useAds";
 import { usePostPersonaLinks } from "@/hooks/usePostPersonaLinks";
 import { useSocialFilters } from "@/contexts/SocialFiltersContext";
 import { logError } from "@/services/errorLogger";
@@ -24,6 +25,7 @@ export default function SocialPlanner() {
   const { dateRange } = useSocialFilters();
   const { calendarDays, isLoading: calendarLoading } = useUnifiedCalendar(dateRange);
   const { createPost, updatePost } = useSocialPosts(dateRange);
+  const { ads, createAd, updateAd, linkPersonas: linkAdPersonas } = useAds();
   const { linkPersonas } = usePostPersonaLinks();
 
   const [composerOpen, setComposerOpen] = useState(false);
@@ -39,37 +41,44 @@ export default function SocialPlanner() {
     setEditingPostId(null);
     setComposerInitialData(
       prefilledDate
-        ? { status: "scheduled", scheduled_at: `${prefilledDate}T09:00` }
-        : {}
+        ? { content_kind: "organic", status: "scheduled", scheduled_at: `${prefilledDate}T09:00` }
+        : { content_kind: "organic" }
     );
     setComposerOpen(true);
   };
 
   const openEditComposer = (post: SocialPost) => {
+    const matchingAd = post.post_channel === "ad" ? ads.find((ad) => ad.id === post.id) : undefined;
     setComposerMode("edit");
     setEditingPostId(post.id);
     setComposerInitialData({
       platform_ids: post.platform_id ? [post.platform_id] : [],
+      content_kind: post.post_channel === "ad" ? "paid" : "organic",
       post_type: post.post_type ?? "image",
+      headline: matchingAd?.headline ?? post.name ?? "",
       content: post.content ?? "",
+      media_url: post.media_urls?.[0] ?? "",
+      budget: matchingAd?.budget ?? null,
       status: post.status ?? "draft",
       hashtags: post.hashtags?.join(", ") ?? "",
       scheduled_at: post.scheduled_at ?? undefined,
+      media_urls: post.media_urls,
     });
     setComposerOpen(true);
   };
 
   const openEditFromCalendar = (item: CalendarItem) => {
-    if (item.type === "ad") {
-      toast.info("แก้ไข Ad ได้ที่หน้า Social Analytics");
-      return;
-    }
+    const matchingAd = item.type === "ad" ? ads.find((ad) => ad.id === item.id) : undefined;
     setComposerMode("preview");
     setEditingPostId(item.id);
     setComposerInitialData({
       platform_ids: item.platform_id ? [item.platform_id] : [],
+      content_kind: item.type === "ad" ? "paid" : "organic",
       post_type: item.post_type ?? "image",
+      headline: matchingAd?.headline ?? item.title ?? "",
       content: item.content ?? "",
+      media_url: item.media_urls?.[0] ?? "",
+      budget: matchingAd?.budget ?? null,
       status: item.status,
       hashtags: item.hashtags?.join(", ") ?? "",
       scheduled_at: item.scheduled_at ?? undefined,
@@ -91,26 +100,57 @@ export default function SocialPlanner() {
     const hashtagArray = data.hashtags
       ? data.hashtags.split(",").map((t) => t.trim()).filter(Boolean)
       : [];
+    const mediaUrls = data.media_url.trim() ? [data.media_url.trim()] : null;
+    const normalizedScheduledAt =
+      data.status === "scheduled" && data.scheduled_at
+        ? new Date(data.scheduled_at).toISOString()
+        : null;
+    const publishedAt = data.status === "published" ? new Date().toISOString() : null;
+    const isPaidAd = data.content_kind === "paid";
 
     try {
       if (composerMode === "create") {
         const targets = data.platform_ids.length > 0 ? data.platform_ids : [null];
         const createdPosts = await Promise.all(
-          targets.map((platformId) =>
-            createPost.mutateAsync({
+          targets.map(async (platformId) => {
+            const sharedId = crypto.randomUUID();
+
+            if (isPaidAd) {
+              await createAd.mutateAsync({
+                id: sharedId,
+                ad_group_id: null,
+                budget: data.budget,
+                content: data.content,
+                headline: data.headline || null,
+                media_urls: mediaUrls,
+                name: data.headline || "Untitled Ad",
+                platform: platformId,
+                scheduled_at: normalizedScheduledAt,
+                status:
+                  data.status === "published"
+                    ? "active"
+                    : data.status === "archived"
+                      ? "archived"
+                      : "draft",
+              });
+            }
+
+            return createPost.mutateAsync({
+              id: sharedId,
+              name: data.headline || null,
               platform_id: platformId,
               post_type: data.post_type,
               content: data.content,
+              media_urls: mediaUrls,
               status: data.status,
               hashtags: hashtagArray.length > 0 ? hashtagArray : null,
-              scheduled_at:
-                data.status === "scheduled" && data.scheduled_at
-                  ? new Date(data.scheduled_at).toISOString()
-                  : null,
-              post_channel: "social",
-            })
-          )
+              scheduled_at: normalizedScheduledAt,
+              published_at: publishedAt,
+              post_channel: isPaidAd ? "ad" : "social",
+            });
+          })
         );
+
         if (data.persona_ids && data.persona_ids.length > 0) {
           await Promise.all(
             createdPosts
@@ -122,28 +162,67 @@ export default function SocialPlanner() {
                 })
               )
           );
+
+          if (isPaidAd) {
+            await Promise.all(
+              createdPosts
+                .filter(Boolean)
+                .map((post) =>
+                  linkAdPersonas.mutateAsync({
+                    adId: post.id,
+                    personaIds: data.persona_ids!,
+                  })
+                )
+            );
+          }
         }
+
         if (data.platform_ids.length > 1) {
-          toast.success(`สร้าง ${data.platform_ids.length} โพสต์สำเร็จ`);
+          toast.success(`สร้าง ${data.platform_ids.length} รายการสำเร็จ`);
         }
       } else if (editingPostId) {
         const primaryPlatformId = data.platform_ids[0] ?? null;
+        if (isPaidAd) {
+          await updateAd.mutateAsync({
+            id: editingPostId,
+            updates: {
+              budget: data.budget,
+              content: data.content,
+              headline: data.headline || null,
+              media_urls: mediaUrls,
+              name: data.headline || "Untitled Ad",
+              platform: primaryPlatformId,
+              scheduled_at: normalizedScheduledAt,
+              status:
+                data.status === "published"
+                  ? "active"
+                  : data.status === "archived"
+                    ? "archived"
+                    : "draft",
+            },
+          });
+        }
+
         await updatePost.mutateAsync({
           id: editingPostId,
           updates: {
+            name: data.headline || null,
             platform_id: primaryPlatformId,
             post_type: data.post_type,
             content: data.content,
+            media_urls: mediaUrls,
             status: data.status,
             hashtags: hashtagArray.length > 0 ? hashtagArray : null,
-            scheduled_at:
-              data.status === "scheduled" && data.scheduled_at
-                ? new Date(data.scheduled_at).toISOString()
-                : null,
+            scheduled_at: normalizedScheduledAt,
+            published_at: publishedAt,
+            post_channel: isPaidAd ? "ad" : "social",
           },
         });
         if (data.persona_ids !== undefined) {
-          linkPersonas.mutate({ postId: editingPostId, personaIds: data.persona_ids });
+          await linkPersonas.mutateAsync({ postId: editingPostId, personaIds: data.persona_ids });
+          if (isPaidAd) {
+            await linkAdPersonas.mutateAsync({ adId: editingPostId, personaIds: data.persona_ids });
+          }
         }
       }
       setComposerOpen(false);
@@ -219,7 +298,12 @@ export default function SocialPlanner() {
         onOpenChange={setComposerOpen}
         initialData={composerInitialData}
         onSubmit={handleComposerSubmit}
-        isPending={createPost.isPending || updatePost.isPending}
+        isPending={
+          createPost.isPending ||
+          updatePost.isPending ||
+          createAd.isPending ||
+          updateAd.isPending
+        }
         onRequestEdit={switchToEdit}
       />
     </div>

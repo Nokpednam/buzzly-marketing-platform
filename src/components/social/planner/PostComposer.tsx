@@ -19,14 +19,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { PlatformPublishSelector } from "@/components/social/planner/PlatformPublishSelector";
 import { PersonaSelector } from "@/components/persona/PersonaSelector";
 import { useWorkspace } from "@/hooks/useWorkspace";
 
 export interface SocialPostFormData {
   platform_ids: string[];
+  content_kind: "organic" | "paid";
   post_type: string;
+  headline: string;
   content: string;
+  media_url: string;
+  budget: number | null;
   status: string;
   hashtags: string;
   scheduled_at?: string;
@@ -48,8 +53,12 @@ const POST_TYPES = ["image", "video", "carousel", "story", "reel"];
 
 const DEFAULT_FORM: SocialPostFormData = {
   platform_ids: [],
+  content_kind: "organic",
   post_type: "image",
+  headline: "",
   content: "",
+  media_url: "",
+  budget: null,
   status: "draft",
   hashtags: "",
 };
@@ -75,7 +84,11 @@ export function PostComposer({
 
   useEffect(() => {
     if (open) {
-      setFormData({ ...DEFAULT_FORM, ...initialData });
+      setFormData({
+        ...DEFAULT_FORM,
+        ...initialData,
+        media_url: initialData?.media_urls?.[0] ?? initialData?.media_url ?? "",
+      });
     }
   }, [open, initialData]);
 
@@ -89,7 +102,10 @@ export function PostComposer({
   const update = (patch: Partial<SocialPostFormData>) =>
     setFormData((prev) => ({ ...prev, ...patch }));
 
-  const isValid = formData.content.trim().length > 0 && formData.platform_ids.length > 0;
+  const isValid =
+    formData.content.trim().length > 0 &&
+    formData.platform_ids.length > 0 &&
+    (formData.content_kind === "organic" || (formData.budget ?? 0) > 0);
 
   const hashtagList = formData.hashtags
     ? formData.hashtags.split(",").map((t) => t.trim()).filter(Boolean)
@@ -119,7 +135,32 @@ export function PostComposer({
           </div>
 
           <div className="space-y-2">
-            <Label>ประเภท</Label>
+            <Label>ประเภทโพสต์</Label>
+            <RadioGroup
+              value={formData.content_kind}
+              onValueChange={(value: "organic" | "paid") => update({ content_kind: value })}
+              disabled={isPreview || !isCreate}
+              className="grid grid-cols-2 gap-2"
+            >
+              <Label
+                htmlFor="content-kind-organic"
+                className="flex cursor-pointer items-center gap-2 rounded-lg border p-3"
+              >
+                <RadioGroupItem id="content-kind-organic" value="organic" />
+                Organic Post
+              </Label>
+              <Label
+                htmlFor="content-kind-paid"
+                className="flex cursor-pointer items-center gap-2 rounded-lg border p-3"
+              >
+                <RadioGroupItem id="content-kind-paid" value="paid" />
+                Paid Ad
+              </Label>
+            </RadioGroup>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Creative Format</Label>
             <Select
               value={formData.post_type}
               onValueChange={(v) => update({ post_type: v })}
@@ -139,12 +180,51 @@ export function PostComposer({
           </div>
 
           <div className="space-y-2">
-            <Label>เนื้อหา</Label>
+            <Label>Headline</Label>
+            <Input
+              value={formData.headline}
+              onChange={(e) => update({ headline: e.target.value })}
+              placeholder="ชื่อโพสต์หรือพาดหัวโฆษณา"
+              disabled={isPreview}
+            />
+          </div>
+
+          {formData.content_kind === "paid" && (
+            <div className="space-y-2">
+              <Label>Budget</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.budget ?? ""}
+                onChange={(e) =>
+                  update({
+                    budget: e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+                placeholder="0.00"
+                disabled={isPreview}
+              />
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <Label>Content / Caption</Label>
             <Textarea
               value={formData.content}
               onChange={(e) => update({ content: e.target.value })}
               placeholder="เขียนเนื้อหาโพสต์..."
               rows={4}
+              disabled={isPreview}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Media URL</Label>
+            <Input
+              value={formData.media_url}
+              onChange={(e) => update({ media_url: e.target.value })}
+              placeholder="https://example.com/image-or-video"
               disabled={isPreview}
             />
           </div>
@@ -232,11 +312,11 @@ export function PostComposer({
             </div>
           )}
 
-          {isPreview && formData.media_urls && formData.media_urls.length > 0 && (
+          {isPreview && (formData.media_urls?.length || formData.media_url) && (
             <div className="space-y-2">
               <Label>รูปภาพ / มีเดีย</Label>
               <div className="flex gap-2 overflow-x-auto pb-1">
-                {formData.media_urls.map((url, i) => (
+                {(formData.media_urls?.length ? formData.media_urls : [formData.media_url]).map((url, i) => (
                   <img
                     key={i}
                     src={url}

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { MOCK_API_BASE_URL } from "@/lib/mockApiKeys";
+import { invalidateSocialRealtimeQueries } from "@/lib/socialQueryInvalidation";
 
 export type PlatformStatus = "connected" | "disconnected" | "error";
 
@@ -57,6 +58,21 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
   const queryClient = useQueryClient();
 
   const connectedPlatforms = platforms.filter((p) => p.status === "connected");
+
+  const invalidateConnectedData = async () => {
+    await Promise.all([
+      invalidateSocialRealtimeQueries(queryClient),
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] }),
+      queryClient.invalidateQueries({ queryKey: ["ad-accounts"] }),
+      queryClient.invalidateQueries({ queryKey: ["ad-accounts-active-filter"] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] }),
+      queryClient.invalidateQueries({ queryKey: ["ad_insights"] }),
+      queryClient.invalidateQueries({ queryKey: ["ad_insights_funnel_totals"] }),
+      queryClient.invalidateQueries({ queryKey: ["revenue-metrics-dashboard"] }),
+      queryClient.invalidateQueries({ queryKey: ["customer-personas"] }),
+      queryClient.invalidateQueries({ queryKey: ["sync_history"] }),
+    ]);
+  };
 
   // Fetch team ID and platforms from database
   const fetchPlatforms = async () => {
@@ -157,10 +173,9 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
         };
       });
 
-      console.log('Transformed platforms:', transformedPlatforms);
       setPlatforms(transformedPlatforms);
-    } catch (error) {
-      console.error('Error fetching platforms:', error);
+    } catch {
+      toast.error("ไม่สามารถโหลดรายการแพลตฟอร์มได้");
     } finally {
       setLoading(false);
     }
@@ -238,7 +253,6 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
         }, { onConflict: 'team_id,platform_id' });
 
       if (keyError) {
-        console.error("workspace_api_keys upsert failed:", keyError);
         throw keyError;
       }
 
@@ -317,25 +331,14 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
         'award_loyalty_points' as any,
         { p_action_type: 'connect_api' }
       );
-      console.log('[Mission] connect_api result:', missionResult, missionError);
       // Note: usePlatformConnections is a Context Provider — cannot call React hooks here.
       // The sidebar will sync on the next natural refetch cycle (auth state change / navigation).
       // For instant sync, call refetch() from the page that renders after connectPlatform() resolves.
+      void missionResult;
+      void missionError;
 
       // ── Step 7: Invalidate caches → frontend re-fetches from DB ──
-      await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
-      await queryClient.invalidateQueries({ queryKey: ["ad-accounts"] });
-      await queryClient.invalidateQueries({ queryKey: ["ad-accounts-active-filter"] });
-      await queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
-      await queryClient.invalidateQueries({ queryKey: ["ad_insights"] });
-      await queryClient.invalidateQueries({ queryKey: ["ad_insights_funnel_totals"] });
-      await queryClient.invalidateQueries({ queryKey: ["ads"] });
-      await queryClient.invalidateQueries({ queryKey: ["ad-groups"] });
-      await queryClient.invalidateQueries({ queryKey: ["revenue-metrics-dashboard"] });
-      await queryClient.invalidateQueries({ queryKey: ["customer-personas"] });
-      await queryClient.invalidateQueries({ queryKey: ["social_posts"] });
-      await queryClient.invalidateQueries({ queryKey: ["audience-discovery"] });
-      await queryClient.invalidateQueries({ queryKey: ["sync_history"] });
+      await invalidateConnectedData();
       await fetchPlatforms();
 
       return true;
@@ -382,14 +385,7 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       );
 
       toast.success(`${platform?.name} ถูกยกเลิกการเชื่อมต่อ`);
-      await queryClient.invalidateQueries({ queryKey: ["campaigns"] });
-      await queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
-      await queryClient.invalidateQueries({ queryKey: ["ad-accounts"] });
-      await queryClient.invalidateQueries({ queryKey: ["ad-accounts-active-filter"] });
-      await queryClient.invalidateQueries({ queryKey: ["ad_insights"] });
-      await queryClient.invalidateQueries({ queryKey: ["ad_insights_funnel_totals"] });
-      await queryClient.invalidateQueries({ queryKey: ["ads"] });
-      await queryClient.invalidateQueries({ queryKey: ["ad-groups"] });
+      await invalidateConnectedData();
       await fetchPlatforms();
       return true;
     } catch (error: any) {

@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import type { SocialComment } from "@/hooks/useSocialComments";
+import type { Database } from "@/integrations/supabase/types";
 
 export interface InboxThread {
   post_id: string;
@@ -22,84 +23,84 @@ export interface InboxFiltersState {
   search?: string;
 }
 
-// Raw row type returned from Supabase join
-interface RawCommentRow {
-  id: string;
-  post_id: string;
-  team_id: string;
-  platform_id: string | null;
-  platform_comment_id: string | null;
-  author_name: string;
-  author_avatar_url: string | null;
-  author_platform_id: string | null;
-  content: string;
-  sentiment: string | null;
-  is_read: boolean;
-  is_replied: boolean;
-  replied_at: string | null;
-  reply_content: string | null;
-  created_at: string;
-  updated_at: string;
-  social_posts: {
-    content: string | null;
-    platform_id: string | null;
-    platforms: {
-      name: string;
-      slug: string | null;
-    } | null;
+type SocialPostRow = Database["public"]["Tables"]["social_posts"]["Row"];
+
+interface RawInboxPostRow
+  extends Pick<
+    SocialPostRow,
+    "id" | "comments" | "content" | "created_at" | "name" | "platform_id" | "published_at" | "team_id" | "updated_at"
+  > {
+  platforms: {
+    name: string;
+    slug: string | null;
   } | null;
+  social_comments: SocialComment[] | null;
 }
 
-function groupIntoThreads(rows: RawCommentRow[]): InboxThread[] {
-  const threadMap = new Map<string, InboxThread>();
+function toSortedComments(comments: SocialComment[] | null): SocialComment[] {
+  return [...(comments ?? [])].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+}
 
-  for (const row of rows) {
-    const existing = threadMap.get(row.post_id);
-    const comment: SocialComment = {
-      id: row.id,
-      post_id: row.post_id,
-      team_id: row.team_id,
-      platform_id: row.platform_id,
-      platform_comment_id: row.platform_comment_id,
-      author_name: row.author_name,
-      author_avatar_url: row.author_avatar_url,
-      author_platform_id: row.author_platform_id,
-      content: row.content,
-      sentiment: row.sentiment as SocialComment["sentiment"],
-      is_read: row.is_read,
-      is_replied: row.is_replied,
-      replied_at: row.replied_at,
-      reply_content: row.reply_content,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-    };
+function buildThread(row: RawInboxPostRow): InboxThread {
+  const comments = toSortedComments(row.social_comments);
+  const latestComment = comments[comments.length - 1];
 
-    if (existing) {
-      existing.comments.push(comment);
-      if (!row.is_read) existing.unread_count += 1;
-      if (row.created_at > existing.latest_comment_at) {
-        existing.latest_comment_at = row.created_at;
-      }
-    } else {
-      const postData = row.social_posts;
-      const platformData = postData?.platforms ?? null;
+  return {
+    post_id: row.id,
+    post_content: row.name ?? row.content ?? null,
+    platform_id: row.platform_id ?? null,
+    platform_name: row.platforms?.name ?? "Unknown",
+    platform_slug: row.platforms?.slug ?? "",
+    unread_count:
+      comments.length > 0
+        ? comments.filter((comment) => !comment.is_read).length
+        : row.comments ?? 0,
+    latest_comment_at:
+      latestComment?.created_at ??
+      row.published_at ??
+      row.updated_at ??
+      row.created_at ??
+      new Date().toISOString(),
+    comments,
+  };
+}
 
-      threadMap.set(row.post_id, {
-        post_id: row.post_id,
-        post_content: postData?.content ?? null,
-        platform_id: postData?.platform_id ?? null,
-        platform_name: platformData?.name ?? "Unknown",
-        platform_slug: platformData?.slug ?? "",
-        unread_count: row.is_read ? 0 : 1,
-        latest_comment_at: row.created_at,
-        comments: [comment],
-      });
+function matchesFilters(thread: InboxThread, filters?: InboxFiltersState) {
+  if (!filters) {
+    return true;
+  }
+
+  if (filters.is_read === false && thread.unread_count === 0) {
+    return false;
+  }
+
+  if (filters.is_read === true && thread.unread_count > 0) {
+    return false;
+  }
+
+  if (filters.sentiment) {
+    const hasSentiment = thread.comments.some((comment) => comment.sentiment === filters.sentiment);
+    if (!hasSentiment) {
+      return false;
     }
   }
 
-  return Array.from(threadMap.values()).sort(
-    (a, b) => new Date(b.latest_comment_at).getTime() - new Date(a.latest_comment_at).getTime()
-  );
+  if (filters.search) {
+    const term = filters.search.toLowerCase();
+    const searchableValues = [
+      thread.post_content ?? "",
+      ...thread.comments.map((comment) => comment.content),
+      ...thread.comments.map((comment) => comment.author_name),
+    ];
+
+    if (!searchableValues.some((value) => value.toLowerCase().includes(term))) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export function useSocialInbox(filters?: InboxFiltersState) {
@@ -125,6 +126,19 @@ export function useSocialInbox(filters?: InboxFiltersState) {
           queryClient.invalidateQueries({ queryKey: ["social_comments", workspace.id] });
         }
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "social_posts",
+          filter: `team_id=eq.${workspace.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["social_inbox", workspace.id] });
+          queryClient.invalidateQueries({ queryKey: ["social_posts", workspace.id] });
+        }
+      )
       .subscribe();
 
     return () => {
@@ -135,50 +149,40 @@ export function useSocialInbox(filters?: InboxFiltersState) {
   const { data: threads = [], isLoading, error } = useQuery({
     queryKey: ["social_inbox", workspace.id, filters],
     queryFn: async () => {
-      // social_comments is not yet in the auto-generated types, so we cast to bypass type check
-      let query = (
-        supabase as unknown as { from: (table: string) => ReturnType<typeof supabase.from> }
-      )
-        .from("social_comments")
+      let query = supabase
+        .from("social_posts")
         .select(
-          `*,
-          social_posts(
-            content,
-            platform_id,
-            platforms(name, slug)
-          )`
+          `id,
+          team_id,
+          platform_id,
+          name,
+          content,
+          comments,
+          created_at,
+          updated_at,
+          published_at,
+          platforms(name, slug),
+          social_comments(*)`
         )
         .eq("team_id", workspace.id)
-        .order("created_at", { ascending: true });
+        .eq("post_type", "chat")
+        .order("published_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false, nullsFirst: false });
 
       if (filters?.platform_ids && filters.platform_ids.length > 0) {
         query = query.in("platform_id", filters.platform_ids);
       }
 
-      if (filters?.is_read !== undefined) {
-        query = query.eq("is_read", filters.is_read);
-      }
-
-      if (filters?.sentiment) {
-        query = query.eq("sentiment", filters.sentiment);
-      }
-
       const { data, error: queryError } = await query;
       if (queryError) throw queryError;
 
-      let rows = (data ?? []) as RawCommentRow[];
-
-      // Client-side search filter (content or author name)
-      if (filters?.search) {
-        const term = filters.search.toLowerCase();
-        rows = rows.filter(
-          (r) =>
-            r.content.toLowerCase().includes(term) ||
-            r.author_name.toLowerCase().includes(term)
+      return ((data ?? []) as RawInboxPostRow[])
+        .map(buildThread)
+        .filter((thread) => matchesFilters(thread, filters))
+        .sort(
+          (a, b) =>
+            new Date(b.latest_comment_at).getTime() - new Date(a.latest_comment_at).getTime()
         );
-      }
-
-      return groupIntoThreads(rows);
     },
     enabled: !!workspace.id,
   });

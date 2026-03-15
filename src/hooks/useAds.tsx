@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { useWorkspace } from "./useWorkspace";
+import { invalidateSocialRealtimeQueries } from "@/lib/socialQueryInvalidation";
 
 export type Ad = Database["public"]["Tables"]["ads"]["Row"];
 export type AdInsert = Database["public"]["Tables"]["ads"]["Insert"];
@@ -26,10 +27,19 @@ export interface AdGroupSummary {
   name: string;
 }
 
+type ExtendedAdInsert = AdInsert & {
+  budget?: number | null;
+};
+
+type ExtendedAdUpdate = AdUpdate & {
+  budget?: number | null;
+};
+
 // Extends Ad with joined relations and fields not yet fully typed
 export type AdWithPublishStatus = Ad & {
   ad_groups?: AdGroupSummary | null;
   ad_personas: AdPersonaLink[] | null;
+  budget?: number | null;
 };
 
 export function useAds() {
@@ -55,18 +65,19 @@ export function useAds() {
   });
 
   const createAd = useMutation({
-    mutationFn: async (newAd: AdInsert) => {
+    mutationFn: async (newAd: ExtendedAdInsert) => {
       if (!workspace?.id) throw new Error("No active workspace");
+      const payload = { ...newAd, team_id: workspace.id } as unknown as AdInsert;
       const { data, error } = await supabase
         .from("ads")
-        .insert({ ...newAd, team_id: workspace.id })
+        .insert(payload)
         .select()
         .single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adsKeys.all });
+      void invalidateSocialRealtimeQueries(queryClient);
       toast.success("สร้างโฆษณาสำเร็จ");
     },
     onError: (error: Error) => {
@@ -75,10 +86,11 @@ export function useAds() {
   });
 
   const updateAd = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: AdUpdate }) => {
+    mutationFn: async ({ id, updates }: { id: string; updates: ExtendedAdUpdate }) => {
+      const payload = updates as unknown as AdUpdate;
       const { data, error } = await supabase
         .from("ads")
-        .update(updates)
+        .update(payload)
         .eq("id", id)
         .select()
         .single();
@@ -86,7 +98,7 @@ export function useAds() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adsKeys.all });
+      void invalidateSocialRealtimeQueries(queryClient);
       toast.success("อัปเดตโฆษณาสำเร็จ");
     },
     onError: (error: Error) => {
@@ -103,7 +115,7 @@ export function useAds() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adsKeys.all });
+      void invalidateSocialRealtimeQueries(queryClient);
       toast.success("ลบโฆษณาสำเร็จ");
     },
     onError: (error: Error) => {
@@ -121,11 +133,11 @@ export function useAds() {
       return data as { success: boolean; platform_ad_id: string; status: string };
     },
     onSuccess: (_data, { platform }) => {
-      queryClient.invalidateQueries({ queryKey: adsKeys.all });
+      void invalidateSocialRealtimeQueries(queryClient);
       toast.success(`เผยแพร่โฆษณาบน ${platform} สำเร็จ`);
     },
     onError: (error: Error) => {
-      queryClient.invalidateQueries({ queryKey: adsKeys.all });
+      void invalidateSocialRealtimeQueries(queryClient);
       toast.error(`ไม่สามารถเผยแพร่โฆษณา: ${error.message}`);
     },
   });
@@ -150,7 +162,7 @@ export function useAds() {
       if (insertError) throw insertError;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: adsKeys.all });
+      void invalidateSocialRealtimeQueries(queryClient);
     },
     onError: (error: Error) => {
       toast.error(`ไม่สามารถลิงก์ Persona: ${error.message}`);
