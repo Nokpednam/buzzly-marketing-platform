@@ -40,6 +40,20 @@ function getStartDate(dateRange: string): string {
   return date.toISOString();
 }
 
+/**
+ * Returns the earlier of:
+ *  - the rolling dateRange start (now - N days)
+ *  - the first moment of the viewed calendar month
+ * This ensures every item in the currently displayed month is always fetched,
+ * regardless of how the global dateRange filter is set.
+ */
+function getEffectiveStartDate(dateRange: string, viewYear: number, viewMonth: number): string {
+  const rollingStart = getStartDate(dateRange);
+  const monthStart = new Date(viewYear, viewMonth, 1, 0, 0, 0, 0).toISOString();
+  // ISO strings are lexicographically comparable — pick the earlier date
+  return monthStart < rollingStart ? monthStart : rollingStart;
+}
+
 function toDateString(isoString: string): string {
   return isoString.slice(0, 10);
 }
@@ -63,17 +77,28 @@ function groupByDate(items: CalendarItem[]): UnifiedCalendarDay[] {
     .map(([date, dayItems]) => ({ date, items: dayItems }));
 }
 
-export function useUnifiedCalendar(dateRange: string) {
+export function useUnifiedCalendar(dateRange: string, viewYear?: number, viewMonth?: number) {
   const { workspace } = useWorkspace();
 
+  const today = new Date();
+  const resolvedYear = viewYear ?? today.getFullYear();
+  const resolvedMonth = viewMonth ?? today.getMonth();
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ["unified_calendar", workspace?.id, dateRange, USE_MOCK_DATA ? "mock" : "live"],
+    queryKey: [
+      "unified_calendar",
+      workspace?.id,
+      dateRange,
+      resolvedYear,
+      resolvedMonth,
+      USE_MOCK_DATA ? "mock" : "live",
+    ],
     // In mock mode we don't need a workspace — run unconditionally
     enabled: USE_MOCK_DATA ? true : !!workspace?.id,
     queryFn: async () => {
       // ── MOCK MODE ──────────────────────────────────────────────────────
       if (USE_MOCK_DATA) {
-        const startDate = getStartDate(dateRange);
+        const startDate = getEffectiveStartDate(dateRange, resolvedYear, resolvedMonth);
         const startDateStr = startDate.slice(0, 10);
 
         // Filter mock calendar to the requested date window
@@ -91,7 +116,7 @@ export function useUnifiedCalendar(dateRange: string) {
       // ── LIVE MODE ──────────────────────────────────────────────────────
       if (!workspace?.id) return [];
 
-      const startDate = getStartDate(dateRange);
+      const startDate = getEffectiveStartDate(dateRange, resolvedYear, resolvedMonth);
       const postsResult = await supabase
         .from("social_posts")
         .select(

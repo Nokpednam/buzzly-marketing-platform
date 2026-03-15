@@ -14,6 +14,9 @@ interface ContentCalendarProps {
   isLoading: boolean;
   onDayClick: (dateISO: string) => void;
   onItemClick: (item: CalendarItem) => void;
+  viewYear: number;
+  viewMonth: number;
+  onViewChange: (year: number, month: number) => void;
 }
 
 const WEEKDAY_LABELS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
@@ -72,10 +75,11 @@ export function ContentCalendar({
   isLoading,
   onDayClick,
   onItemClick,
+  viewYear,
+  viewMonth,
+  onViewChange,
 }: ContentCalendarProps) {
   const today = new Date();
-  const [viewYear, setViewYear] = useState(today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(today.getMonth());
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
 
   const itemsByDate = new Map<string, CalendarItem[]>(
@@ -91,25 +95,22 @@ export function ContentCalendar({
 
   const goPrev = () => {
     if (viewMonth === 0) {
-      setViewYear((y) => y - 1);
-      setViewMonth(11);
+      onViewChange(viewYear - 1, 11);
     } else {
-      setViewMonth((m) => m - 1);
+      onViewChange(viewYear, viewMonth - 1);
     }
   };
 
   const goNext = () => {
     if (viewMonth === 11) {
-      setViewYear((y) => y + 1);
-      setViewMonth(0);
+      onViewChange(viewYear + 1, 0);
     } else {
-      setViewMonth((m) => m + 1);
+      onViewChange(viewYear, viewMonth + 1);
     }
   };
 
   const goToday = () => {
-    setViewYear(today.getFullYear());
-    setViewMonth(today.getMonth());
+    onViewChange(today.getFullYear(), today.getMonth());
   };
 
   if (isLoading) return <LoadingSkeleton />;

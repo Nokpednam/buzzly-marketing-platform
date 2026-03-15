@@ -398,6 +398,15 @@ async function upsertSyncedAdPost(params: {
   const { ad, adGroupId = null, adId, platformId, supabase, workspaceId } = params;
   const publishedAt = resolveAdPublishedAt(ad);
 
+  console.log("[upsertSyncedAdPost] date resolution:", {
+    adName: ad.ad_name ?? "unknown",
+    externalAdId: ad.external_ad_id ?? "unknown",
+    raw_start_time: ad.start_time ?? null,
+    raw_created_at: ad.created_at ?? null,
+    raw_date_start: ad.date_start ?? null,
+    resolved_published_at: publishedAt,
+  });
+
   const payload = {
     id: adId,
     team_id: workspaceId,

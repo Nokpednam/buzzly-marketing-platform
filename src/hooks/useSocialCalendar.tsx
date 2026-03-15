@@ -65,8 +65,10 @@ export function useSocialCalendar(dateRange: string) {
         .from("social_posts")
         .select("*, platforms(name, slug, icon_url)")
         .eq("team_id", workspace.id)
-        .or(`scheduled_at.gte.${startDate},and(scheduled_at.is.null,published_at.gte.${startDate})`)
-        .in("status", ["draft", "scheduled", "published"])
+        .or(
+          `scheduled_at.gte.${startDate},and(scheduled_at.is.null,published_at.gte.${startDate}),and(scheduled_at.is.null,published_at.is.null,created_at.gte.${startDate})`
+        )
+        .in("status", ["draft", "scheduled", "published", "active", "paused"])
         .order("scheduled_at", { ascending: true })
         .order("published_at", { ascending: true });
 

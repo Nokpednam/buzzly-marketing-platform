@@ -23,7 +23,16 @@ import { logError } from "@/services/errorLogger";
 
 export default function SocialPlanner() {
   const { dateRange } = useSocialFilters();
-  const { calendarDays, isLoading: calendarLoading } = useUnifiedCalendar(dateRange);
+  const today = new Date();
+  const [calendarYear, setCalendarYear] = useState(today.getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
+
+  const handleViewChange = (year: number, month: number) => {
+    setCalendarYear(year);
+    setCalendarMonth(month);
+  };
+
+  const { calendarDays, isLoading: calendarLoading } = useUnifiedCalendar(dateRange, calendarYear, calendarMonth);
   const { createPost, updatePost } = useSocialPosts(dateRange);
   const { ads, createAd, updateAd, linkPersonas: linkAdPersonas } = useAds();
   const { linkPersonas } = usePostPersonaLinks();
@@ -260,6 +269,9 @@ export default function SocialPlanner() {
         isLoading={calendarLoading}
         onDayClick={openCreateComposer}
         onItemClick={openEditFromCalendar}
+        viewYear={calendarYear}
+        viewMonth={calendarMonth}
+        onViewChange={handleViewChange}
       />
 
       <div>
