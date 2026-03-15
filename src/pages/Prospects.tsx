@@ -24,6 +24,7 @@ import {
   Filter,
   Activity,
   LineChart as LineChartIcon,
+  Sparkles,
 } from "lucide-react";
 import {
   PieChart,
@@ -46,10 +47,13 @@ import { OnboardingBanner } from "@/components/dashboard/OnboardingBanner";
 import { PersonaCard } from "@/components/persona/PersonaCard";
 import { CreatePersonaDialog } from "@/components/persona/CreatePersonaDialog";
 import { PersonaInsightsTab } from "@/components/persona/PersonaInsightsTab";
+import { AudienceExplorer } from "@/components/persona/AudienceExplorer";
 import type { CustomerPersona } from "@/hooks/useCustomerPersonas";
 import { useAdPersonas, type AdAudienceMode, type PersonaData } from "@/hooks/useAdPersonas";
 import { useAds } from "@/hooks/useAds";
 import { useCampaigns } from "@/hooks/useCampaigns";
+import { transformDiscoveryToPersona, type MockPersonaData } from "@/lib/mock-api-data";
+import type { PerformanceSummary } from "@/hooks/useAudienceDiscovery";
 
 const GENDER_COLORS: Record<string, string> = {
   Male: "#3B82F6",
@@ -83,9 +87,26 @@ export default function Prospects() {
   type CustomerPersona = NonNullable<typeof personas>[number];
 
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cards" | "charts" | "ad-audience" | "insights">("charts");
+  const [activeTab, setActiveTab] = useState<"cards" | "charts" | "ad-audience" | "insights" | "discovery">("charts");
   const [searchQuery, setSearchQuery] = useState("");
   const [editingPersona, setEditingPersona] = useState<CustomerPersona | null>(null);
+  const [discoveryInitialData, setDiscoveryInitialData] = useState<CustomerPersona | null>(null);
+
+  const handleSaveAsPersona = (
+    audienceData: PersonaData,
+    platforms: string[],
+    summary: PerformanceSummary,
+  ) => {
+    const transformed = transformDiscoveryToPersona(
+      audienceData as MockPersonaData,
+      platforms,
+      workspace.id,
+      genders ?? [],
+      summary,
+    );
+    setDiscoveryInitialData(transformed);
+    setShowCreateDialog(true);
+  };
 
   // Ad Audience filter state
   const [adAudienceMode, setAdAudienceMode] = useState<AdAudienceMode>("all");
@@ -181,8 +202,11 @@ export default function Prospects() {
             <TabsTrigger value="insights" className="rounded-lg gap-2">
               <LineChartIcon className="h-4 w-4" /> Insights
             </TabsTrigger>
+            <TabsTrigger value="discovery" className="rounded-lg gap-2">
+              <Sparkles className="h-4 w-4" /> Discovery
+            </TabsTrigger>
           </TabsList>
-          {activeTab !== "ad-audience" && activeTab !== "insights" && (
+          {activeTab !== "ad-audience" && activeTab !== "insights" && activeTab !== "discovery" && (
             <Button variant="ghost" size="sm" className="text-muted-foreground" disabled title="Coming soon">
               <Filter className="h-4 w-4 mr-2" /> Filter
             </Button>
@@ -373,17 +397,41 @@ export default function Prospects() {
         </TabsContent>
         {/* ── INSIGHTS TAB ── */}
         <TabsContent value="insights" className="animate-in fade-in duration-500">
-          <PersonaInsightsTab teamId={workspace.id} />
+          <PersonaInsightsTab teamId={workspace.id} teamName={workspace.name} />
+        </TabsContent>
+
+        {/* ── DISCOVERY TAB ── */}
+        <TabsContent value="discovery" className="animate-in fade-in duration-500">
+          <AudienceExplorer
+            teamName={workspace.name}
+            onSaveAsPersona={handleSaveAsPersona}
+          />
         </TabsContent>
       </Tabs>
 
       <CreatePersonaDialog
+        key={
+          discoveryInitialData
+            ? `discovery-${discoveryInitialData.created_at}`
+            : "create"
+        }
         open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
-        onSubmit={(data) => createPersona.mutate(data, { onSuccess: () => setShowCreateDialog(false) })}
+        onOpenChange={(open) => {
+          setShowCreateDialog(open);
+          if (!open) setDiscoveryInitialData(null);
+        }}
+        onSubmit={(data) =>
+          createPersona.mutate(data, {
+            onSuccess: () => {
+              setShowCreateDialog(false);
+              setDiscoveryInitialData(null);
+            },
+          })
+        }
         teamId={workspace.id}
         genders={genders || []}
         isLoading={createPersona.isPending}
+        initialData={discoveryInitialData}
         isOwner
       />
 

@@ -3,9 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import {
   USE_MOCK_DATA,
-  MOCK_AD_INSIGHTS_SHOP_A,
-  MOCK_AD_INSIGHTS_SHOP_B,
   MOCK_AD_INSIGHTS,
+  getMockInsights,
 } from "@/lib/mock-api-data";
 
 export type AdInsight = Database["public"]["Tables"]["ad_insights"]["Row"];
@@ -27,31 +26,6 @@ export interface AdInsightsSummary {
     spend: number;
     conversions: number;
   }[];
-}
-
-// ---------------------------------------------------------------------------
-// Mock-mode helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Resolves the correct mock dataset based on the workspace/team name.
- * Checks for "shop-b" / "shopb" / "b" keywords in the team name;
- * falls back to Shop A (the higher-volume default).
- */
-function resolveMockShop(teamName?: string | null): "shop-a" | "shop-b" {
-  if (!teamName) return "shop-a";
-  const lower = teamName.toLowerCase();
-  if (lower.includes("shop-b") || lower.includes("shopb") || lower.endsWith("-b")) {
-    return "shop-b";
-  }
-  return "shop-a";
-}
-
-function getMockInsights(teamName?: string | null) {
-  const shop = resolveMockShop(teamName);
-  if (shop === "shop-b") return MOCK_AD_INSIGHTS_SHOP_B;
-  if (shop === "shop-a") return MOCK_AD_INSIGHTS_SHOP_A;
-  return MOCK_AD_INSIGHTS;
 }
 
 // ---------------------------------------------------------------------------

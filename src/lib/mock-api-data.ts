@@ -8,6 +8,9 @@
  *   VITE_USE_MOCK_DATA=true   in your .env.local
  */
 
+import type { Json } from "@/integrations/supabase/types";
+import type { CustomerPersona } from "@/hooks/useCustomerPersonas";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ENVIRONMENT FLAG
 // ─────────────────────────────────────────────────────────────────────────────
@@ -696,6 +699,29 @@ export interface MockPersona {
   keywords: string[];
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SHOP RESOLUTION HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function resolveMockShop(teamName?: string | null): "shop-a" | "shop-b" {
+  if (!teamName) return "shop-a";
+  const lower = teamName.toLowerCase();
+  if (lower.includes("shop-b") || lower.includes("shopb") || lower.endsWith("-b")) {
+    return "shop-b";
+  }
+  return "shop-a";
+}
+
+export function getMockInsights(teamName?: string | null): AdInsightRow[] {
+  const shop = resolveMockShop(teamName);
+  if (shop === "shop-b") return MOCK_AD_INSIGHTS_SHOP_B;
+  return MOCK_AD_INSIGHTS_SHOP_A;
+}
+
+export function getMockAds(teamName?: string | null): MockAdRecord[] {
+  return resolveMockShop(teamName) === "shop-b" ? ALL_SHOP_B_ADS : ALL_SHOP_A_ADS;
+}
+
 export const MOCK_PERSONAS: MockPersona[] = [
   {
     id: "mock-persona-shop-a-1",
@@ -733,3 +759,189 @@ export const MOCK_PERSONAS: MockPersona[] = [
     keywords: ["VIP", "Luxury", "Premium", "PMax", "Conversion"],
   },
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUDIENCE DISCOVERY TRANSFORMER HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface GenderRow {
+  id: string;
+  name_gender: string;
+}
+
+/** Picks the dominant age bucket and parses to {age_min, age_max}. NaN-safe. */
+export function parseAgeRange(
+  ageDist: MockPersonaData["age_distribution"],
+): { age_min: number; age_max: number | null } {
+  const entries = Object.entries(ageDist);
+  if (entries.length === 0) return { age_min: 18, age_max: 65 };
+
+  const [range] = entries.sort(([, a], [, b]) => b - a)[0];
+
+  if (range.includes("+")) {
+    const min = parseInt(range.replace("+", ""), 10);
+    return { age_min: isNaN(min) ? 18 : min, age_max: null };
+  }
+
+  const [minStr, maxStr] = range.split("-");
+  const parsedMin = parseInt(minStr, 10);
+  const parsedMax = parseInt(maxStr, 10);
+
+  return {
+    age_min: isNaN(parsedMin) ? 18 : parsedMin,
+    age_max: isNaN(parsedMax) ? 65 : parsedMax,
+  };
+}
+
+/** Maps dominant gender string to a DB UUID. Warns in DEV if no match found. */
+export function resolveGenderId(
+  genderDist: MockPersonaData["gender"],
+  genderRows: GenderRow[],
+): string | null {
+  const dominant = Object.entries(genderDist)
+    .filter(([k]) => k !== "unknown")
+    .sort(([, a], [, b]) => b - a)[0];
+  if (!dominant) return null;
+
+  const [genderStr] = dominant;
+  const match = genderRows.find(
+    (g) => g.name_gender.toLowerCase() === genderStr.toLowerCase(),
+  );
+
+  if (!match && import.meta.env.DEV) {
+    console.warn(
+      `[resolveGenderId] No DB match for gender "${genderStr}". ` +
+      `Available: [${genderRows.map((g) => g.name_gender).join(", ")}]. ` +
+      `Returning null.`,
+    );
+  }
+
+  return match?.id ?? null;
+}
+
+/** Returns top-10 interest names sorted by descending affinity. */
+export function flattenInterests(interests: MockPersonaData["interests"]): string[] {
+  return [...interests]
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, 10)
+    .map((i) => i.name);
+}
+
+/** Returns device names that represent >15% of traffic, sorted descending. */
+export function mapDevices(deviceType: MockPersonaData["device_type"]): string[] {
+  return Object.entries(deviceType)
+    .filter(([, pct]) => pct > 0.15)
+    .sort(([, a], [, b]) => b - a)
+    .map(([name]) => name);
+}
+
+export interface DiscoveryCustomFields {
+  discovery_source: {
+    platforms: string[];
+    timestamp: string;
+  };
+  raw_audience: {
+    age_distribution: MockPersonaData["age_distribution"];
+    gender_distribution: MockPersonaData["gender"];
+    interest_details: MockPersonaData["interests"];
+    device_distribution: MockPersonaData["device_type"];
+    top_locations: MockPersonaData["top_locations"];
+  };
+  performance: {
+    total_impressions: number;
+    avg_ctr: number;
+    avg_roas: number;
+  };
+}
+
+/**
+ * Transforms a weighted-average audience snapshot into a CustomerPersona-shaped
+ * object ready to pre-fill CreatePersonaDialog.
+ * NOTE: id = "" signals CREATE mode to the dialog. created_at = real ISO timestamp
+ *       is used as the `key` prop to force dialog remount on each discovery click.
+ */
+export function transformDiscoveryToPersona(
+  audienceData: MockPersonaData,
+  activePlatforms: string[],
+  teamId: string,
+  genderRows: GenderRow[],
+  performance: { totalImpressions: number; avgCtr: number; avgRoas: number },
+): CustomerPersona {
+  const { age_min, age_max } = parseAgeRange(audienceData.age_distribution);
+  const interestNames = flattenInterests(audienceData.interests);
+  const devices = mapDevices(audienceData.device_type);
+  const now = new Date().toISOString();
+
+  const hasPlatform = (p: string) =>
+    activePlatforms.some((ap) => ap.toLowerCase().includes(p.toLowerCase()));
+
+  const adTargeting = {
+    facebook: {
+      interests: hasPlatform("facebook") ? interestNames : [] as string[],
+      behaviors: [] as string[],
+      custom_audiences: [] as string[],
+    },
+    google: {
+      keywords: [] as string[],
+      in_market: hasPlatform("google") ? interestNames : [] as string[],
+      affinity: [] as string[],
+    },
+    tiktok: {
+      interest_categories: hasPlatform("tiktok") ? interestNames : [] as string[],
+      behavior_categories: [] as string[],
+    },
+  };
+
+  const customFields: DiscoveryCustomFields = {
+    discovery_source: {
+      platforms: activePlatforms,
+      timestamp: now,
+    },
+    raw_audience: {
+      age_distribution: audienceData.age_distribution,
+      gender_distribution: audienceData.gender,
+      interest_details: audienceData.interests,
+      device_distribution: audienceData.device_type,
+      top_locations: audienceData.top_locations,
+    },
+    performance: {
+      total_impressions: performance.totalImpressions,
+      avg_ctr: performance.avgCtr,
+      avg_roas: performance.avgRoas,
+    },
+  };
+
+  const topLocation = audienceData.top_locations[0]?.name ?? "N/A";
+
+  return {
+    id: "",
+    team_id: teamId,
+    persona_name: "",
+    description:
+      `Discovered from ${activePlatforms.join(", ")} audience data. ` +
+      `Top location: ${topLocation}. ` +
+      `Avg CTR: ${performance.avgCtr.toFixed(2)}%, ROAS: ${performance.avgRoas.toFixed(2)}x.`,
+    avatar_url: null,
+    gender_id: resolveGenderId(audienceData.gender, genderRows),
+    age_min,
+    age_max,
+    location_id: null,
+    profession: null,
+    company_size: null,
+    salary_range: null,
+    industry: null,
+    preferred_devices: devices,
+    active_hours: null,
+    interests: interestNames,
+    pain_points: null,
+    goals: null,
+    custom_fields: customFields as unknown as Json,
+    is_active: true,
+    is_template: false,
+    psychographics: null,
+    ad_targeting_mapping: adTargeting as unknown as Json,
+    created_at: now,
+    updated_at: now,
+    created_by: null,
+  };
+}

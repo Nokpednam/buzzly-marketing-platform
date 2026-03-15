@@ -19,7 +19,7 @@ interface AdPersonaFilter {
   campaignId?: string;
 }
 
-function weightedAvg(ads: { persona_data: PersonaData; weight: number }[]): PersonaData | null {
+export function weightedAvg(ads: { persona_data: PersonaData; weight: number }[]): PersonaData | null {
   const totalWeight = ads.reduce((s, a) => s + a.weight, 0);
   if (totalWeight === 0 || ads.length === 0) return null;
 

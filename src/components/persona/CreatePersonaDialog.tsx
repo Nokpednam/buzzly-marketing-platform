@@ -232,7 +232,7 @@ export const CreatePersonaDialog = ({
   initialData,
   isOwner = false,
 }: CreatePersonaDialogProps) => {
-  const isEditMode = !!initialData;
+  const isEditMode = !!initialData?.id;
 
   const getDefaultFormData = () => ({
     persona_name: initialData?.persona_name ?? "",
@@ -344,6 +344,7 @@ export const CreatePersonaDialog = ({
       is_template: formData.is_template,
       psychographics: psychoPayload as unknown as Json,
       ad_targeting_mapping: targetingPayload as unknown as Json,
+      custom_fields: initialData?.custom_fields ?? null,
     };
 
     onSubmit(data);
@@ -362,6 +363,12 @@ export const CreatePersonaDialog = ({
           onSubmit={handleSubmit}
           className="flex flex-col flex-1 min-h-0"
         >
+          {initialData && !initialData.id && (
+            <div className="mx-6 mt-4 px-4 py-2 rounded-xl bg-primary/10 text-primary text-sm font-medium">
+              Pre-filled from Audience Discovery. Name your persona and review the details.
+            </div>
+          )}
+
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
