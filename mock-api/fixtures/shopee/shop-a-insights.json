@@ -1,0 +1,70 @@
+{
+  "data": [
+    {
+      "campaign_id": "120210560001",
+      "campaign_name": "Shopee Mega Sale - Summer Deals",
+      "objective": "OUTCOME_SALES",
+      "impressions": "1200000",
+      "reach": "840000",
+      "clicks": "16800",
+      "ctr": "1.40",
+      "cpc": "0.27",
+      "cpm": "3.80",
+      "spend": "4560.00",
+      "conversions": "1680",
+      "roas": "3.50",
+      "actions": [
+        { "action_type": "link_click", "value": "16800" },
+        { "action_type": "product_page_view", "value": "14280" },
+        { "action_type": "add_to_cart", "value": "5040" },
+        { "action_type": "purchase", "value": "1680" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.27" },
+        { "action_type": "purchase", "value": "2.71" }
+      ],
+      "date_start": "2026-02-14",
+      "date_stop": "2026-03-15",
+      "account_currency": "USD"
+    },
+    {
+      "campaign_id": "120210560002",
+      "campaign_name": "Shopee Search Ads - Top Products",
+      "objective": "OUTCOME_SALES",
+      "impressions": "680000",
+      "reach": "476000",
+      "clicks": "10200",
+      "ctr": "1.50",
+      "cpc": "0.28",
+      "cpm": "4.20",
+      "spend": "2856.00",
+      "conversions": "1020",
+      "roas": "4.20",
+      "actions": [
+        { "action_type": "link_click", "value": "10200" },
+        { "action_type": "product_page_view", "value": "9180" },
+        { "action_type": "add_to_cart", "value": "2550" },
+        { "action_type": "purchase", "value": "1020" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.28" },
+        { "action_type": "purchase", "value": "2.80" }
+      ],
+      "date_start": "2026-02-14",
+      "date_stop": "2026-03-15",
+      "account_currency": "USD"
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "MjAyNi0wMi0xNA==",
+      "after": "MjAyNi0wMy0xNQ=="
+    }
+  },
+  "summary": {
+    "account_currency": "USD",
+    "total_spend": "7416.00",
+    "total_impressions": "1880000",
+    "total_clicks": "27000"
+  }
+}

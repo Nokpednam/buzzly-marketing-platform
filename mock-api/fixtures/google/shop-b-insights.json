@@ -1,0 +1,68 @@
+{
+  "data": [
+    {
+      "campaign_id": "120210690001",
+      "campaign_name": "Search - Skincare & Wellness Keywords",
+      "objective": "OUTCOME_SALES",
+      "impressions": "78000",
+      "reach": "62400",
+      "clicks": "3120",
+      "ctr": "4.00",
+      "cpc": "0.375",
+      "cpm": "15.00",
+      "spend": "1170.00",
+      "conversions": "261",
+      "roas": "7.20",
+      "actions": [
+        { "action_type": "link_click", "value": "3120" },
+        { "action_type": "landing_page_view", "value": "2808" },
+        { "action_type": "purchase", "value": "261" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.375" },
+        { "action_type": "purchase", "value": "4.48" }
+      ],
+      "date_start": "2026-02-14",
+      "date_stop": "2026-03-15",
+      "account_currency": "USD"
+    },
+    {
+      "campaign_id": "120210690002",
+      "campaign_name": "PMax - Luxury Beauty Collection",
+      "objective": "OUTCOME_SALES",
+      "impressions": "32000",
+      "reach": "22400",
+      "clicks": "960",
+      "ctr": "3.00",
+      "cpc": "0.933",
+      "cpm": "28.00",
+      "spend": "896.00",
+      "conversions": "149",
+      "roas": "11.50",
+      "actions": [
+        { "action_type": "link_click", "value": "960" },
+        { "action_type": "add_to_cart", "value": "288" },
+        { "action_type": "purchase", "value": "149" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.933" },
+        { "action_type": "purchase", "value": "6.01" }
+      ],
+      "date_start": "2026-02-14",
+      "date_stop": "2026-03-15",
+      "account_currency": "USD"
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "MjAyNi0wMi0xNA==",
+      "after": "MjAyNi0wMy0xNQ=="
+    }
+  },
+  "summary": {
+    "account_currency": "USD",
+    "total_spend": "2066.00",
+    "total_impressions": "110000",
+    "total_clicks": "4080"
+  }
+}

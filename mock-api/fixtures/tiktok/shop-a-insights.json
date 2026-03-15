@@ -1,0 +1,97 @@
+{
+  "data": [
+    {
+      "campaign_id": "120210580001",
+      "campaign_name": "Viral Challenge - Summer Sale",
+      "objective": "OUTCOME_SALES",
+      "impressions": "2520000",
+      "reach": "2016000",
+      "clicks": "75600",
+      "ctr": "3.00",
+      "cpc": "0.083",
+      "cpm": "2.50",
+      "spend": "6300.00",
+      "conversions": "750",
+      "roas": "3.80",
+      "actions": [
+        { "action_type": "link_click", "value": "75600" },
+        { "action_type": "video_view_2s", "value": "2016000" },
+        { "action_type": "video_view_6s", "value": "1512000" },
+        { "action_type": "purchase", "value": "750" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.083" },
+        { "action_type": "purchase", "value": "8.40" }
+      ],
+      "date_start": "2026-02-14",
+      "date_stop": "2026-03-15",
+      "account_currency": "USD"
+    },
+    {
+      "campaign_id": "120210580002",
+      "campaign_name": "TopView - Brand Awareness Launch",
+      "objective": "OUTCOME_AWARENESS",
+      "impressions": "4200000",
+      "reach": "3360000",
+      "clicks": "50400",
+      "ctr": "1.20",
+      "cpc": "0.15",
+      "cpm": "1.80",
+      "spend": "7560.00",
+      "conversions": "0",
+      "roas": "0.00",
+      "actions": [
+        { "action_type": "link_click", "value": "50400" },
+        { "action_type": "video_view_2s", "value": "3780000" },
+        { "action_type": "video_view_6s", "value": "2940000" },
+        { "action_type": "post_engagement", "value": "168000" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.15" },
+        { "action_type": "video_view_6s", "value": "0.003" }
+      ],
+      "date_start": "2026-02-14",
+      "date_stop": "2026-03-15",
+      "account_currency": "USD"
+    },
+    {
+      "campaign_id": "120210580003",
+      "campaign_name": "In-Feed - Flash Deals",
+      "objective": "OUTCOME_SALES",
+      "impressions": "980000",
+      "reach": "784000",
+      "clicks": "24500",
+      "ctr": "2.50",
+      "cpc": "0.08",
+      "cpm": "2.00",
+      "spend": "1960.00",
+      "conversions": "390",
+      "roas": "4.20",
+      "actions": [
+        { "action_type": "link_click", "value": "24500" },
+        { "action_type": "video_view_2s", "value": "784000" },
+        { "action_type": "purchase", "value": "390" },
+        { "action_type": "add_to_cart", "value": "980" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.08" },
+        { "action_type": "purchase", "value": "5.03" }
+      ],
+      "date_start": "2026-02-14",
+      "date_stop": "2026-03-15",
+      "account_currency": "USD"
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "MjAyNi0wMi0xNA==",
+      "after": "MjAyNi0wMy0xNQ=="
+    }
+  },
+  "summary": {
+    "account_currency": "USD",
+    "total_spend": "15820.00",
+    "total_impressions": "7700000",
+    "total_clicks": "150500"
+  }
+}

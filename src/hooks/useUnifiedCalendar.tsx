@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { USE_MOCK_DATA, MOCK_CALENDAR_DAYS } from "@/lib/mock-api-data";
 
 export interface CalendarItem {
   id: string;
@@ -61,9 +62,28 @@ export function useUnifiedCalendar(dateRange: string) {
   const { workspace } = useWorkspace();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["unified_calendar", workspace?.id, dateRange],
-    enabled: !!workspace?.id,
+    queryKey: ["unified_calendar", workspace?.id, dateRange, USE_MOCK_DATA ? "mock" : "live"],
+    // In mock mode we don't need a workspace — run unconditionally
+    enabled: USE_MOCK_DATA ? true : !!workspace?.id,
     queryFn: async () => {
+      // ── MOCK MODE ──────────────────────────────────────────────────────
+      if (USE_MOCK_DATA) {
+        const startDate = getStartDate(dateRange);
+        const startDateStr = startDate.slice(0, 10);
+
+        // Filter mock calendar to the requested date window
+        const filtered: UnifiedCalendarDay[] = MOCK_CALENDAR_DAYS
+          .filter((day) => day.date >= startDateStr)
+          .map((day) => ({
+            date: day.date,
+            // Cast: MockCalendarItem is structurally identical to CalendarItem
+            items: day.items as CalendarItem[],
+          }));
+
+        return filtered;
+      }
+
+      // ── LIVE MODE ──────────────────────────────────────────────────────
       if (!workspace?.id) return [];
 
       const startDate = getStartDate(dateRange);

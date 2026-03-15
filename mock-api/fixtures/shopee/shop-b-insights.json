@@ -1,0 +1,43 @@
+{
+  "data": [
+    {
+      "campaign_id": "120210660004",
+      "campaign_name": "Shopee Premium - Skincare Collection",
+      "objective": "OUTCOME_SALES",
+      "impressions": "98000",
+      "reach": "65000",
+      "clicks": "4900",
+      "ctr": "5.00",
+      "cpc": "0.19",
+      "cpm": "9.50",
+      "spend": "931.00",
+      "conversions": "490",
+      "roas": "8.50",
+      "actions": [
+        { "action_type": "link_click", "value": "4900" },
+        { "action_type": "product_page_view", "value": "4655" },
+        { "action_type": "add_to_cart", "value": "1470" },
+        { "action_type": "purchase", "value": "490" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.19" },
+        { "action_type": "purchase", "value": "1.90" }
+      ],
+      "date_start": "2026-02-14",
+      "date_stop": "2026-03-15",
+      "account_currency": "USD"
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "MjAyNi0wMi0xNA==",
+      "after": "MjAyNi0wMy0xNQ=="
+    }
+  },
+  "summary": {
+    "account_currency": "USD",
+    "total_spend": "931.00",
+    "total_impressions": "98000",
+    "total_clicks": "4900"
+  }
+}

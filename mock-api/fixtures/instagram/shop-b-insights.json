@@ -1,0 +1,68 @@
+{
+  "data": [
+    {
+      "campaign_id": "120210670001",
+      "campaign_name": "Skincare Stories - Organic Discovery",
+      "objective": "OUTCOME_AWARENESS",
+      "impressions": "222000",
+      "reach": "148000",
+      "clicks": "11100",
+      "ctr": "5.00",
+      "cpc": "0.13",
+      "cpm": "6.50",
+      "spend": "1443.00",
+      "conversions": "0",
+      "roas": "0.00",
+      "actions": [
+        { "action_type": "link_click", "value": "11100" },
+        { "action_type": "video_view", "value": "118800" },
+        { "action_type": "post_engagement", "value": "17820" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.13" },
+        { "action_type": "video_view", "value": "0.012" }
+      ],
+      "date_start": "2026-02-14",
+      "date_stop": "2026-03-15",
+      "account_currency": "USD"
+    },
+    {
+      "campaign_id": "120210670002",
+      "campaign_name": "Premium Serum - Beauty Conversion",
+      "objective": "OUTCOME_SALES",
+      "impressions": "92400",
+      "reach": "62000",
+      "clicks": "4803",
+      "ctr": "5.20",
+      "cpc": "0.18",
+      "cpm": "9.35",
+      "spend": "863.94",
+      "conversions": "403",
+      "roas": "8.42",
+      "actions": [
+        { "action_type": "link_click", "value": "4803" },
+        { "action_type": "add_to_cart", "value": "1199" },
+        { "action_type": "purchase", "value": "403" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.18" },
+        { "action_type": "purchase", "value": "2.14" }
+      ],
+      "date_start": "2026-02-14",
+      "date_stop": "2026-03-15",
+      "account_currency": "USD"
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "MjAyNi0wMi0xNA==",
+      "after": "MjAyNi0wMy0xNQ=="
+    }
+  },
+  "summary": {
+    "account_currency": "USD",
+    "total_spend": "2306.94",
+    "total_impressions": "314400",
+    "total_clicks": "15903"
+  }
+}

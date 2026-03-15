@@ -1,0 +1,95 @@
+{
+  "data": [
+    {
+      "campaign_id": "120210570001",
+      "campaign_name": "Explore Feed - Summer Collection",
+      "objective": "OUTCOME_SALES",
+      "impressions": "1100000",
+      "reach": "759000",
+      "clicks": "22000",
+      "ctr": "2.00",
+      "cpc": "0.15",
+      "cpm": "3.00",
+      "spend": "3300.00",
+      "conversions": "462",
+      "roas": "4.20",
+      "actions": [
+        { "action_type": "link_click", "value": "22000" },
+        { "action_type": "landing_page_view", "value": "16940" },
+        { "action_type": "add_to_cart", "value": "2200" },
+        { "action_type": "purchase", "value": "462" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.15" },
+        { "action_type": "purchase", "value": "7.14" }
+      ],
+      "date_start": "2026-02-14",
+      "date_stop": "2026-03-15",
+      "account_currency": "USD"
+    },
+    {
+      "campaign_id": "120210570002",
+      "campaign_name": "Reels - Product Demo",
+      "objective": "OUTCOME_AWARENESS",
+      "impressions": "1510000",
+      "reach": "1131000",
+      "clicks": "30200",
+      "ctr": "2.00",
+      "cpc": "0.075",
+      "cpm": "1.50",
+      "spend": "2265.00",
+      "conversions": "0",
+      "roas": "0.00",
+      "actions": [
+        { "action_type": "link_click", "value": "30200" },
+        { "action_type": "video_view", "value": "880000" },
+        { "action_type": "post_engagement", "value": "96640" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.075" },
+        { "action_type": "video_view", "value": "0.003" }
+      ],
+      "date_start": "2026-02-14",
+      "date_stop": "2026-03-15",
+      "account_currency": "USD"
+    },
+    {
+      "campaign_id": "120210570003",
+      "campaign_name": "Shopping Ads - Top Products",
+      "objective": "OUTCOME_SALES",
+      "impressions": "845000",
+      "reach": "563000",
+      "clicks": "12675",
+      "ctr": "1.50",
+      "cpc": "0.30",
+      "cpm": "4.50",
+      "spend": "3802.50",
+      "conversions": "648",
+      "roas": "5.10",
+      "actions": [
+        { "action_type": "link_click", "value": "12675" },
+        { "action_type": "add_to_cart", "value": "3041" },
+        { "action_type": "purchase", "value": "648" }
+      ],
+      "cost_per_action_type": [
+        { "action_type": "link_click", "value": "0.30" },
+        { "action_type": "purchase", "value": "5.87" }
+      ],
+      "date_start": "2026-02-14",
+      "date_stop": "2026-03-15",
+      "account_currency": "USD"
+    }
+  ],
+  "paging": {
+    "cursors": {
+      "before": "MjAyNi0wMi0xNA==",
+      "after": "MjAyNi0wMy0xNQ=="
+    }
+  },
+  "summary": {
+    "account_currency": "USD",
+    "total_spend": "9367.50",
+    "total_impressions": "3455000",
+    "total_clicks": "64875"
+  }
+}
