@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -84,8 +84,17 @@ export default function APIKeys() {
     disconnectPlatform,
     updatePlatformToken,
     refreshPlatformStatus,
+    refetch,
   } = usePlatformConnections();
   const { state } = useOnboardingGuard();
+
+  // Re-fetch platform connections every time this page is entered via SPA navigation.
+  // PlatformConnectionsProvider fetches once on app-level mount and holds the result
+  // in context — it does not re-fetch on route changes. Calling refetch() here ensures
+  // the integration list is always current when the user lands on this page.
+  useEffect(() => {
+    refetch();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [editingPlatformId, setEditingPlatformId] = useState<string | null>(null);
   const [visibleTokens, setVisibleTokens] = useState<string[]>([]);

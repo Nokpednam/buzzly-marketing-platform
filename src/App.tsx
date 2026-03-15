@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { DevLayout } from "@/components/dev/DevLayout";
@@ -14,6 +15,7 @@ import { PlanProvider } from "@/contexts/PlanContext";
 import { PlanGate } from "@/components/layout/PlanGate";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { logError } from "@/services/errorLogger";
+import { supabase } from "@/integrations/supabase/client";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import SignUp from "./pages/SignUp";
@@ -85,7 +87,35 @@ const queryClient = new QueryClient({
   },
 });
 
-const App = () => (
+const App = () => {
+  const currentUserId = useRef<string | null>(null);
+
+  // ── Clear all React Query cache on sign-out or user switch ───────────────
+  // React Query's default staleTime (5 min) means cached workspace/metrics
+  // data survives the session. Without this, a freshly-registered user sees
+  // the previous user's workspace data immediately upon landing on the app.
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        const newUserId = session?.user?.id ?? null;
+
+        if (event === 'SIGNED_OUT') {
+          // Always clear on explicit sign-out
+          queryClient.clear();
+          currentUserId.current = null;
+        } else if (event === 'SIGNED_IN' && newUserId && newUserId !== currentUserId.current) {
+          // Different user signed in mid-session — clear previous user's cache
+          queryClient.clear();
+          currentUserId.current = newUserId;
+        } else if (newUserId) {
+          currentUserId.current = newUserId;
+        }
+      }
+    );
+    return () => subscription.unsubscribe();
+  }, []);
+
+  return (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <PlanProvider>
@@ -194,6 +224,7 @@ const App = () => (
       </PlanProvider>
     </QueryClientProvider>
   </ErrorBoundary>
-);
+  );
+};
 
 export default App;
