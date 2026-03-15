@@ -11,6 +11,7 @@ import { CustomerProtectedRoute } from "@/components/CustomerProtectedRoute";
 import { EmployeeProtectedRoute } from "@/components/EmployeeProtectedRoute";
 import { PlatformConnectionsProvider } from "@/hooks/usePlatformConnections";
 import { SidebarStateProvider } from "@/hooks/useSidebarState";
+import { LoyaltyProvider } from "@/hooks/useLoyaltyTier";
 import { PlanProvider } from "@/contexts/PlanContext";
 import { PlanGate } from "@/components/layout/PlanGate";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -120,7 +121,8 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <PlanProvider>
         <PlatformConnectionsProvider>
-          <SidebarStateProvider>
+          <LoyaltyProvider>
+            <SidebarStateProvider>
             <TooltipProvider>
               <Toaster />
               <Sonner />
@@ -219,7 +221,8 @@ const App = () => {
                 </Routes>
               </BrowserRouter>
             </TooltipProvider>
-          </SidebarStateProvider>
+            </SidebarStateProvider>
+          </LoyaltyProvider>
         </PlatformConnectionsProvider>
       </PlanProvider>
     </QueryClientProvider>

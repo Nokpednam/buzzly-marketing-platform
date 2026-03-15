@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { logError } from "@/services/errorLogger";
 import { usePlatformConnections } from "@/hooks/usePlatformConnections";
 import { useSyncHistory } from "@/hooks/useSyncHistory";
+import { useLoyaltyTier } from "@/hooks/useLoyaltyTier";
 import { PlatformConnectionCard } from "@/components/social/integrations/PlatformConnectionCard";
 import { SyncHistoryTable } from "@/components/social/integrations/SyncHistoryTable";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,6 +41,7 @@ export default function SocialIntegrations() {
   } = usePlatformConnections();
 
   const { entries: syncEntries, isLoading: syncLoading, error: syncError } = useSyncHistory();
+  const { refetch: refetchLoyalty } = useLoyaltyTier();
 
   const stats = useMemo(() => {
     const connected = platforms.filter((p) => p.status === "connected").length;
@@ -54,7 +56,9 @@ export default function SocialIntegrations() {
 
   const handleConnect = async (id: string, apiKey?: string): Promise<boolean> => {
     try {
-      return await connectPlatform(id, apiKey);
+      const success = await connectPlatform(id, apiKey);
+      if (success) await refetchLoyalty();
+      return success;
     } catch (err) {
       logError("SocialIntegrations.handleConnect", err);
       toast.error("ไม่สามารถเชื่อมต่อได้ กรุณาลองอีกครั้ง");

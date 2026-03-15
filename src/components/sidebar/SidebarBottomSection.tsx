@@ -458,15 +458,15 @@ function TierPopoverContent({
             {recentTransactions.map((tx) => (
               <div key={tx.id} className="flex items-center justify-between text-xs p-2 rounded-lg bg-muted/30">
                 <div className="flex items-center gap-2">
-                  {tx.transaction_type === 'earned'
-                    ? <ArrowUp className="h-3 w-3 text-primary" />
+                  {tx.transaction_type === 'earn'
+                    ? <ArrowUp className="h-3 w-3 text-emerald-500" />
                     : <ArrowDown className="h-3 w-3 text-destructive" />}
                   <span className="text-muted-foreground truncate max-w-[140px]">
                     {tx.description || tx.transaction_type}
                   </span>
                 </div>
-                <span className={cn("font-medium", tx.transaction_type === 'earned' ? "text-primary" : "text-destructive")}>
-                  {tx.transaction_type === 'earned' ? '+' : '-'}{tx.points_amount} pts
+                <span className={cn("font-medium", tx.transaction_type === 'earn' ? "text-emerald-500" : "text-destructive")}>
+                  {tx.transaction_type === 'earn' ? '+' : '-'}{tx.points_amount} pts
                 </span>
               </div>
             ))}

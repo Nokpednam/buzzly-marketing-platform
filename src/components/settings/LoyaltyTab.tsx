@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Crown, Gift, TrendingUp, Award, Star } from "lucide-react";
 import { useLoyaltyTier, tierColors, tierIcons } from "@/hooks/useLoyaltyTier";
+import { LoyaltyMissionsList } from "@/components/settings/LoyaltyMissionsList";
 
 export function LoyaltyTab() {
   const {
@@ -151,6 +152,9 @@ export function LoyaltyTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Mission Board */}
+      <LoyaltyMissionsList />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useLoyaltyTier } from "@/hooks/useLoyaltyTier";
 
 // ─── Client-side progress calculator (mirrors supabase/functions/_shared/campaignProgress.ts) ──
 
@@ -82,6 +83,7 @@ export function useCampaigns() {
   const queryClient = useQueryClient();
   const { workspace } = useWorkspace();
   const workspaceId = workspace.id;
+  const { refetch: refetchLoyalty } = useLoyaltyTier();
 
   const { data: campaigns = [], isLoading, error } = useQuery({
     queryKey: ["campaigns", workspaceId],
@@ -206,9 +208,20 @@ export function useCampaigns() {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["campaigns", workspaceId] });
       toast.success("สร้างแคมเปญสำเร็จ");
+
+      // Mission 4: award points for creating the first campaign (one-time)
+      const { data: missionResult, error: missionError } = await supabase.rpc(
+        'award_loyalty_points' as any,
+        { p_action_type: 'create_campaign' }
+      );
+      console.log('[Mission] create_campaign result:', missionResult, missionError);
+      if (missionResult?.success) {
+        toast.success(`🎉 Mission Complete! +${missionResult.points_awarded} Points for launching your first Campaign!`);
+        await refetchLoyalty();
+      }
     },
     onError: (error: Error) => {
       toast.error(`ไม่สามารถสร้างแคมเปญ: ${error.message}`);

@@ -15,6 +15,8 @@ import { usePlanAccess, PlanType } from "@/hooks/usePlanAccess";
 import { useSubscription, SubscriptionPlan, BillingCycle } from "@/hooks/useSubscription";
 import { PaymentMethodDialog } from "@/components/subscription/PaymentMethodDialog";
 import { toast } from "@/hooks/use-toast";
+import { useLoyaltyTier } from "@/hooks/useLoyaltyTier";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PlanSelectionDialogProps {
   open: boolean;
@@ -61,6 +63,7 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
     createSubscription,
     refetch: refetchSubscription,
   } = useSubscription();
+  const { refetch: refetchLoyalty } = useLoyaltyTier();
 
   // Reset state when dialog opens
   useEffect(() => {
@@ -127,6 +130,20 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
           title: "ชำระเงินสำเร็จ! 🎉",
           description: `คุณได้อัปเกรดเป็น ${selectedPlan.name} Plan เรียบร้อยแล้ว`,
         });
+
+        // Mission 3: award points for upgrading to a paid plan (one-time)
+        const { data: missionResult, error: missionError } = await supabase.rpc(
+          'award_loyalty_points' as any,
+          { p_action_type: 'upgrade_plan' }
+        );
+        console.log('[Mission] upgrade_plan result:', missionResult, missionError);
+        if (missionResult?.success) {
+          toast({
+            title: '🎉 Mission Complete!',
+            description: `+${missionResult.points_awarded} Points for upgrading your plan!`,
+          });
+          await refetchLoyalty();
+        }
 
         setShowPaymentDialog(false);
         onOpenChange(false);
