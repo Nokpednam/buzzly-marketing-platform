@@ -8,9 +8,9 @@ export type AdGroup = Database["public"]["Tables"]["ad_groups"]["Row"];
 export type AdGroupInsert = Database["public"]["Tables"]["ad_groups"]["Insert"];
 export type AdGroupUpdate = Database["public"]["Tables"]["ad_groups"]["Update"];
 
-// Extended type with ads count
 export interface AdGroupWithCount extends AdGroup {
   ads_count: number;
+  posts_count: number;
 }
 
 export function useAdGroups() {
@@ -32,24 +32,37 @@ export function useAdGroups() {
 
       if (groupsError) throw groupsError;
 
-      // Get ads count for each group
-      const { data: ads, error: adsError } = await supabase
-        .from("ads")
-        .select("ad_group_id");
+      const [{ data: ads, error: adsError }, { data: posts, error: postsError }] =
+        await Promise.all([
+          supabase
+            .from("ads")
+            .select("ad_group_id")
+            .eq("team_id", workspace.id),
+          supabase
+            .from("social_posts")
+            .select("ad_group_id")
+            .eq("team_id", workspace.id)
+            .not("ad_group_id", "is", null),
+        ]);
 
       if (adsError) throw adsError;
+      if (postsError) throw postsError;
 
-      // Count ads per group
-      const adsCountMap = ads?.reduce((acc, ad) => {
-        if (ad.ad_group_id) {
-          acc[ad.ad_group_id] = (acc[ad.ad_group_id] || 0) + 1;
-        }
-        return acc;
-      }, {} as Record<string, number>) || {};
+      const buildCountMap = (rows: { ad_group_id: string | null }[]) =>
+        rows.reduce((acc, row) => {
+          if (row.ad_group_id) {
+            acc[row.ad_group_id] = (acc[row.ad_group_id] || 0) + 1;
+          }
+          return acc;
+        }, {} as Record<string, number>);
 
-      return groups.map(group => ({
+      const adsCountMap = buildCountMap(ads ?? []);
+      const postsCountMap = buildCountMap(posts ?? []);
+
+      return groups.map((group) => ({
         ...group,
-        ads_count: adsCountMap[group.id] || 0,
+        ads_count: adsCountMap[group.id] ?? 0,
+        posts_count: postsCountMap[group.id] ?? 0,
       })) as AdGroupWithCount[];
     },
   });
@@ -111,6 +124,73 @@ export function useAdGroups() {
     },
   });
 
+  const linkItemsToGroup = useMutation({
+    mutationFn: async ({
+      groupId,
+      adIds,
+      postIds,
+    }: {
+      groupId: string;
+      adIds?: string[];
+      postIds?: string[];
+    }) => {
+      const ops: Promise<unknown>[] = [];
+      if (adIds && adIds.length > 0) {
+        ops.push(
+          supabase
+            .from("ads")
+            .update({ ad_group_id: groupId })
+            .in("id", adIds)
+            .then(({ error }) => { if (error) throw error; })
+        );
+      }
+      if (postIds && postIds.length > 0) {
+        ops.push(
+          supabase
+            .from("social_posts")
+            .update({ ad_group_id: groupId })
+            .in("id", postIds)
+            .then(({ error }) => { if (error) throw error; })
+        );
+      }
+      await Promise.all(ops);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ad_groups"] });
+      queryClient.invalidateQueries({ queryKey: ["social_posts"] });
+      queryClient.invalidateQueries({ queryKey: ["social_calendar"] });
+      toast.success("เชื่อมโยงรายการสำเร็จ");
+    },
+    onError: (error: Error) => {
+      toast.error(`ไม่สามารถเชื่อมโยงรายการ: ${error.message}`);
+    },
+  });
+
+  const unlinkItemFromGroup = useMutation({
+    mutationFn: async ({
+      table,
+      itemId,
+    }: {
+      table: "ads" | "social_posts";
+      itemId: string;
+    }) => {
+      const { error } = await supabase
+        .from(table)
+        .update({ ad_group_id: null })
+        .eq("id", itemId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ad_groups"] });
+      queryClient.invalidateQueries({ queryKey: ["social_posts"] });
+      queryClient.invalidateQueries({ queryKey: ["social_calendar"] });
+      toast.success("ยกเลิกการเชื่อมโยงสำเร็จ");
+    },
+    onError: (error: Error) => {
+      toast.error(`ไม่สามารถยกเลิกการเชื่อมโยง: ${error.message}`);
+    },
+  });
+
   return {
     adGroups,
     isLoading,
@@ -118,5 +198,7 @@ export function useAdGroups() {
     createAdGroup,
     updateAdGroup,
     deleteAdGroup,
+    linkItemsToGroup,
+    unlinkItemFromGroup,
   };
 }

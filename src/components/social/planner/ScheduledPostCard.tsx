@@ -32,7 +32,7 @@ function formatTime(isoString: string | null): string | null {
 }
 
 export function ScheduledPostCard({ post, onClick }: ScheduledPostCardProps) {
-  const time = formatTime(post.scheduled_at);
+  const time = formatTime(post.scheduled_at) ?? formatTime(post.published_at);
   const statusStyle = STATUS_STYLES[post.status] ?? STATUS_STYLES.draft;
 
   return (

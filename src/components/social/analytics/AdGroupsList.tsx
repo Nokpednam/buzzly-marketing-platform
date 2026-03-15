@@ -36,8 +36,10 @@ import {
   Play,
   Pause,
   FileText,
+  Link2,
 } from "lucide-react";
 import { useAdGroups, type AdGroupWithCount } from "@/hooks/useAdGroups";
+import { LinkItemsDialog } from "@/components/social/analytics/LinkItemsDialog";
 
 interface AdGroupsListProps {
   onGroupsChange?: (groups: { id: string; name: string }[]) => void;
@@ -47,6 +49,7 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
   const { adGroups, isLoading, createAdGroup, updateAdGroup, deleteAdGroup } = useAdGroups();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [linkDialogGroup, setLinkDialogGroup] = useState<AdGroupWithCount | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<AdGroupWithCount | null>(null);
   
   const [formData, setFormData] = useState({
@@ -176,6 +179,10 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
                       <Pencil className="h-4 w-4 mr-2" />
                       แก้ไข
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setLinkDialogGroup(group)}>
+                      <Link2 className="h-4 w-4 mr-2" />
+                      เชื่อมโยงโพสต์/โฆษณา
+                    </DropdownMenuItem>
                     {(group.status === "active" || group.status === "paused") && (
                       <DropdownMenuItem onClick={() => handleToggleStatus(group)}>
                         {group.status === "active" ? (
@@ -205,9 +212,15 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <FileText className="h-4 w-4" />
-                  <span>{group.ads_count} โฆษณา</span>
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <FileText className="h-4 w-4" />
+                    {group.ads_count} โฆษณา
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Link2 className="h-4 w-4" />
+                    {group.posts_count} โพสต์
+                  </span>
                 </div>
                 {getStatusBadge(group.status)}
               </div>
@@ -279,6 +292,16 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Link Items Dialog */}
+      {linkDialogGroup && (
+        <LinkItemsDialog
+          groupId={linkDialogGroup.id}
+          groupName={linkDialogGroup.name}
+          open={!!linkDialogGroup}
+          onOpenChange={(open) => { if (!open) setLinkDialogGroup(null); }}
+        />
+      )}
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

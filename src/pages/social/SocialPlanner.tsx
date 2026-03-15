@@ -19,7 +19,7 @@ export default function SocialPlanner() {
   const { createPost, updatePost } = useSocialPosts(dateRange);
 
   const [composerOpen, setComposerOpen] = useState(false);
-  const [composerMode, setComposerMode] = useState<"create" | "edit">("create");
+  const [composerMode, setComposerMode] = useState<"create" | "edit" | "preview">("create");
   const [composerInitialData, setComposerInitialData] = useState<Partial<SocialPostFormData>>({});
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
 
@@ -51,7 +51,7 @@ export default function SocialPlanner() {
   };
 
   const openEditFromCalendar = (calendarPost: CalendarPost) => {
-    setComposerMode("edit");
+    setComposerMode("preview");
     setEditingPostId(calendarPost.id);
     setComposerInitialData({
       platform_ids: calendarPost.platform_id ? [calendarPost.platform_id] : [],
@@ -60,9 +60,12 @@ export default function SocialPlanner() {
       status: calendarPost.status,
       hashtags: calendarPost.hashtags?.join(", ") ?? "",
       scheduled_at: calendarPost.scheduled_at ?? undefined,
+      media_urls: calendarPost.media_urls,
     });
     setComposerOpen(true);
   };
+
+  const switchToEdit = () => setComposerMode("edit");
 
   const handleSelectPost = (id: string) => {
     setSelectedPosts((prev) =>
@@ -170,6 +173,7 @@ export default function SocialPlanner() {
         initialData={composerInitialData}
         onSubmit={handleComposerSubmit}
         isPending={createPost.isPending || updatePost.isPending}
+        onRequestEdit={switchToEdit}
       />
     </div>
   );

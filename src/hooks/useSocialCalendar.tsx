@@ -62,9 +62,10 @@ export function useSocialCalendar(dateRange: string) {
         .from("social_posts")
         .select("*, platforms(name, slug, icon_url)")
         .eq("team_id", workspace.id)
-        .gte("scheduled_at", startDate)
+        .or(`scheduled_at.gte.${startDate},and(scheduled_at.is.null,published_at.gte.${startDate})`)
         .in("status", ["draft", "scheduled", "published"])
-        .order("scheduled_at", { ascending: true });
+        .order("scheduled_at", { ascending: true })
+        .order("published_at", { ascending: true });
 
       if (queryError) throw queryError;
 
