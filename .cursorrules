@@ -1,0 +1,133 @@
+# Buzzly — Cursor AI Rules
+# Stack: React 18, Vite 5, TypeScript 5.8, Tailwind 3.4, shadcn/ui,
+#        Supabase, TanStack Query v5, React Hook Form, Zod, React Router v6
+
+# ─── Project Layout ────────────────────────────────────────────────────────────
+# src/
+#   pages/        customer | dev/ | support/ | owner/ | employee/
+#   components/   ui/ (shadcn) | layout/ | <feature>/
+#   hooks/        React Query wrappers for every Supabase call
+#   integrations/ supabase/client.ts  ← only import point for Supabase
+#   supabase/     migrations/         ← append-only, never edit existing
+
+# ─── 1. Components ─────────────────────────────────────────────────────────────
+- Always write functional components; never use class components.
+- Use arrow-function syntax: `const Foo: React.FC<Props> = ({ ... }) => { ... }`.
+- Apply early-return patterns to reduce nesting — guard clauses first, happy path last.
+- One component per file; filename matches the exported component name (PascalCase).
+- Keep components small and focused on a single responsibility.
+- Extract repeated JSX blocks into child components rather than duplicating markup.
+- Co-locate component-specific types, helpers, and constants in the same file unless
+  they are shared across multiple components.
+
+# ─── 2. TypeScript ─────────────────────────────────────────────────────────────
+- Strict mode is on — never use `any`. Use `unknown` and narrow with type guards.
+- Prefer `interface` for object shapes; use `type` for unions, intersections, and
+  mapped/conditional types.
+- NEVER edit `src/integrations/supabase/types.ts` — it is auto-generated.
+- Always type component props explicitly; avoid inferring props from usage.
+- Use Zod schemas for runtime validation (forms, API responses). Derive TS types
+  from schemas with `z.infer<typeof schema>`.
+- Prefer `const` assertions and `as const` for literal types.
+- Use non-null assertion (`!`) sparingly; prefer optional chaining (`?.`) and
+  nullish coalescing (`??`).
+
+# ─── 3. React Hooks & State ────────────────────────────────────────────────────
+- All Supabase interactions MUST go through custom React Query hooks in `src/hooks/`.
+  Never call Supabase directly from a component or use raw `fetch`.
+- Scope every query by `workspaceId`; include it in the query key array.
+- Hook naming convention: `use<Resource>` (e.g., `useCampaigns`, `useAdInsights`).
+- Mutations must invalidate relevant query keys on success.
+- Use `useCallback` / `useMemo` only when there is a measurable performance reason;
+  do not add them preemptively.
+- Prefer `useState` + derived values over deeply nested reducer logic for simple
+  local UI state.
+
+# ─── 4. Data Fetching (TanStack Query v5) ──────────────────────────────────────
+- Always destructure `{ data, isLoading, error }` — handle all three states in UI.
+- Pass `workspaceId` as a query key dependency so queries refetch on workspace switch.
+- Throw errors from hooks; catch and log via `logError` + `toast` in components.
+  Never swallow errors silently.
+- Log unexpected errors to the `error_logs` table using the `logError` utility.
+
+# ─── 5. Styling — Tailwind CSS ─────────────────────────────────────────────────
+- Use Tailwind utility classes exclusively; avoid inline `style={{}}` except for
+  dynamic values that cannot be expressed as utilities (e.g., arbitrary pixel offsets).
+- Mobile-first responsive design: base styles for mobile, then `sm:`, `md:`, `lg:`.
+- Use `cn()` (from `src/lib/utils.ts`) to merge conditional class names.
+- Prefer shadcn/ui primitives over building low-level UI from scratch.
+- Dark mode: use Tailwind's `dark:` variant; never hard-code color values.
+- Do not use `@apply` in CSS files except in `globals.css` for base resets.
+
+# ─── 6. Forms ──────────────────────────────────────────────────────────────────
+- All forms use React Hook Form + Zod resolver.
+- Define schema first (`const schema = z.object({...})`), then derive the form type.
+- Use shadcn `<Form>`, `<FormField>`, `<FormItem>`, `<FormMessage>` components.
+- Validate on `onBlur` for UX friendliness; submit triggers full validation.
+
+# ─── 7. Routing ────────────────────────────────────────────────────────────────
+- Customer routes: wrapped in `<CustomerProtectedRoute>`.
+- Employee routes: wrapped in `<EmployeeProtectedRoute>` with role check
+  (`dev`, `support`, `owner`).
+- No `/admin/*` routes — legacy; redirect to `/dev` or `/support`.
+- Use `<Link>` and `useNavigate` from React Router v6; never `window.location`.
+
+# ─── 8. Authentication ─────────────────────────────────────────────────────────
+- Customers: Supabase Auth (`supabase.auth.*`).
+- Employees: `employees` table + `useEmployeeAuth` hook.
+- Never store tokens or secrets in component state or localStorage manually.
+- Never bypass RLS. All queries must respect row-level security policies.
+
+# ─── 9. Database & Migrations ──────────────────────────────────────────────────
+- Import Supabase ONLY from `@/integrations/supabase/client`.
+- Migrations live in `supabase/migrations/` — append new files; never modify existing.
+- RLS must always be enabled on new tables.
+- Use Supabase RPC (`supabase.rpc(...)`) for business-logic operations
+  (e.g., `redeem_reward`, tier upgrades).
+- Loyalty tier upgrades are handled by DB triggers — do not replicate this logic
+  in the client.
+
+# ─── 10. Plans & Feature Flags ─────────────────────────────────────────────────
+- Use `PlanContext` and `hasFeature()` to gate plan-specific UI.
+- Plan slugs follow the pattern `free-*`, `pro-*`, `team-*`.
+- Never hard-code plan-specific logic in components — always delegate to `hasFeature`.
+
+# ─── 11. ES6+ & General Code Quality ──────────────────────────────────────────
+- Prefer `const`; use `let` only when reassignment is required.
+- Use optional chaining (`?.`) and nullish coalescing (`??`) over manual null checks.
+- Prefer array methods (`map`, `filter`, `reduce`, `find`) over imperative loops.
+- Use template literals over string concatenation.
+- Destructure props, objects, and arrays at the point of use.
+- Avoid default exports for utilities and hooks; use named exports for clarity.
+  Exception: page-level components may use default exports to satisfy React Router
+  lazy-loading conventions.
+- No `console.log` in committed code; use the `logError` utility for real errors.
+
+# ─── 12. File & Import Conventions ────────────────────────────────────────────
+- Alias `@/` maps to `src/`; always use it for non-relative imports.
+- Import order (enforced by ESLint): React → third-party → `@/` aliases → relative.
+- Group imports: framework, libraries, hooks, components, utilities, types.
+
+# ─── 13. Performance ───────────────────────────────────────────────────────────
+- Use `React.lazy` + `<Suspense>` for route-level code splitting.
+- Avoid unnecessary re-renders: stable references for callbacks passed as props,
+  memoize expensive derived data with `useMemo`.
+- Prefer server-side filtering/sorting via Supabase query params over client-side
+  array manipulation on large datasets.
+
+# ─── 14. Security ──────────────────────────────────────────────────────────────
+- Never commit `.env` or secrets.
+- Never expose service-role keys on the client.
+- Sanitize all user-supplied values before inserting into DB.
+- Validate inputs with Zod before any mutation.
+
+# ─── 15. What NOT to Do ────────────────────────────────────────────────────────
+- Do NOT use `bun` — use `npm` exclusively.
+- Do NOT use class components or `React.Component`.
+- Do NOT use `any` type.
+- Do NOT call Supabase outside of `src/hooks/` or `src/integrations/supabase/`.
+- Do NOT edit `src/integrations/supabase/types.ts`.
+- Do NOT edit existing migration files.
+- Do NOT bypass RLS silently.
+- Do NOT use `/admin/*` routes.
+- Do NOT swallow errors — always log and surface them.

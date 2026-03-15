@@ -24,13 +24,10 @@ import {
   Bar,
 } from "recharts";
 import { useAdInsights } from "@/hooks/useAdInsights";
+import { useSocialFilters } from "@/contexts/SocialFiltersContext";
 
-interface AdInsightsSummaryProps {
-  dateRange: string; // "7" | "30" | "90"
-  activePlatforms: string[];
-}
-
-export function AdInsightsSummary({ dateRange, activePlatforms }: AdInsightsSummaryProps) {
+export function AdInsightsSummary() {
+  const { dateRange, activePlatforms } = useSocialFilters();
   const { summary, isLoading, error } = useAdInsights(dateRange, activePlatforms);
 
   const formatNumber = (num: number) => {
@@ -83,7 +80,6 @@ export function AdInsightsSummary({ dateRange, activePlatforms }: AdInsightsSumm
     );
   }
 
-  // Chart data
   const chartData = summary.dailyData.map((i) => ({
     date: new Date(i.date).toLocaleDateString("th-TH", { day: "numeric", month: "short" }),
     impressions: i.impressions,
@@ -106,7 +102,7 @@ export function AdInsightsSummary({ dateRange, activePlatforms }: AdInsightsSumm
 
   return (
     <div className="space-y-6">
-      {/* Stats Grid */}
+      {/* Primary Stats */}
       <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
         {stats.slice(0, 5).map((stat) => {
           const Icon = stat.icon;
@@ -144,7 +140,6 @@ export function AdInsightsSummary({ dateRange, activePlatforms }: AdInsightsSumm
 
       {/* Charts */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Impressions & Clicks Chart */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Impressions & Clicks</CardTitle>
@@ -183,7 +178,6 @@ export function AdInsightsSummary({ dateRange, activePlatforms }: AdInsightsSumm
           </CardContent>
         </Card>
 
-        {/* Spend & Conversions Chart */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Spend & Conversions</CardTitle>

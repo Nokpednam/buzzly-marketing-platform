@@ -38,7 +38,7 @@ const navGroups = [
     label: "Main",
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, requiresPlan: null },
-      { title: "Social Analytics", url: "/social-analytics", icon: Share2, requiresPlan: null },
+      { title: "Social", url: "/social", icon: Share2, requiresPlan: null },
       { title: "Customer Personas", url: "/personas", icon: Users, requiresPlan: null },
       { title: "Campaigns", url: "/campaigns", icon: Megaphone, requiresPlan: "pro" as const },
     ]
@@ -136,7 +136,9 @@ export function AppSidebar() {
             <div className="space-y-1">
               {group.items.map((item) => {
                 const accessible = isItemAccessible(item.requiresPlan);
-                const isActive = location.pathname === item.url;
+                const isActive =
+                  location.pathname === item.url ||
+                  location.pathname.startsWith(item.url + "/");
 
                 if (!accessible) {
                   // Locked item: render a button that opens the plan dialog directly

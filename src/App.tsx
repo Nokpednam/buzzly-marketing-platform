@@ -21,7 +21,11 @@ import Dashboard from "./pages/Dashboard";
 import Prospects from "./pages/Prospects";
 import Campaigns from "./pages/Campaigns";
 import CampaignDetail from "./pages/CampaignDetail";
-import SocialAnalytics from "./pages/SocialAnalytics";
+import SocialLayout from "./pages/social/SocialLayout";
+import SocialPlanner from "./pages/social/SocialPlanner";
+import SocialAnalyticsView from "./pages/social/SocialAnalyticsView";
+import SocialInbox from "./pages/social/SocialInbox";
+import SocialIntegrations from "./pages/social/SocialIntegrations";
 import Email from "./pages/Email";
 import Engagement from "./pages/Engagement";
 import AIInsights from "./pages/AIInsights";
@@ -104,7 +108,17 @@ const App = () => (
                     <Route path="/prospects" element={<Navigate to="/personas" replace />} />
                     <Route path="/campaigns" element={<PlanGate feature="campaigns"><Campaigns /></PlanGate>} />
                     <Route path="/campaigns/:id" element={<PlanGate feature="campaigns"><CampaignDetail /></PlanGate>} />
-                    <Route path="/social-analytics" element={<SocialAnalytics />} />
+                    {/* Legacy /social-analytics → redirect to /social/analytics */}
+                    <Route path="/social-analytics" element={<Navigate to="/social/analytics" replace />} />
+
+                    {/* Social nested routes */}
+                    <Route path="/social" element={<SocialLayout />}>
+                      <Route index element={<Navigate to="planner" replace />} />
+                      <Route path="planner" element={<SocialPlanner />} />
+                      <Route path="analytics" element={<SocialAnalyticsView />} />
+                      <Route path="inbox" element={<SocialInbox />} />
+                      <Route path="integrations" element={<SocialIntegrations />} />
+                    </Route>
 
                     <Route path="/customer-journey" element={<CustomerJourney />} />
                     <Route path="/aarrr-funnel" element={<AARRRFunnel />} />
