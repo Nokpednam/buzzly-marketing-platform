@@ -144,10 +144,10 @@ app.post("/validate-key", (req, res) => {
 });
 
 // ─── Backend Ingestion Endpoint ───────────────────────────────────────
-// This is the core ingestion route. The frontend sends the user's API key
-// here; this server validates it, fetches data from EXTERNAL_API_BASE_URL,
-// transforms it, and writes it into Supabase — then returns a status code.
-// Raw external API data is never forwarded to the browser.
+// Validates the API key, fetches the full platform dataset (ads, leads,
+// chats), and writes everything to Supabase with the correct team_id so
+// the frontend's workspace-scoped queries can find the records.
+// Raw external data never leaves the server.
 app.post("/api/connect", async (req, res) => {
   const { apiKey, platformSlug, workspaceId, adAccountId } = req.body as {
     apiKey?: string;
@@ -175,33 +175,57 @@ app.post("/api/connect", async (req, res) => {
   }
 
   const tenant = keyInfo.tenant;
+  const platform = keyInfo.platform;
 
   try {
     const supabase = getSupabaseClient();
-    const platform = keyInfo.platform;
 
-    // 2. Fetch individual ads with persona_data from /:platform/:tenant/ads
-    const adsRes = await fetch(`${EXTERNAL_API_BASE_URL}/${platform}/${tenant}/ads`);
-    if (!adsRes.ok) {
-      throw new Error(`Ads endpoint responded with ${adsRes.status}`);
-    }
+    // 2. Fetch ads and (for Facebook) leads + chats in parallel
+    const [adsRes, leadsRes, chatsRes] = await Promise.all([
+      fetch(`${EXTERNAL_API_BASE_URL}/${platform}/${tenant}/ads`),
+      platform === "facebook"
+        ? fetch(`${EXTERNAL_API_BASE_URL}/facebook/${tenant}/leads`)
+        : Promise.resolve(null),
+      platform === "facebook"
+        ? fetch(`${EXTERNAL_API_BASE_URL}/facebook/${tenant}/chats`)
+        : Promise.resolve(null),
+    ]);
+
+    if (!adsRes.ok) throw new Error(`Ads endpoint responded with ${adsRes.status}`);
     const { data: adsData } = (await adsRes.json()) as { data: any[] };
 
-    // 3. Clear previous insights for this ad account (full replace sync)
-    await supabase.from("ad_insights").delete().eq("ad_account_id", adAccountId);
+    const leadsData: any[] = leadsRes?.ok
+      ? ((await leadsRes.json()) as { data: any[] }).data ?? []
+      : [];
 
-    // 4. Upsert individual ads with persona_data and generate daily ad_insights.
-    //    Ads are ingested as ORPHANS — they are NOT linked to any campaign.
-    //    Users manually assign ads to campaigns they create in the Campaign Builder.
+    const chatsData: any[] = chatsRes?.ok
+      ? ((await chatsRes.json()) as { conversations: any[] }).conversations ?? []
+      : [];
+
+    // 3. Clear stale data for this workspace + platform (full-replace sync)
+    await supabase.from("ad_insights").delete().eq("ad_account_id", adAccountId);
+    await supabase.from("ads").delete().eq("team_id", workspaceId).eq("platform", platform);
+    if (platform === "facebook") {
+      // Remove previously synced chats so we don't accumulate duplicates
+      await supabase
+        .from("social_posts")
+        .delete()
+        .eq("team_id", workspaceId)
+        .eq("post_channel", "facebook")
+        .eq("post_type", "chat");
+    }
+
+    // 4. Upsert ads with team_id and generate daily ad_insights.
+    //    Ads are ingested as ORPHANS — not linked to any campaign.
+    //    Users assign ads to campaigns in the Campaign Builder.
     const insightRows: any[] = [];
 
     for (const ad of adsData) {
-      // Upsert ad row with persona_data
       const { data: upsertedAd } = await (supabase as any)
         .from("ads")
         .upsert(
           {
-            ad_account_id: adAccountId,
+            team_id: workspaceId,       // ← scope every ad to this workspace
             name: ad.ad_name,
             status: ad.status === "ACTIVE" ? "active" : "paused",
             platform: platform,
@@ -216,9 +240,7 @@ app.post("/api/connect", async (req, res) => {
 
       const adId = upsertedAd?.id ?? null;
 
-      // Generate daily insight rows for this ad.
-      // campaign_id is intentionally null — insights belong to the ad, not a campaign,
-      // until the user assigns this ad to a campaign in the Campaign Builder.
+      // Spread totals evenly over the flight window with light jitter
       const startDate = new Date(ad.date_start);
       const endDate = new Date(ad.date_stop);
       const totalDays = Math.max(
@@ -249,17 +271,78 @@ app.post("/api/connect", async (req, res) => {
       }
     }
 
-    const { error: insertError } = await supabase
-      .from("ad_insights")
-      .insert(insightRows);
+    const { error: insertError } = await supabase.from("ad_insights").insert(insightRows);
     if (insertError) throw insertError;
 
-    // 5. Return only a success status — raw external data stays on the server
+    // 5. Upsert Facebook leads as customer_personas
+    let personasInserted = 0;
+    if (leadsData.length > 0) {
+      const getField = (lead: any, name: string): string | null =>
+        lead.field_data?.find((f: any) => f.name === name)?.values?.[0] ?? null;
+
+      const personaRows = leadsData.map((lead: any) => ({
+        team_id: workspaceId,
+        persona_name: getField(lead, "full_name") ?? `Lead ${lead.id}`,
+        description: getField(lead, "company_name"),
+        profession: getField(lead, "company_name"),
+        is_active: true,
+        is_template: false,
+        custom_fields: {
+          source: "facebook_lead_ad",
+          lead_id: lead.id,
+          email: getField(lead, "email"),
+          phone: getField(lead, "phone_number"),
+          form_id: lead.form_id ?? null,
+          ad_id: lead.ad_id ?? null,
+          created_time: lead.created_time ?? null,
+        },
+      }));
+
+      const { error: personaError } = await supabase
+        .from("customer_personas")
+        .insert(personaRows);
+      if (personaError) {
+        console.warn("[/api/connect] personas insert warn:", personaError.message);
+      } else {
+        personasInserted = personaRows.length;
+      }
+    }
+
+    // 6. Insert Facebook chats as social_posts (one row per conversation thread)
+    let chatsInserted = 0;
+    if (chatsData.length > 0) {
+      const chatRows = chatsData.map((conv: any) => {
+        const msgs: any[] = conv.messages ?? [];
+        const lastMsg = msgs[msgs.length - 1];
+        return {
+          team_id: workspaceId,
+          post_channel: "facebook",
+          post_type: "chat",
+          platform_post_id: conv.thread_id,
+          name: conv.participant?.name ?? "Unknown",
+          content: lastMsg?.text ?? null,
+          published_at: conv.last_message_time ?? new Date().toISOString(),
+          status: "published",
+          comments: conv.unread_count ?? 0,
+        };
+      });
+
+      const { error: chatError } = await supabase.from("social_posts").insert(chatRows);
+      if (chatError) {
+        console.warn("[/api/connect] chats insert warn:", chatError.message);
+      } else {
+        chatsInserted = chatsData.length;
+      }
+    }
+
+    // 7. Return summary — raw external data stays on the server
     res.json({
       message: "Data synced successfully",
       adsUpserted: adsData.length,
       rowsInserted: insightRows.length,
-      platform: platform,
+      personasInserted,
+      chatsInserted,
+      platform,
       tenant,
     });
   } catch (err: any) {
