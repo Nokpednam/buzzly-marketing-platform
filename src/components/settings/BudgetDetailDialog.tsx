@@ -38,7 +38,7 @@ export function BudgetDetailDialog({ budget, open, onOpenChange }: BudgetDetailD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] rounded-[2rem] p-0 border-none shadow-2xl overflow-hidden">
+      <DialogContent className="sm:max-w-[500px] max-h-[95vh] rounded-[2rem] p-0 border-none shadow-2xl overflow-y-auto scrollbar-hide">
         <div className={cn(
           "h-32 p-8 flex flex-col justify-end relative",
           alert ? "bg-destructive/10" : "bg-primary/5"
