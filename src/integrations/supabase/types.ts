@@ -1,4 +1,3 @@
-Connecting to db 5432
 export type Json =
   | string
   | number
@@ -2349,7 +2348,9 @@ export type Database = {
         Row: {
           body: string | null
           created_at: string
+          deleted_at: string | null
           id: string
+          is_archived: boolean
           is_read: boolean
           link: string | null
           source_id: string | null
@@ -2360,7 +2361,9 @@ export type Database = {
         Insert: {
           body?: string | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
+          is_archived?: boolean
           is_read?: boolean
           link?: string | null
           source_id?: string | null
@@ -2371,7 +2374,9 @@ export type Database = {
         Update: {
           body?: string | null
           created_at?: string
+          deleted_at?: string | null
           id?: string
+          is_archived?: boolean
           is_read?: boolean
           link?: string | null
           source_id?: string | null

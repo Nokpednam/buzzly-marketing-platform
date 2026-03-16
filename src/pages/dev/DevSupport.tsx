@@ -80,8 +80,10 @@ export default function DevSupport() {
                 setTimeout(() => {
                     queryClient.invalidateQueries({ queryKey: ["dev-error-logs"] });
                     queryClient.invalidateQueries({ queryKey: ["dev-error-stats"] });
+                    // Force refresh notifications to ensure the bell updates even if realtime is slightly delayed
+                    queryClient.invalidateQueries({ queryKey: ["notifications"] });
                     refetch();
-                }, 500);
+                }, 800);
             } catch (logErr: any) {
                 toast({
                     variant: "destructive",
