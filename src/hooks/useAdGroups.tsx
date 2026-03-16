@@ -100,6 +100,7 @@ export function useAdGroups() {
             .from("social_posts")
             .select("ad_group_id")
             .eq("team_id", workspaceId)
+            .eq("post_channel", "social")
             .not("ad_group_id", "is", null),
         ]);
 

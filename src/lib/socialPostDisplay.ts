@@ -30,8 +30,11 @@ export function getSocialPostDisplayTitle(post: SocialPostDisplaySource): string
     );
   }
 
+  // Organic posts: `name` is intentionally excluded — it can contain person/persona
+  // names from external sync paths (e.g. chat ingestion), which would show as the
+  // post title. Only `content` and `subject` are safe display sources here.
   return (
-    getFirstNonEmptyValue([post.content, post.name, post.subject]) ??
+    getFirstNonEmptyValue([post.content, post.subject]) ??
     "Untitled Post"
   );
 }

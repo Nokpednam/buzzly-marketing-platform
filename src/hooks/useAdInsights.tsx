@@ -90,7 +90,7 @@ export function useAdInsights(
 
       let query = supabase
         .from("ad_insights")
-        .select("*, ad_accounts!inner(platform_id, team_id), ads!inner(ad_group_id, ad_groups(name))")
+        .select("*, ad_accounts!inner(platform_id, team_id), ads(ad_group_id, ad_groups(name))")
         .order("date", { ascending: true });
 
       const dateFilter = getDateFilter();

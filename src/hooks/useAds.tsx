@@ -106,8 +106,59 @@ export function useAds() {
     },
   });
 
+  const createAdWithMirrorPost = useMutation({
+    mutationFn: async (
+      input: ExtendedAdInsert & { platform_id?: string | null }
+    ) => {
+      if (!workspace?.id) throw new Error("No active workspace");
+      const { platform_id, budget, ...adFields } = input as ExtendedAdInsert & {
+        platform_id?: string | null;
+      };
+      const { data, error } = await (supabase as any).rpc(
+        "create_ad_with_mirror_post",
+        {
+          p_team_id:        workspace.id,
+          p_name:           adFields.name,
+          p_status:         (adFields.status as string) ?? "draft",
+          p_creative_type:  (adFields as any).creative_type ?? "image",
+          p_headline:       (adFields as any).headline ?? null,
+          p_ad_copy:        (adFields as any).ad_copy ?? null,
+          p_call_to_action: (adFields as any).call_to_action ?? null,
+          p_content:        adFields.content ?? null,
+          p_media_urls:     adFields.media_urls ?? null,
+          p_scheduled_at:   (adFields as any).scheduled_at ?? null,
+          p_ad_group_id:    adFields.ad_group_id ?? null,
+          p_platform_id:    platform_id ?? null,
+          p_creative_url:   (adFields as any).creative_url ?? "/placeholder.svg",
+          p_platform_ad_id: (adFields as any).platform_ad_id ?? null,
+          p_preview_url:    (adFields as any).preview_url ?? null,
+          p_budget:         budget ?? null,
+        }
+      ) as { data: Ad | null; error: { message: string } | null };
+      if (error) throw new Error(error.message);
+      return data as Ad;
+    },
+    onSuccess: () => {
+      void invalidateSocialRealtimeQueries(queryClient);
+      toast.success("สร้างโฆษณาสำเร็จ");
+    },
+    onError: (error: Error) => {
+      toast.error(`ไม่สามารถสร้างโฆษณา: ${error.message}`);
+    },
+  });
+
   const deleteAd = useMutation({
     mutationFn: async (id: string) => {
+      // Delete the calendar mirror row first (no FK from social_posts → ads,
+      // so order doesn't matter for integrity, but this is explicit cleanup).
+      // Rows created before this fix won't have a mirror — the DELETE simply
+      // affects 0 rows, which is not an error.
+      await supabase
+        .from("social_posts")
+        .delete()
+        .eq("id", id)
+        .eq("post_channel", "ad");
+
       const { error } = await supabase
         .from("ads")
         .delete()
@@ -174,6 +225,7 @@ export function useAds() {
     isLoading,
     error,
     createAd,
+    createAdWithMirrorPost,
     updateAd,
     deleteAd,
     publishAd,

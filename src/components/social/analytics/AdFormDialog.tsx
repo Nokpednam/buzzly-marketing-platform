@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -52,6 +54,7 @@ interface AdFormData {
   content: string;
   media_urls: string[];
   scheduled_at: string;
+  platform_id: string;
 }
 
 interface AdFormDialogProps {
@@ -75,6 +78,7 @@ const defaultForm = (initialAdGroupId?: string): AdFormData => ({
   content: "",
   media_urls: [],
   scheduled_at: "",
+  platform_id: "",
 });
 
 export const AdFormDialog = ({
@@ -84,9 +88,23 @@ export const AdFormDialog = ({
   initialAdGroupId,
   adToEdit,
 }: AdFormDialogProps) => {
-  const { createAd, updateAd, linkPersonas } = useAds();
+  const { createAdWithMirrorPost, updateAd, linkPersonas } = useAds();
   const { workspace } = useWorkspace();
   const isEditMode = !!adToEdit;
+
+  const { data: platforms = [] } = useQuery({
+    queryKey: ["platforms", "select"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("platforms")
+        .select("id, name, slug")
+        .eq("is_active", true)
+        .in("slug", ["facebook", "instagram", "tiktok", "shopee", "google"])
+        .order("name");
+      if (error) throw error;
+      return data as { id: string; name: string; slug: string | null }[];
+    },
+  });
 
   const [formData, setFormData] = useState<AdFormData>(defaultForm(initialAdGroupId));
   const [newMediaUrl, setNewMediaUrl] = useState("");
@@ -108,6 +126,7 @@ export const AdFormDialog = ({
         scheduled_at: adToEdit.scheduled_at
           ? new Date(adToEdit.scheduled_at).toISOString().slice(0, 16)
           : "",
+        platform_id: "",
       });
       setSelectedPersonaIds(
         (adToEdit.ad_personas ?? [])
@@ -166,18 +185,21 @@ export const AdFormDialog = ({
         }
       );
     } else {
-      createAd.mutate(buildPayload(), {
-        onSuccess: (newAd) => {
-          if (newAd) {
-            linkPersonas.mutate({ adId: newAd.id, personaIds: selectedPersonaIds });
-          }
-          onOpenChange(false);
-        },
-      });
+      createAdWithMirrorPost.mutate(
+        { ...buildPayload(), platform_id: formData.platform_id || null },
+        {
+          onSuccess: (newAd) => {
+            if (newAd) {
+              linkPersonas.mutate({ adId: newAd.id, personaIds: selectedPersonaIds });
+            }
+            onOpenChange(false);
+          },
+        }
+      );
     }
   };
 
-  const isPending = createAd.isPending || updateAd.isPending;
+  const isPending = createAdWithMirrorPost.isPending || updateAd.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -199,6 +221,29 @@ export const AdFormDialog = ({
               placeholder="Summer Sale Ad"
             />
           </div>
+
+          {/* Platform (create mode only — sets the calendar icon for this ad) */}
+          {!isEditMode && (
+            <div className="space-y-2">
+              <Label>แพลตฟอร์ม</Label>
+              <Select
+                value={formData.platform_id}
+                onValueChange={(v) => setFormData({ ...formData, platform_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือกแพลตฟอร์ม (ไม่บังคับ)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">ไม่ระบุ</SelectItem>
+                  {platforms.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Ad Group + Creative Type */}
           <div className="grid grid-cols-2 gap-4">
