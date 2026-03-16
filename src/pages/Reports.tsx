@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,9 +47,13 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PlanRestrictedPage } from "@/components/PlanRestrictedPage";
 import { useReports } from "@/hooks/useReports";
+import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { toast } from "sonner";
+import { generatePdfFromElement, uploadReportPdf, downloadPdfBlob } from "@/lib/reportPdf";
+import { ReportChartBlocks, REPORT_CHART_OPTIONS, type ReportChartId } from "@/components/reports/ReportChartBlocks";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const reportTemplates = [
   { id: "campaign", name: "Campaign Performance", description: "Conversion & CTR deep dive", icon: BarChart3, color: "text-blue-500", bg: "bg-blue-500/10" },
@@ -58,32 +62,115 @@ const reportTemplates = [
   { id: "channel", name: "Channel Comparison", description: "Multi-platform benchmarks", icon: Smartphone, color: "text-purple-500", bg: "bg-purple-500/10" },
 ];
 
+function formatMetricValue(value: number, type: "number" | "percent" | "currency"): string {
+  if (type === "percent") return `${value.toFixed(2)}%`;
+  if (type === "currency") return `฿${value.toLocaleString("th-TH", { minimumFractionDigits: 2 })}`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return value.toLocaleString();
+}
+
 function ReportsContent() {
-  const { reports, isLoading, createReport, deleteReport } = useReports();
+  const [reportDateRange, setReportDateRange] = useState("30d");
+  const { reports, isLoading, createReport, deleteReport, updateReportFileUrl } = useReports();
+  const { data: metrics } = useDashboardMetrics(reportDateRange);
+  const reportRef = useRef<HTMLDivElement>(null);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewReport, setPreviewReport] = useState<string | null>(null);
+  const [previewReportType, setPreviewReportType] = useState<string>("campaign");
   const [filterFormat, setFilterFormat] = useState("all");
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isCreatingWithPdf, setIsCreatingWithPdf] = useState(false);
+  const [editingReportId, setEditingReportId] = useState<string | null>(null);
 
   // Custom report form state
   const [newReportName, setNewReportName] = useState("");
   const [newReportType, setNewReportType] = useState("campaign");
   const [newReportFormat, setNewReportFormat] = useState("pdf");
+  const [selectedCharts, setSelectedCharts] = useState<ReportChartId[]>(
+    REPORT_CHART_OPTIONS.map((c) => c.id)
+  );
 
-  const handleQuickGenerate = (typeId: string, reportName?: string) => {
+  const toggleChart = (id: ReportChartId) => {
+    setSelectedCharts((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
+    );
+  };
+
+  const handleQuickGenerate = (typeId: string, reportName?: string, reportId?: string) => {
     setPreviewReport(reportName ?? typeId);
+    setPreviewReportType(typeId);
+    setEditingReportId(reportId ?? null);
     setIsPreviewOpen(true);
+  };
+
+  const handleDownloadPDF = async (saveToReports = false) => {
+    if (!reportRef.current) return;
+    setIsDownloading(true);
+    try {
+      const blob = await generatePdfFromElement(reportRef.current);
+      const fileName = `report_${Date.now()}.pdf`;
+      const safeName = (previewReport ?? "report").replace(/[^a-zA-Z0-9ก-๙\s-]/g, "_");
+
+      if (saveToReports) {
+        const publicUrl = await uploadReportPdf(blob, fileName);
+        if (editingReportId) {
+          await updateReportFileUrl.mutateAsync({ reportId: editingReportId, fileUrl: publicUrl });
+        } else {
+          await createReport.mutateAsync({
+            name: previewReport ?? "Marketing Report",
+            report_type: previewReportType,
+            file_format: "pdf",
+            file_url: publicUrl,
+          });
+        }
+      }
+
+      downloadPdfBlob(blob, `${safeName}.pdf`);
+      toast.success(saveToReports ? "ดาวน์โหลดและบันทึกรายงานสำเร็จ" : "ดาวน์โหลด PDF สำเร็จ");
+      if (saveToReports) {
+        setIsPreviewOpen(false);
+        setEditingReportId(null);
+      }
+    } catch (err) {
+      toast.error("ไม่สามารถสร้าง PDF ได้", { description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleSaveReport = async () => {
     if (!newReportName.trim()) return;
-    await createReport.mutateAsync({
-      name: newReportName,
-      report_type: newReportType,
-      file_format: newReportFormat,
-    });
-    setIsGenerateOpen(false);
-    setNewReportName("");
+    setIsCreatingWithPdf(true);
+    try {
+      // Wait for hidden report content to render
+      await new Promise((r) => setTimeout(r, 300));
+      const sourceEl = document.getElementById("report-pdf-source");
+      if (!sourceEl) {
+        toast.error("ไม่สามารถสร้างรายงานได้");
+        return;
+      }
+
+      const blob = await generatePdfFromElement(sourceEl as HTMLElement);
+      const fileName = `report_${Date.now()}.pdf`;
+      const publicUrl = await uploadReportPdf(blob, fileName);
+
+      await createReport.mutateAsync({
+        name: newReportName,
+        report_type: newReportType,
+        file_format: "pdf",
+        file_url: publicUrl,
+      });
+
+      downloadPdfBlob(blob, `${newReportName.replace(/[^a-zA-Z0-9ก-๙\s-]/g, "_")}.pdf`);
+      setIsGenerateOpen(false);
+      setNewReportName("");
+    } catch (err) {
+      toast.error("ไม่สามารถสร้างรายงานได้", { description: err instanceof Error ? err.message : undefined });
+    } finally {
+      setIsCreatingWithPdf(false);
+    }
   };
 
   const handleDelete = async (reportId: string) => {
@@ -239,20 +326,29 @@ function ReportsContent() {
                           variant="ghost"
                           size="icon"
                           className="rounded-full h-9 w-9"
-                          onClick={() => handleQuickGenerate(report.id, report.name)}
+                          onClick={() => handleQuickGenerate(report.report_type, report.name, report.id)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {report.file_url && (
+                        {report.file_url ? (
                           <Button
                             variant="outline"
                             size="sm"
                             className="rounded-xl px-4 h-9 gap-2"
                             asChild
                           >
-                            <a href={report.file_url} target="_blank" rel="noopener noreferrer">
-                              <Download className="h-3.5 w-3.5" /> Download
+                            <a href={report.file_url} target="_blank" rel="noopener noreferrer" download>
+                              <Download className="h-3.5 w-3.5" /> Download PDF
                             </a>
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl px-4 h-9 gap-2"
+                            onClick={() => handleQuickGenerate(report.report_type, report.name, report.id)}
+                          >
+                            <Download className="h-3.5 w-3.5" /> สร้าง PDF
                           </Button>
                         )}
                         <DropdownMenu>
@@ -285,7 +381,7 @@ function ReportsContent() {
 
       {/* --- CREATE REPORT DIALOG --- */}
       <Dialog open={isGenerateOpen} onOpenChange={setIsGenerateOpen}>
-        <DialogContent className="sm:max-w-[480px] rounded-3xl">
+        <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto rounded-3xl">
           <DialogHeader>
             <DialogTitle className="text-xl font-black">สร้างรายงานใหม่</DialogTitle>
           </DialogHeader>
@@ -326,6 +422,38 @@ function ReportsContent() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>ช่วงข้อมูล</Label>
+              <Select value={reportDateRange} onValueChange={setReportDateRange}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7d">7 วันล่าสุด</SelectItem>
+                  <SelectItem value="30d">30 วันล่าสุด</SelectItem>
+                  <SelectItem value="90d">90 วันล่าสุด</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-3">
+              <Label>กราฟที่จะรวมในรายงาน</Label>
+              <p className="text-xs text-muted-foreground">เลือกกราฟจาก Dashboard / Analytics</p>
+              <div className="flex flex-col gap-2 rounded-xl border p-3 bg-muted/20">
+                {REPORT_CHART_OPTIONS.map((opt) => (
+                  <label key={opt.id} className="flex items-center gap-3 cursor-pointer hover:bg-muted/30 rounded-lg p-2 -m-1">
+                    <Checkbox
+                      checked={selectedCharts.includes(opt.id)}
+                      onCheckedChange={() => toggleChart(opt.id)}
+                    />
+                    <opt.icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="min-w-0">
+                      <span className="text-sm font-medium">{opt.name}</span>
+                      <span className="text-xs text-muted-foreground block truncate">{opt.description}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsGenerateOpen(false)}>
@@ -333,61 +461,90 @@ function ReportsContent() {
             </Button>
             <Button
               onClick={handleSaveReport}
-              disabled={!newReportName.trim() || createReport.isPending}
+              disabled={!newReportName.trim() || createReport.isPending || isCreatingWithPdf}
               className="rounded-xl"
             >
-              {createReport.isPending ? (
+              {(createReport.isPending || isCreatingWithPdf) ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Plus className="h-4 w-4 mr-2" />
               )}
-              สร้างรายงาน
+              {isCreatingWithPdf ? "กำลังสร้าง PDF..." : "สร้างรายงาน"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Hidden report source for PDF generation when creating from dialog */}
+      {isGenerateOpen && (
+        <div
+          id="report-pdf-source"
+          className="fixed left-[-9999px] top-0 w-[800px] bg-background p-12"
+          aria-hidden
+        >
+          <ReportDocument
+            reportName={newReportName || "Marketing Report"}
+            reportType={newReportType}
+            metrics={metrics}
+            selectedCharts={selectedCharts}
+          />
+        </div>
+      )}
+
       {/* --- PREVIEW DIALOG --- */}
-      <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+      <Dialog
+        open={isPreviewOpen}
+        onOpenChange={(open) => {
+          setIsPreviewOpen(open);
+          if (!open) setEditingReportId(null);
+        }}
+      >
         <DialogContent className="sm:max-w-[850px] p-0 border-none shadow-2xl rounded-3xl overflow-hidden bg-muted/20">
           <div className="h-[80vh] overflow-y-auto p-6 md:p-12">
-            <div className="bg-background shadow-2xl rounded-sm p-12 min-h-full border">
-              <div className="flex justify-between items-start mb-12 border-b pb-8">
-                <div>
-                  <div className="bg-primary text-primary-foreground text-[10px] font-black px-2 py-1 rounded w-fit mb-4 tracking-widest">BUZZLY REPORT</div>
-                  <h2 className="text-3xl font-black uppercase tracking-tighter">{previewReport ?? "Performance Summary"}</h2>
-                  <p className="text-muted-foreground font-serif italic">
-                    Generated on {format(new Date(), "d MMMM yyyy", { locale: th })}
-                  </p>
-                </div>
-                <div className="text-right text-[10px] font-bold text-muted-foreground uppercase leading-loose">
-                  Ref: #BZY-{Date.now().toString().slice(-6)}<br />
-                  Data: Aggregated Channels<br />
-                  Status: Finalized
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-8 mb-12">
-                <Metric label="Total Impressions" value="1.42M" change="+12%" />
-                <Metric label="Conv. Rate" value="3.82%" change="+0.4%" />
-                <Metric label="Ad Spend" value="฿12,400" change="-5%" />
-              </div>
-              <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10">
-                <h4 className="text-sm font-bold flex items-center gap-2 mb-2">
-                  <Sparkles className="h-4 w-4 text-primary" /> Key Strategic Insight
-                </h4>
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  Instagram remains your highest performing channel for direct ROAS, however TikTok engagement rate has surged by 15% this week. We recommend reallocating 10% of Facebook budget to TikTok short-form content to capture growing upper-funnel interest.
-                </p>
-              </div>
+            <div ref={reportRef} className="bg-background shadow-2xl rounded-sm p-12 min-h-full border">
+              <ReportDocument
+                reportName={previewReport ?? "Performance Summary"}
+                reportType={previewReportType}
+                metrics={metrics}
+                selectedCharts={selectedCharts}
+              />
             </div>
           </div>
-          <div className="p-4 bg-background border-t flex justify-between items-center px-8">
+          <div className="p-4 bg-background border-t space-y-3">
+            <div className="flex flex-wrap gap-2 items-center">
+              <span className="text-xs font-medium text-muted-foreground mr-2">กราฟ:</span>
+              {REPORT_CHART_OPTIONS.map((opt) => (
+                <label key={opt.id} className="flex items-center gap-1.5 cursor-pointer text-xs">
+                  <Checkbox
+                    checked={selectedCharts.includes(opt.id)}
+                    onCheckedChange={() => toggleChart(opt.id)}
+                  />
+                  {opt.name}
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-between items-center">
             <span className="text-xs text-muted-foreground">Viewing Page 1 of 1</span>
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setIsPreviewOpen(false)}>Close</Button>
-              <Button className="rounded-xl px-6 bg-primary" onClick={() => toast.info("Download — พร้อมใช้งานเร็วๆ นี้")}>
-                <Download className="h-4 w-4 mr-2" /> Download Document
+              <Button
+                className="rounded-xl px-6 bg-primary"
+                onClick={() => handleDownloadPDF(false)}
+                disabled={isDownloading}
+              >
+                {isDownloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                Download PDF
               </Button>
+              <Button
+                variant="outline"
+                className="rounded-xl"
+                onClick={() => handleDownloadPDF(true)}
+                disabled={isDownloading}
+              >
+                {isDownloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileCheck className="h-4 w-4 mr-2" />}
+                บันทึกและดาวน์โหลด
+              </Button>
+            </div>
             </div>
           </div>
         </DialogContent>
@@ -396,15 +553,84 @@ function ReportsContent() {
   );
 }
 
-function Metric({ label, value, change }: { label: string; value: string; change: string }) {
+function Metric({ label, value, change }: { label: string; value: string; change?: string }) {
   return (
     <div className="space-y-1">
       <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{label}</p>
       <div className="flex items-baseline gap-2">
         <span className="text-2xl font-black">{value}</span>
-        <span className="text-[10px] font-bold text-green-500">{change}</span>
+        {change && <span className="text-[10px] font-bold text-green-500">{change}</span>}
       </div>
     </div>
+  );
+}
+
+interface ReportDocumentProps {
+  reportName: string;
+  reportType: string;
+  metrics?: {
+    totalImpressions: number;
+    totalClicks: number;
+    totalSpend: number;
+    totalConversions: number;
+    avgCtr: number;
+    avgCpc: number;
+    avgRoas: number;
+    trendData?: { date: string; impressions: number; clicks: number; spend: number }[];
+  } | null;
+  selectedCharts?: ReportChartId[];
+}
+
+function ReportDocument({ reportName, reportType, metrics, selectedCharts = [] }: ReportDocumentProps) {
+  const imp = metrics?.totalImpressions ?? 0;
+  const clicks = metrics?.totalClicks ?? 0;
+  const spend = metrics?.totalSpend ?? 0;
+  const conv = metrics?.totalConversions ?? 0;
+  const ctr = metrics?.avgCtr ?? 0;
+  const cpc = metrics?.avgCpc ?? 0;
+  const roas = metrics?.avgRoas ?? 0;
+
+  return (
+    <>
+      <div className="flex justify-between items-start mb-12 border-b pb-8">
+        <div>
+          <div className="bg-primary text-primary-foreground text-[10px] font-black px-2 py-1 rounded w-fit mb-4 tracking-widest">BUZZLY REPORT</div>
+          <h2 className="text-3xl font-black uppercase tracking-tighter">{reportName}</h2>
+          <p className="text-muted-foreground font-serif italic">
+            Generated on {format(new Date(), "d MMMM yyyy", { locale: th })}
+          </p>
+        </div>
+        <div className="text-right text-[10px] font-bold text-muted-foreground uppercase leading-loose">
+          Ref: #BZY-{Date.now().toString().slice(-6)}<br />
+          Type: {reportType}<br />
+          Status: Finalized
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-8 mb-12">
+        <Metric label="Total Impressions" value={formatMetricValue(imp, "number")} change="+12%" />
+        <Metric label="CTR Rate" value={formatMetricValue(ctr, "percent")} change="+0.4%" />
+        <Metric label="Ad Spend" value={formatMetricValue(spend, "currency")} />
+        <Metric label="Total Clicks" value={formatMetricValue(clicks, "number")} />
+        <Metric label="Conversions" value={formatMetricValue(conv, "number")} />
+        <Metric label="ROAS" value={`${roas.toFixed(1)}x`} />
+      </div>
+      <ReportChartBlocks metrics={metrics ?? undefined} selectedChartIds={selectedCharts} />
+
+      <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 mt-8">
+        <h4 className="text-sm font-bold flex items-center gap-2 mb-2">
+          <Sparkles className="h-4 w-4 text-primary" /> Key Strategic Insight
+        </h4>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {reportType === "roi"
+            ? `ROAS สูงสุดที่ ${roas.toFixed(1)}x โดยมีค่าใช้จ่ายโฆษณารวม ฿${spend.toLocaleString("th-TH")} และ conversion ${conv.toLocaleString()} รายการ`
+            : reportType === "audience"
+              ? `ผู้ชมรวม ${formatMetricValue(imp, "number")} impressions และ ${formatMetricValue(clicks, "number")} คลิก (CTR ${ctr.toFixed(2)}%)`
+              : reportType === "channel"
+                ? "เปรียบเทียบประสิทธิภาพแต่ละแพลตฟอร์ม — ใช้ข้อมูลจากช่องทางที่เชื่อมต่อเพื่อวิเคราะห์ ROI และ engagement"
+                : `ประสิทธิภาพแคมเปญรวม: Impressions ${formatMetricValue(imp, "number")}, Clicks ${formatMetricValue(clicks, "number")}, Spend ฿${spend.toLocaleString("th-TH")}. CTR เฉลี่ย ${ctr.toFixed(2)}% และ ROAS ${roas.toFixed(1)}x`}
+        </p>
+      </div>
+    </>
   );
 }
 

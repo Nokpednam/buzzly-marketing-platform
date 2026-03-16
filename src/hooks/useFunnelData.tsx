@@ -61,7 +61,11 @@ export function useFunnelData(period?: string, platformId?: string) {
   });
 
   // ── Ad Insights Aggregation (only from active platforms) ───────────
-  const { data: adTotals, isLoading: insightsLoading } = useQuery<AdInsightsTotals>({
+  interface AdInsightsResult {
+    totals: AdInsightsTotals;
+    usedFallback: { leads: boolean; adds_to_cart: boolean; conversions: boolean };
+  }
+  const { data: adResult, isLoading: insightsLoading } = useQuery<AdInsightsResult>({
     queryKey: ["ad_insights_funnel_totals", period, platformId],
     queryFn: async () => {
       // Join with ad_accounts to filter only active platform connections
@@ -81,7 +85,7 @@ export function useFunnelData(period?: string, platformId?: string) {
       const { data, error } = await query;
       if (error) throw error;
 
-      return ((data as any[]) || []).reduce(
+      const raw = ((data as any[]) || []).reduce(
         (acc: AdInsightsTotals, row: any) => ({
           impressions:  acc.impressions  + (row.impressions  ?? 0),
           clicks:       acc.clicks       + (row.clicks       ?? 0),
@@ -91,8 +95,31 @@ export function useFunnelData(period?: string, platformId?: string) {
         }),
         { impressions: 0, clicks: 0, leads: 0, adds_to_cart: 0, conversions: 0 }
       );
+
+      const usedFallback = { leads: false, adds_to_cart: false, conversions: false };
+
+      // Fallback: many ad platforms don't report leads/adds_to_cart; use estimates
+      if (raw.leads === 0 && raw.clicks > 0) {
+        raw.leads = Math.round(raw.clicks * 0.05);
+        usedFallback.leads = true;
+      }
+      if (raw.adds_to_cart === 0 && (raw.leads > 0 || raw.conversions > 0)) {
+        raw.adds_to_cart = Math.max(
+          Math.round(raw.leads * 0.25),
+          Math.round(raw.conversions * 2.5)
+        );
+        usedFallback.adds_to_cart = true;
+      }
+      if (raw.conversions === 0 && raw.adds_to_cart > 0) {
+        raw.conversions = Math.round(raw.adds_to_cart * 0.35);
+        usedFallback.conversions = true;
+      }
+
+      return { totals: raw, usedFallback };
     },
   });
+
+  const adTotals = adResult?.totals;
 
   // ── Stage slug → metric mapping ───────────────────────────────────
   const getStageValue = (slug: string): number => {
@@ -166,5 +193,7 @@ export function useFunnelData(period?: string, platformId?: string) {
     funnelStages: finalStages,
     activities: [], // deprecated; kept for backward compatibility
     isLoading: categoriesLoading || stagesLoading || insightsLoading,
+    adTotals,
+    usedFallback: adResult?.usedFallback ?? { leads: false, adds_to_cart: false, conversions: false },
   };
 }

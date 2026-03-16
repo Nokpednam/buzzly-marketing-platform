@@ -28,7 +28,7 @@ import {
   LayoutGrid,
 } from "lucide-react";
 import { PlanRestrictedPage } from "@/components/PlanRestrictedPage";
-import { useFunnelData } from "@/hooks/useFunnelData";
+import { useCustomerJourneyData } from "@/hooks/useCustomerJourneyData";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -60,27 +60,19 @@ function CustomerJourneyContent() {
   });
 
   const platformIdFilter = selectedPlatform === "all" ? undefined : selectedPlatform;
-  const { funnelStages, isLoading } = useFunnelData(selectedPeriod, platformIdFilter);
+  const { journeyStages: rawStages, isLoading } = useCustomerJourneyData(
+    selectedPeriod,
+    platformIdFilter
+  );
 
   const journeyStages = useMemo(() => {
-    if (!funnelStages || funnelStages.length === 0) return [];
-
-    return stageConfig.map((config, index) => {
-      const funnelStage = funnelStages[index];
-      const value = funnelStage?.value || 0;
-      const prevValue = index > 0 ? (funnelStages[index - 1]?.value || 0) : 0;
-
-      // Calculate conversion rate from previous stage
-      const retentionRate = prevValue > 0 ? (value / prevValue) * 100 : 0;
-
-      return {
-        ...config,
-        value,
-        retentionRate,
-        metrics: funnelStage?.metrics || {},
-      };
+    return rawStages.map((stage, index) => {
+      const config = stageConfig[index];
+      return config
+        ? { ...config, value: stage.value, retentionRate: stage.retentionRate, metrics: stage.metrics, isEstimated: stage.isEstimated }
+        : { ...stageConfig[0], ...stage };
     });
-  }, [funnelStages]);
+  }, [rawStages]);
 
   const hasData = journeyStages.length > 0 && journeyStages.some(s => s.value > 0);
 
@@ -175,7 +167,14 @@ function CustomerJourneyContent() {
                     <stage.icon className="h-9 w-9" />
                   </div>
 
-                  <h3 className="text-sm font-black uppercase tracking-tight">{stage.name}</h3>
+                  <h3 className="text-sm font-black uppercase tracking-tight flex items-center justify-center gap-1">
+                    {stage.name}
+                    {stage.isEstimated && (
+                      <Badge variant="secondary" className="text-[8px] px-1 py-0 h-4 font-medium">
+                        Estimated
+                      </Badge>
+                    )}
+                  </h3>
                   <p className="text-[10px] text-muted-foreground text-center mt-1 px-4 leading-tight opacity-70">
                     {stage.desc}
                   </p>
@@ -212,7 +211,14 @@ function CustomerJourneyContent() {
               <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center mb-2 shadow-sm bg-background", stage.color)}>
                 <stage.icon className="h-5 w-5" />
               </div>
-              <CardTitle className="text-sm font-black uppercase tracking-tight">{stage.name}</CardTitle>
+              <CardTitle className="text-sm font-black uppercase tracking-tight flex items-center gap-2 flex-wrap">
+                {stage.name}
+                {stage.isEstimated && (
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-5 font-medium text-amber-600 border-amber-300">
+                    Estimated
+                  </Badge>
+                )}
+              </CardTitle>
               <CardDescription className="text-[10px] leading-tight line-clamp-2">{stage.desc}</CardDescription>
             </CardHeader>
             <CardContent>
