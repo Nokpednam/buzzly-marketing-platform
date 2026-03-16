@@ -105,11 +105,13 @@ const getCategoryBadge = (category: string | null) => {
 export default function AuditLogs() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedRole, setSelectedRole] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 8;
 
-  const { data, isLoading, isFetching, refetch } = useAuditLogs(selectedCategory, page, pageSize, searchQuery);
+  const { data, isLoading, isFetching, refetch } = useAuditLogs(selectedCategory, page, pageSize, searchQuery, selectedRole, selectedStatus);
   const auditLogs = data?.logs || [];
   const totalCount = data?.totalCount || 0;
   const totalPages = data?.totalPages || 0;
@@ -117,7 +119,7 @@ export default function AuditLogs() {
 
   useEffect(() => {
     setPage(1);
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, selectedRole, selectedStatus]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
@@ -224,6 +226,28 @@ export default function AuditLogs() {
                 <SelectItem value="settings">Settings & Workspace</SelectItem>
                 <SelectItem value="campaign">Marketing Campaigns</SelectItem>
                 <SelectItem value="integration">Integrations</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={selectedRole} onValueChange={setSelectedRole}>
+              <SelectTrigger className="w-full md:w-[150px]">
+                <SelectValue placeholder="Role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="owner">Owner</SelectItem>
+                <SelectItem value="dev">Dev</SelectItem>
+                <SelectItem value="support">Support</SelectItem>
+                <SelectItem value="customer">Customer</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <SelectTrigger className="w-full md:w-[140px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="success">Success</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
               </SelectContent>
             </Select>
           </div>

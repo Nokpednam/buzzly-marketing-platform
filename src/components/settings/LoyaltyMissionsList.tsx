@@ -1,54 +1,82 @@
+/**
+ * LoyaltyMissionsList.tsx
+ * ─────────────────────────────────────────────────────────────
+ * Mission Board — renders the customer-facing list of loyalty missions.
+ *
+ * RESPONSIBILITIES (this file):
+ *   - Render mission rows, progress bar, and summary badge.
+ *   - Show loading skeletons and empty/all-done states.
+ *
+ * RESPONSIBILITIES (elsewhere):
+ *   - Data fetching & completion cross-reference → useLoyaltyTier.tsx
+ *   - Derived calculations (earned pts, progress %) → missionHelpers.ts
+ *   - Icon mapping & mock data → missionHelpers.ts / missionsMockData.ts
+ *
+ * ── TODO: If you need to change data or calculations ──────────
+ *   • Add/rename icons   → src/utils/missionHelpers.ts  (MISSION_ICONS)
+ *   • Change calculations → src/utils/missionHelpers.ts  (helper fns)
+ *   • Switch to mock data → src/hooks/useLoyaltyMissions.ts (useMock flag)
+ *   • Add mock missions   → src/data/missionsMockData.ts (MOCK_MISSIONS)
+ * ─────────────────────────────────────────────────────────────
+ */
+
 import { CheckCircle2, Circle, Zap, Trophy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { useLoyaltyMissions } from '@/hooks/useLoyaltyMissions';
 
-// Map action_type → icon emoji for visual variety
-const missionIcons: Record<string, string> = {
-  create_workspace: '🏗️',
-  connect_api:      '🔌',
-  upgrade_plan:     '⭐',
-  create_campaign:  '🚀',
-};
+import { useLoyaltyMissions } from '@/hooks/useLoyaltyMissions';
+import { MISSION_ICONS } from '@/utils/missionHelpers';
+
+// ─── Loading Skeleton ─────────────────────────────────────────────────────────
+
+function MissionBoardSkeleton() {
+  return (
+    <Card className="border-0 shadow-sm">
+      <CardHeader>
+        <Skeleton className="h-5 w-40" />
+        <Skeleton className="h-4 w-56 mt-1" />
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-16 w-full rounded-xl" />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export function LoyaltyMissionsList() {
+  // ── Data from hook (real DB via LoyaltyProvider → useLoyaltyTier) ──────────
+  // ── TODO: API Integration ──────────────────────────────────────────────────
+  //   The hook already queries Supabase:
+  //     loyalty_activity_codes (is_active = true) → mission catalogue
+  //     loyalty_mission_completions               → completion status per user
+  //   If you need a mock-data fallback while backend is down, set the
+  //   useMock flag in useLoyaltyMissions.ts.
   const {
     missions,
     loading,
     completedCount,
     totalMissions,
-    totalPoints,
-    earnedPoints,
+    earnedPoints,  // sum of reward_points where isCompleted === true
+    totalPoints,   // sum of reward_points across all active missions
+    progressPercent, // (earnedPoints / totalPoints) * 100, clamped 0–100
   } = useLoyaltyMissions();
 
-  if (loading) {
-    return (
-      <Card className="border-0 shadow-sm">
-        <CardHeader>
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-4 w-56 mt-1" />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-xl" />
-          ))}
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const overallProgress = totalPoints > 0
-    ? Math.round((earnedPoints / totalPoints) * 100)
-    : 0;
-
+  // ── Show skeletons while fetching ──────────────────────────────────────────
+  if (loading) return <MissionBoardSkeleton />;
 
   return (
     <Card className="border-0 shadow-sm">
+      {/* ── Card Header: title + earned/total summary + progress bar ──────── */}
       <CardHeader>
         <div className="flex items-center justify-between">
+          {/* Left: title + description */}
           <div>
             <CardTitle className="flex items-center gap-2">
               <Trophy className="h-5 w-5 text-yellow-500" />
@@ -58,11 +86,16 @@ export function LoyaltyMissionsList() {
               Complete missions to earn points and level up your tier
             </CardDescription>
           </div>
-          {/* Summary badge */}
+
+          {/* Right: earned / total points summary
+              These values come from calculateEarnedPoints / calculateTotalPoints
+              in missionHelpers.ts — change the formula there, not here. */}
           <div className="text-right">
             <p className="text-2xl font-bold leading-none">
               {earnedPoints}
-              <span className="text-sm font-normal text-muted-foreground"> / {totalPoints} pts</span>
+              <span className="text-sm font-normal text-muted-foreground">
+                {' '}/ {totalPoints} pts
+              </span>
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               {completedCount} of {totalMissions} complete
@@ -70,14 +103,28 @@ export function LoyaltyMissionsList() {
           </div>
         </div>
 
-        {/* Overall progress bar */}
+        {/* Overall progress bar
+            progressPercent = calculateProgressPercent(earnedPoints, totalPoints)
+            in missionHelpers.ts — change the formula there, not here. */}
         <div className="space-y-1 pt-2">
-          <Progress value={overallProgress} className="h-2" />
-          <p className="text-xs text-muted-foreground text-right">{overallProgress}%</p>
+          <Progress value={progressPercent} className="h-2" />
+          <p className="text-xs text-muted-foreground text-right">
+            {progressPercent}%
+          </p>
         </div>
       </CardHeader>
 
+      {/* ── Card Body: mission rows ─────────────────────────────────────────── */}
       <CardContent className="space-y-3">
+
+        {/* Empty state — shown when loyalty_activity_codes returns no rows */}
+        {missions.length === 0 && (
+          <div className="text-center py-8 text-muted-foreground text-sm">
+            No missions available right now.
+          </div>
+        )}
+
+        {/* Mission rows */}
         {missions.map((mission) => (
           <div
             key={mission.id}
@@ -88,7 +135,7 @@ export function LoyaltyMissionsList() {
                 : 'bg-muted/30 border-border hover:border-primary/40 hover:bg-muted/50'
             )}
           >
-            {/* Status icon */}
+            {/* Completion status icon */}
             <div className="flex-shrink-0">
               {mission.isCompleted ? (
                 <CheckCircle2 className="h-6 w-6 text-emerald-500" />
@@ -97,11 +144,13 @@ export function LoyaltyMissionsList() {
               )}
             </div>
 
-            {/* Mission icon + label */}
+            {/* Mission emoji icon — lookup in MISSION_ICONS (missionHelpers.ts).
+                Falls back to 🎯 for unknown action codes. */}
             <div className="text-xl flex-shrink-0 select-none">
-              {missionIcons[mission.action_type] ?? '🎯'}
+              {MISSION_ICONS[mission.action_type] ?? '🎯'}
             </div>
 
+            {/* Mission label + status text */}
             <div className="flex-1 min-w-0">
               <p
                 className={cn(
@@ -118,13 +167,13 @@ export function LoyaltyMissionsList() {
 
             {/* Points badge */}
             <Badge
+              variant="outline"
               className={cn(
                 'shrink-0 font-bold text-xs px-3 py-1 flex items-center gap-1',
                 mission.isCompleted
                   ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
                   : 'bg-primary/10 text-primary border-primary/20'
               )}
-              variant="outline"
             >
               <Zap className="h-3 w-3" />
               +{mission.points_awarded} pts
@@ -132,13 +181,7 @@ export function LoyaltyMissionsList() {
           </div>
         ))}
 
-        {missions.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground text-sm">
-            No missions available right now.
-          </div>
-        )}
-
-        {/* All done state */}
+        {/* All-done celebration banner */}
         {completedCount > 0 && completedCount === totalMissions && (
           <div className="mt-2 rounded-xl bg-gradient-to-r from-yellow-500/10 to-emerald-500/10 border border-yellow-500/20 p-4 text-center">
             <p className="text-sm font-bold">🎉 All missions complete!</p>

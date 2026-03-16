@@ -14,11 +14,12 @@ import {
     Award,
     Gift,
     PackageOpen,
-    ClipboardList,
     LogOut,
     ChevronRight,
     HeadphonesIcon,
     Tag,
+    ListChecks,
+    Ticket,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -42,9 +43,9 @@ const supportNavItems = [
         href: "/support/tier-management",
     },
     {
-        title: "Rewards Campaigns",
-        icon: Gift,
-        href: "/support/rewards-campaigns",
+        title: "Loyalty Reward",
+        icon: ListChecks,
+        href: "/support/activity-codes",
     },
     {
         title: "Rewards Catalog",
@@ -53,7 +54,7 @@ const supportNavItems = [
     },
     {
         title: "Redemption Requests",
-        icon: ClipboardList,
+        icon: Ticket,
         href: "/support/redemption-requests",
     },
     {

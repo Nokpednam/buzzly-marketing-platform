@@ -125,10 +125,10 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
           .select("amount")
           .eq("user_id", user.id),
         (supabase as any)
-          .from('loyalty_missions')
+          .from('loyalty_activity_codes')
           .select('*')
           .eq('is_active', true)
-          .order('points_awarded', { ascending: true }),
+          .order('reward_points', { ascending: true }),
         (supabase as any)
           .from('loyalty_mission_completions')
           .select('action_type')
@@ -175,12 +175,15 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
 
       const combinedMissions: Mission[] = missionsData.map((m) => ({
         id: m.id,
-        action_type: m.action_type,
-        label: m.label,
-        points_awarded: m.points_awarded,
-        is_one_time: m.is_one_time,
+        // loyalty_activity_codes uses action_code; loyalty_missions uses action_type — support both
+        action_type: m.action_code ?? m.action_type,
+        // loyalty_activity_codes uses name; loyalty_missions uses label — support both
+        label: m.name ?? m.label,
+        // loyalty_activity_codes uses reward_points; loyalty_missions uses points_awarded — support both
+        points_awarded: m.reward_points ?? m.points_awarded,
+        is_one_time: m.is_one_time ?? true,
         is_active: m.is_active,
-        isCompleted: completedTypes.has(m.action_type),
+        isCompleted: completedTypes.has(m.action_code ?? m.action_type),
       }));
 
       setMissions(combinedMissions);

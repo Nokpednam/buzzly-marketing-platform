@@ -20,6 +20,8 @@ import {
     Loader2,
 } from "lucide-react";
 import { type Notification, type NotificationType } from "@/hooks/useNotifications";
+import { NotificationsManagerDialog } from "./NotificationsManagerDialog";
+import { useState } from "react";
 
 // ─── Type helpers ─────────────────────────────────────────────────────────────
 
@@ -154,8 +156,11 @@ export function NotificationPanel({
     accentColor = "bg-blue-500",
     badgeColor = "bg-blue-500",
 }: NotificationPanelProps) {
+    const [managerOpen, setManagerOpen] = useState(false);
+
     return (
-        <Popover>
+        <>
+            <Popover>
             <PopoverTrigger asChild>
                 <button
                     className={cn(
@@ -241,15 +246,29 @@ export function NotificationPanel({
                     )}
                 </ScrollArea>
 
-                {/* Footer */}
-                {notifications.length > 0 && (
-                    <div className="px-4 py-2 border-t border-slate-100 text-center">
-                        <p className="text-[10px] text-slate-400">
+                <div className="px-4 py-2 border-t border-slate-100 flex flex-col gap-2">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50/50"
+                        onClick={() => setManagerOpen(true)}
+                    >
+                        View all notifications
+                    </Button>
+                    {notifications.length > 0 && (
+                        <p className="text-[10px] text-slate-400 text-center">
                             Showing last {notifications.length} notifications
                         </p>
-                    </div>
-                )}
+                    )}
+                </div>
             </PopoverContent>
         </Popover>
+
+        <NotificationsManagerDialog 
+            open={managerOpen} 
+            onOpenChange={setManagerOpen}
+            role="dev"
+        />
+        </>
     );
 }

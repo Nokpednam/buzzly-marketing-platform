@@ -1,10 +1,52 @@
 -- ============================================================================
--- Patch v4: Fix "column team_id of relation discounts does not exist"
--- The live discounts table does not have a team_id column.
--- This patch replaces the CREATE OR REPLACE FUNCTION with a corrected INSERT
--- that only uses columns confirmed to exist in the live schema.
+-- Patch: Fix redeem_reward RPC bugs + Deep Discount Engine Integration
+-- v3 — 2026-03-17
+--
+-- Changes:
+--  1. Fixes SQL error: pc.full_name -> pc.first_name || ' ' || pc.last_name
+--  2. Inserts a REAL discount code into public.discounts (Discount Mgmt
+--     integration), scoped to the system's oldest workspace.
+--  3. Inserts the record into user_redeemed_coupons for admin tracking.
+--  4. Inserts a customer_notifications row so the user sees the code
+--     immediately in their notification bell.
 -- ============================================================================
 
+-- Add INSERT policy for customer_notifications so the RPC (SECURITY DEFINER)
+-- can write customer notifications on behalf of any authenticated user.
+-- (The existing RLS only allows SELECT/UPDATE for the row owner.)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE tablename = 'customer_notifications'
+          AND policyname = 'Service can insert customer notifications'
+    ) THEN
+        CREATE POLICY "Service can insert customer notifications"
+            ON public.customer_notifications
+            FOR INSERT
+            WITH CHECK (true);   -- SECURITY DEFINER fn enforces ownership
+    END IF;
+END $$;
+
+-- Add INSERT policy for discounts so loyalty coupon codes can be written
+-- by the SECURITY DEFINER RPC without hitting RLS.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies
+        WHERE tablename = 'discounts'
+          AND policyname = 'Service can insert loyalty reward discounts'
+    ) THEN
+        CREATE POLICY "Service can insert loyalty reward discounts"
+            ON public.discounts
+            FOR INSERT
+            WITH CHECK (true);   -- SECURITY DEFINER fn is the gatekeeper
+    END IF;
+END $$;
+
+-- ============================================================================
+-- Main RPC: redeem_reward (v3)
+-- ============================================================================
 CREATE OR REPLACE FUNCTION public.redeem_reward(p_reward_item_id UUID)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -24,6 +66,7 @@ DECLARE
     v_tx_id              UUID;
     v_coupon_code        TEXT;
     v_attempt            INTEGER := 0;
+    v_system_workspace   UUID;
     v_discount_id        UUID;
 BEGIN
     -- ── 1. Auth ──────────────────────────────────────────────────────────────
@@ -32,7 +75,7 @@ BEGIN
         RAISE EXCEPTION 'not_authenticated';
     END IF;
 
-    -- ── 2. Customer info (first_name || last_name — no full_name column) ──────
+    -- ── 2. Customer info (FIXED: first_name || last_name, not full_name) ─────
     SELECT
         au.email,
         TRIM(COALESCE(pc.first_name, '') || ' ' || COALESCE(pc.last_name, ''))
@@ -83,11 +126,9 @@ BEGIN
 
     -- ── 6. Log points_transaction ─────────────────────────────────────────────
     INSERT INTO points_transactions (
-        user_id, loyalty_points_id, transaction_type,
-        points_amount, balance_after, description
+        user_id, loyalty_points_id, transaction_type, points_amount, balance_after, description
     ) VALUES (
-        v_user_id, v_loyalty_points_id, 'spend',
-        v_points_cost, v_new_balance, 'Redeemed: ' || v_reward_name
+        v_user_id, v_loyalty_points_id, 'spend', v_points_cost, v_new_balance, 'Redeemed: ' || v_reward_name
     )
     RETURNING id INTO v_tx_id;
 
@@ -97,8 +138,7 @@ BEGIN
 
     -- ── 8. Decrement stock ────────────────────────────────────────────────────
     IF v_stock_quantity IS NOT NULL THEN
-        UPDATE reward_items
-        SET stock_quantity = stock_quantity - 1
+        UPDATE reward_items SET stock_quantity = stock_quantity - 1
         WHERE id = p_reward_item_id;
     END IF;
 
@@ -109,9 +149,14 @@ BEGIN
             || '-'
             || upper(substring(md5(random()::text || clock_timestamp()::text) from 5 for 4));
 
-        EXIT WHEN NOT EXISTS (
-            SELECT 1 FROM user_redeemed_coupons WHERE coupon_code = v_coupon_code
-        );
+        BEGIN
+            -- Check uniqueness in user_redeemed_coupons
+            IF NOT EXISTS (SELECT 1 FROM user_redeemed_coupons WHERE coupon_code = v_coupon_code)
+               AND NOT EXISTS (SELECT 1 FROM discounts WHERE code = v_coupon_code)
+            THEN
+                EXIT;
+            END IF;
+        END;
 
         v_attempt := v_attempt + 1;
         IF v_attempt >= 10 THEN
@@ -119,37 +164,39 @@ BEGIN
         END IF;
     END LOOP;
 
-    -- ── 10. Insert into discounts table (NO team_id — not in live schema) ─────
-    --  Only inserts columns universally present: code, name, discount_type,
-    --  discount_value, usage_limit, is_active, description, published_at.
-    --  If any column doesn't exist in your live DB, remove it from the list.
-    BEGIN
+    -- ── 10. Insert into the REAL discounts table (Discount Engine Integration) ─
+    -- Find the oldest workspace in the system as the "system" scope for the code.
+    SELECT id INTO v_system_workspace
+    FROM public.workspaces
+    ORDER BY created_at ASC
+    LIMIT 1;
+
+    IF v_system_workspace IS NOT NULL THEN
         INSERT INTO public.discounts (
+            team_id,
             code,
             name,
             discount_type,
             discount_value,
             usage_limit,
+            usage_count,
             is_active,
             published_at,
             description
         ) VALUES (
+            v_system_workspace,
             v_coupon_code,
             'Loyalty Reward — ' || v_reward_name,
             'percent',
-            20,
-            1,
+            20,          -- 20% off standard reward
+            1,           -- single-use
+            0,
             true,
             now(),
             'Auto-generated loyalty reward for: ' || COALESCE(v_user_email, v_user_id::text)
         )
         RETURNING id INTO v_discount_id;
-    EXCEPTION WHEN others THEN
-        -- If inserting into discounts fails for any schema reason,
-        -- log a warning but do NOT roll back the whole transaction.
-        -- The coupon is still saved to user_redeemed_coupons below.
-        RAISE WARNING 'Could not insert into discounts table: %', SQLERRM;
-    END;
+    END IF;
 
     -- ── 11. Insert into user_redeemed_coupons (admin tracking) ────────────────
     INSERT INTO user_redeemed_coupons (
@@ -167,23 +214,19 @@ BEGIN
     );
 
     -- ── 12. Notify the customer in their notification bell ────────────────────
-    BEGIN
-        INSERT INTO public.customer_notifications (
-            customer_id,
-            title,
-            message,
-            type,
-            related_id
-        ) VALUES (
-            v_user_id,
-            '🎉 Reward Redeemed Successfully!',
-            'Your discount code is: ' || v_coupon_code || '. Valid for 20% off — single use.',
-            'reward',
-            v_discount_id
-        );
-    EXCEPTION WHEN others THEN
-        RAISE WARNING 'Could not insert customer notification: %', SQLERRM;
-    END;
+    INSERT INTO public.customer_notifications (
+        customer_id,
+        title,
+        message,
+        type,
+        related_id
+    ) VALUES (
+        v_user_id,
+        '🎉 Reward Redeemed Successfully!',
+        'Your discount code is: ' || v_coupon_code || '. Use it at checkout for 20% off — valid for 1 use.',
+        'reward',
+        v_discount_id
+    );
 
     RETURN jsonb_build_object(
         'success',      true,
@@ -193,6 +236,7 @@ BEGIN
 END;
 $$;
 
+-- Ensure authenticated users can invoke the function
 GRANT EXECUTE ON FUNCTION public.redeem_reward(UUID) TO authenticated;
 
 -- ============================================================================

@@ -68,9 +68,11 @@ import {
   useSuspiciousActivities,
   useCustomerSearch,
   useManualTierOverride,
+  useLoyaltyTierHistory,
   ADMIN_PAGE_SIZE,
   ALERTS_PAGE_SIZE,
   type CustomerSearchResult,
+  type LoyaltyTierHistoryEntry,
 } from "@/hooks/useTierManagement";
 
 // Fallback constants
@@ -93,11 +95,13 @@ export default function TierManagement() {
 
   // Pagination state
   const [historyPage, setHistoryPage] = useState(0);
+  const [loyaltyHistoryPage, setLoyaltyHistoryPage] = useState(0);
   const [transactionsPage, setTransactionsPage] = useState(0);
   const [activitiesPage, setActivitiesPage] = useState(0);
 
   // Real DB hooks
   const { data: tierHistory = [], isLoading: historyLoading, isError: historyError, error: historyErrorDetail } = useTierHistory(historyPage);
+  const { data: loyaltyTierHistory = [], isLoading: loyaltyHistoryLoading, isError: loyaltyHistoryError } = useLoyaltyTierHistory(loyaltyHistoryPage);
   const { data: pointsTransactions = [], isLoading: txLoading, isError: txError, error: txErrorDetail } = usePointsTransactions(transactionsPage);
   const { data: suspiciousActivities = [], isLoading: alertsLoading, unresolvedCount, resolveActivity, suspendCustomer } = useSuspiciousActivities(activitiesPage);
   const { query: searchQuery, setQuery: setSearchQuery, data: searchResults = [], isFetching: searchLoading } = useCustomerSearch();
@@ -316,13 +320,130 @@ export default function TierManagement() {
 
         {/* Tab 1: Tier History */}
         <TabsContent value="history">
-          <Card>
+          {/* Section 1: Auto-logged trigger history (loyalty_tier_history) */}
+          <Card className="mb-4">
             <CardHeader>
-              <CardTitle>ประวัติการเปลี่ยน Tier</CardTitle>
-              <CardDescription>บันทึกการเปลี่ยน Tier ทั้งหมดในระบบ</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-emerald-500" />
+                ประวัติการเปลี่ยน Tier (Auto-Log)
+              </CardTitle>
+              <CardDescription>
+                บันทึกอัตโนมัติจาก Trigger เมื่อ Tier ของลูกค้าเปลี่ยนแปลง
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="min-h-[500px] flex flex-col justify-between">
+              <div className="min-h-[300px] flex flex-col justify-between">
+                <div>
+                  {loyaltyHistoryLoading ? (
+                    <div className="space-y-2">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <Skeleton key={i} className="h-12 w-full" />
+                      ))}
+                    </div>
+                  ) : loyaltyHistoryError ? (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <p className="text-sm">ยังไม่มีข้อมูล (ตาราง loyalty_tier_history อาจยังไม่ได้ apply migration)</p>
+                    </div>
+                  ) : loyaltyTierHistory.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">ยังไม่มีการเปลี่ยน Tier ที่บันทึกโดย Trigger</div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>วันที่</TableHead>
+                          <TableHead>ลูกค้า</TableHead>
+                          <TableHead>Tier เดิม</TableHead>
+                          <TableHead>Tier ใหม่</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {loyaltyTierHistory.slice(0, ADMIN_PAGE_SIZE).map((h: LoyaltyTierHistoryEntry) => {
+                          const oldT = h.old_tier ?? "—";
+                          const newT = h.new_tier;
+                          const cust = (h as any).customer;
+                          const customerName = cust
+                            ? (cust.first_name || cust.last_name
+                                ? `${cust.first_name ?? ""} ${cust.last_name ?? ""}`.trim()
+                                : cust.user_id?.slice(0, 8))
+                            : h.profile_customer_id.slice(0, 8);
+
+                          return (
+                            <TableRow key={h.id}>
+                              <TableCell className="text-sm">
+                                {format(new Date(h.changed_at), "d MMM yyyy HH:mm", { locale: safeLocale })}
+                              </TableCell>
+                              <TableCell className="font-medium">{customerName}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="secondary"
+                                  className={cn(
+                                    "rounded-full px-3 py-0.5 text-sm font-medium border-none shadow-none",
+                                    safeTierColors[oldT]?.bg,
+                                    safeTierColors[oldT]?.text
+                                  )}
+                                >
+                                  <span className="mr-1.5">{safeTierIcons[oldT] ?? "—"}</span>
+                                  {oldT}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+                                  <Badge
+                                    variant="secondary"
+                                    className={cn(
+                                      "rounded-full px-3 py-0.5 text-sm font-medium border-none shadow-none",
+                                      safeTierColors[newT]?.bg,
+                                      safeTierColors[newT]?.text
+                                    )}
+                                  >
+                                    <span className="mr-1.5">{safeTierIcons[newT] ?? "?"}</span>
+                                    {newT}
+                                  </Badge>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+
+                {!loyaltyHistoryLoading && !loyaltyHistoryError && loyaltyTierHistory.length > 0 && (
+                  <div className="mt-4 flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">หน้า {loyaltyHistoryPage + 1}</p>
+                    <Pagination className="mx-0 w-auto">
+                      <PaginationContent>
+                        <PaginationItem>
+                          <Button variant="ghost" size="sm" onClick={() => setLoyaltyHistoryPage((p) => Math.max(0, p - 1))} disabled={loyaltyHistoryPage === 0} className="gap-1 pl-2.5">
+                            <ChevronLeft className="h-4 w-4" /><span>Previous</span>
+                          </Button>
+                        </PaginationItem>
+                        <PaginationItem>
+                          <Button variant="ghost" size="sm" onClick={() => setLoyaltyHistoryPage((p) => p + 1)} disabled={loyaltyTierHistory.length <= ADMIN_PAGE_SIZE} className="gap-1 pr-2.5">
+                            <span>Next</span><ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 2: Legacy tier_history (manual overrides + complex) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5 text-muted-foreground" />
+                Manual Overrides (Legacy)
+              </CardTitle>
+              <CardDescription>รายการเปลี่ยน Tier แบบ Manual โดย Admin</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="min-h-[300px] flex flex-col justify-between">
                 <div>
                   {historyLoading ? (
                     <div className="space-y-2">
@@ -337,7 +458,7 @@ export default function TierManagement() {
                       <p className="text-sm text-muted-foreground">{(historyErrorDetail as Error)?.message ?? "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ"}</p>
                     </div>
                   ) : tierHistory.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">ยังไม่มีประวัติการเปลี่ยน Tier</div>
+                    <div className="text-center py-8 text-muted-foreground">ยังไม่มีประวัติการเปลี่ยน Tier แบบ Manual</div>
                   ) : (
                     <Table>
                       <TableHeader>
@@ -414,36 +535,19 @@ export default function TierManagement() {
                   )}
                 </div>
 
-                {/* Pagination Controls */}
                 {!historyLoading && !historyError && tierHistory.length > 0 && (
                   <div className="mt-4 flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      หน้า {historyPage + 1}
-                    </p>
+                    <p className="text-sm text-muted-foreground">หน้า {historyPage + 1}</p>
                     <Pagination className="mx-0 w-auto">
                       <PaginationContent>
                         <PaginationItem>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setHistoryPage((p) => Math.max(0, p - 1))}
-                            disabled={historyPage === 0}
-                            className="gap-1 pl-2.5"
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                            <span>Previous</span>
+                          <Button variant="ghost" size="sm" onClick={() => setHistoryPage((p) => Math.max(0, p - 1))} disabled={historyPage === 0} className="gap-1 pl-2.5">
+                            <ChevronLeft className="h-4 w-4" /><span>Previous</span>
                           </Button>
                         </PaginationItem>
                         <PaginationItem>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setHistoryPage((p) => p + 1)}
-                            disabled={tierHistory.length <= ADMIN_PAGE_SIZE}
-                            className="gap-1 pr-2.5"
-                          >
-                            <span>Next</span>
-                            <ChevronRight className="h-4 w-4" />
+                          <Button variant="ghost" size="sm" onClick={() => setHistoryPage((p) => p + 1)} disabled={tierHistory.length <= ADMIN_PAGE_SIZE} className="gap-1 pr-2.5">
+                            <span>Next</span><ChevronRight className="h-4 w-4" />
                           </Button>
                         </PaginationItem>
                       </PaginationContent>

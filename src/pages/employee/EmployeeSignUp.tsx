@@ -28,7 +28,7 @@ export default function EmployeeSignUp() {
         birthday: "",
     });
 
-    const handleNext = () => {
+    const handleNext = async () => {
         if (step === 1) {
             if (!formData.email || !formData.password || !formData.confirmPassword) {
                 toast({
@@ -57,6 +57,23 @@ export default function EmployeeSignUp() {
                 return;
             }
 
+            setLoading(true);
+            const { data: existingCustomer } = await supabase
+                .from("customer")
+                .select("id")
+                .ilike("email", formData.email.trim())
+                .maybeSingle();
+
+            if (existingCustomer) {
+                setLoading(false);
+                toast({
+                    title: "ไม่สามารถใช้เมลนี้ได้",
+                    description: "Email นี้เคยสมัครเป็นลูกค้าแล้ว กรุณาใช้ Email อื่นในการสมัครพนักงาน",
+                    variant: "destructive",
+                });
+                return;
+            }
+            setLoading(false);
             setStep(2);
         }
     };
@@ -123,16 +140,30 @@ export default function EmployeeSignUp() {
                         `${formData.firstName} ${formData.lastName}`.trim() || formData.email
                     );
 
-                    toast({
-                        title: "ลงทะเบียนสำเร็จ!",
-                        description: "บัญชีของคุณได้รับการตั้งค่าเรียบร้อยแล้ว กรุณารอการอนุมัติจาก Dev",
-                    });
+                    // Check if the user was pre-added and thus already approved
+                    const { data: employeeData } = await supabase
+                        .from("employees")
+                        .select("approval_status")
+                        .eq("user_id", authData.user.id)
+                        .maybeSingle();
+
+                    if (employeeData?.approval_status === "approved") {
+                        toast({
+                            title: "ลงทะเบียนสำเร็จและเชื่อมต่อบัญชีแล้ว!",
+                            description: "ยินดีต้อนรับ! บัญชีของคุณได้รับการยืนยันตัวตนพนักงานแล้ว สามารถเข้าใช้งานได้ทันที",
+                        });
+                    } else {
+                        toast({
+                            title: "ลงทะเบียนสำเร็จ!",
+                            description: "บัญชีของคุณได้รับการตั้งค่าเรียบร้อยแล้ว กรุณารอการอนุมัติจากผู้บริหาร",
+                        });
+                    }
 
                     await supabase.auth.signOut();
 
                     setTimeout(() => {
                         navigate("/employee/login", { replace: true });
-                    }, 1500);
+                    }, 2000);
                 } catch (employeeError: any) {
                     throw new Error(employeeError.message || "เกิดข้อผิดพลาดหลังการสมัคร");
                 }
@@ -290,7 +321,7 @@ export default function EmployeeSignUp() {
 
                                 <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-sm">
                                     <p className="text-amber-800 dark:text-amber-200">
-                                        <strong>หมายเหตุ:</strong> หลังจากลงทะเบียน บัญชีของคุณจะรอการอนุมัติจาก Dev ก่อนจึงจะสามารถเข้าใช้งานได้
+                                        <strong>หมายเหตุ:</strong> บัญชีพนักงานจะต้องได้รับการอนุมัติก่อนเข้าใช้งาน (กรณีที่คุณได้รับเชิญจาก Admin แล้ว บัญชีจะเชื่อมต่อและอนุมัติให้อัตโนมัติหลังสมัคร)
                                     </p>
                                 </div>
 

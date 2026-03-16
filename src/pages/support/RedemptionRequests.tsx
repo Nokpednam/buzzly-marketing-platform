@@ -3,8 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
     Table,
@@ -14,164 +12,204 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
 import { format } from "date-fns";
-import { CheckCircle2, XCircle, Clock, Search, Loader2 } from "lucide-react";
-import { useRedemptionRequests, type RedemptionRequest } from "@/hooks/useRedemptionRequests";
+import { CheckCircle2, Clock, Copy, Search, Ticket, Users, Gift } from "lucide-react";
+import { useAllRedeemedCoupons } from "@/hooks/useUserRedeemedCoupons";
+import { toast } from "sonner";
 
 export default function RedemptionRequests() {
-    const { data: requests = [], isLoading, updateRedemptionStatus } = useRedemptionRequests();
-
+    const { data: redemptions = [], isLoading } = useAllRedeemedCoupons();
     const [searchTerm, setSearchTerm] = useState("");
-    const [processingRequest, setProcessingRequest] = useState<RedemptionRequest | null>(null);
-    const [actionType, setActionType] = useState<"fulfill" | "reject" | null>(null);
-    const [redemptionCode, setRedemptionCode] = useState("");
-    const [adminNotes, setAdminNotes] = useState("");
 
-    const filteredRequests = requests.filter(req =>
-        req.customer?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        req.reward_item?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    const filtered = redemptions.filter((r: any) =>
+        r.user_email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        r.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        r.reward_item?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        r.coupon_code?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const pendingCount = requests.filter(r => r.status === 'pending').length;
+    const unusedCount = redemptions.filter((r: any) => r.status === "unused").length;
+    const usedCount   = redemptions.filter((r: any) => r.status === "used").length;
 
-    const handleActionClick = (req: RedemptionRequest, type: "fulfill" | "reject") => {
-        setProcessingRequest(req);
-        setActionType(type);
-        setRedemptionCode(req.redemption_code || "");
-        setAdminNotes(req.admin_notes || "");
-    };
-
-    const submitAction = async () => {
-        if (!processingRequest || !actionType) return;
-
-        await updateRedemptionStatus.mutateAsync({
-            id: processingRequest.id,
-            status: actionType === "fulfill" ? "fulfilled" : "rejected",
-            redemption_code: redemptionCode,
-            admin_notes: adminNotes
-        });
-
-        setProcessingRequest(null);
-        setActionType(null);
-    };
-
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'pending': return <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200"><Clock className="w-3 h-3 mr-1" /> รอดำเนินการ</Badge>;
-            case 'fulfilled': return <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200"><CheckCircle2 className="w-3 h-3 mr-1" /> จัดส่งแล้ว</Badge>;
-            case 'rejected': return <Badge variant="secondary" className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200"><XCircle className="w-3 h-3 mr-1" /> ปฏิเสธ</Badge>;
-            default: return <Badge>{status}</Badge>;
-        }
+    const copyCode = (code: string) => {
+        navigator.clipboard.writeText(code);
+        toast.success(`Copied "${code}"`);
     };
 
     return (
-        <div className="space-y-6 p-6 animate-fade-in">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-foreground">Redemption Requests</h1>
-                    <p className="text-muted-foreground">จัดการคำขอแลกของรางวัลจากพอยต์ลูกค้า</p>
+        <div className="space-y-8 animate-in fade-in duration-700">
+            {/* Header */}
+            <div>
+                <div className="flex items-center gap-2 text-amber-600 font-bold text-xs uppercase tracking-widest mb-2">
+                    <Ticket className="h-4 w-4" />
+                    Loyalty Programme
                 </div>
-                <div className="relative w-full md:w-72">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="ค้นหาชื่อรางวัล หรือ Email"
-                        className="pl-9"
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                    />
-                </div>
+                <h1 className="text-4xl font-bold tracking-tight">Redemption Requests</h1>
+                <p className="text-muted-foreground mt-2 text-lg">
+                    Auto-generated coupon codes from customer loyalty point redemptions
+                </p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
-                        <Clock className="h-4 w-4 text-amber-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{pendingCount}</div>
-                    </CardContent>
-                </Card>
+            {/* Stat Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                    {
+                        label: "Total Redeemed",
+                        value: redemptions.length,
+                        icon: Gift,
+                        gradient: "from-violet-600 to-purple-700",
+                    },
+                    {
+                        label: "Codes Unused",
+                        value: unusedCount,
+                        icon: Clock,
+                        gradient: "from-emerald-600 to-teal-700",
+                    },
+                    {
+                        label: "Codes Used",
+                        value: usedCount,
+                        icon: CheckCircle2,
+                        gradient: "from-slate-600 to-slate-700",
+                    },
+                ].map((s) => (
+                    <Card
+                        key={s.label}
+                        className={`bg-gradient-to-br ${s.gradient} border-none shadow-xl text-white overflow-hidden relative`}
+                    >
+                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <s.icon className="h-20 w-20 transform rotate-12 translate-x-6 -translate-y-2" />
+                        </div>
+                        <CardContent className="p-5 relative z-10">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 mb-3">
+                                <s.icon className="h-4 w-4" />
+                            </div>
+                            <p className="text-3xl font-bold">{s.value}</p>
+                            <p className="text-sm font-medium mt-0.5 text-white/80">{s.label}</p>
+                        </CardContent>
+                    </Card>
+                ))}
             </div>
 
-            <Card>
-                <CardContent className="p-0">
+            {/* Table */}
+            <Card className="glass-panel">
+                <CardHeader className="px-6 pt-6 pb-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <CardTitle className="text-xl font-bold flex items-center gap-2">
+                                <Users className="h-5 w-5 text-amber-600" />
+                                All Redemption Records
+                            </CardTitle>
+                            <CardDescription className="mt-1">
+                                Click a code to copy it to your clipboard
+                            </CardDescription>
+                        </div>
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search customer, reward, code…"
+                                className="pl-9 rounded-xl"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="px-6 pb-6">
                     {isLoading ? (
-                        <div className="p-6 space-y-4">
-                            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-16 w-full" />)}
+                        <div className="space-y-3">
+                            {[1, 2, 3, 4].map((i) => (
+                                <Skeleton key={i} className="h-14 w-full rounded-xl" />
+                            ))}
                         </div>
                     ) : (
-                        <div className="rounded-md border-0 overflow-hidden">
+                        <div className="rounded-xl border overflow-hidden">
                             <Table>
-                                <TableHeader className="bg-slate-50">
+                                <TableHeader className="bg-muted/50">
                                     <TableRow>
-                                        <TableHead>วันที่แลก</TableHead>
-                                        <TableHead>ลูกค้า (Email)</TableHead>
-                                        <TableHead>ของรางวัล</TableHead>
-                                        <TableHead>แต้มที่ใช้</TableHead>
-                                        <TableHead>สถานะ</TableHead>
-                                        <TableHead className="text-right">จัดการ</TableHead>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Customer</TableHead>
+                                        <TableHead>Reward Redeemed</TableHead>
+                                        <TableHead>Coupon Code</TableHead>
+                                        <TableHead>Points Used</TableHead>
+                                        <TableHead>Status</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredRequests.map((req) => (
-                                        <TableRow key={req.id} className="table-row-hover">
-                                            <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
-                                                {format(new Date(req.redeemed_at), "dd MMM yyyy HH:mm")}
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="font-medium text-sm">
-                                                    {req.customer?.full_name ?? "—"}
-                                                </div>
-                                                <div className="text-xs text-muted-foreground">{req.customer?.email}</div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className="font-medium text-sm">{req.reward_item?.name}</div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    Type: {req.reward_item?.reward_type}
-                                                    {req.redemption_code && ` • Code: ${req.redemption_code}`}
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <span className="font-bold text-amber-600">
-                                                    {req.reward_item?.points_cost.toLocaleString()}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell>
-                                                {getStatusBadge(req.status)}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {req.status === 'pending' ? (
-                                                    <div className="flex justify-end gap-2">
-                                                        <Button size="sm" variant="outline" className="text-green-600 hover:text-green-700 hover:bg-green-50 press-effect" onClick={() => handleActionClick(req, "fulfill")}>
-                                                            อนุมัติ
-                                                        </Button>
-                                                        <Button size="sm" variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 press-effect" onClick={() => handleActionClick(req, "reject")}>
-                                                            ปฏิเสธ
-                                                        </Button>
-                                                    </div>
-                                                ) : (
-                                                    <Button size="sm" variant="ghost" className="text-muted-foreground press-effect" onClick={() => handleActionClick(req, "fulfill")}>
-                                                        ดูรายละเอียด
-                                                    </Button>
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                    {filteredRequests.length === 0 && (
+                                    {filtered.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                                                ไม่มีรายการคำขอแลกของรางวัล
+                                            <TableCell
+                                                colSpan={6}
+                                                className="text-center py-16 text-muted-foreground"
+                                            >
+                                                {searchTerm
+                                                    ? "No results match your search."
+                                                    : "No redemptions yet — codes will appear here when customers redeem rewards."}
                                             </TableCell>
                                         </TableRow>
+                                    ) : (
+                                        filtered.map((row: any) => (
+                                            <TableRow key={row.id}>
+                                                {/* Date */}
+                                                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                                                    {format(new Date(row.redeemed_at), "dd MMM yyyy HH:mm")}
+                                                </TableCell>
+
+                                                {/* Customer */}
+                                                <TableCell>
+                                                    <div className="font-medium text-sm">
+                                                        {row.customer_name ?? "—"}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {row.user_email ?? row.user_id}
+                                                    </div>
+                                                </TableCell>
+
+                                                {/* Reward */}
+                                                <TableCell>
+                                                    <div className="font-medium text-sm">
+                                                        {row.reward_item?.name ?? "—"}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground capitalize">
+                                                        {row.reward_item?.reward_type}
+                                                    </div>
+                                                </TableCell>
+
+                                                {/* Coupon Code — clickable copy */}
+                                                <TableCell>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="font-mono font-black tracking-widest text-primary border-primary/20 bg-primary/5 hover:bg-primary/10 gap-2 h-8 px-3"
+                                                        onClick={() => copyCode(row.coupon_code)}
+                                                    >
+                                                        {row.coupon_code}
+                                                        <Copy className="h-3 w-3" />
+                                                    </Button>
+                                                </TableCell>
+
+                                                {/* Points */}
+                                                <TableCell>
+                                                    <span className="font-bold text-amber-600">
+                                                        {row.reward_item?.points_cost?.toLocaleString() ?? "—"} pts
+                                                    </span>
+                                                </TableCell>
+
+                                                {/* Status */}
+                                                <TableCell>
+                                                    {row.status === "used" ? (
+                                                        <Badge className="text-[10px] bg-slate-500/10 text-slate-600 border-slate-500/20">
+                                                            <CheckCircle2 className="h-2.5 w-2.5 mr-1" />
+                                                            Used
+                                                        </Badge>
+                                                    ) : (
+                                                        <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                                                            <Clock className="h-2.5 w-2.5 mr-1" />
+                                                            Unused
+                                                        </Badge>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
                                     )}
                                 </TableBody>
                             </Table>
@@ -179,77 +217,6 @@ export default function RedemptionRequests() {
                     )}
                 </CardContent>
             </Card>
-
-            {/* Action Dialog */}
-            <Dialog open={!!processingRequest} onOpenChange={(open) => !open && setProcessingRequest(null)}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>
-                            {actionType === "fulfill" ? "รายละเอียดการจัดส่ง / อนุมัติ" : "ปฏิเสธการแลกรางวัล"}
-                        </DialogTitle>
-                        <DialogDescription>
-                            อัปเดตสถานะสำหรับรายการ "{processingRequest?.reward_item?.name}" ของลูกค้า {processingRequest?.customer?.email}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="py-4 space-y-4">
-                        <div className="bg-slate-50 p-4 rounded-lg space-y-2 text-sm border">
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">แต้มที่ใช้:</span>
-                                <span className="font-bold text-amber-600">{processingRequest?.reward_item?.points_cost.toLocaleString()} pts</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-muted-foreground">วันที่ขอแลก:</span>
-                                <span>{processingRequest && format(new Date(processingRequest.redeemed_at), "dd MMM yyyy HH:mm")}</span>
-                            </div>
-                            {processingRequest?.status !== 'pending' && processingRequest?.fulfilled_at && (
-                                <div className="flex justify-between border-t border-slate-200 pt-2 mt-2">
-                                    <span className="text-muted-foreground">ทำรายการเมื่อ:</span>
-                                    <span>{format(new Date(processingRequest.fulfilled_at), "dd MMM yyyy HH:mm")}</span>
-                                </div>
-                            )}
-                        </div>
-
-                        {actionType === 'fulfill' && (
-                            <div className="space-y-2">
-                                <Label>รหัสโค้ดรางวัล / Tracking Number (ถ้ามี)</Label>
-                                <Input
-                                    value={redemptionCode}
-                                    onChange={(e) => setRedemptionCode(e.target.value)}
-                                    placeholder="เช่น PROMO-ABCD-1234 หรือ TH12345678TH"
-                                    readOnly={processingRequest?.status !== 'pending'}
-                                />
-                                <p className="text-xs text-muted-foreground">ข้อมูลนี้จะเชื่อมโยงไปแสดงให้ลูกค้าเห็น</p>
-                            </div>
-                        )}
-
-                        <div className="space-y-2">
-                            <Label>บันทึกภายใน (Admin Notes)</Label>
-                            <Textarea
-                                value={adminNotes}
-                                onChange={(e) => setAdminNotes(e.target.value)}
-                                placeholder="โน้ตสำหรับทีมงาน (ลูกค้าไม่เห็น)"
-                                readOnly={processingRequest?.status !== 'pending'}
-                                className="resize-none"
-                            />
-                        </div>
-                    </div>
-
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setProcessingRequest(null)}>ปิด</Button>
-                        {processingRequest?.status === 'pending' && (
-                            <Button
-                                variant={actionType === "reject" ? "destructive" : "default"}
-                                onClick={submitAction}
-                                disabled={updateRedemptionStatus.isPending || (actionType === "reject" && !adminNotes.trim())}
-                            >
-                                {updateRedemptionStatus.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                {actionType === "fulfill" ? "ยืนยันการจัดส่ง / อนุมัติ" : "ยืนยันการปฏิเสธ"}
-                            </Button>
-                        )}
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }

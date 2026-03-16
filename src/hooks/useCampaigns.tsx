@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useLoyaltyTier } from "@/hooks/useLoyaltyTier";
+import { auditCampaign } from "@/lib/auditLogger";
 
 // ─── Client-side progress calculator (mirrors supabase/functions/_shared/campaignProgress.ts) ──
 //
@@ -242,9 +243,15 @@ export function useCampaigns() {
 
       return data;
     },
-    onSuccess: async () => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns", workspaceId] });
       toast.success("สร้างแคมเปญสำเร็จ");
+
+      // Log campaign creation
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && data) {
+        await auditCampaign.campaignCreated(user.id, data.id, data.name || 'Unnamed Campaign');
+      }
 
       // Mission 4: award points for creating the first campaign (one-time)
       const { data: missionResult, error: missionError } = await supabase.rpc(
@@ -298,9 +305,15 @@ export function useCampaigns() {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns", workspaceId] });
       toast.success("อัปเดตแคมเปญสำเร็จ");
+
+      // Log campaign update
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && data) {
+        await auditCampaign.campaignCreated(user.id, data.id, `Updated: ${data.name || 'Campaign'}`);
+      }
     },
     onError: (error: Error) => {
       toast.error(`ไม่สามารถอัปเดตแคมเปญ: ${error.message}`);
@@ -309,15 +322,24 @@ export function useCampaigns() {
 
   const deleteCampaign = useMutation({
     mutationFn: async (id: string) => {
+      // Fetch campaign name before deletion for logging
+      const { data: campaign } = await supabase.from("campaigns").select("id,name").eq("id", id).single();
       const { error } = await supabase
         .from("campaigns")
         .delete()
         .eq("id", id);
       if (error) throw error;
+      return campaign;
     },
-    onSuccess: () => {
+    onSuccess: async (campaign) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns", workspaceId] });
       toast.success("ลบแคมเปญสำเร็จ");
+
+      // Log campaign deletion
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && campaign) {
+        await auditCampaign.campaignDeleted(user.id, campaign.id, campaign.name || 'Unnamed Campaign');
+      }
     },
     onError: (error: Error) => {
       toast.error(`ไม่สามารถลบแคมเปญ: ${error.message}`);

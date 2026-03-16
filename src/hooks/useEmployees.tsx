@@ -113,7 +113,7 @@ export function useEmployees() {
         .insert({
           email: newEmployee.email,
           role_employees_id: newEmployee.role_employees_id,
-          status: "active",
+          status: "inactive",
           approval_status: "approved",
 
         })
@@ -141,9 +141,15 @@ export function useEmployees() {
 
       return employee;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       toast.success("เพิ่มพนักงานสำเร็จ");
+
+      // Log employee creation
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && data) {
+        await auditSecurity.employeeApproved(user.id, data.id, data.email);
+      }
     },
     onError: (error: Error) => {
       toast.error(`ไม่สามารถเพิ่มพนักงาน: ${error.message}`);
@@ -238,6 +244,14 @@ export function useEmployees() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       toast.success("ลบพนักงานสำเร็จ");
+
+      // Log deletion
+      void (async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await auditSecurity.userSuspended(user.id, 'deleted', 'Employee Deleted');
+        }
+      })();
     },
     onError: (error: Error) => {
       toast.error(`ไม่สามารถลบพนักงาน: ${error.message}`);

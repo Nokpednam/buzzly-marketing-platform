@@ -195,10 +195,18 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
     setEditDialogOpen(true);
   };
 
-  const getStatusBadge = (status: string | null) => {
+  const getStatusBadge = (employee: EmployeeData) => {
+    const status = employee.status;
+    const isSignedUp = !!employee.user_id;
+
     switch (status) {
       case "active":
         return <Badge className="bg-success text-success-foreground">ใช้งาน</Badge>;
+      case "inactive":
+        if (!isSignedUp) {
+          return <Badge variant="outline" className="text-muted-foreground">ยังไม่สมัคร</Badge>;
+        }
+        return <Badge variant="outline" className="text-warning">รอเปิดใช้งาน</Badge>;
       case "suspended":
         return <Badge variant="destructive">ระงับ</Badge>;
       default:
@@ -300,7 +308,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                       {employee.profile?.aptitude || "ไม่ระบุ"}
                     </div>
                   </TableCell>
-                  <TableCell>{getStatusBadge(employee.status)}</TableCell>
+                  <TableCell>{getStatusBadge(employee)}</TableCell>
                   <TableCell>{getApprovalBadge(employee.approval_status)}</TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {employee.profile?.last_active ? (
@@ -328,92 +336,94 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                   </TableCell>
                   {canManage && (
                     <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => openEditDialog(employee)}>
-                            <Pencil className="h-4 w-4 mr-2" />
-                            แก้ไขข้อมูล
-                          </DropdownMenuItem>
+                      {employee.role?.role_name?.toLowerCase() !== "owner" && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditDialog(employee)}>
+                              <Pencil className="h-4 w-4 mr-2" />
+                              แก้ไขข้อมูล
+                            </DropdownMenuItem>
 
-                          {/* Approval Actions - Only for pending employees */}
-                          {employee.approval_status === "pending" && (
-                            <>
-                              <DropdownMenuSeparator />
+                            {/* Approval Actions - Only for pending employees */}
+                            {employee.approval_status === "pending" && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-success"
+                                  onClick={() => handleApprove(employee.id)}
+                                  disabled={approveEmployee.isPending}
+                                >
+                                  {approveEmployee.isPending ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                  )}
+                                  อนุมัติพนักงาน
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onClick={() => handleReject(employee.id)}
+                                  disabled={rejectEmployee.isPending}
+                                >
+                                  {rejectEmployee.isPending ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <XCircle className="h-4 w-4 mr-2" />
+                                  )}
+                                  ปฏิเสธพนักงาน
+                                </DropdownMenuItem>
+                              </>
+                            )}
+
+                            <DropdownMenuSeparator />
+                            {employee.status === "active" ? (
+                              <DropdownMenuItem
+                                className="text-warning"
+                                onClick={() => handleSuspend(employee.id)}
+                                disabled={suspendEmployee.isPending}
+                              >
+                                {suspendEmployee.isPending ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <UserX className="h-4 w-4 mr-2" />
+                                )}
+                                ระงับการใช้งาน
+                              </DropdownMenuItem>
+                            ) : (
                               <DropdownMenuItem
                                 className="text-success"
-                                onClick={() => handleApprove(employee.id)}
-                                disabled={approveEmployee.isPending}
+                                onClick={() => handleReactivate(employee.id)}
+                                disabled={reactivateEmployee.isPending}
                               >
-                                {approveEmployee.isPending ? (
+                                {reactivateEmployee.isPending ? (
                                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                 ) : (
-                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  <UserCheck className="h-4 w-4 mr-2" />
                                 )}
-                                อนุมัติพนักงาน
+                                เปิดใช้งานอีกครั้ง
                               </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => handleReject(employee.id)}
-                                disabled={rejectEmployee.isPending}
-                              >
-                                {rejectEmployee.isPending ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                ) : (
-                                  <XCircle className="h-4 w-4 mr-2" />
-                                )}
-                                ปฏิเสธพนักงาน
-                              </DropdownMenuItem>
-                            </>
-                          )}
-
-                          <DropdownMenuSeparator />
-                          {employee.status === "active" ? (
-                            <DropdownMenuItem
-                              className="text-warning"
-                              onClick={() => handleSuspend(employee.id)}
-                              disabled={suspendEmployee.isPending}
-                            >
-                              {suspendEmployee.isPending ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              ) : (
-                                <UserX className="h-4 w-4 mr-2" />
-                              )}
-                              ระงับการใช้งาน
-                            </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem
-                              className="text-success"
-                              onClick={() => handleReactivate(employee.id)}
-                              disabled={reactivateEmployee.isPending}
-                            >
-                              {reactivateEmployee.isPending ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              ) : (
-                                <UserCheck className="h-4 w-4 mr-2" />
-                              )}
-                              เปิดใช้งานอีกครั้ง
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => handleRemove(employee.id)}
-                            disabled={deleteEmployee.isPending}
-                          >
-                            {deleteEmployee.isPending ? (
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4 mr-2" />
                             )}
-                            ลบพนักงาน
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => handleRemove(employee.id)}
+                              disabled={deleteEmployee.isPending}
+                            >
+                              {deleteEmployee.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4 mr-2" />
+                              )}
+                              ลบพนักงาน
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </TableCell>
                   )}
                 </TableRow>

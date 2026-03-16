@@ -18,25 +18,45 @@ export interface Notification {
     body: string | null;
     link: string | null;
     is_read: boolean;
+    is_archived: boolean;
+    deleted_at: string | null;
     source_id: string | null;
     created_at: string;
 }
 
-const QUERY_KEY = (role: string) => ["notifications", role];
+export type NotificationFilter = "active" | "unread" | "read" | "trash" | "all";
 
-export function useNotifications(role: "dev" | "support" | "owner") {
+export function useNotifications(role: "dev" | "support" | "owner", filter: NotificationFilter = "active") {
     const queryClient = useQueryClient();
 
-    // Fetch unread notifications for this role
+    const BASE_KEY = ["notifications", role];
+    const UNREAD_COUNT_KEY = ["notifications", role, "unreadCount"];
+
+    // Fetch notifications for this role with status filtering
     const { data: notifications = [], isLoading } = useQuery({
-        queryKey: QUERY_KEY(role),
+        queryKey: [...BASE_KEY, filter],
         queryFn: async () => {
-            const { data, error } = await supabase
+            let query = supabase
                 .from("notifications")
                 .select("*")
-                .or(`target_role.eq.${role},target_role.eq.all`)
+                .or(`target_role.eq.${role},target_role.eq.all`);
+
+            if (filter === "active") {
+                query = query.is("deleted_at", null);
+            } else if (filter === "unread") {
+                query = query.is("deleted_at", null).eq("is_read", false);
+            } else if (filter === "read") {
+                query = query.is("deleted_at", null).eq("is_read", true);
+            } else if (filter === "trash") {
+                query = query.not("deleted_at", "is", null);
+            } else if (filter === "all") {
+                query = query.is("deleted_at", null);
+            }
+
+            const { data, error } = await query
                 .order("created_at", { ascending: false })
                 .limit(100);
+
             if (error) throw error;
             return (data ?? []) as Notification[];
         },
@@ -45,45 +65,31 @@ export function useNotifications(role: "dev" | "support" | "owner") {
 
     // Realtime subscription — push new notifications instantly
     useEffect(() => {
+        // Use a stable channel name for the role to avoid multiple subscriptions
+        const channelId = `notifications-live-${role}`;
+        
         const channel = supabase
-            .channel(`notifications:${role}`)
+            .channel(channelId)
             .on(
                 "postgres_changes",
                 {
-                    event: "INSERT",
+                    event: "*",
                     schema: "public",
                     table: "notifications",
-                    filter: `target_role=eq.${role}`,
                 },
                 (payload) => {
-                    const newNotification = payload.new as Notification;
-                    queryClient.setQueryData<Notification[]>(
-                        QUERY_KEY(role),
-                        (old) => [newNotification, ...(old ?? [])]
-                    );
-                    queryClient.invalidateQueries({ queryKey: [...QUERY_KEY(role), "unreadCount"] });
-                }
-            )
-            // Also catch 'all' target role notifications
-            .on(
-                "postgres_changes",
-                {
-                    event: "INSERT",
-                    schema: "public",
-                    table: "notifications",
-                    filter: `target_role=eq.all`,
-                },
-                (payload) => {
-                    const newNotification = payload.new as Notification;
-                    queryClient.setQueryData<Notification[]>(
-                        QUERY_KEY(role),
-                        (old) => {
-                            const exists = old?.some(n => n.id === newNotification.id);
-                            if (exists) return old;
-                            return [newNotification, ...(old ?? [])];
-                        }
-                    );
-                    queryClient.invalidateQueries({ queryKey: [...QUERY_KEY(role), "unreadCount"] });
+                    const newNotify = payload.new as any;
+                    const oldNotify = payload.old as any;
+                    
+                    // Logic check: does this change affect the current role?
+                    const isRelevant = 
+                        (newNotify && (newNotify.target_role === role || newNotify.target_role === "all")) ||
+                        (oldNotify && (oldNotify.target_role === role || oldNotify.target_role === "all"));
+
+                    if (isRelevant) {
+                        // Aggressively refetch all notification related queries
+                        queryClient.refetchQueries({ queryKey: ["notifications", role] });
+                    }
                 }
             )
             .subscribe();
@@ -102,12 +108,9 @@ export function useNotifications(role: "dev" | "support" | "owner") {
                 .eq("id", id);
             if (error) throw error;
         },
-        onSuccess: (_, id) => {
-            queryClient.setQueryData<Notification[]>(QUERY_KEY(role), (old) =>
-                old?.map((n) => (n.id === id ? { ...n, is_read: true } : n)) ?? []
-            );
-            // Invalidate the unread count so it fetches the fresh number
-            queryClient.invalidateQueries({ queryKey: [...QUERY_KEY(role), "unreadCount"] });
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: BASE_KEY });
+            queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_KEY });
         },
     });
 
@@ -122,30 +125,83 @@ export function useNotifications(role: "dev" | "support" | "owner") {
             if (error) throw error;
         },
         onSuccess: () => {
-            queryClient.setQueryData<Notification[]>(QUERY_KEY(role), (old) =>
-                old?.map((n) => ({ ...n, is_read: true })) ?? []
-            );
-            // Invalidate the unread count so it fetches the fresh number
-            queryClient.invalidateQueries({ queryKey: [...QUERY_KEY(role), "unreadCount"] });
+            queryClient.invalidateQueries({ queryKey: BASE_KEY });
+            queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_KEY });
         },
     });
 
-    // Fetch exact unread count from database
+    // Fetch exact unread count from database (excluding archived and deleted)
     const { data: dbUnreadCount = 0 } = useQuery({
-        queryKey: [...QUERY_KEY(role), "unreadCount"],
+        queryKey: UNREAD_COUNT_KEY,
         queryFn: async () => {
             const { count, error } = await supabase
                 .from("notifications")
                 .select("*", { count: "exact", head: true })
                 .or(`target_role.eq.${role},target_role.eq.all`)
-                .eq("is_read", false);
+                .eq("is_read", false)
+                .is("deleted_at", null);
             if (error) throw error;
             return count ?? 0;
         },
         refetchInterval: 30_000,
     });
 
-    // Use the max of db count or local unread count in case of new realtime inserts
+    const archiveNotifications = useMutation({
+        mutationFn: async (ids: string[]) => {
+            const { error } = await supabase
+                .from("notifications")
+                .update({ is_archived: true })
+                .in("id", ids);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: BASE_KEY });
+            queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_KEY });
+        },
+    });
+
+    const deleteNotifications = useMutation({
+        mutationFn: async (ids: string[]) => {
+            const { error } = await supabase
+                .from("notifications")
+                .update({ deleted_at: new Date().toISOString() })
+                .in("id", ids);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: BASE_KEY });
+            queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_KEY });
+        },
+    });
+
+    const restoreNotifications = useMutation({
+        mutationFn: async (ids: string[]) => {
+            const { error } = await supabase
+                .from("notifications")
+                .update({ deleted_at: null, is_archived: false })
+                .in("id", ids);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: BASE_KEY });
+            queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_KEY });
+        },
+    });
+
+    const permanentlyDeleteNotifications = useMutation({
+        mutationFn: async (ids: string[]) => {
+            const { error } = await supabase
+                .from("notifications")
+                .delete()
+                .in("id", ids);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: BASE_KEY });
+            queryClient.invalidateQueries({ queryKey: UNREAD_COUNT_KEY });
+        },
+    });
+
     const localUnreadCount = notifications.filter((n) => !n.is_read).length;
     const unreadCount = Math.max(dbUnreadCount, localUnreadCount);
 
@@ -156,5 +212,9 @@ export function useNotifications(role: "dev" | "support" | "owner") {
         markAsRead: markAsRead.mutate,
         markAllAsRead: markAllAsRead.mutate,
         isMarkingAll: markAllAsRead.isPending,
+        archiveNotifications: archiveNotifications.mutate,
+        deleteNotifications: deleteNotifications.mutate,
+        restoreNotifications: restoreNotifications.mutate,
+        permanentlyDeleteNotifications: permanentlyDeleteNotifications.mutate,
     };
 }

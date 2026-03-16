@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { type RewardItem } from "./useRewardsManagement";
-import { type PointEarningRule } from "./useRewardsCampaigns";
+import { type ActivityCode } from "./useActivityCodes";
 
 export interface CustomerLoyaltyStats {
     id: string;
@@ -33,13 +33,13 @@ export function useCustomerRewards() {
         queryKey: ["customer-active-campaigns"],
         queryFn: async () => {
             const { data, error } = await supabase
-                .from("point_earning_rules")
+                .from("loyalty_activity_codes")
                 .select("*")
                 .eq("is_active", true)
-                .order("points_reward", { ascending: false });
+                .order("reward_points", { ascending: false });
 
             if (error) throw error;
-            return (data as unknown as PointEarningRule[]) ?? [];
+            return (data as unknown as ActivityCode[]) ?? [];
         },
     });
 
@@ -92,13 +92,13 @@ export function useCustomerRewards() {
                 throw error;
             }
 
-            return data as { success: boolean; new_balance: number };
+            return data as { success: boolean; new_balance: number; coupon_code?: string };
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["customer-loyalty-stats"] });
             queryClient.invalidateQueries({ queryKey: ["customer-rewards-catalog"] });
             window.dispatchEvent(new CustomEvent('loyalty-refetch'));
-            toast.success("แลกของรางวัลสำเร็จ โปรดรอแอดมินดำเนินการ");
+            // Toast is now handled by RewardsCenterModal which has access to coupon_code
         },
         onError: (error: Error) => {
             toast.error("เกิดข้อผิดพลาดในการแลกของรางวัล", { description: error.message });
@@ -112,20 +112,20 @@ export function useCustomerRewards() {
             if (!user) return [];
 
             const { data, error } = await supabase
-                .from("user_completed_rules")
-                .select("rule_id")
+                .from("loyalty_mission_completions")
+                .select("action_type")
                 .eq("user_id", user.id);
 
             if (error) throw error;
 
-            // Group by rule_id to get times_completed
-            const ruleCounts: Record<string, number> = {};
+            // Group by action_type to get times_completed
+            const actionCounts: Record<string, number> = {};
             data.forEach(row => {
-                ruleCounts[row.rule_id] = (ruleCounts[row.rule_id] || 0) + 1;
+                actionCounts[row.action_type] = (actionCounts[row.action_type] || 0) + 1;
             });
 
-            return Object.entries(ruleCounts).map(([rule_id, times_completed]) => ({
-                rule_id,
+            return Object.entries(actionCounts).map(([action_code, times_completed]) => ({
+                action_code,
                 times_completed,
             }));
         },

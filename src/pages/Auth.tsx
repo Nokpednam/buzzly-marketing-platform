@@ -65,7 +65,7 @@ export default function Auth() {
 
       const roleName = (employeeData.role_employees as any)?.role_name;
       if (roleName === "owner") { navigate("/owner/product-usage"); return; }
-      if (["admin", "support", "developer"].includes(roleName)) { navigate("/admin/dashboard"); return; }
+      if (["admin", "support", "dev"].includes(roleName)) { navigate("/dev/monitor"); return; }
     }
 
     // All customers go to dashboard (free plan by default)
@@ -125,7 +125,7 @@ export default function Auth() {
           const roleEmployee = employeeData.role_employees as any;
           const roleName = roleEmployee?.role_name || "";
 
-          if (["owner", "admin", "support", "developer"].includes(roleName)) {
+          if (["owner", "admin", "support", "dev"].includes(roleName)) {
             isAdmin = true;
             userRole = roleName;
 
@@ -142,8 +142,10 @@ export default function Auth() {
         if (isAdmin) {
           if (userRole === "owner") {
             navigate("/owner/product-usage");
+          } else if (userRole === "support") {
+            navigate("/support/workspaces");
           } else {
-            navigate("/admin/dashboard");
+            navigate("/dev/monitor");
           }
         } else {
           // Regular customer login

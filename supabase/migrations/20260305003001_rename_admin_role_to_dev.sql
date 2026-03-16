@@ -70,8 +70,12 @@ BEGIN
             END IF;
         END IF;
 
-        -- Always ensure status is active when approved
-        NEW.status := 'active';
+        -- Ensure status is active only if user is already linked (signed up)
+        IF NEW.user_id IS NOT NULL THEN
+            NEW.status := 'active';
+        ELSE
+            NEW.status := 'inactive';
+        END IF;
     END IF;
 
     RETURN NEW;

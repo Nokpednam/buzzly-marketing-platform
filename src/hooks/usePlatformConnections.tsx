@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { MOCK_API_BASE_URL } from "@/lib/mockApiKeys";
 import { invalidateSocialRealtimeQueries } from "@/lib/socialQueryInvalidation";
+import { logAuditEvent } from "@/lib/auditLogger";
 
 export type PlatformStatus = "connected" | "disconnected" | "error";
 
@@ -326,6 +327,19 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
 
       toast.success(`${platform?.name} เชื่อมต่อสำเร็จ!`);
 
+      // Log platform connection
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await logAuditEvent({
+          userId: user.id,
+          actionName: 'Platform Connected',
+          category: 'integration',
+          description: `Connected platform: ${platform?.name}`,
+          status: 'success',
+          metadata: { platformName: platform?.name, platformSlug: platform?.slug },
+        });
+      }
+
       // Mission 2: award points for connecting the first API platform (one-time)
       const { data: missionResult, error: missionError } = await (supabase.rpc as any)(
         'award_loyalty_points',
@@ -387,6 +401,20 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       );
 
       toast.success(`${platform?.name} ถูกยกเลิกการเชื่อมต่อ`);
+
+      // Log platform disconnection
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await logAuditEvent({
+          userId: user.id,
+          actionName: 'Platform Disconnected',
+          category: 'integration',
+          description: `Disconnected platform: ${platform?.name}`,
+          status: 'success',
+          metadata: { platformName: platform?.name, platformSlug: platform?.slug },
+        });
+      }
+
       await invalidateConnectedData();
       await fetchPlatforms();
       return true;
