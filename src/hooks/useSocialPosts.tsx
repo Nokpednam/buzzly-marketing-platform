@@ -68,8 +68,12 @@ export function useSocialPosts(options?: string | SocialPostsOptions) {
 
       const dateFilter = getDateFilter();
       if (dateFilter) {
+        // Include posts that are scheduled OR published within the window,
+        // regardless of whether the other timestamp is set. This ensures a post
+        // scheduled long ago but published recently (status="published") is not
+        // silently excluded from the analytics post count.
         query = query.or(
-          `scheduled_at.gte.${dateFilter},and(scheduled_at.is.null,published_at.gte.${dateFilter}),and(scheduled_at.is.null,published_at.is.null,created_at.gte.${dateFilter})`
+          `scheduled_at.gte.${dateFilter},published_at.gte.${dateFilter},and(scheduled_at.is.null,published_at.is.null,created_at.gte.${dateFilter})`
         );
       }
 
@@ -97,8 +101,8 @@ export function useSocialPosts(options?: string | SocialPostsOptions) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      void invalidateSocialRealtimeQueries(queryClient);
+    onSuccess: async () => {
+      await invalidateSocialRealtimeQueries(queryClient);
       toast.success("สร้างโพสต์สำเร็จ");
     },
     onError: (error: Error) => {
@@ -117,8 +121,8 @@ export function useSocialPosts(options?: string | SocialPostsOptions) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
-      void invalidateSocialRealtimeQueries(queryClient);
+    onSuccess: async () => {
+      await invalidateSocialRealtimeQueries(queryClient);
       toast.success("อัปเดตโพสต์สำเร็จ");
     },
     onError: (error: Error) => {
@@ -134,8 +138,8 @@ export function useSocialPosts(options?: string | SocialPostsOptions) {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      void invalidateSocialRealtimeQueries(queryClient);
+    onSuccess: async () => {
+      await invalidateSocialRealtimeQueries(queryClient);
       toast.success("ลบโพสต์สำเร็จ");
     },
     onError: (error: Error) => {

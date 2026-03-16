@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { CheckCheck, Clock, MessageSquareOff, SmilePlus, Frown, Minus } from "lucide-react";
+import { CheckCheck, Clock, MessageSquareOff, SmilePlus, Frown, Minus, Send } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,13 +35,39 @@ interface CommentBubbleProps {
   onMarkRead: (id: string) => void;
 }
 
+const OUTBOUND_SENTINEL = "__outbound__";
+
 function CommentBubble({ comment, onMarkRead }: CommentBubbleProps) {
+  const isOutbound = comment.author_platform_id === OUTBOUND_SENTINEL;
+
   const initials = comment.author_name
     .split(" ")
     .map((w) => w[0])
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+  if (isOutbound) {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[80%] flex flex-col gap-1 items-end">
+          <div className="flex items-center gap-1.5">
+            <Send className="h-3 w-3 text-primary" />
+            <span className="text-xs font-semibold text-primary">You</span>
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              {formatTime(comment.created_at)}
+            </span>
+          </div>
+          <div className="rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-primary-foreground">
+            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+              {comment.content}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -108,28 +134,8 @@ function CommentBubble({ comment, onMarkRead }: CommentBubbleProps) {
         {comment.content}
       </p>
 
-      {/* Reply bubble (if already replied) */}
-      {comment.is_replied && comment.reply_content && (
-        <div className="ml-[2.75rem] mt-1 rounded-xl bg-slate-100 dark:bg-slate-800 px-3 py-2.5 border border-border/30">
-          <div className="flex items-center gap-1.5 mb-1">
-            <CheckCheck className="h-3.5 w-3.5 text-emerald-500" />
-            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-              ตอบกลับแล้ว
-            </span>
-            {comment.replied_at && (
-              <span className="text-xs text-muted-foreground">
-                · {formatTime(comment.replied_at)}
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-foreground whitespace-pre-wrap break-words">
-            {comment.reply_content}
-          </p>
-        </div>
-      )}
-
-      {/* Reply status badge */}
-      {comment.is_replied && !comment.reply_content && (
+      {/* Replied badge (reply_content is no longer written; just show is_replied flag) */}
+      {comment.is_replied && (
         <div className="ml-[2.75rem]">
           <Badge variant="secondary" className="text-xs gap-1">
             <CheckCheck className="h-3 w-3 text-emerald-500" />

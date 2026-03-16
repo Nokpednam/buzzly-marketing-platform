@@ -4,6 +4,7 @@ import { useWorkspace } from "@/hooks/useWorkspace";
 
 export interface LinkablePost {
   id: string;
+  name: string | null;
   content: string | null;
   platform_id: string | null;
   status: string | null;
@@ -28,8 +29,9 @@ export function useLinkableItems(groupId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("social_posts")
-        .select("id, content, platform_id, status, scheduled_at, ad_group_id")
+        .select("id, name, content, platform_id, status, scheduled_at, ad_group_id")
         .eq("team_id", workspace!.id)
+        .eq("post_channel", "social")
         .is("ad_group_id", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -58,8 +60,9 @@ export function useLinkableItems(groupId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("social_posts")
-        .select("id, content, platform_id, status, scheduled_at, ad_group_id")
+        .select("id, name, content, platform_id, status, scheduled_at, ad_group_id")
         .eq("ad_group_id", groupId)
+        .eq("post_channel", "social")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as LinkablePost[];

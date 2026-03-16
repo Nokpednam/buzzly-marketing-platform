@@ -17,7 +17,7 @@ export default function SocialInbox() {
   const { threads, isLoading, error } = useSocialInbox(filters);
 
   // useSocialComments is called without postId to get mutations scoped to workspace
-  const { updateComment, markAsRead } = useSocialComments();
+  const { createComment, updateComment, markAsRead } = useSocialComments();
 
   const selectedThread = threads.find((t) => t.post_id === selectedPostId) ?? null;
 
@@ -35,16 +35,37 @@ export default function SocialInbox() {
   };
 
   const handleReply = async (commentId: string, replyText: string) => {
+    const thread = threads.find((t) => t.post_id === selectedPostId);
+    if (!thread) return;
+
     try {
+      // Insert a new outbound comment so the thread appends rather than
+      // overwriting the reply_content of the targeted inbound comment.
+      await createComment.mutateAsync({
+        post_id: thread.post_id,
+        platform_id: thread.platform_id,
+        platform_comment_id: null,
+        author_name: "You",
+        author_avatar_url: null,
+        author_platform_id: "__outbound__",
+        content: replyText,
+        sentiment: null,
+        is_read: true,
+        is_replied: false,
+        replied_at: null,
+        reply_content: null,
+      });
+
+      // Mark the original comment as replied so the unread indicator clears
       await updateComment.mutateAsync({
         id: commentId,
         updates: {
-          reply_content: replyText,
           is_replied: true,
           replied_at: new Date().toISOString(),
           is_read: true,
         },
       });
+
       toast.success("ตอบกลับสำเร็จ");
     } catch (err) {
       logError("SocialInbox.handleReply", err);
@@ -118,7 +139,7 @@ export default function SocialInbox() {
             thread={selectedThread}
             onReply={handleReply}
             onMarkRead={handleMarkRead}
-            isReplying={updateComment.isPending}
+            isReplying={createComment.isPending || updateComment.isPending}
           />
         </div>
       </div>

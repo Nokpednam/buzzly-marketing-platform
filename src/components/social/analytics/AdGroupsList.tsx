@@ -31,7 +31,7 @@ interface AdGroupsListProps {
 }
 
 export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
-  const { adGroups, isLoading, deleteAdGroup } = useAdGroups();
+  const { adGroups, isLoading, deleteAdGroup, updateAdGroup } = useAdGroups();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [linkDialogGroup, setLinkDialogGroup] = useState<AdGroupWithCount | null>(null);

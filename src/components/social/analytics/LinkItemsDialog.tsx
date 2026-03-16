@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Link2, Link2Off, Search } from "lucide-react";
+import { Link2, Link2Off, Search, Megaphone, Leaf } from "lucide-react";
 import { useAdGroups } from "@/hooks/useAdGroups";
 import { useLinkableItems, type LinkablePost, type LinkableAd } from "@/hooks/useLinkableItems";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,7 +25,8 @@ interface LinkItemsDialogProps {
 }
 
 function formatPostLabel(post: LinkablePost): string {
-  const preview = post.content ? post.content.slice(0, 60) : "(ไม่มีเนื้อหา)";
+  if (post.name) return post.name;
+  const preview = post.content ? post.content.slice(0, 60) : "(ไม่มีชื่อโพสต์)";
   return preview.length < (post.content?.length ?? 0) ? `${preview}…` : preview;
 }
 
@@ -56,7 +57,7 @@ export function LinkItemsDialog({
     );
 
   const filteredPosts = unlinkedPosts.filter((p) =>
-    (p.content ?? "").toLowerCase().includes(postSearch.toLowerCase())
+    (p.name ?? p.content ?? "").toLowerCase().includes(postSearch.toLowerCase())
   );
 
   const filteredAds = unlinkedAds.filter((a) =>
@@ -133,7 +134,8 @@ export function LinkItemsDialog({
 
         <Tabs defaultValue="posts" className="flex-1 flex flex-col min-h-0">
           <TabsList className="shrink-0">
-            <TabsTrigger value="posts">
+            <TabsTrigger value="posts" className="gap-1.5">
+              <Leaf className="h-3.5 w-3.5 text-emerald-500" />
               Organic Posts
               {linkedPosts.length > 0 && (
                 <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">
@@ -141,8 +143,9 @@ export function LinkItemsDialog({
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="ads">
-              โฆษณา
+            <TabsTrigger value="ads" className="gap-1.5">
+              <Megaphone className="h-3.5 w-3.5 text-blue-500" />
+              Paid Ads
               {linkedAds.length > 0 && (
                 <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">
                   {linkedAds.length}
@@ -164,7 +167,10 @@ export function LinkItemsDialog({
                       key={post.id}
                       className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm bg-muted/40"
                     >
-                      <span className="truncate flex-1">{formatPostLabel(post)}</span>
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        <Leaf className="h-3 w-3 text-emerald-500 shrink-0" />
+                        <span className="truncate">{formatPostLabel(post)}</span>
+                      </div>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -185,7 +191,7 @@ export function LinkItemsDialog({
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 className="pl-8"
-                placeholder="ค้นหาโพสต์..."
+                placeholder="ค้นหาจากชื่อโพสต์ (Post Title)..."
                 value={postSearch}
                 onChange={(e) => setPostSearch(e.target.value)}
               />
@@ -198,7 +204,7 @@ export function LinkItemsDialog({
                 ))
               ) : filteredPosts.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6">
-                  {postSearch ? "ไม่พบโพสต์ที่ค้นหา" : "ไม่มีโพสต์ที่ยังไม่ได้เชื่อมโยง"}
+                  {postSearch ? "ไม่พบโพสต์ที่ค้นหา" : "ไม่มี Organic Post ที่ยังไม่ได้เชื่อมโยง"}
                 </p>
               ) : (
                 filteredPosts.map((post) => (
@@ -210,6 +216,7 @@ export function LinkItemsDialog({
                       checked={selectedPostIds.includes(post.id)}
                       onCheckedChange={() => togglePost(post.id)}
                     />
+                    <Leaf className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
                     <span className="flex-1 truncate">{formatPostLabel(post)}</span>
                     {post.status && (
                       <Badge variant="outline" className="text-[10px] shrink-0">
@@ -246,11 +253,14 @@ export function LinkItemsDialog({
                       key={ad.id}
                       className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm bg-muted/40"
                     >
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{ad.name}</p>
-                        {ad.headline && (
-                          <p className="text-xs text-muted-foreground truncate">{ad.headline}</p>
-                        )}
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        <Megaphone className="h-3 w-3 text-blue-500 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{ad.name}</p>
+                          {ad.headline && (
+                            <p className="text-xs text-muted-foreground truncate">{ad.headline}</p>
+                          )}
+                        </div>
                       </div>
                       <Button
                         variant="ghost"
@@ -272,7 +282,7 @@ export function LinkItemsDialog({
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 className="pl-8"
-                placeholder="ค้นหาโฆษณา..."
+                placeholder="ค้นหาจากชื่อโฆษณา (Ad Name)..."
                 value={adSearch}
                 onChange={(e) => setAdSearch(e.target.value)}
               />
@@ -285,7 +295,7 @@ export function LinkItemsDialog({
                 ))
               ) : filteredAds.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6">
-                  {adSearch ? "ไม่พบโฆษณาที่ค้นหา" : "ไม่มีโฆษณาที่ยังไม่ได้เชื่อมโยง"}
+                  {adSearch ? "ไม่พบโฆษณาที่ค้นหา" : "ไม่มี Paid Ad ที่ยังไม่ได้เชื่อมโยง"}
                 </p>
               ) : (
                 filteredAds.map((ad) => (
@@ -297,6 +307,7 @@ export function LinkItemsDialog({
                       checked={selectedAdIds.includes(ad.id)}
                       onCheckedChange={() => toggleAd(ad.id)}
                     />
+                    <Megaphone className="h-3.5 w-3.5 text-blue-500 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{ad.name}</p>
                       {ad.headline && (
