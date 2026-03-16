@@ -72,9 +72,8 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [recentTransactions, setRecentTransactions] = useState<PointsTransaction[]>([]);
-  const { currentPlan, loading } = usePlanAccess();
-  const { userLoyalty, getNextTier, getProgressToNextTier } = useLoyaltyTier();
+  const { currentPlan, loading: planLoading } = usePlanAccess();
+  const { userLoyalty, getNextTier, getProgressToNextTier, loading: loyaltyLoading } = useLoyaltyTier();
   const { notifications } = useCustomerCoupons();
   const { receivedInvitations, acceptInvitation, declineInvitation } = useTeamManagement();
 
@@ -107,18 +106,6 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
         if (!userName) {
           setUserName(user.user_metadata?.full_name || null);
         }
-
-        // Fetch recent points transactions
-        const { data: transactions } = await supabase
-          .from('points_transactions')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        if (transactions) {
-          setRecentTransactions(transactions);
-        }
       }
     };
     fetchUser();
@@ -144,7 +131,7 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
     return "U";
   };
 
-  if (loading) return null;
+  if (planLoading || loyaltyLoading) return null;
 
   const plan = planInfo[currentPlan];
 
@@ -228,7 +215,7 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
               tierBenefits={tierBenefits}
               nextTier={nextTier}
               progress={progress}
-              recentTransactions={recentTransactions}
+              recentTransactions={userLoyalty?.recentTransactions || []}
             />
           </PopoverContent>
         </Popover>
@@ -346,7 +333,7 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
               tierBenefits={tierBenefits}
               nextTier={nextTier}
               progress={progress}
-              recentTransactions={recentTransactions}
+              recentTransactions={userLoyalty?.recentTransactions || []}
             />
           </PopoverContent>
         </Popover>

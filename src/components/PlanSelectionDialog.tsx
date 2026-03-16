@@ -143,6 +143,37 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
             description: `+${missionResult.points_awarded} Points for upgrading your plan!`,
           });
           await refetchLoyalty();
+          
+          // Legacy Sync: Update user_completed_rules for Rewards Center "Ways to Earn"
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const { data: rule } = await supabase
+                .from('point_earning_rules')
+                .select('id')
+                .eq('action_code', 'yearly_sub_bonus')
+                .maybeSingle();
+
+              if (rule) {
+                await supabase
+                  .from('user_completed_rules')
+                  .insert({
+                    user_id: user.id,
+                    rule_id: rule.id
+                  });
+              }
+            }
+          } catch (e) {
+            console.warn('Legacy sync failed:', e);
+          }
+
+          // Also explicitly invalidate React Query keys used in Rewards Center
+          const queryClient = (window as any).queryClient; 
+          if (queryClient) {
+            queryClient.invalidateQueries({ queryKey: ['customer-completed-rules'] });
+            queryClient.invalidateQueries({ queryKey: ['customer-loyalty-stats'] });
+          }
+          window.dispatchEvent(new CustomEvent('loyalty-refetch'));
         }
 
         setShowPaymentDialog(false);

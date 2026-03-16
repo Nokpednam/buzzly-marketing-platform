@@ -89,6 +89,11 @@ const queryClient = new QueryClient({
 const App = () => {
   const currentUserId = useRef<string | null>(null);
 
+  // Expose queryClient for global access (safeguard for cross-hook synchronization)
+  useEffect(() => {
+    (window as any).queryClient = queryClient;
+  }, []);
+
   // ── Clear all React Query cache on sign-out or user switch ───────────────
   // React Query's default staleTime (5 min) means cached workspace/metrics
   // data survives the session. Without this, a freshly-registered user sees
