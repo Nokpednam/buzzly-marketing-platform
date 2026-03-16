@@ -110,6 +110,7 @@ interface ExternalAdRecord {
   spend?: number | string | null;
   start_time?: string | null;
   status?: string | null;
+  total_cost?: number | string | null;
   total_clicks?: number | string | null;
   targeting?: {
     interests?: string[] | null;
@@ -150,6 +151,17 @@ interface SimulatedAdPayload {
   name?: string | null;
 }
 
+interface OrganicPostTemplate {
+  clicks: number;
+  content: string;
+  daysOffset: number;
+  hashtags: string[];
+  impressions: number;
+  postType: "carousel" | "image" | "video";
+  status: "published" | "scheduled";
+  title: string;
+}
+
 interface CreateAdWithMirrorPostRpcPayload {
   p_team_id?: string;
   p_name?: string;
@@ -172,6 +184,233 @@ interface CreateAdWithMirrorPostRpcPayload {
 interface InsertedPersonaRecord {
   custom_fields: unknown;
   id: string;
+}
+
+const SYNTHETIC_ORGANIC_POSTS_BY_PLATFORM: Record<string, OrganicPostTemplate[]> = {
+  facebook: [
+    {
+      title: "5 Tips for Digital Marketing That Actually Convert",
+      content: "Want stronger campaign performance this quarter? Start with sharper audience segments, stronger hooks, and creative that matches buyer intent from the first scroll.",
+      postType: "carousel",
+      status: "published",
+      daysOffset: 12,
+      impressions: 18400,
+      clicks: 742,
+      hashtags: ["#DigitalMarketing", "#GrowthStrategy", "#Buzzly"],
+    },
+    {
+      title: "Our New Spring Collection Is Live",
+      content: "The Spring Collection is now available with lighter colors, faster shipping, and limited launch bundles for repeat customers across every channel.",
+      postType: "image",
+      status: "published",
+      daysOffset: 7,
+      impressions: 22600,
+      clicks: 918,
+      hashtags: ["#SpringCollection", "#NewArrival", "#ShopOnline"],
+    },
+    {
+      title: "Why Buzzly Helps Teams Move Faster",
+      content: "Buzzly brings paid and organic performance into one workflow so teams can spot winners faster, tighten spend, and publish with confidence.",
+      postType: "video",
+      status: "scheduled",
+      daysOffset: 2,
+      impressions: 15600,
+      clicks: 611,
+      hashtags: ["#MarketingOps", "#Analytics", "#Buzzly"],
+    },
+  ],
+  instagram: [
+    {
+      title: "Behind the Scenes: Spring Launch Prep",
+      content: "From moodboards to final creatives, here is how the team built a launch that feels premium, fast, and unmistakably on-brand.",
+      postType: "video",
+      status: "published",
+      daysOffset: 10,
+      impressions: 19800,
+      clicks: 884,
+      hashtags: ["#BehindTheScenes", "#BrandLaunch", "#CreativeTeam"],
+    },
+    {
+      title: "3 Content Formats Driving Better Reach This Month",
+      content: "Carousels, UGC clips, and short educational posts are leading the way for reach and saves right now. Here is how to use each one effectively.",
+      postType: "carousel",
+      status: "published",
+      daysOffset: 5,
+      impressions: 24100,
+      clicks: 1035,
+      hashtags: ["#ContentStrategy", "#SocialGrowth", "#InstagramMarketing"],
+    },
+    {
+      title: "Weekend Offer Preview",
+      content: "This weekend we are highlighting best sellers, exclusive bundles, and a limited free-shipping window for high-intent shoppers.",
+      postType: "image",
+      status: "scheduled",
+      daysOffset: 1,
+      impressions: 14900,
+      clicks: 563,
+      hashtags: ["#WeekendPromo", "#ShopNow", "#BrandStory"],
+    },
+  ],
+  tiktok: [
+    {
+      title: "3 Hooks That Stop the Scroll",
+      content: "Fast cuts, bold claims, and product-in-action intros are still winning attention. Here are three proven hooks your team can test this week.",
+      postType: "video",
+      status: "published",
+      daysOffset: 9,
+      impressions: 28700,
+      clicks: 1344,
+      hashtags: ["#TikTokMarketing", "#CreativeTesting", "#ShortFormVideo"],
+    },
+    {
+      title: "Customer Favorites This Week",
+      content: "These are the products customers keep coming back for, with quick demos, social proof, and clear value messaging built into every frame.",
+      postType: "video",
+      status: "published",
+      daysOffset: 4,
+      impressions: 25200,
+      clicks: 1181,
+      hashtags: ["#CustomerFavorites", "#ProductDemo", "#Buzzly"],
+    },
+    {
+      title: "Why Consistent Posting Still Wins",
+      content: "The best-performing brands are not guessing. They post on a rhythm, learn from retention, and double down on the formats that keep viewers watching.",
+      postType: "carousel",
+      status: "scheduled",
+      daysOffset: 2,
+      impressions: 17300,
+      clicks: 722,
+      hashtags: ["#OrganicGrowth", "#SocialStrategy", "#MarketingTips"],
+    },
+  ],
+  shopee: [
+    {
+      title: "Top Picks for Fast-Moving Catalogs",
+      content: "Here are the listings, bundles, and price points driving faster checkouts in high-volume storefronts this week.",
+      postType: "image",
+      status: "published",
+      daysOffset: 8,
+      impressions: 16100,
+      clicks: 708,
+      hashtags: ["#ShopeeSeller", "#EcommerceGrowth", "#TopPicks"],
+    },
+    {
+      title: "How to Improve PDP Conversion in 3 Steps",
+      content: "Sharper hero images, clearer benefit bullets, and promotion timing are making a measurable difference in catalog conversion.",
+      postType: "carousel",
+      status: "published",
+      daysOffset: 3,
+      impressions: 14200,
+      clicks: 622,
+      hashtags: ["#ProductPage", "#ConversionRate", "#EcommerceTips"],
+    },
+    {
+      title: "Upcoming Payday Campaign Preview",
+      content: "We are preparing a payday push focused on bundles, urgency messaging, and lower-friction offers for repeat buyers.",
+      postType: "image",
+      status: "scheduled",
+      daysOffset: 1,
+      impressions: 11800,
+      clicks: 491,
+      hashtags: ["#PaydaySale", "#MarketplaceMarketing", "#ShopeeAds"],
+    },
+  ],
+  google: [
+    {
+      title: "Search Demand Is Shifting: Here Is What Matters",
+      content: "Query intent is becoming more specific, so landing pages, message match, and offer clarity matter even more than volume.",
+      postType: "carousel",
+      status: "published",
+      daysOffset: 11,
+      impressions: 12900,
+      clicks: 538,
+      hashtags: ["#SearchMarketing", "#DemandGen", "#Performance"],
+    },
+    {
+      title: "Why High-Intent Keywords Need Better Creative Support",
+      content: "Paid search performs best when creative, offer structure, and remarketing work together instead of in isolation.",
+      postType: "image",
+      status: "published",
+      daysOffset: 6,
+      impressions: 13700,
+      clicks: 601,
+      hashtags: ["#GoogleAds", "#MarketingStrategy", "#LeadGen"],
+    },
+    {
+      title: "Next Month's Demand Capture Plan",
+      content: "The next phase focuses on cleaner segmentation, tighter budgets, and remarketing sequences built around top-performing themes.",
+      postType: "video",
+      status: "scheduled",
+      daysOffset: 2,
+      impressions: 10400,
+      clicks: 412,
+      hashtags: ["#DemandCapture", "#GrowthPlan", "#Buzzly"],
+    },
+  ],
+};
+
+function enrichMetricFields<T extends Record<string, unknown>>(record: T) {
+  const spend = toFiniteNumber(
+    record.spend as number | string | null | undefined,
+    record.total_cost as number | string | null | undefined,
+    record.cost as number | string | null | undefined,
+    record.amount_spent as number | string | null | undefined
+  );
+  const clicks = toFiniteNumber(
+    record.clicks as number | string | null | undefined,
+    record.total_clicks as number | string | null | undefined
+  );
+  const impressions = toFiniteNumber(record.impressions as number | string | null | undefined);
+
+  return {
+    ...record,
+    clicks,
+    impressions,
+    spend,
+    total_cost: spend,
+  };
+}
+
+function buildSyntheticOrganicPosts(params: {
+  adGroupIds: string[];
+  platform: string;
+  platformId: string | null;
+  tenant: string;
+  workspaceId: string;
+}) {
+  const { adGroupIds, platform, platformId, tenant, workspaceId } = params;
+  const templates = SYNTHETIC_ORGANIC_POSTS_BY_PLATFORM[platform] ?? SYNTHETIC_ORGANIC_POSTS_BY_PLATFORM.facebook;
+  const brandLabel = tenant === "shop-b" ? "Buzzly Beauty" : "Buzzly";
+
+  return templates.map((template, index) => {
+    const timestamp = new Date();
+    timestamp.setUTCDate(timestamp.getUTCDate() - template.daysOffset);
+    timestamp.setUTCHours(9 + index * 2, 0, 0, 0);
+
+    const publishedAt = template.status === "published" ? timestamp.toISOString() : null;
+    const scheduledAt = template.status === "scheduled" ? timestamp.toISOString() : null;
+    const impressions = template.impressions + index * 320;
+    const clicks = template.clicks + index * 17;
+
+    return {
+      team_id: workspaceId,
+      platform_id: platformId,
+      ad_group_id: adGroupIds.length > 0 ? adGroupIds[index % adGroupIds.length] : null,
+      post_channel: "social",
+      post_type: template.postType,
+      platform_post_id: `organic-${tenant}-${platform}-${index + 1}`,
+      name: template.title,
+      content: `${template.content} ${brandLabel} is using this post to keep awareness and conversions moving together.`,
+      published_at: publishedAt,
+      scheduled_at: scheduledAt,
+      status: template.status,
+      impressions,
+      clicks,
+      click_count: clicks,
+      engagement_rate: impressions > 0 ? parseFloat(((clicks / impressions) * 100).toFixed(2)) : 0,
+      hashtags: template.hashtags,
+    };
+  });
 }
 
 function getJsonStringField(value: unknown, key: string): string | null {
@@ -419,15 +658,6 @@ function toFiniteNumber(...values: Array<number | string | null | undefined>): n
   return 0;
 }
 
-function buildOrganicPostName(content: string): string {
-  const trimmed = content.trim();
-  if (!trimmed) {
-    return "Post: Untitled";
-  }
-  const preview = trimmed.slice(0, 20);
-  return `Post: ${preview}${trimmed.length > 20 ? "..." : ""}`;
-}
-
 async function upsertSyncedAdPost(params: {
   ad: ExternalAdRecord;
   adId: string;
@@ -438,6 +668,10 @@ async function upsertSyncedAdPost(params: {
 }) {
   const { ad, adGroupId = null, adId, platformId, supabase, workspaceId } = params;
   const publishedAt = resolveAdPublishedAt(ad);
+  const impressions = toFiniteNumber(ad.impressions);
+  const clicks = toFiniteNumber(ad.clicks, ad.total_clicks);
+  const reach = toFiniteNumber(ad.reach);
+  const engagementRate = impressions > 0 ? parseFloat(((clicks / impressions) * 100).toFixed(2)) : 0;
 
   console.log("[upsertSyncedAdPost] date resolution:", {
     adName: ad.ad_name ?? "unknown",
@@ -463,6 +697,11 @@ async function upsertSyncedAdPost(params: {
     ),
     published_at: publishedAt,
     status: ad.status === "ACTIVE" ? "active" : "paused",
+    impressions,
+    clicks,
+    click_count: clicks,
+    reach,
+    engagement_rate: engagementRate,
   };
 
   const { error } = await supabase.from("social_posts").upsert(payload, { onConflict: "id" });
@@ -476,7 +715,9 @@ async function upsertSyncedAdPost(params: {
 
 // ─── Facebook Endpoints ──────────────────────────────────────────────
 app.get("/facebook/:tenant/insights", (req, res) => {
-  res.json(loadFixture("facebook", req.params.tenant, "insights"));
+  const payload = loadFixture("facebook", req.params.tenant, "insights");
+  const rows = Array.isArray(payload.data) ? payload.data.map((row) => enrichMetricFields(row)) : [];
+  res.json({ ...payload, data: rows });
 });
 
 app.get("/facebook/:tenant/leads", (req, res) => {
@@ -484,7 +725,9 @@ app.get("/facebook/:tenant/leads", (req, res) => {
 });
 
 app.get("/facebook/:tenant/ads", (req, res) => {
-  res.json(loadFixture("facebook", req.params.tenant, "ads"));
+  const payload = loadFixture("facebook", req.params.tenant, "ads");
+  const rows = Array.isArray(payload.data) ? payload.data.map((row) => enrichMetricFields(row)) : [];
+  res.json({ ...payload, data: rows });
 });
 
 app.get("/facebook/:tenant/chats", (req, res) => {
@@ -493,12 +736,16 @@ app.get("/facebook/:tenant/chats", (req, res) => {
 
 // ─── Instagram Endpoints ─────────────────────────────────────────────
 app.get("/instagram/:tenant/ads", (req, res) => {
-  res.json(loadFixture("instagram", req.params.tenant, "ads"));
+  const payload = loadFixture("instagram", req.params.tenant, "ads");
+  const rows = Array.isArray(payload.data) ? payload.data.map((row) => enrichMetricFields(row)) : [];
+  res.json({ ...payload, data: rows });
 });
 
 // ─── TikTok Endpoints ────────────────────────────────────────────────
 app.get("/tiktok/:tenant/ads", (req, res) => {
-  res.json(loadFixture("tiktok", req.params.tenant, "ads"));
+  const payload = loadFixture("tiktok", req.params.tenant, "ads");
+  const rows = Array.isArray(payload.data) ? payload.data.map((row) => enrichMetricFields(row)) : [];
+  res.json({ ...payload, data: rows });
 });
 
 // ─── Shopee Endpoints ────────────────────────────────────────────────
@@ -511,12 +758,16 @@ app.get("/shopee/:tenant/marketing/shop_performance", (req, res) => {
 });
 
 app.get("/shopee/:tenant/ads", (req, res) => {
-  res.json(loadFixture("shopee", req.params.tenant, "ads"));
+  const payload = loadFixture("shopee", req.params.tenant, "ads");
+  const rows = Array.isArray(payload.data) ? payload.data.map((row) => enrichMetricFields(row)) : [];
+  res.json({ ...payload, data: rows });
 });
 
 // ─── Google Endpoints ────────────────────────────────────────────────
 app.get("/google/:tenant/ads", (req, res) => {
-  res.json(loadFixture("google", req.params.tenant, "ads"));
+  const payload = loadFixture("google", req.params.tenant, "ads");
+  const rows = Array.isArray(payload.data) ? payload.data.map((row) => enrichMetricFields(row)) : [];
+  res.json({ ...payload, data: rows });
 });
 
 // ─── Validate API Key ────────────────────────────────────────────────
@@ -540,8 +791,8 @@ app.post("/validate-key", (req, res) => {
 });
 
 // ─── Backend Ingestion Endpoint ───────────────────────────────────────
-// Validates the API key, fetches the full platform dataset (ads, leads,
-// chats), and writes everything to Supabase with the correct team_id so
+// Validates the API key, fetches the full platform dataset (ads, leads),
+// and writes everything to Supabase with the correct team_id so
 // the frontend's workspace-scoped queries can find the records.
 // Raw external data never leaves the server.
 app.post("/api/connect", async (req, res) => {
@@ -577,32 +828,29 @@ app.post("/api/connect", async (req, res) => {
     const supabase = getSupabaseClient();
     const platformId = await resolvePlatformId(supabase, platform);
 
-    // 2. Fetch ads and (for Facebook) leads + chats in parallel
-    const [adsRes, leadsRes, chatsRes] = await Promise.all([
+    // 2. Fetch ads and (for Facebook) leads in parallel
+    const [adsRes, leadsRes] = await Promise.all([
       fetch(`${EXTERNAL_API_BASE_URL}/${platform}/${tenant}/ads`),
       platform === "facebook"
         ? fetch(`${EXTERNAL_API_BASE_URL}/facebook/${tenant}/leads`)
         : Promise.resolve(null),
-      platform === "facebook"
-        ? fetch(`${EXTERNAL_API_BASE_URL}/facebook/${tenant}/chats`)
-        : Promise.resolve(null),
     ]);
 
     if (!adsRes.ok) throw new Error(`Ads endpoint responded with ${adsRes.status}`);
-    const adsPayload = (await adsRes.json()) as {
+    const rawAdsPayload = (await adsRes.json()) as {
       ad_groups?: ExternalAdGroupRecord[];
       data?: ExternalAdRecord[];
       groups?: ExternalAdGroupRecord[];
+    };
+    const adsPayload = {
+      ...rawAdsPayload,
+      data: (rawAdsPayload.data ?? []).map((ad) => enrichMetricFields(ad)),
     };
     const adsData = adsPayload.data ?? [];
     const externalGroups = adsPayload.ad_groups ?? adsPayload.groups ?? [];
 
     const leadsData: ExternalLeadRecord[] = leadsRes?.ok
       ? ((await leadsRes.json()) as { data?: ExternalLeadRecord[] }).data ?? []
-      : [];
-
-    const chatsData: ExternalConversationRecord[] = chatsRes?.ok
-      ? ((await chatsRes.json()) as { conversations?: ExternalConversationRecord[] }).conversations ?? []
       : [];
 
     // 3. Clear stale data for this workspace + platform (full-replace sync)
@@ -618,7 +866,7 @@ app.post("/api/connect", async (req, res) => {
         .not("platform_post_id", "is", null);
     }
     if (platform === "facebook") {
-      // Remove previously synced chats so we don't accumulate duplicates
+      // Remove previously synced legacy chat rows so they never appear as organic content again
       await supabase
         .from("social_posts")
         .delete()
@@ -626,6 +874,15 @@ app.post("/api/connect", async (req, res) => {
         .eq("platform_id", platformId)
         .eq("post_channel", "social")
         .eq("post_type", "chat");
+    }
+    if (platformId) {
+      await supabase
+        .from("social_posts")
+        .delete()
+        .eq("team_id", workspaceId)
+        .eq("platform_id", platformId)
+        .eq("post_channel", "social")
+        .like("platform_post_id", `organic-${tenant}-${platform}-%`);
     }
 
     // 4. Upsert ads with team_id and generate daily ad_insights.
@@ -720,7 +977,7 @@ app.post("/api/connect", async (req, res) => {
 
       const totalImpressions = toFiniteNumber(ad.impressions);
       const totalClicks = toFiniteNumber(ad.clicks, ad.total_clicks);
-      const totalSpend = toFiniteNumber(ad.spend, ad.cost, ad.amount_spent);
+      const totalSpend = toFiniteNumber(ad.spend, ad.total_cost, ad.cost, ad.amount_spent);
       const totalReach = toFiniteNumber(ad.reach);
       const totalConversions = toFiniteNumber(ad.conversions);
 
@@ -736,20 +993,25 @@ app.post("/api/connect", async (req, res) => {
         const date = new Date(startDate);
         date.setDate(date.getDate() + d);
         const jitter = 0.7 + Math.random() * 0.6;
+        const dailyImpressions = Math.round((totalImpressions / totalDays) * jitter);
+        const dailyClicks = Math.round((totalClicks / totalDays) * jitter);
+        const dailySpend = parseFloat(((totalSpend / totalDays) * jitter).toFixed(2));
+        const dailyReach = Math.round((totalReach / totalDays) * jitter);
+        const dailyConversions = Math.round((totalConversions / totalDays) * jitter);
 
         insightRows.push({
           ad_account_id: adAccountId,
           campaign_id: null,
           ads_id: adId,
           date: date.toISOString().split("T")[0],
-          impressions: Math.round((totalImpressions / totalDays) * jitter),
-          clicks: Math.round((totalClicks / totalDays) * jitter),
-          spend: parseFloat(((totalSpend / totalDays) * jitter).toFixed(2)),
-          reach: Math.round((totalReach / totalDays) * jitter),
-          conversions: Math.round((totalConversions / totalDays) * jitter),
-          ctr: toFiniteNumber(ad.ctr),
-          cpc: totalClicks > 0 ? parseFloat((totalSpend / totalClicks).toFixed(4)) : toFiniteNumber(ad.cpc),
-          cpm: toFiniteNumber(ad.cpm),
+          impressions: dailyImpressions,
+          clicks: dailyClicks,
+          spend: dailySpend,
+          reach: dailyReach,
+          conversions: dailyConversions,
+          ctr: dailyImpressions > 0 ? parseFloat(((dailyClicks / dailyImpressions) * 100).toFixed(2)) : toFiniteNumber(ad.ctr),
+          cpc: dailyClicks > 0 ? parseFloat((dailySpend / dailyClicks).toFixed(4)) : toFiniteNumber(ad.cpc),
+          cpm: dailyImpressions > 0 ? parseFloat(((dailySpend / dailyImpressions) * 1000).toFixed(2)) : toFiniteNumber(ad.cpm),
           roas: toFiniteNumber(ad.roas),
         });
       }
@@ -842,81 +1104,31 @@ app.post("/api/connect", async (req, res) => {
       }
     }
 
-    // 7. Insert Facebook chats as social_posts (one row per conversation thread)
-    let chatsInserted = 0;
-    if (chatsData.length > 0) {
-      const chatRows = chatsData.map((conv) => {
-        const msgs = conv.messages ?? [];
-        const lastMsg = msgs[msgs.length - 1];
-        const content = lastMsg?.text ?? `Chat with ${conv.participant?.name ?? "Unknown"}`;
-        return {
-          team_id: workspaceId,
-          platform_id: platformId,
-          post_channel: "social",
-          post_type: "chat",
-          platform_post_id: conv.thread_id,
-          name: buildOrganicPostName(content),
-          content,
-          published_at: conv.last_message_time ?? new Date().toISOString(),
-          status: "published",
-          comments: conv.unread_count ?? 0,
-        };
-      });
-
-      const { data: insertedChats, error: chatError } = await supabase
+    // 7. Seed synthetic organic posts so analytics can compare paid vs organic without chat artifacts
+    const adGroupIds = Array.from(
+      new Set([
+        ...adGroupIdByExternalId.values(),
+        ...adGroupIdByName.values(),
+      ].filter((value): value is string => Boolean(value)))
+    );
+    const organicRows = buildSyntheticOrganicPosts({
+      adGroupIds,
+      platform,
+      platformId,
+      tenant,
+      workspaceId,
+    });
+    let organicPostsInserted = 0;
+    if (organicRows.length > 0) {
+      const { data: insertedOrganicPosts, error: organicError } = await supabase
         .from("social_posts")
-        .insert(chatRows)
-        .select("id, platform_post_id");
+        .insert(organicRows)
+        .select("id");
 
-      if (chatError) {
-        console.warn("[/api/connect] chats insert warn:", chatError.message);
+      if (organicError) {
+        console.warn("[/api/connect] organic posts insert warn:", organicError.message);
       } else {
-        const postIdByThreadId = new Map(
-          (insertedChats ?? []).map((chat) => [chat.platform_post_id, chat.id])
-        );
-
-        const commentRows = chatsData
-          .map((conv) => {
-            const postId = conv.thread_id ? postIdByThreadId.get(conv.thread_id) : null;
-            const msgs = conv.messages ?? [];
-            const lastMsg = msgs[msgs.length - 1];
-
-            if (!postId || !lastMsg?.text) {
-              return null;
-            }
-
-            return {
-              post_id: postId,
-              team_id: workspaceId,
-              platform_id: platformId,
-              author_name: conv.participant?.name ?? "Unknown",
-              content: lastMsg.text,
-              is_read: (conv.unread_count ?? 0) === 0,
-              created_at: conv.last_message_time ?? new Date().toISOString(),
-            };
-          })
-          .filter(
-            (
-              row,
-            ): row is {
-              post_id: string;
-              team_id: string;
-              platform_id: string | null;
-              author_name: string;
-              content: string;
-              is_read: boolean;
-              created_at: string;
-            } => Boolean(row)
-          );
-
-        if (commentRows.length > 0) {
-          const { error: commentsError } = await supabase.from("social_comments").insert(commentRows);
-          if (commentsError) {
-            console.warn("[/api/connect] chat comments insert warn:", commentsError.message);
-          }
-        }
-
-        chatsInserted = insertedChats?.length ?? 0;
+        organicPostsInserted = insertedOrganicPosts?.length ?? 0;
       }
     }
 
@@ -928,7 +1140,7 @@ app.post("/api/connect", async (req, res) => {
       rowsInserted: insightRows.length,
       personasInserted,
       personaLinksInserted,
-      chatsInserted,
+      organicPostsInserted,
       platform,
       tenant,
     });

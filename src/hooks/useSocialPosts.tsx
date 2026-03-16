@@ -18,6 +18,7 @@ export type SocialPostInsert = Database["public"]["Tables"]["social_posts"]["Ins
 export type SocialPostUpdate = Database["public"]["Tables"]["social_posts"]["Update"];
 
 interface SocialPostsOptions {
+  adGroupId?: string;
   dateRange?: string;
   postType?: string;
   postChannel?: string;
@@ -35,7 +36,7 @@ export function useSocialPosts(options?: string | SocialPostsOptions) {
   const queryClient = useQueryClient();
   const { workspace } = useWorkspace();
   const workspaceId = workspace.id;
-  const { dateRange, postChannel, postType } = getNormalizedOptions(options);
+  const { adGroupId, dateRange, postChannel, postType } = getNormalizedOptions(options);
 
   // Calculate date filter based on dateRange
   const getDateFilter = () => {
@@ -47,7 +48,7 @@ export function useSocialPosts(options?: string | SocialPostsOptions) {
   };
 
   const { data: posts = [], isLoading, error } = useQuery({
-    queryKey: ["social_posts", workspaceId, dateRange, postChannel ?? "all", postType ?? "all"],
+    queryKey: ["social_posts", workspaceId, dateRange, postChannel ?? "all", postType ?? "all", adGroupId ?? "all-groups"],
     enabled: !!workspaceId,
     queryFn: async () => {
       if (!workspaceId) {
@@ -68,6 +69,10 @@ export function useSocialPosts(options?: string | SocialPostsOptions) {
 
       if (postChannel) {
         query = query.eq("post_channel", postChannel);
+      }
+
+      if (adGroupId) {
+        query = query.eq("ad_group_id", adGroupId);
       }
 
       const dateFilter = getDateFilter();

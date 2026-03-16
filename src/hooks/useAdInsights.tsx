@@ -28,12 +28,25 @@ export interface AdInsightsSummary {
   }[];
 }
 
+const toMetricNumber = (...values: Array<number | string | null | undefined>): number => {
+  for (const value of values) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return 0;
+};
+
 interface AdInsightWithJoins extends AdInsight {
   ad_accounts?: { platform_id: string; team_id?: string | null } | null;
   ads?: {
+    id?: string | null;
     ad_group_id: string | null;
     ad_groups?: { name: string | null } | null;
   } | null;
+  total_cost?: number | string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -68,7 +81,7 @@ export function useAdInsights(
       if (USE_MOCK_DATA) {
         if (activePlatforms && activePlatforms.length === 0) return [];
 
-        let rows = getMockInsights(workspaceId);
+        let rows = getMockInsights(workspaceId) as Array<AdInsight & { ad_group_id?: string | null }>;
 
         const dateFilter = getDateFilter();
         if (dateFilter) {
@@ -82,6 +95,10 @@ export function useAdInsights(
           );
         }
 
+        if (adGroupId) {
+          rows = rows.filter((r) => r.ad_group_id === adGroupId);
+        }
+
         return rows as unknown as AdInsight[];
       }
 
@@ -90,7 +107,7 @@ export function useAdInsights(
 
       let query = supabase
         .from("ad_insights")
-        .select("*, ad_accounts!inner(platform_id, team_id), ads(ad_group_id, ad_groups(name))")
+        .select("*, ad_accounts!inner(platform_id, team_id), ads!inner(id, ad_group_id, ad_groups(name))")
         .order("date", { ascending: true });
 
       const dateFilter = getDateFilter();
@@ -119,7 +136,10 @@ export function useAdInsights(
   const insightRows = insights as AdInsightWithJoins[];
   const totalImpressions = insightRows.reduce((sum, insight) => sum + (insight.impressions || 0), 0);
   const totalClicks = insightRows.reduce((sum, insight) => sum + (insight.clicks || 0), 0);
-  const totalSpend = insightRows.reduce((sum, insight) => sum + Number(insight.spend || 0), 0);
+  const totalSpend = insightRows.reduce(
+    (sum, insight) => sum + toMetricNumber(insight.spend, insight.total_cost),
+    0
+  );
   const totalConversions = insightRows.reduce((sum, insight) => sum + (insight.conversions || 0), 0);
   const totalReach = insightRows.reduce((sum, insight) => sum + (insight.reach || 0), 0);
 
@@ -146,7 +166,7 @@ export function useAdInsights(
       date: i.date,
       impressions: i.impressions || 0,
       clicks: i.clicks || 0,
-      spend: Number(i.spend || 0),
+      spend: toMetricNumber(i.spend, i.total_cost),
       conversions: i.conversions || 0,
     })),
   };

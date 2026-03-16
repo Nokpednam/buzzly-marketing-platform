@@ -1,13 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -24,25 +17,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import {
-  MoreVertical,
-  Pencil,
-  Trash2,
-  Plus,
-  ExternalLink,
   Image,
   Video,
   FileText,
-  Play,
-  Pause,
   CheckCircle2,
   PauseCircle,
   FileEdit,
@@ -52,20 +32,14 @@ import {
   Calendar,
   Link2,
   Loader2,
-  Send,
   AlertCircle,
   Clock,
+  Megaphone,
 } from "lucide-react";
 import { useAds, type AdWithPublishStatus as Ad } from "@/hooks/useAds";
-import { AdFormDialog } from "@/components/social/analytics/AdFormDialog";
-
-const PUBLISH_PLATFORMS = [
-  { id: "facebook",  label: "Facebook Ads",  emoji: "📘" },
-  { id: "instagram", label: "Instagram Ads", emoji: "📸" },
-  { id: "tiktok",   label: "TikTok Ads",    emoji: "🎵" },
-  { id: "shopee",   label: "Shopee Ads",    emoji: "🛍️" },
-  { id: "linkedin", label: "LinkedIn Ads",  emoji: "💼" },
-];
+import { useAdInsights } from "@/hooks/useAdInsights";
+import { useSocialFilters } from "@/contexts/SocialFiltersContext";
+import { useWorkspace } from "@/hooks/useWorkspace";
 
 const creativeTypes = [
   { id: "image",    name: "Image",    icon: Image },
@@ -79,49 +53,46 @@ interface AdsListProps {
   filterAdGroupId?: string;
 }
 
+interface AdMetrics {
+  clicks: number;
+  conversions: number;
+  impressions: number;
+  spend: number;
+}
+
+const EMPTY_METRICS: AdMetrics = {
+  clicks: 0,
+  conversions: 0,
+  impressions: 0,
+  spend: 0,
+};
+
+const toMetricNumber = (...values: Array<number | string | null | undefined>): number => {
+  for (const value of values) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return 0;
+};
+
 export function AdsList({ adGroups, filterAdGroupId }: AdsListProps) {
-  const { ads, isLoading, updateAd, deleteAd, publishAd } = useAds();
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const { ads, isLoading, error } = useAds();
+  const { dateRange, activePlatforms } = useSocialFilters();
+  const { workspace } = useWorkspace();
+  const {
+    insights,
+    isLoading: isInsightsLoading,
+    error: insightsError,
+  } = useAdInsights(dateRange, activePlatforms, workspace?.id, filterAdGroupId);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
-  const [publishPlatform, setPublishPlatform] = useState("facebook");
   const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
-
-  const handleDelete = (id: string) => {
-    deleteAd.mutate(id);
-  };
-
-  const handleToggleStatus = (id: string, currentStatus: string | null) => {
-    updateAd.mutate({
-      id,
-      updates: {
-        status: currentStatus === "active" ? "paused" : "active",
-        updated_at: new Date().toISOString(),
-      },
-    });
-  };
-
-  const openEditDialog = (ad: Ad) => {
-    setSelectedAd(ad);
-    setEditDialogOpen(true);
-  };
 
   const openDetailDialog = (ad: Ad) => {
     setSelectedAd(ad);
     setDetailDialogOpen(true);
-  };
-
-  const openPublishDialog = (ad: Ad) => {
-    setSelectedAd(ad);
-    setPublishPlatform(ad.platform || "facebook");
-    setPublishDialogOpen(true);
-  };
-
-  const handlePublish = () => {
-    if (!selectedAd) return;
-    publishAd.mutate({ adId: selectedAd.id, platform: publishPlatform });
-    setPublishDialogOpen(false);
   };
 
   const getExternalStatusBadge = (ad: Ad) => {
@@ -159,9 +130,37 @@ export function AdsList({ adGroups, filterAdGroupId }: AdsListProps) {
     return adGroups.find((g) => g.id === groupId)?.name || groupId;
   };
 
+  const adMetrics = useMemo(() => {
+    const metricsByAdId = new Map<string, AdMetrics>();
+
+    for (const insight of insights as Array<{
+      ads_id?: string | null;
+      clicks?: number | null;
+      conversions?: number | null;
+      impressions?: number | null;
+      spend?: number | string | null;
+      total_cost?: number | string | null;
+    }>) {
+      if (!insight.ads_id) {
+        continue;
+      }
+
+      const current = metricsByAdId.get(insight.ads_id) ?? { ...EMPTY_METRICS };
+      current.impressions += insight.impressions ?? 0;
+      current.clicks += insight.clicks ?? 0;
+      current.conversions += insight.conversions ?? 0;
+      current.spend += toMetricNumber(insight.spend, insight.total_cost);
+      metricsByAdId.set(insight.ads_id, current);
+    }
+
+    return metricsByAdId;
+  }, [insights]);
+
   const visibleAds = filterAdGroupId
     ? ads.filter((ad) => ad.ad_group_id === filterAdGroupId)
     : ads;
+
+  const selectedAdMetrics = selectedAd ? adMetrics.get(selectedAd.id) ?? EMPTY_METRICS : EMPTY_METRICS;
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("th-TH", {
@@ -173,400 +172,282 @@ export function AdsList({ adGroups, filterAdGroupId }: AdsListProps) {
     });
   };
 
+  const formatCurrency = (value: number) =>
+    "฿" + value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+  const formatNumber = (value: number) => value.toLocaleString();
+
+  if (error || insightsError) {
+    return (
+      <div className="rounded-lg border p-6 text-sm text-destructive">
+        <div className="flex items-center gap-2">
+          <AlertCircle className="h-4 w-4" />
+          <span>ไม่สามารถโหลด Paid Ads analytics ได้</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <TooltipProvider>
-      <div className="space-y-4">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <p className="text-sm text-muted-foreground">{visibleAds.length} โฆษณา</p>
-          <Button onClick={() => setAddDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            สร้างโฆษณา
-          </Button>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-muted-foreground">{visibleAds.length} Paid Ads</p>
+          <p className="text-xs text-muted-foreground">Read-only ad inventory with performance metrics</p>
         </div>
+      </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto border rounded-lg">
-          <Table>
-            <TableHeader>
+      <div className="overflow-x-auto rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Ad</TableHead>
+              <TableHead>Channel</TableHead>
+              <TableHead>Ad Group</TableHead>
+              <TableHead>Platform</TableHead>
+              <TableHead className="text-right">Impressions</TableHead>
+              <TableHead className="text-right">Clicks</TableHead>
+              <TableHead className="text-right">Spend</TableHead>
+              <TableHead>สถานะ</TableHead>
+              <TableHead className="w-[120px] text-right">Details</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading || isInsightsLoading ? (
               <TableRow>
-                <TableHead>โฆษณา</TableHead>
-                <TableHead>กลุ่มโฆษณา</TableHead>
-                <TableHead>ประเภท</TableHead>
-                <TableHead>Headline</TableHead>
-                <TableHead>CTA</TableHead>
-                <TableHead className="text-center">สถานะ</TableHead>
-                <TableHead>Platform</TableHead>
-                <TableHead className="w-[100px]"></TableHead>
+                <TableCell colSpan={9} className="py-12 text-center">
+                  <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-                  </TableCell>
-                </TableRow>
-              ) : visibleAds.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    {filterAdGroupId ? "ไม่พบโฆษณาใน Ad Group นี้" : "ยังไม่มีโฆษณา"}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                visibleAds.map((ad) => {
-                  const creativeType = getCreativeType(ad.creative_type);
-                  const CreativeIcon = creativeType.icon;
-                  const statusInfo = getStatusIcon(ad.status);
-                  const StatusIcon = statusInfo.icon;
-                  return (
-                    <TableRow key={ad.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
-                            <CreativeIcon className="h-5 w-5 text-muted-foreground" />
-                          </div>
-                          <div>
-                            <p className="font-medium">{ad.name}</p>
-                            <p className="text-xs text-muted-foreground line-clamp-1 max-w-[200px]">
-                              {ad.ad_copy}
-                            </p>
-                          </div>
+            ) : visibleAds.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
+                  {filterAdGroupId ? "ไม่พบโฆษณาใน Ad Group นี้" : "ยังไม่มีโฆษณา"}
+                </TableCell>
+              </TableRow>
+            ) : (
+              visibleAds.map((ad) => {
+                const creativeType = getCreativeType(ad.creative_type);
+                const CreativeIcon = creativeType.icon;
+                const statusInfo = getStatusIcon(ad.status);
+                const StatusIcon = statusInfo.icon;
+                const metrics = adMetrics.get(ad.id) ?? EMPTY_METRICS;
+
+                return (
+                  <TableRow key={ad.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded bg-muted">
+                          <CreativeIcon className="h-5 w-5 text-muted-foreground" />
                         </div>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {getAdGroupName(ad.ad_group_id)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="gap-1">
-                          <CreativeIcon className="h-3 w-3" />
-                          {creativeType.name}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-auto py-1 px-2 text-sm font-normal max-w-[150px] truncate justify-start"
-                          onClick={() => openDetailDialog(ad)}
-                        >
-                          <Eye className="h-3 w-3 mr-1 shrink-0" />
-                          <span className="truncate">{ad.headline || "-"}</span>
-                        </Button>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-auto py-1 px-2"
-                          onClick={() => openDetailDialog(ad)}
-                        >
-                          <Badge variant="secondary" className="text-xs cursor-pointer">
-                            {ad.call_to_action}
-                          </Badge>
-                        </Button>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="flex justify-center">
-                              <StatusIcon className={`h-5 w-5 ${statusInfo.className}`} />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{statusInfo.label}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TableCell>
-                      <TableCell>
-                        {getExternalStatusBadge(ad) ?? (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          {ad.preview_url && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => window.open(ad.preview_url!, "_blank")}
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                          )}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => openDetailDialog(ad)}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                ดูรายละเอียด
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openEditDialog(ad)}>
-                                <Pencil className="h-4 w-4 mr-2" />
-                                แก้ไข
-                              </DropdownMenuItem>
-                              {ad.external_status !== "published" && (
-                                <DropdownMenuItem onClick={() => openPublishDialog(ad)}>
-                                  <Send className="h-4 w-4 mr-2" />
-                                  เผยแพร่บน Platform
-                                </DropdownMenuItem>
-                              )}
-                              {(ad.status === "active" || ad.status === "paused") && (
-                                <DropdownMenuItem onClick={() => handleToggleStatus(ad.id, ad.status)}>
-                                  {ad.status === "active" ? (
-                                    <>
-                                      <Pause className="h-4 w-4 mr-2" />
-                                      หยุดชั่วคราว
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Play className="h-4 w-4 mr-2" />
-                                      เปิดใช้งาน
-                                    </>
-                                  )}
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => handleDelete(ad.id)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                ลบ
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                        <div>
+                          <p className="font-medium">{ad.name}</p>
+                          <p className="max-w-[220px] line-clamp-1 text-xs text-muted-foreground">
+                            {ad.headline || ad.ad_copy || "-"}
+                          </p>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className="gap-1 bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400">
+                        <Megaphone className="h-3 w-3" />
+                        Paid Ad
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">{getAdGroupName(ad.ad_group_id)}</TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <p className="text-sm capitalize">{ad.platform ?? "-"}</p>
+                        {getExternalStatusBadge(ad)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{formatNumber(metrics.impressions)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatNumber(metrics.clicks)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatCurrency(metrics.spend)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="gap-1">
+                        <StatusIcon className={`${statusInfo.className} h-3.5 w-3.5`} />
+                        {statusInfo.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={() => openDetailDialog(ad)}>
+                        <Eye className="mr-1 h-4 w-4" />
+                        Ad Details
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
-        {/* Add Dialog — delegates to shared AdFormDialog */}
-        <AdFormDialog
-          open={addDialogOpen}
-          onOpenChange={setAddDialogOpen}
-          adGroups={adGroups}
-        />
+      <Dialog
+        open={detailDialogOpen}
+        onOpenChange={(open) => {
+          setDetailDialogOpen(open);
+          if (!open) {
+            setSelectedAd(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Megaphone className="h-5 w-5 text-blue-500" />
+              Ad Details
+            </DialogTitle>
+            <DialogDescription>Read-only creative and performance breakdown for this paid ad</DialogDescription>
+          </DialogHeader>
 
-        {/* Edit Dialog — delegates to shared AdFormDialog */}
-        <AdFormDialog
-          open={editDialogOpen}
-          onOpenChange={(open) => {
-            setEditDialogOpen(open);
-            if (!open) setSelectedAd(null);
-          }}
-          adGroups={adGroups}
-          adToEdit={selectedAd}
-        />
+          {selectedAd && (
+            <div className="space-y-5 py-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="gap-1 bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400">
+                  <Megaphone className="h-3 w-3" />
+                  Paid Ad
+                </Badge>
+                <Badge variant="outline">{getCreativeType(selectedAd.creative_type).name}</Badge>
+                {getExternalStatusBadge(selectedAd)}
+              </div>
 
-        {/* Detail Dialog */}
-        <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                {selectedAd && (
-                  <>
-                    {(() => {
-                      const ct = getCreativeType(selectedAd.creative_type);
-                      const CtIcon = ct.icon;
-                      return <CtIcon className="h-5 w-5 text-muted-foreground" />;
-                    })()}
-                    {selectedAd.name}
-                  </>
-                )}
-              </DialogTitle>
-              <DialogDescription>รายละเอียดโฆษณาทั้งหมด</DialogDescription>
-            </DialogHeader>
-
-            {selectedAd && (
-              <div className="space-y-4 py-4">
-                <div className="flex items-center gap-2">
-                  {(() => {
-                    const statusInfo = getStatusIcon(selectedAd.status);
-                    const StatusIcon = statusInfo.icon;
-                    return (
-                      <>
-                        <StatusIcon className={`h-5 w-5 ${statusInfo.className}`} />
-                        <span className="text-sm font-medium">{statusInfo.label}</span>
-                      </>
-                    );
-                  })()}
+              <div className="grid gap-3 sm:grid-cols-4">
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Impressions</p>
+                  <p className="mt-1 text-lg font-semibold">{formatNumber(selectedAdMetrics.impressions)}</p>
                 </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Clicks</p>
+                  <p className="mt-1 text-lg font-semibold">{formatNumber(selectedAdMetrics.clicks)}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Spend</p>
+                  <p className="mt-1 text-lg font-semibold">{formatCurrency(selectedAdMetrics.spend)}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">Conversions</p>
+                  <p className="mt-1 text-lg font-semibold">{formatNumber(selectedAdMetrics.conversions)}</p>
+                </div>
+              </div>
 
-                <Separator />
+              <Separator />
 
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-3">
                   <div>
+                    <Label className="text-xs text-muted-foreground">Ad Name</Label>
+                    <p className="mt-1 text-sm font-medium">{selectedAd.name}</p>
+                  </div>
+                  <div>
                     <Label className="text-xs text-muted-foreground">Headline</Label>
-                    <p className="text-sm font-medium mt-1">{selectedAd.headline || "-"}</p>
+                    <p className="mt-1 text-sm">{selectedAd.headline || "-"}</p>
                   </div>
                   <div>
                     <Label className="text-xs text-muted-foreground">Ad Copy</Label>
-                    <p className="text-sm mt-1 text-muted-foreground whitespace-pre-wrap">
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
                       {selectedAd.ad_copy || "-"}
                     </p>
                   </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Call to Action</Label>
+                    <div className="mt-1">
+                      <Badge variant="secondary">{selectedAd.call_to_action || "-"}</Badge>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Ad Group</Label>
+                    <p className="mt-1 text-sm">{getAdGroupName(selectedAd.ad_group_id)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Platform</Label>
+                    <p className="mt-1 text-sm capitalize">{selectedAd.platform ?? "-"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Status</Label>
+                    <p className="mt-1 text-sm">{getStatusIcon(selectedAd.status).label}</p>
+                  </div>
                   {selectedAd.content && (
                     <div>
-                      <Label className="text-xs text-muted-foreground">เนื้อหา</Label>
-                      <p className="text-sm mt-1 text-muted-foreground whitespace-pre-wrap">
+                      <Label className="text-xs text-muted-foreground">Audience / Notes</Label>
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
                         {selectedAd.content}
                       </p>
                     </div>
                   )}
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Call to Action</Label>
-                    <div className="mt-1">
-                      <Badge variant="secondary">{selectedAd.call_to_action}</Badge>
-                    </div>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">กลุ่มโฆษณา</Label>
-                    <p className="text-sm mt-1">{getAdGroupName(selectedAd.ad_group_id)}</p>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">ประเภท Creative</Label>
-                    <p className="text-sm mt-1">{getCreativeType(selectedAd.creative_type).name}</p>
-                  </div>
-                  {selectedAd.scheduled_at && (
-                    <div>
-                      <Label className="text-xs text-muted-foreground">กำหนดเผยแพร่</Label>
-                      <p className="text-sm mt-1">{formatDate(selectedAd.scheduled_at)}</p>
-                    </div>
-                  )}
-                  {selectedAd.media_urls && selectedAd.media_urls.length > 0 && (
-                    <div className="col-span-2">
-                      <Label className="text-xs text-muted-foreground">Media URLs</Label>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {selectedAd.media_urls.map((url, i) => (
-                          <Badge key={i} variant="outline" className="text-xs max-w-[200px] truncate">
-                            {url}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {selectedAd.platform_ad_id && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Platform Ad ID</Label>
-                    <p className="text-sm mt-1 font-mono text-muted-foreground">
-                      {selectedAd.platform_ad_id}
-                    </p>
-                  </div>
-                )}
-
-                {selectedAd.preview_url && (
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Preview URL</Label>
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="p-0 h-auto mt-1 text-sm"
-                      onClick={() => window.open(selectedAd.preview_url!, "_blank")}
-                    >
-                      <Link2 className="h-3 w-3 mr-1" />
-                      เปิดดูตัวอย่าง
-                    </Button>
-                  </div>
-                )}
-
-                <Separator />
-
-                <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    <span>สร้างเมื่อ: {formatDate(selectedAd.created_at ?? "")}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    <span>อัปเดต: {formatDate(selectedAd.updated_at ?? "")}</span>
-                  </div>
                 </div>
               </div>
-            )}
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
-                ปิด
-              </Button>
-              <Button
-                onClick={() => {
-                  setDetailDialogOpen(false);
-                  if (selectedAd) openEditDialog(selectedAd);
-                }}
-              >
-                <Pencil className="h-4 w-4 mr-2" />
-                แก้ไข
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              {selectedAd.media_urls && selectedAd.media_urls.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Media URLs</Label>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {selectedAd.media_urls.map((url, index) => (
+                        <Badge key={index} variant="outline" className="max-w-[240px] truncate text-xs">
+                          {url}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
-        {/* Publish Dialog */}
-        <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Send className="h-5 w-5" />
-                เผยแพร่โฆษณา
-              </DialogTitle>
-              <DialogDescription>
-                เลือก Platform ที่ต้องการเผยแพร่ &ldquo;{selectedAd?.name}&rdquo;
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4 space-y-3">
-              {PUBLISH_PLATFORMS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setPublishPlatform(p.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-sm font-medium transition-colors ${
-                    publishPlatform === p.id
-                      ? "border-primary bg-primary/5 text-primary"
-                      : "border-border hover:border-primary/40 hover:bg-muted"
-                  }`}
-                >
-                  <span className="text-lg">{p.emoji}</span>
-                  {p.label}
-                  {publishPlatform === p.id && (
-                    <CheckCircle2 className="h-4 w-4 ml-auto" />
-                  )}
-                </button>
-              ))}
+              {(selectedAd.platform_ad_id || selectedAd.preview_url) && (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    {selectedAd.platform_ad_id && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Platform Ad ID</Label>
+                        <p className="mt-1 font-mono text-sm text-muted-foreground">{selectedAd.platform_ad_id}</p>
+                      </div>
+                    )}
+                    {selectedAd.preview_url && (
+                      <div>
+                        <Label className="text-xs text-muted-foreground">Preview URL</Label>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="mt-1 h-auto p-0 text-sm"
+                          onClick={() => window.open(selectedAd.preview_url!, "_blank")}
+                        >
+                          <Link2 className="mr-1 h-3 w-3" />
+                          เปิดดูตัวอย่าง
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <Separator />
+
+              <div className="grid gap-3 text-xs text-muted-foreground sm:grid-cols-2">
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  <span>สร้างเมื่อ: {formatDate(selectedAd.created_at ?? "")}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  <span>อัปเดต: {formatDate(selectedAd.updated_at ?? "")}</span>
+                </div>
+              </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setPublishDialogOpen(false)}>
-                ยกเลิก
-              </Button>
-              <Button onClick={handlePublish} disabled={publishAd.isPending}>
-                {publishAd.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4 mr-2" />
-                )}
-                เผยแพร่
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </TooltipProvider>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailDialogOpen(false)}>
+              ปิด
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

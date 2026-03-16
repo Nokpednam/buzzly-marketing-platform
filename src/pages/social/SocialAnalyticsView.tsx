@@ -34,6 +34,24 @@ interface AdGroupScopedProps {
   adGroupId?: string;
 }
 
+function ContentChannelBadge({ postChannel }: { postChannel: "social" | "ad" }) {
+  if (postChannel === "social") {
+    return (
+      <Badge className="gap-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400">
+        <Leaf className="h-3 w-3" />
+        Organic
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge className="gap-1 bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400">
+      <Megaphone className="h-3 w-3" />
+      Paid Ad
+    </Badge>
+  );
+}
+
 function PlatformBreakdownTable({ adGroupId }: AdGroupScopedProps) {
   const { platformBreakdown, isLoading, error } = useSocialAnalyticsSummary(adGroupId);
 
@@ -170,9 +188,14 @@ function AnalyticsOverviewBar({ adGroupId }: AdGroupScopedProps) {
   );
 }
 
-function OrganicPostsList() {
+function OrganicPostsList({ adGroupId }: AdGroupScopedProps) {
   const { dateRange } = useSocialFilters();
-  const { posts, isLoading, error } = useSocialPosts({ dateRange, postChannel: "social" });
+  const { posts, isLoading, error } = useSocialPosts({
+    adGroupId,
+    dateRange,
+    postChannel: "social",
+  });
+  const visiblePosts = posts.filter((post) => post.post_type !== "chat");
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "—";
@@ -211,13 +234,13 @@ function OrganicPostsList() {
     );
   }
 
-  if (posts.length === 0) {
+  if (visiblePosts.length === 0) {
     return (
       <Card className="p-8">
         <div className="text-center text-muted-foreground">
           <Leaf className="h-10 w-10 mx-auto mb-3 opacity-40" />
           <p className="font-medium">ไม่มี Organic Post ในช่วงนี้</p>
-          <p className="text-sm">โพสต์ที่สร้างใน Planner จะปรากฏที่นี่</p>
+          <p className="text-sm">ไม่พบโพสต์ Organic สำหรับช่วงวันที่หรือ Ad Group ที่เลือก</p>
         </div>
       </Card>
     );
@@ -229,7 +252,7 @@ function OrganicPostsList() {
         <CardTitle className="text-base flex items-center gap-2">
           <Leaf className="h-4 w-4 text-emerald-500" />
           Organic Posts
-          <Badge variant="secondary" className="ml-1">{posts.length}</Badge>
+          <Badge variant="secondary" className="ml-1">{visiblePosts.length}</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">
@@ -238,13 +261,14 @@ function OrganicPostsList() {
             <thead>
               <tr className="border-b bg-muted/40">
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Post Title</th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Channel</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
                 <th className="text-left px-4 py-3 font-medium text-muted-foreground">Scheduled / Published</th>
               </tr>
             </thead>
             <tbody>
-              {posts.map((post) => (
+              {visiblePosts.map((post) => (
                 <tr key={post.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -253,6 +277,9 @@ function OrganicPostsList() {
                         {post.display_title}
                       </span>
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <ContentChannelBadge postChannel="social" />
                   </td>
                   <td className="px-4 py-3 capitalize text-muted-foreground text-xs">
                     {post.post_type ?? "—"}
@@ -300,6 +327,9 @@ export default function SocialAnalyticsView() {
           <p className="text-sm font-medium">Ad Group Filter</p>
           <p className="text-sm text-muted-foreground">
             กรองข้อมูล analytics และรายการโฆษณาตามกลุ่มโฆษณา
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Analytics หน้านี้เป็นแบบดูข้อมูลอย่างเดียว พร้อมแยก Organic และ Paid Ads ชัดเจน
           </p>
         </div>
         <Select value={selectedAdGroupId} onValueChange={setSelectedAdGroupId}>
@@ -349,7 +379,7 @@ export default function SocialAnalyticsView() {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="organic" className="mt-4">
-            <OrganicPostsList />
+            <OrganicPostsList adGroupId={activeAdGroupId} />
           </TabsContent>
           <TabsContent value="ad-groups" className="mt-4">
             <AdGroupsList />

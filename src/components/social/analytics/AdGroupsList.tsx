@@ -1,60 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  MoreVertical,
-  Pencil,
-  Trash2,
-  Plus,
   FolderOpen,
-  Play,
-  Pause,
   FileText,
   Link2,
+  Megaphone,
+  Leaf,
 } from "lucide-react";
-import { useAdGroups, type AdGroupWithCount } from "@/hooks/useAdGroups";
-import { LinkItemsDialog } from "@/components/social/analytics/LinkItemsDialog";
-import { AdFormDialog } from "@/components/social/analytics/AdFormDialog";
-import { AdGroupFormDialog } from "@/components/social/analytics/AdGroupFormDialog";
+import { useAdGroups } from "@/hooks/useAdGroups";
 
 interface AdGroupsListProps {
   onGroupsChange?: (groups: { id: string; name: string }[]) => void;
 }
 
 export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
-  const { adGroups, isLoading, deleteAdGroup, updateAdGroup } = useAdGroups();
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [linkDialogGroup, setLinkDialogGroup] = useState<AdGroupWithCount | null>(null);
-  const [selectedGroup, setSelectedGroup] = useState<AdGroupWithCount | null>(null);
-  const [createAdGroupId, setCreateAdGroupId] = useState<string | null>(null);
-
-  const handleDelete = (id: string) => {
-    deleteAdGroup.mutate(id);
-  };
-
-  const handleToggleStatus = (group: AdGroupWithCount) => {
-    updateAdGroup.mutate({
-      id: group.id,
-      updates: {
-        status: group.status === "active" ? "paused" : "active",
-      },
-    });
-  };
-
-  const openEditDialog = (group: AdGroupWithCount) => {
-    setSelectedGroup(group);
-    setEditDialogOpen(true);
-  };
+  const { adGroups, isLoading } = useAdGroups();
 
   useEffect(() => {
     onGroupsChange?.(adGroups.map((group) => ({ id: group.id, name: group.name })));
@@ -103,65 +65,23 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <p className="text-sm text-muted-foreground">{adGroups.length} กลุ่มโฆษณา</p>
-        <Button onClick={() => setAddDialogOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          สร้างกลุ่มโฆษณา
-        </Button>
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-muted-foreground">{adGroups.length} Ad Groups</p>
+          <p className="text-xs text-muted-foreground">Read-only grouping overview for paid ads and linked organic posts</p>
+        </div>
       </div>
 
-      {/* Groups Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {adGroups.map((group) => (
           <Card key={group.id} className="relative">
             <CardHeader className="pb-2">
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2">
                   {getStatusIcon(group.status)}
                   <CardTitle className="text-base">{group.name}</CardTitle>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => openEditDialog(group)}>
-                      <Pencil className="h-4 w-4 mr-2" />
-                      แก้ไข
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setLinkDialogGroup(group)}>
-                      <Link2 className="h-4 w-4 mr-2" />
-                      เชื่อมโยงโพสต์/โฆษณา
-                    </DropdownMenuItem>
-                    {(group.status === "active" || group.status === "paused") && (
-                      <DropdownMenuItem onClick={() => handleToggleStatus(group)}>
-                        {group.status === "active" ? (
-                          <>
-                            <Pause className="h-4 w-4 mr-2" />
-                            หยุดชั่วคราว
-                          </>
-                        ) : (
-                          <>
-                            <Play className="h-4 w-4 mr-2" />
-                            เปิดใช้งาน
-                          </>
-                        )}
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-destructive"
-                      onClick={() => handleDelete(group.id)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      ลบ
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {getStatusBadge(group.status)}
               </div>
             </CardHeader>
             <CardContent>
@@ -171,7 +91,10 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
                     {group.group_type.replace("-", " ")}
                   </Badge>
                 )}
-                {getStatusBadge(group.status)}
+                <Badge className="gap-1 bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400">
+                  <Megaphone className="h-3 w-3" />
+                  Paid Group
+                </Badge>
               </div>
 
               {group.description && (
@@ -183,11 +106,11 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <FileText className="h-4 w-4" />
+                    <Megaphone className="h-4 w-4 text-blue-500" />
                     {group.ads_count} โฆษณา
                   </span>
                   <span className="flex items-center gap-1">
-                    <Link2 className="h-4 w-4" />
+                    <Leaf className="h-4 w-4 text-emerald-500" />
                     {group.posts_count} โพสต์
                   </span>
                 </div>
@@ -200,16 +123,15 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
                   year: "numeric",
                 })}
               </p>
-              <div className="mt-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full gap-1 text-xs"
-                  onClick={() => setCreateAdGroupId(group.id)}
-                >
-                  <Plus className="h-3 w-3" />
-                  สร้างโฆษณา
-                </Button>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Badge variant="outline" className="gap-1">
+                  <FileText className="h-3 w-3" />
+                  View only
+                </Badge>
+                <Badge variant="outline" className="gap-1">
+                  <Link2 className="h-3 w-3" />
+                  Linked content summary
+                </Badge>
               </div>
             </CardContent>
           </Card>
@@ -221,44 +143,10 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
           <div className="text-center text-muted-foreground">
             <FolderOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p>ยังไม่มีกลุ่มโฆษณา</p>
-            <p className="text-sm">สร้างกลุ่มโฆษณาเพื่อจัดระเบียบโฆษณาของคุณ</p>
+            <p className="text-sm">เชื่อมต่อแพลตฟอร์มเพื่อให้ระบบแสดงกลุ่มโฆษณาแบบอ่านอย่างเดียว</p>
           </div>
         </Card>
       )}
-
-      <AdGroupFormDialog
-        open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
-      />
-
-      {/* Link Items Dialog */}
-      {linkDialogGroup && (
-        <LinkItemsDialog
-          groupId={linkDialogGroup.id}
-          groupName={linkDialogGroup.name}
-          open={!!linkDialogGroup}
-          onOpenChange={(open) => { if (!open) setLinkDialogGroup(null); }}
-        />
-      )}
-
-      {/* Create Ad Dialog — pre-filled with the group's id */}
-      <AdFormDialog
-        open={!!createAdGroupId}
-        onOpenChange={(open) => { if (!open) setCreateAdGroupId(null); }}
-        adGroups={adGroups.map((g) => ({ id: g.id, name: g.name }))}
-        initialAdGroupId={createAdGroupId ?? undefined}
-      />
-
-      <AdGroupFormDialog
-        open={editDialogOpen}
-        onOpenChange={(open) => {
-          setEditDialogOpen(open);
-          if (!open) {
-            setSelectedGroup(null);
-          }
-        }}
-        group={selectedGroup}
-      />
     </div>
   );
 }
