@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import MonitorDashboard from '../MonitorDashboard';
+import MonitorDashboard from '@/pages/dev/MonitorDashboard';
 import * as useAdminMonitor from '@/hooks/useAdminMonitor';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -13,6 +13,10 @@ vi.mock('@/hooks/useAdminMonitor', () => ({
     useExternalAPIStatus: vi.fn(),
     useErrorLogStats: vi.fn(),
     usePerformanceMetrics: vi.fn(),
+}));
+
+vi.mock('react-router-dom', () => ({
+    useNavigate: () => vi.fn()
 }));
 
 describe('MonitorDashboard', () => {

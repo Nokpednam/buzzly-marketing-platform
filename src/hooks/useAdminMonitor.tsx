@@ -8,6 +8,8 @@ export interface ServerHealth {
   cpu_usage_percent: number | null;
   used_memory: number | null;
   total_memory: number | null;
+  disk_used: number | null;
+  disk_total: number | null;
   ip_address: string | null;
 }
 
@@ -29,17 +31,43 @@ export interface ExternalAPIStatus {
   color_code: string | null;
 }
 
+export function computeServerStatus(server: any): string {
+  const cpu = parseFloat(server.cpu_usage_percent || '0');
+  
+  let memUsagePct = 0;
+  if (server.total_memory && Number(server.total_memory) > 0) {
+    memUsagePct = (Number(server.used_memory || 0) / Number(server.total_memory)) * 100;
+  }
+
+  let diskUsagePct = 0;
+  if (server.disk_total && Number(server.disk_total) > 0) {
+    diskUsagePct = (Number(server.disk_used || 0) / Number(server.disk_total)) * 100;
+  }
+
+  if (cpu > 90 || diskUsagePct > 95 || memUsagePct > 95) return 'critical';
+  if (cpu > 80 || diskUsagePct > 85 || memUsagePct > 85) return 'warning';
+  
+  return 'healthy';
+}
+
 export function useServerHealth() {
   return useQuery({
     queryKey: ["admin-server-health"],
     queryFn: async (): Promise<ServerHealth[]> => {
       const { data, error } = await supabase
         .from("server")
-        .select("id, hostname, status, cpu_usage_percent, used_memory, total_memory, ip_address")
+        .select("id, hostname, status, cpu_usage_percent, used_memory, total_memory, disk_used, disk_total, ip_address")
         .order("hostname");
 
       if (error) throw error;
-      return data || [];
+      
+      // Fallback compute status if db trigger hasn't fired yet
+      return (data || []).map((server: any) => ({
+        ...server,
+        status: server.status === 'healthy' && computeServerStatus(server) !== 'healthy' 
+          ? computeServerStatus(server) 
+          : server.status
+      }));
     },
   });
 }
@@ -132,13 +160,21 @@ export function usePerformanceMetrics() {
     queryKey: ["admin-performance-metrics"],
     queryFn: async () => {
       // Query from server table for performance data
-      const { data: servers, error } = await supabase
+      const { data: rawServers, error } = await supabase
         .from("server")
-        .select("cpu_usage_percent, used_memory, total_memory, status");
+        .select("cpu_usage_percent, used_memory, total_memory, disk_used, disk_total, status");
 
       if (error) throw error;
 
-      const activeServers = servers?.filter((s) => s.status === "healthy") || [];
+      // Apply computed status
+      const servers = (rawServers || []).map((s: any) => ({
+        ...s,
+        status: s.status === 'healthy' && computeServerStatus(s) !== 'healthy' 
+          ? computeServerStatus(s) 
+          : s.status
+      }));
+
+      const activeServers = servers.filter((s) => s.status === "healthy");
       const avgCpu = activeServers.length
         ? activeServers.reduce((sum, s) => sum + (Number(s.cpu_usage_percent) || 0), 0) / activeServers.length
         : 0;
@@ -147,9 +183,14 @@ export function usePerformanceMetrics() {
       const usedMemory = activeServers.reduce((sum, s) => sum + (Number(s.used_memory) || 0), 0);
       const avgMemory = totalMemory > 0 ? (usedMemory / totalMemory) * 100 : 0;
 
+      const totalDisk = activeServers.reduce((sum, s) => sum + (Number(s.disk_total) || 0), 0);
+      const usedDisk = activeServers.reduce((sum, s) => sum + (Number(s.disk_used) || 0), 0);
+      const avgDisk = totalDisk > 0 ? (usedDisk / totalDisk) * 100 : 0;
+
       return {
         avgCpuUsage: Math.round(avgCpu),
         avgMemoryUsage: Math.round(avgMemory),
+        avgDiskUsage: Math.round(avgDisk),
         totalServers: servers?.length || 0,
         healthyServers: activeServers.length,
         warningServers: servers?.filter((s) => s.status === "warning").length || 0,

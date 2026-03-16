@@ -8,6 +8,8 @@ export interface ServerHealth {
     cpu_usage_percent: number | null;
     used_memory: number | null;
     total_memory: number | null;
+    disk_used: number | null;
+    disk_total: number | null;
     ip_address: string | null;
 }
 
@@ -35,7 +37,7 @@ export function useServerHealth() {
         queryFn: async (): Promise<ServerHealth[]> => {
             const { data, error } = await supabase
                 .from("server")
-                .select("id, hostname, status, cpu_usage_percent, used_memory, total_memory, ip_address")
+                .select("id, hostname, status, cpu_usage_percent, used_memory, total_memory, disk_used, disk_total, ip_address")
                 .order("hostname");
 
             if (error) throw error;

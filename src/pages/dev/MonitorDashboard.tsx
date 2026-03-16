@@ -121,7 +121,7 @@ export default function MonitorDashboard() {
       </div>
 
       {/* Overall Status Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">System Status</CardTitle>
@@ -168,6 +168,19 @@ export default function MonitorDashboard() {
               <div className="text-2xl font-bold">{perfMetrics?.avgMemoryUsage || 0}%</div>
             </div>
             <Progress value={perfMetrics?.avgMemoryUsage || 0} className="mt-2" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Disk Usage</CardTitle>
+            <Database className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <div className="text-2xl font-bold">{perfMetrics?.avgDiskUsage || 0}%</div>
+            </div>
+            <Progress value={perfMetrics?.avgDiskUsage || 0} className="mt-2" />
           </CardContent>
         </Card>
 
@@ -226,6 +239,10 @@ export default function MonitorDashboard() {
                   const memoryPercent = server.total_memory && server.used_memory
                     ? Math.round((Number(server.used_memory) / Number(server.total_memory)) * 100)
                     : 0;
+                  
+                  const diskPercent = server.disk_total && server.disk_used
+                    ? Math.round((Number(server.disk_used) / Number(server.disk_total)) * 100)
+                    : 0;
 
                   return (
                     <Card key={server.id}>
@@ -266,6 +283,19 @@ export default function MonitorDashboard() {
                           <Progress
                             value={memoryPercent}
                             className={memoryPercent > 80 ? "[&>div]:bg-yellow-500" : ""}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="flex items-center gap-2">
+                              <HardDrive className="h-4 w-4 text-muted-foreground" />
+                              Disk Usage
+                            </span>
+                            <span className="font-medium">{diskPercent}%</span>
+                          </div>
+                          <Progress
+                            value={diskPercent}
+                            className={diskPercent > 85 ? "[&>div]:bg-yellow-500" : ""}
                           />
                         </div>
                       </CardContent>
