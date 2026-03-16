@@ -38,6 +38,7 @@ export interface SocialPostFormData {
   scheduled_at?: string;
   media_urls?: string[] | null;
   persona_ids?: string[];
+  ad_group_id?: string | null;
 }
 
 export interface PostComposerProps {
@@ -48,6 +49,7 @@ export interface PostComposerProps {
   onSubmit: (data: SocialPostFormData) => void;
   isPending: boolean;
   onRequestEdit?: () => void;
+  adGroups?: { id: string; name: string }[];
 }
 
 const POST_TYPES = ["image", "video", "carousel", "story", "reel"];
@@ -63,6 +65,7 @@ const DEFAULT_FORM: SocialPostFormData = {
   status: "draft",
   hashtags: "",
   scheduled_at: "",
+  ad_group_id: null,
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -107,6 +110,7 @@ export function PostComposer({
   onSubmit,
   isPending,
   onRequestEdit,
+  adGroups = [],
 }: PostComposerProps) {
   const { workspace } = useWorkspace();
   const [formData, setFormData] = useState<SocialPostFormData>(DEFAULT_FORM);
@@ -312,6 +316,39 @@ export function PostComposer({
             </div>
           )}
 
+          {adGroups.length > 0 && (
+            <div className="space-y-2">
+              <Label>Ad Group</Label>
+              {isPreview ? (
+                <p className="text-sm">
+                  {adGroups.find((g) => g.id === formData.ad_group_id)?.name ?? "—"}
+                </p>
+              ) : (
+                <Select
+                  value={formData.ad_group_id ?? "none"}
+                  onValueChange={(v) => update({ ad_group_id: v === "none" ? null : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="ไม่ระบุกลุ่ม" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">ไม่ระบุกลุ่ม</SelectItem>
+                    {adGroups.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {!isPreview && (
+                <p className="text-xs text-muted-foreground">
+                  เชื่อมโพสต์นี้กับ Ad Group เพื่อรวมในรายงาน analytics
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label>สถานะ</Label>
             {isPreview ? (
@@ -338,14 +375,28 @@ export function PostComposer({
 
           <div className="space-y-2">
             <Label>วันเวลาที่กำหนด *</Label>
-            <Input
-              type="datetime-local"
-              value={formData.scheduled_at ?? ""}
-              onChange={(e) => update({ scheduled_at: e.target.value })}
-              disabled={isPreview}
-              required
-              aria-invalid={!isPreview && !hasValidScheduledAt}
-            />
+            {isPreview ? (
+              <p className="text-sm">
+                {formData.scheduled_at
+                  ? new Date(formData.scheduled_at).toLocaleString("th-TH", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "—"}
+              </p>
+            ) : (
+              <Input
+                type="datetime-local"
+                value={formData.scheduled_at ?? ""}
+                min={toDateTimeLocalValue(new Date().toISOString())}
+                onChange={(e) => update({ scheduled_at: e.target.value })}
+                required
+                aria-invalid={!hasValidScheduledAt}
+              />
+            )}
             {!isPreview && (
               <p className="text-xs text-muted-foreground">
                 Planner จะบันทึกทุกโพสต์พร้อมเวลาที่กำหนดเพื่อให้แสดงในปฏิทินได้เสมอ

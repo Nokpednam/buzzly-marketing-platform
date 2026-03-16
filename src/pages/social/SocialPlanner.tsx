@@ -17,6 +17,7 @@ import { SocialPostsList } from "@/components/social/SocialPostsList";
 import { useUnifiedCalendar, type CalendarItem } from "@/hooks/useUnifiedCalendar";
 import { useSocialPosts, type SocialPost } from "@/hooks/useSocialPosts";
 import { useAds } from "@/hooks/useAds";
+import { useAdGroups } from "@/hooks/useAdGroups";
 import { usePostPersonaLinks } from "@/hooks/usePostPersonaLinks";
 import { useSocialFilters } from "@/contexts/SocialFiltersContext";
 import { logError } from "@/services/errorLogger";
@@ -55,6 +56,7 @@ export default function SocialPlanner() {
   const { calendarDays, isLoading: calendarLoading } = useUnifiedCalendar(dateRange, calendarYear, calendarMonth);
   const { createPost, updatePost } = useSocialPosts(dateRange);
   const { ads, createAd, updateAd, linkPersonas: linkAdPersonas } = useAds();
+  const { adGroups } = useAdGroups();
   const { linkPersonas } = usePostPersonaLinks();
 
   const [composerOpen, setComposerOpen] = useState(false);
@@ -94,6 +96,7 @@ export default function SocialPlanner() {
       hashtags: post.hashtags?.join(", ") ?? "",
       scheduled_at: post.scheduled_at ?? undefined,
       media_urls: post.media_urls,
+      ad_group_id: post.ad_group_id ?? null,
     });
     setComposerOpen(true);
   };
@@ -115,6 +118,7 @@ export default function SocialPlanner() {
       scheduled_at: item.scheduled_at ?? undefined,
       media_urls: item.media_urls,
       persona_ids: item.persona_ids,
+      ad_group_id: item.ad_group_id ?? null,
     });
     setComposerOpen(true);
   };
@@ -183,6 +187,7 @@ export default function SocialPlanner() {
               scheduled_at: normalizedScheduledAt,
               published_at: publishedAt,
               post_channel: isPaidAd ? "ad" : "social",
+              ad_group_id: data.ad_group_id ?? null,
             });
           })
         );
@@ -252,6 +257,7 @@ export default function SocialPlanner() {
             scheduled_at: normalizedScheduledAt,
             published_at: publishedAt,
             post_channel: isPaidAd ? "ad" : "social",
+            ad_group_id: data.ad_group_id ?? null,
           },
         });
         if (data.persona_ids !== undefined) {
@@ -344,6 +350,7 @@ export default function SocialPlanner() {
           updateAd.isPending
         }
         onRequestEdit={switchToEdit}
+        adGroups={adGroups.map((g) => ({ id: g.id, name: g.name }))}
       />
     </div>
   );
