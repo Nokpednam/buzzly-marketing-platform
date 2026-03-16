@@ -95,13 +95,12 @@ BEGIN
         -- 2. Insert into public.profile_customers (App Profile)
         -- Splitting Name
         INSERT INTO public.profile_customers (
-            id, user_id, first_name, last_name, gender_id, created_at
+            id, user_id, first_name, last_name, created_at
         ) VALUES (
             gen_random_uuid(), -- Profile ID is random
             v_user_ids[i],
             split_part(v_full_names[i], ' ', 1),
             split_part(v_full_names[i], ' ', 2),
-            (SELECT id FROM genders ORDER BY random() LIMIT 1),
             v_created_at
         ) ON CONFLICT (user_id) DO UPDATE SET 
             first_name = EXCLUDED.first_name,
@@ -351,4 +350,67 @@ BEGIN
     
     RAISE NOTICE 'Reference Data Polish: Backfilled missing user_ids in error_logs';
   END IF;
+END $$;
+
+-- ============================================================
+-- 8. SPECIFIC EMPLOYEE PROFILES (Owner, Dev, Support)
+-- ============================================================
+DO $$
+DECLARE
+    v_role_owner_id uuid;
+    v_role_dev_id uuid;
+    v_role_support_id uuid;
+
+    v_emp_owner_id uuid;
+    v_emp_dev_id uuid;
+    v_emp_support_id uuid;
+BEGIN
+    -- 1. Get Role IDs
+    SELECT id INTO v_role_owner_id FROM public.role_employees WHERE role_name = 'owner';
+    SELECT id INTO v_role_dev_id FROM public.role_employees WHERE role_name = 'dev';
+    SELECT id INTO v_role_support_id FROM public.role_employees WHERE role_name = 'support';
+
+    -- 2. Get Employee IDs
+    SELECT id INTO v_emp_owner_id FROM public.employees WHERE email = 'hachikonoluna@gmail.com';
+    SELECT id INTO v_emp_dev_id FROM public.employees WHERE email = 'dev@buzzly.co';
+    SELECT id INTO v_emp_support_id FROM public.employees WHERE email = 'support@buzzly.co';
+
+    -- 3. Upsert Profiles
+    -- Owner Profile
+    IF v_emp_owner_id IS NOT NULL THEN
+        INSERT INTO public.employees_profile (employees_id, first_name, last_name, aptitude, last_active, role_employees_id)
+        VALUES (v_emp_owner_id, 'Luna', 'Hachiko', 'Owner / Founder', NOW() - INTERVAL '1 hour', v_role_owner_id)
+        ON CONFLICT (employees_id) DO UPDATE SET
+            first_name = EXCLUDED.first_name,
+            last_name = EXCLUDED.last_name,
+            aptitude = EXCLUDED.aptitude,
+            last_active = EXCLUDED.last_active,
+            role_employees_id = EXCLUDED.role_employees_id;
+    END IF;
+
+    -- Dev Profile
+    IF v_emp_dev_id IS NOT NULL THEN
+        INSERT INTO public.employees_profile (employees_id, first_name, last_name, aptitude, last_active, role_employees_id)
+        VALUES (v_emp_dev_id, 'Developer', 'Buzzly', 'Full-stack Developer', NOW() - INTERVAL '2 minutes', v_role_dev_id)
+        ON CONFLICT (employees_id) DO UPDATE SET
+            first_name = EXCLUDED.first_name,
+            last_name = EXCLUDED.last_name,
+            aptitude = EXCLUDED.aptitude,
+            last_active = EXCLUDED.last_active,
+            role_employees_id = EXCLUDED.role_employees_id;
+    END IF;
+
+    -- Support Profile
+    IF v_emp_support_id IS NOT NULL THEN
+        INSERT INTO public.employees_profile (employees_id, first_name, last_name, aptitude, last_active, role_employees_id)
+        VALUES (v_emp_support_id, 'Support', 'No1.', 'Customer Success', NOW() - INTERVAL '4 hours', v_role_support_id)
+        ON CONFLICT (employees_id) DO UPDATE SET
+            first_name = EXCLUDED.first_name,
+            last_name = EXCLUDED.last_name,
+            aptitude = EXCLUDED.aptitude,
+            last_active = EXCLUDED.last_active,
+            role_employees_id = EXCLUDED.role_employees_id;
+    END IF;
+
+    RAISE NOTICE '✅ Employee profiles seeded with Aptitudes successfully.';
 END $$;

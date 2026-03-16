@@ -36,18 +36,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Plus,
+  Search,
   MoreVertical,
   Pencil,
+  Trash2,
+  Shield,
   UserX,
   UserCheck,
-  Trash2,
-  Plus,
+  Loader2,
   Building2,
   Briefcase,
-  Loader2,
   CheckCircle,
   XCircle,
+  Clock
 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { th } from "date-fns/locale";
 import { useEmployees, Employee as EmployeeData, EmployeeInsert } from "@/hooks/useEmployees";
 
 const departments = ["การตลาด", "ขาย", "บัญชี", "IT", "HR", "ปฏิบัติการ"];
@@ -297,13 +302,28 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                   <TableCell>{getStatusBadge(employee.status)}</TableCell>
                   <TableCell>{getApprovalBadge(employee.approval_status)}</TableCell>
                   <TableCell className="text-muted-foreground text-sm">
-                    {employee.profile?.last_active
-                      ? new Date(employee.profile.last_active).toLocaleDateString("th-TH", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })
-                      : "-"}
+                    {employee.profile?.last_active ? (
+                      <div className="flex flex-col">
+                        <span className="flex items-center gap-1 font-medium text-foreground">
+                          <Clock className="h-3 w-3" />
+                          {formatDistanceToNow(new Date(employee.profile.last_active), { 
+                            addSuffix: true,
+                            locale: th 
+                          })}
+                        </span>
+                        <span className="text-[10px]">
+                          {new Date(employee.profile.last_active).toLocaleString("th-TH", {
+                            day: "numeric",
+                            month: "short",
+                            year: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })}
+                        </span>
+                      </div>
+                    ) : (
+                      "-"
+                    )}
                   </TableCell>
                   {canManage && (
                     <TableCell>
@@ -460,11 +480,13 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                   <SelectValue placeholder="เลือกบทบาท" />
                 </SelectTrigger>
                 <SelectContent>
-                  {roles.map((role) => (
-                    <SelectItem key={role.id} value={role.id}>
-                      {role.role_name}
-                    </SelectItem>
-                  ))}
+                  {roles
+                    .filter((role) => role.role_name?.toLowerCase() !== "owner")
+                    .map((role) => (
+                      <SelectItem key={role.id} value={role.id}>
+                        {role.role_name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -538,11 +560,13 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                   <SelectValue placeholder="เลือกบทบาท" />
                 </SelectTrigger>
                 <SelectContent>
-                  {roles.map((role) => (
-                    <SelectItem key={role.id} value={role.id}>
-                      {role.role_name}
-                    </SelectItem>
-                  ))}
+                  {roles
+                    .filter((role) => role.role_name?.toLowerCase() !== "owner")
+                    .map((role) => (
+                      <SelectItem key={role.id} value={role.id}>
+                        {role.role_name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
