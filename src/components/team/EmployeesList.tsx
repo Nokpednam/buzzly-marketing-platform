@@ -195,12 +195,18 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
     setEditDialogOpen(true);
   };
 
-  const getStatusBadge = (status: string | null) => {
+  const getStatusBadge = (employee: EmployeeData) => {
+    const status = employee.status;
+    const isSignedUp = !!employee.user_id;
+
     switch (status) {
       case "active":
         return <Badge className="bg-success text-success-foreground">ใช้งาน</Badge>;
       case "inactive":
-        return <Badge variant="outline" className="text-muted-foreground">ยังไม่สมัคร</Badge>;
+        if (!isSignedUp) {
+          return <Badge variant="outline" className="text-muted-foreground">ยังไม่สมัคร</Badge>;
+        }
+        return <Badge variant="outline" className="text-warning">รอเปิดใช้งาน</Badge>;
       case "suspended":
         return <Badge variant="destructive">ระงับ</Badge>;
       default:
@@ -302,7 +308,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                       {employee.profile?.aptitude || "ไม่ระบุ"}
                     </div>
                   </TableCell>
-                  <TableCell>{getStatusBadge(employee.status)}</TableCell>
+                  <TableCell>{getStatusBadge(employee)}</TableCell>
                   <TableCell>{getApprovalBadge(employee.approval_status)}</TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {employee.profile?.last_active ? (

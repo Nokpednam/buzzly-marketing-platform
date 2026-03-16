@@ -180,7 +180,7 @@ BEGIN
                 user_id, email, status, approval_status, role_employees_id
             )
             VALUES (
-                new.id, new.email, 'active', 'pending',
+                new.id, new.email, 'inactive', 'pending',
                 (SELECT id FROM public.role_employees WHERE LOWER(role_name) = 'dev' LIMIT 1)
             )
             ON CONFLICT (user_id) DO UPDATE SET

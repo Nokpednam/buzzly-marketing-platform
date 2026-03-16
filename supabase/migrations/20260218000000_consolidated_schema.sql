@@ -288,7 +288,7 @@ BEGIN
             VALUES (
                 new.id, 
                 new.email, 
-                'active', 
+                'inactive', 
                 'pending',
                 NULL
             )
