@@ -82,6 +82,8 @@ interface ExternalAdRecord {
   ad_group_external_id?: string | null;
   ad_group_name?: string | null;
   ad_name?: string | null;
+  amount_spent?: number | string | null;
+  cost?: number | string | null;
   ctr?: number | string | null;
   clicks?: number | string | null;
   cpc?: number | string | null;
@@ -108,6 +110,7 @@ interface ExternalAdRecord {
   spend?: number | string | null;
   start_time?: string | null;
   status?: string | null;
+  total_clicks?: number | string | null;
   targeting?: {
     interests?: string[] | null;
   } | null;
@@ -145,6 +148,25 @@ interface ExternalConversationRecord {
 
 interface SimulatedAdPayload {
   name?: string | null;
+}
+
+interface CreateAdWithMirrorPostRpcPayload {
+  p_team_id?: string;
+  p_name?: string;
+  p_status?: string | null;
+  p_creative_type?: string | null;
+  p_headline?: string | null;
+  p_ad_copy?: string | null;
+  p_call_to_action?: string | null;
+  p_content?: string | null;
+  p_media_urls?: string[] | null;
+  p_scheduled_at?: string | null;
+  p_ad_group_id?: string | null;
+  p_platform_id?: string | null;
+  p_creative_url?: string | null;
+  p_platform_ad_id?: string | null;
+  p_preview_url?: string | null;
+  p_budget?: number | null;
 }
 
 interface InsertedPersonaRecord {
@@ -385,6 +407,25 @@ function resolveAdPublishedAt(ad: ExternalAdRecord): string {
   }
 
   return new Date().toISOString();
+}
+
+function toFiniteNumber(...values: Array<number | string | null | undefined>): number {
+  for (const value of values) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return 0;
+}
+
+function buildOrganicPostName(content: string): string {
+  const trimmed = content.trim();
+  if (!trimmed) {
+    return "Post: Untitled";
+  }
+  const preview = trimmed.slice(0, 20);
+  return `Post: ${preview}${trimmed.length > 20 ? "..." : ""}`;
 }
 
 async function upsertSyncedAdPost(params: {
@@ -677,6 +718,12 @@ app.post("/api/connect", async (req, res) => {
         workspaceId,
       });
 
+      const totalImpressions = toFiniteNumber(ad.impressions);
+      const totalClicks = toFiniteNumber(ad.clicks, ad.total_clicks);
+      const totalSpend = toFiniteNumber(ad.spend, ad.cost, ad.amount_spent);
+      const totalReach = toFiniteNumber(ad.reach);
+      const totalConversions = toFiniteNumber(ad.conversions);
+
       // Spread totals evenly over the flight window with light jitter
       const startDate = new Date(ad.date_start);
       const endDate = new Date(ad.date_stop);
@@ -695,15 +742,15 @@ app.post("/api/connect", async (req, res) => {
           campaign_id: null,
           ads_id: adId,
           date: date.toISOString().split("T")[0],
-          impressions: Math.round((Number(ad.impressions) / totalDays) * jitter),
-          clicks: Math.round((Number(ad.clicks) / totalDays) * jitter),
-          spend: parseFloat(((Number(ad.spend) / totalDays) * jitter).toFixed(2)),
-          reach: Math.round((Number(ad.reach) / totalDays) * jitter),
-          conversions: Math.round((Number(ad.conversions) / totalDays) * jitter),
-          ctr: Number(ad.ctr),
-          cpc: Number(ad.cpc),
-          cpm: Number(ad.cpm),
-          roas: Number(ad.roas),
+          impressions: Math.round((totalImpressions / totalDays) * jitter),
+          clicks: Math.round((totalClicks / totalDays) * jitter),
+          spend: parseFloat(((totalSpend / totalDays) * jitter).toFixed(2)),
+          reach: Math.round((totalReach / totalDays) * jitter),
+          conversions: Math.round((totalConversions / totalDays) * jitter),
+          ctr: toFiniteNumber(ad.ctr),
+          cpc: totalClicks > 0 ? parseFloat((totalSpend / totalClicks).toFixed(4)) : toFiniteNumber(ad.cpc),
+          cpm: toFiniteNumber(ad.cpm),
+          roas: toFiniteNumber(ad.roas),
         });
       }
     }
@@ -801,14 +848,15 @@ app.post("/api/connect", async (req, res) => {
       const chatRows = chatsData.map((conv) => {
         const msgs = conv.messages ?? [];
         const lastMsg = msgs[msgs.length - 1];
+        const content = lastMsg?.text ?? `Chat with ${conv.participant?.name ?? "Unknown"}`;
         return {
           team_id: workspaceId,
           platform_id: platformId,
           post_channel: "social",
           post_type: "chat",
           platform_post_id: conv.thread_id,
-          name: null,
-          content: lastMsg?.text ?? `Chat with ${conv.participant?.name ?? "Unknown"}`,
+          name: buildOrganicPostName(content),
+          content,
           published_at: conv.last_message_time ?? new Date().toISOString(),
           status: "published",
           comments: conv.unread_count ?? 0,
@@ -925,6 +973,76 @@ app.post("/api/ads", async (req, res) => {
       published_at: new Date().toISOString()
     }
   });
+});
+
+app.post("/api/rpc/create_ad_with_mirror_post", async (req, res) => {
+  const payload = req.body as CreateAdWithMirrorPostRpcPayload;
+
+  if (!payload.p_team_id || !payload.p_name) {
+    res.status(400).json({
+      error: "p_team_id and p_name are required",
+    });
+    return;
+  }
+
+  try {
+    const supabase = getSupabaseClient();
+
+    const adInsertPayload = {
+      team_id: payload.p_team_id,
+      name: payload.p_name,
+      status: payload.p_status ?? "draft",
+      creative_type: payload.p_creative_type ?? "image",
+      headline: payload.p_headline ?? null,
+      ad_copy: payload.p_ad_copy ?? null,
+      call_to_action: payload.p_call_to_action ?? null,
+      content: payload.p_content ?? null,
+      media_urls: payload.p_media_urls ?? null,
+      scheduled_at: payload.p_scheduled_at ?? null,
+      ad_group_id: payload.p_ad_group_id ?? null,
+      creative_url: payload.p_creative_url ?? "/placeholder.svg",
+      platform_ad_id: payload.p_platform_ad_id ?? null,
+      preview_url: payload.p_preview_url ?? null,
+      budget: payload.p_budget ?? null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: createdAd, error: adError } = await supabase
+      .from("ads")
+      .insert(adInsertPayload)
+      .select()
+      .single();
+
+    if (adError) {
+      throw adError;
+    }
+
+    const socialPayload = {
+      id: createdAd.id,
+      team_id: payload.p_team_id,
+      platform_id: payload.p_platform_id ?? null,
+      post_type: payload.p_creative_type ?? "image",
+      post_channel: "ad",
+      name: payload.p_name,
+      content: payload.p_content ?? null,
+      media_urls: payload.p_media_urls ?? null,
+      status: payload.p_status ?? "draft",
+      scheduled_at: payload.p_scheduled_at ?? null,
+      ad_group_id: payload.p_ad_group_id ?? null,
+    };
+
+    const { error: socialError } = await supabase.from("social_posts").insert(socialPayload);
+    if (socialError) {
+      // Keep behavior aligned with SQL RPC: mirror insert failure should not leave orphan ad rows.
+      await supabase.from("ads").delete().eq("id", createdAd.id);
+      throw socialError;
+    }
+
+    res.json({ data: createdAd });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  }
 });
 
 app.get("/api/ad-groups", async (req, res) => {
@@ -1164,6 +1282,7 @@ app.get("/", (_req, res) => {
     endpoints: [
       "POST /validate-key                          — validate a mock API key",
       "POST /api/connect                           — ingest external data → Supabase (returns status only)",
+      "POST /api/rpc/create_ad_with_mirror_post   — mock RPC for ad + mirror post creation",
       "GET  /api/ad-groups?workspaceId=<uuid>      — list ad groups for a workspace",
       "POST /api/ad-groups                         — create an ad group and optionally assign ads",
       "PUT  /api/ad-groups/:id                     — update an ad group and sync assigned ads",
@@ -1191,6 +1310,7 @@ app.listen(PORT, () => {
   console.log(`   Tenants: shop-a (high volume) | shop-b (niche)`);
   console.log(`\n   Endpoints:`);
   console.log(`   POST /validate-key`);
+  console.log(`   POST /api/rpc/create_ad_with_mirror_post`);
   console.log(`   GET  /api/ad-groups?workspaceId=<uuid>`);
   console.log(`   POST /api/ad-groups`);
   console.log(`   PUT  /api/ad-groups/:id`);

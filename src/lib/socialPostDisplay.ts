@@ -15,6 +15,19 @@ function getFirstNonEmptyValue(values: Array<string | null | undefined>): string
   return null;
 }
 
+function containsPersonaMetadata(value: string): boolean {
+  const normalized = value.toLowerCase();
+  return (
+    normalized.includes("persona_data") ||
+    normalized.includes("age_distribution") ||
+    normalized.includes("gender") ||
+    normalized.includes("top_locations") ||
+    normalized.includes("device_type") ||
+    normalized.includes("interests") ||
+    (normalized.includes("{") && normalized.includes("}"))
+  );
+}
+
 export function getSocialPostDisplayTitle(post: SocialPostDisplaySource): string {
   if (post.post_channel === "ad") {
     return (
@@ -30,11 +43,14 @@ export function getSocialPostDisplayTitle(post: SocialPostDisplaySource): string
     );
   }
 
-  // Organic posts: `name` is intentionally excluded — it can contain person/persona
-  // names from external sync paths (e.g. chat ingestion), which would show as the
-  // post title. Only `content` and `subject` are safe display sources here.
+  const safeOrganicName =
+    typeof post.name === "string" && post.name.trim().length > 0 && !containsPersonaMetadata(post.name)
+      ? post.name
+      : null;
+
+  // Organic posts: use `name` only when it is human-readable and not persona metadata.
   return (
-    getFirstNonEmptyValue([post.content, post.subject]) ??
+    getFirstNonEmptyValue([safeOrganicName, post.content, post.subject]) ??
     "Untitled Post"
   );
 }

@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { useWorkspace } from "./useWorkspace";
 import { invalidateSocialRealtimeQueries } from "@/lib/socialQueryInvalidation";
+import { MOCK_API_BASE_URL } from "@/lib/mockApiKeys";
+import { USE_MOCK_DATA } from "@/lib/mock-api-data";
 
 export type Ad = Database["public"]["Tables"]["ads"]["Row"];
 export type AdInsert = Database["public"]["Tables"]["ads"]["Insert"];
@@ -34,6 +36,39 @@ type ExtendedAdInsert = AdInsert & {
 type ExtendedAdUpdate = AdUpdate & {
   budget?: number | null;
 };
+
+interface CreateAdWithMirrorPostParams {
+  p_team_id: string;
+  p_name: string;
+  p_status: string;
+  p_creative_type: string;
+  p_headline: string | null;
+  p_ad_copy: string | null;
+  p_call_to_action: string | null;
+  p_content: string | null;
+  p_media_urls: string[] | null;
+  p_scheduled_at: string | null;
+  p_ad_group_id: string | null;
+  p_platform_id: string | null;
+  p_creative_url: string | null;
+  p_platform_ad_id: string | null;
+  p_preview_url: string | null;
+  p_budget: number | null;
+}
+
+interface CreateAdWithMirrorPostMockResponse {
+  data: Ad;
+}
+
+function shouldFallbackToMockRpc(errorMessage: string): boolean {
+  const normalized = errorMessage.toLowerCase();
+  return (
+    normalized.includes("create_ad_with_mirror_post") &&
+    (normalized.includes("could not find the function") ||
+      normalized.includes("function") ||
+      normalized.includes("not found"))
+  );
+}
 
 // Extends Ad with joined relations and fields not yet fully typed
 export type AdWithPublishStatus = Ad & {
@@ -111,32 +146,59 @@ export function useAds() {
       input: ExtendedAdInsert & { platform_id?: string | null }
     ) => {
       if (!workspace?.id) throw new Error("No active workspace");
-      const { platform_id, budget, ...adFields } = input as ExtendedAdInsert & {
-        platform_id?: string | null;
+      const { platform_id, budget, ...adFields } = input as ExtendedAdInsert & { platform_id?: string | null };
+
+      const rpcParams: CreateAdWithMirrorPostParams = {
+        p_team_id: workspace.id,
+        p_name: adFields.name,
+        p_status: adFields.status ?? "draft",
+        p_creative_type: adFields.creative_type ?? "image",
+        p_headline: adFields.headline ?? null,
+        p_ad_copy: adFields.ad_copy ?? null,
+        p_call_to_action: adFields.call_to_action ?? null,
+        p_content: adFields.content ?? null,
+        p_media_urls: adFields.media_urls ?? null,
+        p_scheduled_at: adFields.scheduled_at ?? null,
+        p_ad_group_id: adFields.ad_group_id ?? null,
+        p_platform_id: platform_id ?? null,
+        p_creative_url: adFields.creative_url ?? "/placeholder.svg",
+        p_platform_ad_id: adFields.platform_ad_id ?? null,
+        p_preview_url: adFields.preview_url ?? null,
+        p_budget: budget ?? null,
       };
-      const { data, error } = await (supabase as any).rpc(
-        "create_ad_with_mirror_post",
-        {
-          p_team_id:        workspace.id,
-          p_name:           adFields.name,
-          p_status:         (adFields.status as string) ?? "draft",
-          p_creative_type:  (adFields as any).creative_type ?? "image",
-          p_headline:       (adFields as any).headline ?? null,
-          p_ad_copy:        (adFields as any).ad_copy ?? null,
-          p_call_to_action: (adFields as any).call_to_action ?? null,
-          p_content:        adFields.content ?? null,
-          p_media_urls:     adFields.media_urls ?? null,
-          p_scheduled_at:   (adFields as any).scheduled_at ?? null,
-          p_ad_group_id:    adFields.ad_group_id ?? null,
-          p_platform_id:    platform_id ?? null,
-          p_creative_url:   (adFields as any).creative_url ?? "/placeholder.svg",
-          p_platform_ad_id: (adFields as any).platform_ad_id ?? null,
-          p_preview_url:    (adFields as any).preview_url ?? null,
-          p_budget:         budget ?? null,
+
+      const createViaMockEndpoint = async () => {
+        const response = await fetch(`${MOCK_API_BASE_URL}/api/rpc/create_ad_with_mirror_post`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(rpcParams),
+        });
+        const body = (await response.json()) as
+          | CreateAdWithMirrorPostMockResponse
+          | { error?: string };
+        if (!response.ok || !("data" in body) || !body.data?.id) {
+          throw new Error(body && "error" in body ? body.error ?? "Mock RPC failed" : "Mock RPC failed");
         }
-      ) as { data: Ad | null; error: { message: string } | null };
-      if (error) throw new Error(error.message);
-      return data as Ad;
+        return body.data;
+      };
+
+      if (USE_MOCK_DATA) {
+        return createViaMockEndpoint();
+      }
+
+      const { data, error } = await supabase.rpc("create_ad_with_mirror_post", rpcParams);
+      if (error) {
+        if (shouldFallbackToMockRpc(error.message)) {
+          return createViaMockEndpoint();
+        }
+        throw new Error(error.message);
+      }
+
+      const createdAd = data as Ad | null;
+      if (!createdAd?.id) {
+        throw new Error("create_ad_with_mirror_post returned no ad id");
+      }
+      return createdAd;
     },
     onSuccess: () => {
       void invalidateSocialRealtimeQueries(queryClient);
