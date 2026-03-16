@@ -18,13 +18,13 @@ export function MainLayout() {
       <AppSidebar />
       <div
         className={cn(
-          "transition-all duration-300",
-          collapsed ? "pl-16" : "pl-64",
+          "transition-all duration-300 min-h-screen",
+          collapsed ? "pl-20" : "pl-72",
           USE_MOCK_DATA && "pt-6",
         )}
       >
         <Header />
-        <main className="p-6">
+        <main className="px-6 pt-6 pb-2">
           <Outlet />
         </main>
       </div>

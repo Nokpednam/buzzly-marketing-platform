@@ -5,16 +5,12 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Plus,
   MoreHorizontal,
@@ -22,7 +18,6 @@ import {
   Pause,
   Users,
   TrendingUp,
-  Calendar,
   Target,
   Clock,
   Search,
@@ -31,7 +26,6 @@ import {
   Eye,
   Edit,
   Loader2,
-  ArrowUpRight,
   BarChart3,
   DollarSign,
 } from "lucide-react";
@@ -83,6 +77,41 @@ const statusStyles: Record<string, string> = {
   completed: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20",
 };
 
+/** Minimal sparkline for campaign row — synthetic trend from totals */
+function Sparkline({ impressions, clicks, conversions }: { impressions: number; clicks: number; conversions: number }) {
+  const points = 7;
+  const base = Math.max(1, (impressions + clicks * 10 + conversions * 50) / 100);
+  const data = Array.from({ length: points }, (_, i) => {
+    const t = i / (points - 1);
+    return base * (0.3 + 0.7 * t) + Math.sin(t * Math.PI * 2) * base * 0.15;
+  });
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const w = 48;
+  const h = 20;
+  const pathData = data
+    .map((v, i) => {
+      const x = (i / (points - 1)) * w;
+      const y = h - ((v - min) / range) * (h - 2) - 1;
+      return `${i === 0 ? "M" : "L"} ${x} ${y}`;
+    })
+    .join(" ");
+  return (
+    <svg width={w} height={h} className="opacity-60" aria-hidden>
+      <path
+        d={pathData}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="text-cyan-500"
+      />
+    </svg>
+  );
+}
+
 export default function Campaigns() {
   const navigate = useNavigate();
   const {
@@ -110,12 +139,12 @@ export default function Campaigns() {
         budget_amount: campaign.budget_amount,
         start_date: campaign.start_date,
         end_date: campaign.end_date,
-        status: "draft", // Always default a copy to draft
-        ad_account_id: campaign.ad_account_id, // Critical for RLS/Permissions
+        status: "draft",
+        ad_account_id: campaign.ad_account_id,
       });
       toast.success("คัดลอกแคมเปญสำเร็จ");
-    } catch (error) {
-      console.error("Duplicate failed:", error);
+    } catch (err) {
+      console.error("Duplicate failed:", err);
       toast.error("ไม่สามารถคัดลอกแคมเปญได้");
     }
   };
@@ -123,22 +152,20 @@ export default function Campaigns() {
 
   const { state: onboardingState } = useOnboardingGuard();
 
-  // Use React Query so this auto-refetches when a platform is connected
   const { data: adAccounts = [] } = useQuery({
     queryKey: ["ad-accounts"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, err } = await supabase
         .from("ad_accounts")
         .select("id, account_name")
         .eq("is_active", true)
         .order("account_name");
-      if (error) throw error;
+      if (err) throw err;
       return data || [];
     },
     staleTime: 30_000,
   });
 
-  // Auto-select first ad account when data loads
   useEffect(() => {
     if (adAccounts.length > 0 && !selectedAdAccount) {
       setSelectedAdAccount(adAccounts[0].id);
@@ -177,10 +204,7 @@ export default function Campaigns() {
     });
   }, [campaigns, activeTab, searchQuery]);
 
-  // Global Stats
-  const activeCampaignsCount = campaigns.filter(
-    (c) => c.status === "active",
-  ).length;
+  const activeCampaignsCount = campaigns.filter((c) => c.status === "active").length;
   const totalImpressions = campaigns.reduce((sum, c) => sum + c.impressions, 0);
   const totalConversions = campaigns.reduce((sum, c) => sum + c.conversions, 0);
   const totalSpend = campaigns.reduce((sum, c) => sum + c.spend, 0);
@@ -191,16 +215,11 @@ export default function Campaigns() {
     return num.toString();
   };
 
-  const handleToggleStatus = async (
-    id: string,
-    currentStatus: string | null,
-  ) => {
-    // Pause: only from active
+  const handleToggleStatus = async (id: string, currentStatus: string | null) => {
     if (currentStatus === "active") {
       await updateCampaign.mutateAsync({ id, updates: { status: "paused" } });
       return;
     }
-    // Activate: from paused, draft, or scheduled
     if (currentStatus === "paused" || currentStatus === "draft" || currentStatus === "scheduled") {
       await updateCampaign.mutateAsync({ id, updates: { status: "active" } });
       return;
@@ -212,10 +231,7 @@ export default function Campaigns() {
     toast.error("Cannot toggle this status");
   };
 
-  const handleDelete = (id: string) => {
-    setDeletingCampaignId(id);
-  };
-
+  const handleDelete = (id: string) => setDeletingCampaignId(id);
   const confirmDelete = async () => {
     if (!deletingCampaignId) return;
     await deleteCampaign.mutateAsync(deletingCampaignId);
@@ -296,8 +312,8 @@ export default function Campaigns() {
         await createCampaign.mutateAsync({ ...payload, status, adIds: selectedAdIds });
       }
       setIsDialogOpen(false);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Operation failed");
+    } catch (e: unknown) {
+      toast.error((e as { message?: string })?.message ?? "Operation failed");
     }
   };
 
@@ -305,9 +321,7 @@ export default function Campaigns() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-muted-foreground animate-pulse font-medium">
-          Synchronizing campaign data...
-        </p>
+        <p className="text-muted-foreground animate-pulse font-medium">Synchronizing campaign data...</p>
       </div>
     );
   }
@@ -329,7 +343,7 @@ export default function Campaigns() {
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto space-y-8 p-4 md:p-8">
+    <div className="max-w-[1400px] mx-auto space-y-6 px-4 pt-4 pb-0 md:px-8 md:pt-6 md:pb-1">
       {/* 1. HEADER SECTION */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
@@ -386,12 +400,8 @@ export default function Campaigns() {
       </div>
 
       {/* 3. FILTER & SEARCH BAR */}
-      <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-gradient-to-r from-violet-50/30 via-sky-50/30 to-emerald-50/30 dark:from-violet-950/10 dark:via-sky-950/10 dark:to-emerald-950/10 p-2 rounded-2xl backdrop-blur-sm border-2 border-violet-200/30 dark:border-violet-800/30">
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="w-full lg:w-auto"
-        >
+      <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-gradient-to-r from-violet-50/30 via-sky-50/30 to-emerald-50/30 dark:from-violet-950/10 dark:via-sky-950/10 dark:to-emerald-950/10 p-2 rounded-2xl backdrop-blur-sm border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full lg:w-auto">
           <TabsList className="bg-transparent h-10 gap-1">
             {["all", "active", "paused", "scheduled", "draft", "completed"].map((tab) => (
               <TabsTrigger
@@ -416,17 +426,16 @@ export default function Campaigns() {
       </div>
 
       {/* 4. CAMPAIGN LIST */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {filteredCampaigns.length === 0 ? (
-          <Card className="border-2 border-dashed border-border/60 bg-muted/10">
+          <Card className="border border-slate-100 border-dashed bg-muted/10 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             <CardContent className="py-20 flex flex-col items-center justify-center text-center">
               <div className="p-4 bg-background rounded-full mb-4 shadow-sm">
                 <Target className="h-8 w-8 text-muted-foreground/30" />
               </div>
               <h3 className="text-xl font-bold">No Campaigns Found</h3>
               <p className="text-muted-foreground max-w-xs">
-                Try adjusting your filters or create a new campaign to get
-                started.
+                Try adjusting your filters or create a new campaign to get started.
               </p>
             </CardContent>
           </Card>
@@ -434,13 +443,13 @@ export default function Campaigns() {
           filteredCampaigns.map((campaign) => (
             <Card
               key={campaign.id}
-              className="group overflow-hidden border-2 border-border/60 shadow-md hover:shadow-xl hover:border-primary/50 transition-all duration-300 cursor-pointer"
+              className="group overflow-hidden border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06)] hover:border-primary/30 transition-all duration-300 cursor-pointer"
               onClick={() => navigate(`/campaigns/${campaign.id}`)}
             >
-              <div className="flex flex-col lg:flex-row">
+              <div className="flex flex-col lg:flex-row lg:items-center">
                 {/* Meta Column */}
-                <div className="p-6 lg:w-80 border-b-2 lg:border-b-0 lg:border-r-2 border-border/50 bg-gradient-to-br from-blue-50/30 to-purple-50/30 dark:from-blue-950/10 dark:to-purple-950/10 transition-colors group-hover:from-blue-100/40 group-hover:to-purple-100/40 dark:group-hover:from-blue-900/20 dark:group-hover:to-purple-900/20">
-                  <div className="flex items-start justify-between mb-3">
+                <div className="px-4 py-4 lg:w-80 border-b lg:border-b-0 lg:border-r border-slate-100 bg-gradient-to-br from-blue-50/30 to-purple-50/30 dark:from-blue-950/10 dark:to-purple-950/10 transition-colors group-hover:from-blue-100/40 group-hover:to-purple-100/40 dark:group-hover:from-blue-900/20 dark:group-hover:to-purple-900/20">
+                  <div className="flex items-start justify-between mb-2">
                     <Badge
                       variant="outline"
                       className={cn(
@@ -453,24 +462,24 @@ export default function Campaigns() {
                     <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1 uppercase tracking-tighter">
                       <Clock className="h-3 w-3" />{" "}
                       {campaign.start_date
-                        ? new Date(campaign.start_date).toLocaleDateString(
-                          "en-US",
-                          { month: "short", day: "numeric" },
-                        )
+                        ? new Date(campaign.start_date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })
                         : "TBD"}
                     </span>
                   </div>
-                  <h3 className="text-lg font-black leading-tight mb-2 group-hover:text-primary transition-colors">
+                  <h3 className="text-lg font-black leading-tight mb-1.5 group-hover:text-primary transition-colors">
                     {campaign.name}
                   </h3>
-                  <p className="text-xs text-muted-foreground line-clamp-2 mb-4 italic">
+                  <p className="text-xs text-muted-foreground line-clamp-2 mb-3 italic">
                     {campaign.objective || "No objective defined."}
                   </p>
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-2 mb-2">
                     <div className="bg-primary/10 text-primary p-1 rounded">
                       <DollarSign className="h-3 w-3" />
                     </div>
-                    <span className="text-sm font-bold">
+                    <span className="text-sm font-bold font-mono">
                       ฿{campaign.budget_amount?.toLocaleString() ?? "—"}
                     </span>
                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest ml-1">
@@ -478,15 +487,13 @@ export default function Campaigns() {
                     </span>
                   </div>
 
-                  {/* Ad Account */}
                   {campaign.ad_account_name && (
-                    <p className="text-[10px] text-muted-foreground font-medium mb-2 truncate">
+                    <p className="text-[10px] text-muted-foreground font-medium mb-1.5 truncate">
                       {campaign.ad_account_name}
                     </p>
                   )}
 
-                  {/* Tags */}
-                  <div className="flex flex-wrap gap-1.5 min-h-[24px]">
+                  <div className="flex flex-wrap gap-1.5 min-h-[20px]">
                     {campaign.tags?.map((tag) => (
                       <span
                         key={tag.id}
@@ -500,48 +507,54 @@ export default function Campaigns() {
                 </div>
 
                 {/* Performance Column */}
-                <div className="p-6 flex-1 bg-gradient-to-br from-emerald-50/20 to-cyan-50/20 dark:from-emerald-950/5 dark:to-cyan-950/5 relative">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-                    <DataPoint
-                      label="Impressions"
-                      value={formatNumber(campaign.impressions)}
-                    />
-                    <DataPoint
-                      label="CTR"
-                      value={`${((campaign.clicks / (campaign.impressions || 1)) * 100).toFixed(2)}%`}
-                    />
-                    <DataPoint
-                      label="Conversions"
-                      value={formatNumber(campaign.conversions)}
-                      highlight
-                    />
-                    <DataPoint
-                      label="Cost/Conv"
-                      value={`$${(campaign.spend / (campaign.conversions || 1)).toFixed(2)}`}
-                    />
+                <div className="px-4 py-4 flex-1 bg-gradient-to-br from-emerald-50/20 to-cyan-50/20 dark:from-emerald-950/5 dark:to-cyan-950/5 relative min-w-0">
+                  {/* Column headers + data in same grid for perfect alignment */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-1 mb-2">
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">IMPR</div>
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">CTR</div>
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">CONV</div>
+                    <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">COST/CONV</div>
+                    <div className="font-mono text-xl font-black tabular-nums text-foreground">
+                      {formatNumber(campaign.impressions)}
+                    </div>
+                    <div className="font-mono text-xl font-black tabular-nums text-foreground">
+                      {((campaign.clicks / (campaign.impressions || 1)) * 100).toFixed(2)}%
+                    </div>
+                    <div className="font-mono text-xl font-black tabular-nums text-primary">
+                      {formatNumber(campaign.conversions)}
+                    </div>
+                    <div className="font-mono text-xl font-black tabular-nums text-foreground">
+                      ฿{(campaign.spend / (campaign.conversions || 1)).toFixed(2)}
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-6">
-                    <div className="flex-1">
-                      <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter mb-1.5 text-muted-foreground">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter mb-1 text-muted-foreground">
                         <span>Campaign Delivery</span>
-                        <span>{campaign.progress}%</span>
+                        <span className="font-mono">{campaign.progress}%</span>
                       </div>
-                      <Progress value={campaign.progress} className="h-1.5" />
+                      <Progress
+                        value={campaign.progress}
+                        className="h-1.5 [&>div]:bg-cyan-500"
+                      />
                     </div>
 
                     <div
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 shrink-0"
                       onClick={(e) => e.stopPropagation()}
                     >
+                      <Sparkline
+                        impressions={campaign.impressions}
+                        clicks={campaign.clicks}
+                        conversions={campaign.conversions}
+                      />
                       {campaign.status !== "completed" && (
                         <Button
                           variant="secondary"
                           size="icon"
                           className="rounded-full h-10 w-10 shadow-sm"
-                          onClick={() =>
-                            handleToggleStatus(campaign.id, campaign.status)
-                          }
+                          onClick={() => handleToggleStatus(campaign.id, campaign.status)}
                         >
                           {campaign.status === "active" ? (
                             <Pause className="h-4 w-4" />
@@ -553,22 +566,13 @@ export default function Campaigns() {
 
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="rounded-full h-10 w-10"
-                          >
+                          <Button variant="ghost" size="icon" className="rounded-full h-10 w-10">
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          align="end"
-                          className="w-48 rounded-xl p-2"
-                        >
+                        <DropdownMenuContent align="end" className="w-48 rounded-xl p-2">
                           <DropdownMenuItem
-                            onClick={() =>
-                              navigate(`/campaigns/${campaign.id}`)
-                            }
+                            onClick={() => navigate(`/campaigns/${campaign.id}`)}
                             className="rounded-lg"
                           >
                             <Eye className="h-4 w-4 mr-2" /> View Insights
@@ -596,7 +600,6 @@ export default function Campaigns() {
                       </DropdownMenu>
                     </div>
                   </div>
-                  {/* Visual background flourish */}
                   <div className="absolute top-0 right-0 p-4 opacity-[0.03] pointer-events-none">
                     <TrendingUp className="h-24 w-24" />
                   </div>
@@ -610,7 +613,9 @@ export default function Campaigns() {
       {/* DELETE CONFIRMATION DIALOG */}
       <AlertDialog
         open={!!deletingCampaignId}
-        onOpenChange={(open) => { if (!open) setDeletingCampaignId(null); }}
+        onOpenChange={(open) => {
+          if (!open) setDeletingCampaignId(null);
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -631,7 +636,7 @@ export default function Campaigns() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* 5. DIALOG - STYLED FOR CLARITY */}
+      {/* DIALOG */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[550px] rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
           <DialogHeader className="p-8 bg-muted/50 border-b">
@@ -683,7 +688,7 @@ export default function Campaigns() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                  Budget ($)
+                  Budget (฿)
                 </Label>
                 <Input
                   type="number"
@@ -710,7 +715,6 @@ export default function Campaigns() {
               </div>
             </div>
 
-            {/* Status */}
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 Status
@@ -761,7 +765,6 @@ export default function Campaigns() {
               </div>
             </div>
 
-            {/* KPI Targets - all metrics settable */}
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 KPI Targets
@@ -776,7 +779,9 @@ export default function Campaigns() {
                     placeholder="Target"
                     className="h-10 rounded-xl bg-muted/30 border-none shadow-none"
                     value={formData.kpiClicks}
-                    onChange={(e) => setFormData((p) => ({ ...p, kpiClicks: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, kpiClicks: e.target.value }))
+                    }
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -788,7 +793,9 @@ export default function Campaigns() {
                     placeholder="Target"
                     className="h-10 rounded-xl bg-muted/30 border-none shadow-none"
                     value={formData.kpiConversions}
-                    onChange={(e) => setFormData((p) => ({ ...p, kpiConversions: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, kpiConversions: e.target.value }))
+                    }
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -800,7 +807,9 @@ export default function Campaigns() {
                     placeholder="Target"
                     className="h-10 rounded-xl bg-muted/30 border-none shadow-none"
                     value={formData.kpiSpend}
-                    onChange={(e) => setFormData((p) => ({ ...p, kpiSpend: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, kpiSpend: e.target.value }))
+                    }
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -812,13 +821,14 @@ export default function Campaigns() {
                     placeholder="Target"
                     className="h-10 rounded-xl bg-muted/30 border-none shadow-none"
                     value={formData.kpiImpressions}
-                    onChange={(e) => setFormData((p) => ({ ...p, kpiImpressions: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, kpiImpressions: e.target.value }))
+                    }
                   />
                 </div>
               </div>
             </div>
 
-            {/* Assign Ads */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
@@ -834,11 +844,7 @@ export default function Campaigns() {
             </div>
           </div>
           <DialogFooter className="p-8 bg-muted/20 border-t flex items-center justify-between sm:justify-between">
-            <Button
-              variant="ghost"
-              className="rounded-xl"
-              onClick={() => setIsDialogOpen(false)}
-            >
+            <Button variant="ghost" className="rounded-xl" onClick={() => setIsDialogOpen(false)}>
               Cancel
             </Button>
             <Button
@@ -855,12 +861,33 @@ export default function Campaigns() {
 }
 
 // UI HELPERS
-function MetricCard({ label, value, icon: Icon, color, bgColor, borderColor }: any) {
+function MetricCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+  bgColor,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ElementType;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+}) {
   return (
-    <Card className={`border-2 ${borderColor} ${bgColor} shadow-sm rounded-2xl group transition-all hover:shadow-md hover:border-primary/30`}>
+    <Card
+      className={cn(
+        "border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] rounded-2xl group transition-all hover:shadow-[0_2px_4px_rgba(0,0,0,0.06)] hover:border-primary/30",
+        bgColor,
+      )}
+    >
       <CardContent className="p-5 flex items-center gap-4">
         <div
-          className={`p-3 rounded-xl bg-background ${color} shadow-sm group-hover:scale-110 transition-transform`}
+          className={cn(
+            "p-3 rounded-xl bg-background shadow-sm group-hover:scale-110 transition-transform",
+            color,
+          )}
         >
           <Icon className="h-5 w-5" />
         </div>
@@ -868,27 +895,10 @@ function MetricCard({ label, value, icon: Icon, color, bgColor, borderColor }: a
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-70">
             {label}
           </p>
-          <p className="text-2xl font-black">{value}</p>
+          <p className="text-2xl font-black font-mono tabular-nums">{value}</p>
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function DataPoint({ label, value, highlight }: any) {
-  return (
-    <div className="space-y-1">
-      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-        {label}
-      </p>
-      <p
-        className={cn(
-          "text-xl font-black tracking-tight",
-          highlight ? "text-primary" : "text-foreground",
-        )}
-      >
-        {value}
-      </p>
-    </div>
-  );
-}

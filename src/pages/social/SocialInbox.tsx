@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { logError } from "@/services/errorLogger";
 import { useSocialInbox, type InboxFiltersState } from "@/hooks/useSocialInbox";
 import { useSocialComments } from "@/hooks/useSocialComments";
+import { useInboxArchived } from "@/hooks/useInboxArchived";
 import { InboxFilters } from "@/components/social/inbox/InboxFilters";
 import { ConversationList } from "@/components/social/inbox/ConversationList";
 import { ConversationThread } from "@/components/social/inbox/ConversationThread";
@@ -15,32 +16,55 @@ export default function SocialInbox() {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   const { threads, isLoading, error } = useSocialInbox(filters);
+  const { archive, unarchive, isArchived } = useInboxArchived();
 
   // useSocialComments is called without postId to get mutations scoped to workspace
   const { createComment, updateComment, markAsRead } = useSocialComments();
 
-  const selectedThread = threads.find((t) => t.post_id === selectedPostId) ?? null;
+  const visibleThreads = threads.filter((t) => {
+    const archived = isArchived(t.post_id);
+    return filters.showArchived ? archived : !archived;
+  });
+
+  const selectedThread = visibleThreads.find((t) => t.post_id === selectedPostId) ?? null;
 
   const totalUnread = threads.reduce((acc, t) => acc + t.unread_count, 0);
 
+  const handleSetSentiment = async (
+    thread: { post_id: string; comments: { id: string }[] },
+    sentiment: "positive" | "negative" | "neutral"
+  ) => {
+    try {
+      await Promise.all(
+        thread.comments.map((c) =>
+          updateComment.mutateAsync({ id: c.id, updates: { sentiment } })
+        )
+      );
+      toast.success(`Set to ${sentiment}`);
+    } catch (err) {
+      logError("SocialInbox.handleSetSentiment", err);
+      toast.error("Failed to update sentiment");
+    }
+  };
+
   useEffect(() => {
-    if (threads.length === 0) {
+    if (visibleThreads.length === 0) {
       if (selectedPostId !== null) {
         setSelectedPostId(null);
       }
       return;
     }
 
-    const hasSelectedThread = threads.some((thread) => thread.post_id === selectedPostId);
-    if (!hasSelectedThread) {
-      setSelectedPostId(threads[0].post_id);
+    const hasSelectedThread = visibleThreads.some((thread) => thread.post_id === selectedPostId);
+    if (!hasSelectedThread && visibleThreads.length > 0) {
+      setSelectedPostId(visibleThreads[0].post_id);
     }
-  }, [selectedPostId, threads]);
+  }, [selectedPostId, visibleThreads]);
 
   const handleSelectThread = (postId: string) => {
     setSelectedPostId(postId);
     // Auto-mark all unread comments in the selected thread as read
-    const thread = threads.find((t) => t.post_id === postId);
+    const thread = visibleThreads.find((t) => t.post_id === postId);
     if (thread) {
       thread.comments
         .filter((c) => !c.is_read)
@@ -49,7 +73,7 @@ export default function SocialInbox() {
   };
 
   const handleReply = async (commentId: string, replyText: string) => {
-    const thread = threads.find((t) => t.post_id === selectedPostId);
+    const thread = selectedThread ?? threads.find((t) => t.post_id === selectedPostId);
     if (!thread) return;
 
     try {
@@ -80,10 +104,10 @@ export default function SocialInbox() {
         },
       });
 
-      toast.success("ตอบกลับสำเร็จ");
+      toast.success("Reply sent");
     } catch (err) {
       logError("SocialInbox.handleReply", err);
-      toast.error("ไม่สามารถส่งตอบกลับได้ กรุณาลองอีกครั้ง");
+      toast.error("Failed to send reply. Please try again.");
     }
   };
 
@@ -97,21 +121,15 @@ export default function SocialInbox() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center gap-2">
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
-            Social Inbox
-          </h2>
-          {totalUnread > 0 && (
-            <Badge className="h-5 min-w-5 rounded-full bg-slate-900 px-1.5 text-xs text-white dark:bg-white dark:text-slate-900">
-              {totalUnread}
-            </Badge>
-          )}
-        </div>
-        <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
-          <Wifi className="h-3.5 w-3.5 text-emerald-500" aria-hidden />
-          ความคิดเห็นจาก social media อัปเดตแบบเรียลไทม์
-        </p>
+      {/* Compact bar: unread badge + filters — no duplicate header */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        {totalUnread > 0 && (
+          <Badge className="h-6 min-w-6 items-center justify-center rounded-full bg-primary px-2 text-xs text-primary-foreground">
+            <Wifi className="mr-1 h-3 w-3" aria-hidden />
+            {totalUnread} unread
+          </Badge>
+        )}
+        <div className="flex-1" />
       </div>
 
       {/* Filters */}
@@ -129,17 +147,21 @@ export default function SocialInbox() {
             <div className="flex items-center gap-2">
               <Inbox className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium text-foreground">
-                {isLoading ? "กำลังโหลด..." : `${threads.length} การสนทนา`}
+                {isLoading ? "Loading..." : `${visibleThreads.length} conversations`}
               </span>
             </div>
           </div>
 
           <div className="flex-1 overflow-hidden">
             <ConversationList
-              threads={threads}
+              threads={visibleThreads}
               selectedPostId={selectedPostId}
               onSelect={handleSelectThread}
               isLoading={isLoading}
+              onSetSentiment={handleSetSentiment}
+              onArchive={(t) => archive(t.post_id)}
+              onUnarchive={(t) => unarchive(t.post_id)}
+              isArchived={isArchived}
             />
           </div>
         </div>

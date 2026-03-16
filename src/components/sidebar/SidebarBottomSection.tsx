@@ -241,41 +241,39 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
     );
   }
 
-  // Expanded state - Lovable style
+  // Expanded state
   return (
-    <div className="border-t border-sidebar-border">
+    <div className="border-t border-border/60">
       {/* Upgrade Card */}
       <div className="p-3">
         <button
           onClick={() => setPlanDialogOpen(true)}
           className={cn(
-            "w-full flex items-center gap-3 rounded-2xl p-4 transition-all duration-300 relative overflow-hidden group",
-            "bg-gradient-to-br from-violet-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/20",
-            "hover:scale-[1.02] hover:shadow-xl hover:shadow-indigo-500/30 active:scale-[0.98]"
+            "w-full flex items-center gap-3 rounded-xl p-3 transition-all duration-200 relative overflow-hidden group",
+            "bg-gradient-to-br from-primary to-indigo-600 text-primary-foreground",
+            "hover:opacity-95 active:scale-[0.98]"
           )}
         >
-          <div className="absolute -right-2 -top-2 h-16 w-16 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-colors" />
-
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-md text-white border border-white/30 shadow-sm">
-            <Zap className="h-5 w-5 fill-current" />
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/20">
+            <Zap className="h-4 w-4 fill-current" />
           </div>
-          <div className="text-left flex-1">
-            <p className="text-sm font-black tracking-tight">{plan.upgradeText}</p>
-            <p className="text-[10px] font-medium opacity-80 leading-tight">
-              {plan.showUpgrade ? "Unlock more benefits" : "You have full access"}
+          <div className="text-left flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate">{plan.upgradeText}</p>
+            <p className="text-[10px] opacity-80 leading-tight truncate">
+              {plan.showUpgrade ? "Unlock more benefits" : "Full access"}
             </p>
           </div>
-          <ArrowUpRight className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+          <ArrowUpRight className="h-3.5 w-3.5 opacity-70 shrink-0" />
         </button>
       </div>
 
       {/* Bottom Bar - Avatar + Tier Badge + Notifications */}
-      <div className="px-3 pb-3 flex items-center justify-between">
+      <div className="px-3 pb-3 pt-1 flex items-center justify-between gap-2">
         {/* Avatar with Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-10 w-10 p-0 rounded-full">
-              <Avatar className="h-9 w-9">
+            <Button variant="ghost" className="h-9 w-9 p-0 rounded-full shrink-0">
+              <Avatar className="h-8 w-8">
                 <AvatarImage src={avatarUrl || ""} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
                   {getInitials()}
@@ -316,8 +314,8 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
             <Button
               variant="ghost"
               className={cn(
-                "h-8 px-2 gap-1.5 rounded-full",
-                "hover:bg-sidebar-accent",
+                "h-7 px-2 gap-1 rounded-full text-xs font-medium shrink-0",
+                "hover:bg-muted/50",
                 tierColor.bg
               )}
             >
@@ -338,22 +336,20 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
           </PopoverContent>
         </Popover>
 
-        {/* Notifications — mini popover → full center */}
-        <div className="flex items-center gap-1">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9 relative text-muted-foreground hover:text-foreground">
-                <Bell className="h-4 w-4" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-2 right-2 h-1.5 w-1.5 rounded-full bg-primary" />
-                )}
-              </Button>
-            </PopoverTrigger>
+        {/* Notifications */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 relative text-muted-foreground hover:text-foreground shrink-0">
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+              )}
+            </Button>
+          </PopoverTrigger>
             <PopoverContent side="top" align="end" className="w-72 p-0">
               <MiniNotifPopover unreadCount={unreadCount} onViewAll={() => setNotifCenterOpen(true)} />
             </PopoverContent>
           </Popover>
-        </div>
       </div>
 
       <PlanSelectionDialog open={planDialogOpen} onOpenChange={setPlanDialogOpen} />

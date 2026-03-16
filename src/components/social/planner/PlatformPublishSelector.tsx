@@ -25,7 +25,7 @@ export function PlatformPublishSelector({
   if (connectedPlatforms.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        ยังไม่มี Platform ที่เชื่อมต่อ
+        No platforms connected yet
       </p>
     );
   }

@@ -15,7 +15,7 @@ export function ReplyComposer({
   onSubmit,
   isPending,
   disabled = false,
-  placeholder = "เขียนตอบกลับ...",
+  placeholder = "Write a reply...",
 }: ReplyComposerProps) {
   const [text, setText] = useState("");
 
@@ -55,7 +55,7 @@ export function ReplyComposer({
           onClick={handleSubmit}
           disabled={!canSubmit}
           className="absolute bottom-2.5 right-2.5 h-7 w-7 p-0 rounded-lg"
-          aria-label="ส่งตอบกลับ"
+          aria-label="Send reply"
         >
           {isPending ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -65,8 +65,8 @@ export function ReplyComposer({
         </Button>
       </div>
       <p className="mt-1.5 text-xs text-muted-foreground">
-        กด <kbd className="font-mono bg-muted px-1 rounded text-[10px]">Ctrl</kbd>+
-        <kbd className="font-mono bg-muted px-1 rounded text-[10px]">Enter</kbd> เพื่อส่ง
+        Press <kbd className="font-mono bg-muted px-1 rounded text-[10px]">Ctrl</kbd>+
+        <kbd className="font-mono bg-muted px-1 rounded text-[10px]">Enter</kbd> to send
       </p>
     </div>
   );

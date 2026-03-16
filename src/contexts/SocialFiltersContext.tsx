@@ -1,11 +1,18 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { usePlatformConnections } from "@/hooks/usePlatformConnections";
 
+export type AnalyticsCategory = "all" | "organic" | "ads";
+
 interface SocialFiltersContextValue {
   activePlatforms: string[];
   setActivePlatforms: React.Dispatch<React.SetStateAction<string[]>>;
   dateRange: string;
   setDateRange: (range: string) => void;
+  /** Global Ad Group filter — "all" = no filter */
+  adGroupId: string;
+  setAdGroupId: (id: string) => void;
+  category: AnalyticsCategory;
+  setCategory: (c: AnalyticsCategory) => void;
 }
 
 const SocialFiltersContext = createContext<SocialFiltersContextValue | undefined>(undefined);
@@ -17,6 +24,8 @@ export function SocialFiltersProvider({ children }: { children: ReactNode }) {
     connectedPlatforms.map((p) => p.id)
   );
   const [dateRange, setDateRange] = useState("30");
+  const [adGroupId, setAdGroupId] = useState("all");
+  const [category, setCategory] = useState<AnalyticsCategory>("all");
 
   // Sync when connectedPlatforms changes:
   // - Remove platforms that are no longer connected
@@ -35,7 +44,16 @@ export function SocialFiltersProvider({ children }: { children: ReactNode }) {
 
   return (
     <SocialFiltersContext.Provider
-      value={{ activePlatforms, setActivePlatforms, dateRange, setDateRange }}
+      value={{
+        activePlatforms,
+        setActivePlatforms,
+        dateRange,
+        setDateRange,
+        adGroupId,
+        setAdGroupId,
+        category,
+        setCategory,
+      }}
     >
       {children}
     </SocialFiltersContext.Provider>

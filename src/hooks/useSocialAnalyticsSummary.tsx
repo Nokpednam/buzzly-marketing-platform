@@ -71,8 +71,10 @@ export function useSocialAnalyticsSummary(adGroupId?: string) {
     adGroupId
   );
   const { posts, isLoading: postsLoading, error: postsError } = useSocialPosts({
+    adGroupId,
     dateRange,
     postChannels: ["social", "ad"],
+    includeOrganicWhenFilteringAdGroup: true,
   });
   const { connectedPlatforms } = usePlatformConnections();
 

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,23 +6,23 @@
 
 @layer base {
   :root {
-    /* Outstaff Inspired - High-End Light Modern Tech */
+    /* High-Density Professional — Linear/Raycast */
 
-    /* Background: Soft Cool Gray/Blue */
-    --background: 226 71% 97%;
-    /* #F4F7FE */
+    /* Background: subtle light gray */
+    --background: 220 14% 96%;
+    /* #F9FAFB */
     --foreground: 222 47% 11%;
 
-    /* Cards: Pure White with Refined Shadow */
+    /* Cards: Pure white — pop via borders, not shadows */
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    /* Primary: Sky Blue (Vibrant) */
-    --primary: 199 89% 48%;
-    /* #0EA5E9 */
+    /* Primary: Cyan #06B6D4 (Linear-like, used sparingly for interaction) */
+    --primary: 187 94% 43%;
+    /* #06B6D4 */
     --primary-foreground: 0 0% 100%;
 
     /* Secondary: Muted Grayish Blue */
@@ -40,10 +40,18 @@
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    /* Borders: Soft contrast */
-    --border: 214 32% 91%;
+    /* Borders: 1px solid rgba(0,0,0,0.08) — no shadows */
+    --border: 220 13% 91%;
     --input: 214 32% 91%;
     --ring: 199 89% 48%;
+
+    /* Semantic colors (success, info, warning) */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+    --warning: 47 95% 49%;
+    --warning-foreground: 222 47% 11%;
 
     --radius: 0.75rem;
 
@@ -71,12 +79,13 @@
     --sidebar-ring: 199 89% 48%;
   }
 
-  /* Dark Mode - The "Negative Zone" */
+  /* Dark Mode — Linear-style: near-black #0B0B0B with dark gray borders */
   .dark {
-    --background: 222 47% 11%;
+    --background: 0 0% 4%;
+    /* #0B0B0B */
     --foreground: 210 40% 98%;
 
-    --card: 222 47% 11%;
+    --card: 0 0% 6%;
     --card-foreground: 210 40% 98%;
 
     --popover: 222 47% 11%;
@@ -97,9 +106,17 @@
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217 32% 17%;
+    --border: 0 0% 14%;
+    /* white/10 equivalent for dark */
     --input: 217 32% 17%;
     --ring: 215 100% 60%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --info: 215 100% 60%;
+    --info-foreground: 222 47% 11%;
+    --warning: 47 95% 49%;
+    --warning-foreground: 222 47% 11%;
 
     --sidebar-background: 222 47% 11%;
     --sidebar-foreground: 210 40% 98%;
@@ -119,7 +136,12 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  /* Geist Mono alternative: JetBrains Mono for numerical data */
+  .font-mono-numeric {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
   }
 }
 
@@ -327,5 +349,54 @@
   /* Row hover for tables */
   .table-row-hover {
     @apply transition-colors duration-150 hover:bg-slate-50/80;
+  }
+
+  /* ─── High-Density Bento Grid ─────────────────────────────────────────────── */
+  .bento-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(12, 1fr);
+    grid-auto-rows: minmax(72px, auto);
+  }
+
+  .bento-card {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    @apply rounded-lg bg-white dark:bg-card transition-colors;
+  }
+
+  .dark .bento-card {
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .metric-numeric {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    @apply font-bold tabular-nums;
+  }
+
+  /* Progress bar — thick, rounded, high-contrast */
+  .progress-thick {
+    @apply h-[10px] rounded-full;
+  }
+
+  .progress-thick .progress-indicator {
+    @apply rounded-full bg-[hsl(187,94%,43%)] dark:bg-[hsl(215,100%,60%)];
+  }
+
+  /* Segmented Control — pill-shaped, sliding selection */
+  .segmented-control {
+    @apply inline-flex items-center rounded-full bg-muted/60 dark:bg-white/5 p-1 border border-slate-200 dark:border-white/10;
+  }
+
+  .segmented-control .segmented-control-trigger {
+    @apply rounded-full px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-200;
+  }
+
+  .segmented-control .segmented-control-trigger[data-state="active"] {
+    @apply text-foreground font-semibold bg-background dark:bg-white/10 shadow-sm;
+  }
+
+  /* Glassmorphism for tooltips/overlays */
+  .glass-tooltip {
+    @apply backdrop-blur-xl bg-white/95 dark:bg-zinc-900/95 border border-slate-200/80 dark:border-white/10;
   }
 }

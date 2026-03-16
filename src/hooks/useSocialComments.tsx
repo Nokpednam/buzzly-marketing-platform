@@ -72,7 +72,7 @@ export function useSocialComments(postId?: string) {
       queryClient.invalidateQueries({ queryKey: ["social_inbox", workspace.id] });
     },
     onError: (err: Error) => {
-      toast.error(`ไม่สามารถเพิ่มความคิดเห็น: ${err.message}`);
+      toast.error(`Failed to add comment: ${err.message}`);
     },
   });
 
@@ -96,7 +96,7 @@ export function useSocialComments(postId?: string) {
       queryClient.invalidateQueries({ queryKey: ["social_inbox", workspace.id] });
     },
     onError: (err: Error) => {
-      toast.error(`ไม่สามารถอัปเดตความคิดเห็น: ${err.message}`);
+      toast.error(`Failed to update comment: ${err.message}`);
     },
   });
 
@@ -117,7 +117,7 @@ export function useSocialComments(postId?: string) {
       queryClient.invalidateQueries({ queryKey: ["social_inbox", workspace.id] });
     },
     onError: (err: Error) => {
-      toast.error(`ไม่สามารถลบความคิดเห็น: ${err.message}`);
+      toast.error(`Failed to delete comment: ${err.message}`);
     },
   });
 

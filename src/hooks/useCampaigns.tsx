@@ -6,6 +6,11 @@ import { useWorkspace } from "@/hooks/useWorkspace";
 import { useLoyaltyTier } from "@/hooks/useLoyaltyTier";
 
 // ─── Client-side progress calculator (mirrors supabase/functions/_shared/campaignProgress.ts) ──
+//
+// Process: overallProgress = (kpiProgress × 0.5) + (timeProgress × 0.5)
+//   • timeProgress: 0–100, based on start_date → end_date (วันสุดท้าย). 100% when now >= end_date.
+//   • kpiProgress: 0–100, based on target KPI (clicks/conversions/spend/impressions) vs actual.
+//   • Reaches 100% only when BOTH time and KPI individually reach 100%.
 
 export interface ProgressResult {
   timeProgress: number;

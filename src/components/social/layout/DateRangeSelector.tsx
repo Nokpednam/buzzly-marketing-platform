@@ -13,14 +13,14 @@ export function DateRangeSelector() {
 
   return (
     <Select value={dateRange} onValueChange={setDateRange}>
-      <SelectTrigger className="h-10 w-[160px] rounded-lg border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-        <Calendar className="mr-2 h-4 w-4 text-slate-500" />
+      <SelectTrigger className="h-10 w-[180px] rounded-xl border-border/40 bg-muted/30">
+        <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="7">7 วันที่ผ่านมา</SelectItem>
-        <SelectItem value="30">30 วันที่ผ่านมา</SelectItem>
-        <SelectItem value="90">90 วันที่ผ่านมา</SelectItem>
+        <SelectItem value="7">Last 7 days</SelectItem>
+        <SelectItem value="30">Last 30 days</SelectItem>
+        <SelectItem value="90">Last 90 days</SelectItem>
       </SelectContent>
     </Select>
   );

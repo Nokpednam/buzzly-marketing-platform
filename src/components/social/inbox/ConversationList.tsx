@@ -1,15 +1,28 @@
-import { MessageCircle, Circle } from "lucide-react";
+import { MessageCircle, Circle, SmilePlus, Frown, Minus, Archive, ArchiveRestore } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 import { usePlatformConnections } from "@/hooks/usePlatformConnections";
 import type { InboxThread } from "@/hooks/useSocialInbox";
+
+type SentimentType = "positive" | "negative" | "neutral";
 
 interface ConversationListProps {
   threads: InboxThread[];
   selectedPostId: string | null;
   onSelect: (postId: string) => void;
   isLoading: boolean;
+  onSetSentiment?: (thread: InboxThread, sentiment: SentimentType) => void;
+  onArchive?: (thread: InboxThread) => void;
+  onUnarchive?: (thread: InboxThread) => void;
+  isArchived?: (postId: string) => boolean;
 }
 
 function formatRelativeTime(isoString: string): string {
@@ -20,12 +33,12 @@ function formatRelativeTime(isoString: string): string {
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMins < 1) return "เมื่อกี้";
-  if (diffMins < 60) return `${diffMins} นาทีที่แล้ว`;
-  if (diffHours < 24) return `${diffHours} ชั่วโมงที่แล้ว`;
-  if (diffDays === 1) return "เมื่อวาน";
-  if (diffDays < 7) return `${diffDays} วันที่แล้ว`;
-  return date.toLocaleDateString("th-TH", { day: "numeric", month: "short" });
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return `${diffHours} hr ago`;
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return date.toLocaleDateString("en-US", { day: "numeric", month: "short" });
 }
 
 function getSentimentColor(
@@ -45,9 +58,21 @@ interface ConversationListItemProps {
   thread: InboxThread;
   isSelected: boolean;
   onClick: () => void;
+  onSetSentiment?: (thread: InboxThread, sentiment: SentimentType) => void;
+  onArchive?: (thread: InboxThread) => void;
+  onUnarchive?: (thread: InboxThread) => void;
+  isArchived?: boolean;
 }
 
-function ConversationListItem({ thread, isSelected, onClick }: ConversationListItemProps) {
+function ConversationListItem({
+  thread,
+  isSelected,
+  onClick,
+  onSetSentiment,
+  onArchive,
+  onUnarchive,
+  isArchived,
+}: ConversationListItemProps) {
   const { getPlatformById } = usePlatformConnections();
   const platform = thread.platform_id ? getPlatformById(thread.platform_id) : null;
   const Icon = platform?.icon ?? null;
@@ -59,7 +84,7 @@ function ConversationListItem({ thread, isSelected, onClick }: ConversationListI
     ? thread.post_content.length > 60
       ? `${thread.post_content.slice(0, 60)}…`
       : thread.post_content
-    : "ไม่มีเนื้อหา";
+    : "No content";
 
   const latestCommentSnippet = latestComment?.content
     ? latestComment.content.length > 80
@@ -67,7 +92,7 @@ function ConversationListItem({ thread, isSelected, onClick }: ConversationListI
       : latestComment.content
     : "";
 
-  return (
+  const content = (
     <button
       onClick={onClick}
       className={cn(
@@ -125,6 +150,42 @@ function ConversationListItem({ thread, isSelected, onClick }: ConversationListI
       </div>
     </button>
   );
+
+  if (onSetSentiment || onArchive || onUnarchive) {
+    return (
+      <ContextMenu>
+        <ContextMenuTrigger asChild>{content}</ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          <ContextMenuItem onClick={() => onSetSentiment?.(thread, "positive")}>
+            <SmilePlus className="mr-2 h-4 w-4 text-emerald-500" />
+            Positive
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onSetSentiment?.(thread, "negative")}>
+            <Frown className="mr-2 h-4 w-4 text-red-500" />
+            Negative
+          </ContextMenuItem>
+          <ContextMenuItem onClick={() => onSetSentiment?.(thread, "neutral")}>
+            <Minus className="mr-2 h-4 w-4 text-slate-400" />
+            Neutral
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          {isArchived ? (
+            <ContextMenuItem onClick={() => onUnarchive?.(thread)}>
+              <ArchiveRestore className="mr-2 h-4 w-4" />
+              Unarchive
+            </ContextMenuItem>
+          ) : (
+            <ContextMenuItem onClick={() => onArchive?.(thread)}>
+              <Archive className="mr-2 h-4 w-4" />
+              Archive
+            </ContextMenuItem>
+          )}
+        </ContextMenuContent>
+      </ContextMenu>
+    );
+  }
+
+  return content;
 }
 
 function ConversationListSkeleton() {
@@ -149,6 +210,10 @@ export function ConversationList({
   selectedPostId,
   onSelect,
   isLoading,
+  onSetSentiment,
+  onArchive,
+  onUnarchive,
+  isArchived,
 }: ConversationListProps) {
   if (isLoading) {
     return (
@@ -165,9 +230,9 @@ export function ConversationList({
           <MessageCircle className="h-6 w-6 text-muted-foreground" />
         </div>
         <div>
-          <p className="text-sm font-medium text-foreground">ยังไม่มีความคิดเห็น</p>
+          <p className="text-sm font-medium text-foreground">No comments yet</p>
           <p className="text-xs text-muted-foreground mt-1">
-            ความคิดเห็นใหม่จะปรากฏที่นี่แบบเรียลไทม์
+            New comments will appear here in real time
           </p>
         </div>
       </div>
@@ -182,6 +247,10 @@ export function ConversationList({
           thread={thread}
           isSelected={thread.post_id === selectedPostId}
           onClick={() => onSelect(thread.post_id)}
+          onSetSentiment={onSetSentiment}
+          onArchive={onArchive}
+          onUnarchive={onUnarchive}
+          isArchived={isArchived?.(thread.post_id)}
         />
       ))}
     </div>

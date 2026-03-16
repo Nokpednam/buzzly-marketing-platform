@@ -262,6 +262,11 @@ function spreadInsightOverDays(
     const d = new Date(startMs + i * 86_400_000);
     const dateStr = d.toISOString().slice(0, 10);
     const w = weights[i];
+    const rowClicks = Math.round((totalClicks / days) * w);
+    const rowSpend = parseFloat(((totalSpend / days) * w).toFixed(2));
+    // CPC = Spend / Clicks — compute when clicks > 0 to avoid ฿0 when spend has value
+    const rowCpc =
+      rowClicks > 0 ? rowSpend / rowClicks : parseFloat(record.cpc) || 0;
 
     return {
       id: `mock-${shopId}-${platform}-${record.campaign_id}-${dateStr}`,
@@ -272,11 +277,11 @@ function spreadInsightOverDays(
       campaign_id: `mock-campaign-${record.campaign_id}`,
       impressions: Math.round((totalImpressions / days) * w),
       reach: Math.round((totalReach / days) * w),
-      clicks: Math.round((totalClicks / days) * w),
+      clicks: rowClicks,
       conversions: Math.round((totalConversions / days) * w),
-      spend: parseFloat(((totalSpend / days) * w).toFixed(2)),
+      spend: rowSpend,
       ctr: parseFloat(record.ctr),
-      cpc: parseFloat(record.cpc),
+      cpc: rowCpc,
       cpm: parseFloat(record.cpm),
       roas: parseFloat(record.roas),
       // Aggregate-only fields: bucket into the first day to avoid double-counting

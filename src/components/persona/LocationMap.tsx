@@ -28,20 +28,22 @@ const LOCATION_TO_PROVINCE: Record<string, string> = {
   "Pathum Thani": "Pathum Thani",
 };
 
-/** Base color (light) → max color (dark). Higher pct = darker = more users. */
-const COLOR_BASE = "#86efac"; // light green
-const COLOR_MAX = "#047857"; // dark emerald
+/** Base color (no data) → accent color (high pct). Higher pct = darker/saturated = more users. */
+const COLOR_BASE = "#e2e8f0"; // light gray — no data
+const COLOR_MIN = "#86efac"; // light emerald — low density
+const COLOR_MAX = "#047857"; // dark emerald — max concentration
 
 function pctToColor(pct: number): string {
+  if (pct <= 0) return COLOR_BASE;
   const r = (hex: string) => parseInt(hex.slice(1, 3), 16);
   const g = (hex: string) => parseInt(hex.slice(3, 5), 16);
   const b = (hex: string) => parseInt(hex.slice(5, 7), 16);
   const lerp = (a: number, b: number, t: number) => Math.round(a + (b - a) * t);
 
   const t = Math.min(1, Math.max(0, pct / 100));
-  const rr = lerp(r(COLOR_BASE), r(COLOR_MAX), t);
-  const gg = lerp(g(COLOR_BASE), g(COLOR_MAX), t);
-  const bb = lerp(b(COLOR_BASE), b(COLOR_MAX), t);
+  const rr = lerp(r(COLOR_MIN), r(COLOR_MAX), t);
+  const gg = lerp(g(COLOR_MIN), g(COLOR_MAX), t);
+  const bb = lerp(b(COLOR_MIN), b(COLOR_MAX), t);
   return `rgb(${rr},${gg},${bb})`;
 }
 
@@ -126,10 +128,10 @@ export function LocationMap({ locations, totalImpressions = 0 }: LocationMapProp
   const handleMouseLeave = () => setTooltip(null);
 
   return (
-    <div className="h-[280px] w-full rounded-xl overflow-hidden border border-border bg-muted/20 relative">
+    <div className="h-[280px] w-full rounded-xl overflow-hidden border border-border/60 bg-muted/5 relative shadow-inner">
       {totalImpressions > 0 && (
         <div className="absolute right-3 top-3 z-10 rounded-lg border bg-background/95 px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur">
-          รวมทั้งหมด: {formatCount(totalImpressions)}
+          Total: {formatCount(totalImpressions)}
         </div>
       )}
       <ComposableMap
@@ -149,7 +151,7 @@ export function LocationMap({ locations, totalImpressions = 0 }: LocationMapProp
                 const name = (geo.properties?.NAME_1 as string) ?? "";
                 const pct = provinceToPct[name] ?? 0;
                 const normalized = maxPct > 0 ? (pct / maxPct) * 100 : 0;
-                const fill = pct > 0 ? pctToColor(normalized) : "#e2e8f0";
+                const fill = pct > 0 ? pctToColor(normalized) : COLOR_BASE;
 
                 return (
                   <Geography
@@ -162,7 +164,7 @@ export function LocationMap({ locations, totalImpressions = 0 }: LocationMapProp
                       default: { outline: "none" },
                       hover: {
                         outline: "none",
-                        fill: pct > 0 ? pctToColor(Math.min(100, normalized + 15)) : "hsl(var(--muted-foreground) / 0.3)",
+                        fill: pct > 0 ? pctToColor(Math.min(100, normalized + 15)) : "#86efac",
                       },
                       pressed: { outline: "none" },
                     }}
@@ -189,7 +191,7 @@ export function LocationMap({ locations, totalImpressions = 0 }: LocationMapProp
             <span className="ml-2 text-muted-foreground">
               {Math.round(tooltip.pct)}%
               {totalImpressions > 0 && tooltip.count > 0 && (
-                <> ({formatCount(tooltip.count)} คน)</>
+                <> ({formatCount(tooltip.count)} users)</>
               )}
             </span>
           )}

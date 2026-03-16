@@ -1,4 +1,5 @@
 import type { FC } from "react";
+import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +21,7 @@ import {
   Heart,
   ImageIcon,
   Leaf,
+  Megaphone,
   MessageCircle,
   Repeat2,
 } from "lucide-react";
@@ -66,7 +68,7 @@ const formatDateTime = (value?: string | null) => {
     return "—";
   }
 
-  return parsed.toLocaleString("th-TH", {
+  return parsed.toLocaleString("en-US", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -80,6 +82,7 @@ export const PostDetailsDialog: FC<PostDetailsDialogProps> = ({
   onOpenChange,
   post,
 }) => {
+  const navigate = useNavigate();
   const { getPlatformById } = usePlatformConnections();
 
   if (!post) {
@@ -115,8 +118,17 @@ export const PostDetailsDialog: FC<PostDetailsDialogProps> = ({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Leaf className="h-5 w-5 text-emerald-500" />
-            Organic Post Details
+            {post.post_channel === "ad" ? (
+              <>
+                <Megaphone className="h-5 w-5 text-blue-500" />
+                Paid Ad Details
+              </>
+            ) : (
+              <>
+                <Leaf className="h-5 w-5 text-emerald-500" />
+                Organic Post Details
+              </>
+            )}
           </DialogTitle>
           <DialogDescription>
             Full post content, publishing details, and organic engagement metrics
@@ -125,10 +137,17 @@ export const PostDetailsDialog: FC<PostDetailsDialogProps> = ({
 
         <div className="space-y-5 py-2">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge className="gap-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400">
-              <Leaf className="h-3 w-3" />
-              Organic
-            </Badge>
+            {post.post_channel === "ad" ? (
+              <Badge className="gap-1 bg-blue-100 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400">
+                <Megaphone className="h-3 w-3" />
+                Paid Ad
+              </Badge>
+            ) : (
+              <Badge className="gap-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400">
+                <Leaf className="h-3 w-3" />
+                Organic
+              </Badge>
+            )}
             <Badge variant="outline" className="gap-1">
               {PlatformIcon ? <PlatformIcon className="h-3.5 w-3.5" /> : <ImageIcon className="h-3.5 w-3.5" />}
               {platform?.name ?? "Unknown Platform"}
@@ -137,9 +156,23 @@ export const PostDetailsDialog: FC<PostDetailsDialogProps> = ({
               <StatusIcon className="h-3.5 w-3.5" />
               {post.status ?? "draft"}
             </Badge>
+            {post.ad_group_name && (
+              <Badge variant="outline" className="gap-1">
+                {post.ad_group_name}
+              </Badge>
+            )}
           </div>
 
-          <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/50 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/20">
+          {post.media_urls?.[0] && (
+            <div className="rounded-xl overflow-hidden border border-border/40 bg-muted/30">
+              <img
+                src={post.media_urls[0]}
+                alt={post.display_title}
+                className="w-full max-h-64 object-cover"
+              />
+            </div>
+          )}
+          <div className="rounded-xl border border-border/40 bg-muted/20 p-4">
             <p className="text-sm font-semibold text-foreground">
               {post.display_title}
             </p>
@@ -198,7 +231,7 @@ export const PostDetailsDialog: FC<PostDetailsDialogProps> = ({
                 <p className="mt-1 text-sm">
                   {(post.clicks ?? 0).toLocaleString()} clicks
                   {" · "}
-                  {(post.engagement_rate ?? 0).toFixed(2)}%
+                  {Number(post.engagement_rate ?? 0).toFixed(2)}%
                 </p>
               </div>
             </div>
@@ -219,8 +252,17 @@ export const PostDetailsDialog: FC<PostDetailsDialogProps> = ({
         </div>
 
         <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => {
+              onOpenChange(false);
+              navigate("/social/planner");
+            }}
+          >
+            {post.post_channel === "ad" ? "View/Edit in Planner" : "Edit in Planner"}
+          </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            ปิด
+            Close
           </Button>
         </DialogFooter>
       </DialogContent>

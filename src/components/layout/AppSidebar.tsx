@@ -84,28 +84,28 @@ export function AppSidebar() {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen border-r border-sidebar-border bg-sidebar/50 backdrop-blur-xl transition-all duration-300 flex flex-col select-none",
+        "fixed left-0 top-0 z-40 h-screen border-r border-border/60 bg-card/50 backdrop-blur-xl transition-all duration-300 flex flex-col select-none",
         collapsed ? "w-20" : "w-72",
       )}
     >
       {/* 1. BRANDING */}
-      <div className="flex h-20 items-center px-6">
+      <div className={cn("flex items-center shrink-0", collapsed ? "h-16 justify-center px-0" : "h-16 px-5")}>
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary shadow-sm">
             <Zap className="h-5 w-5 text-primary-foreground fill-current" />
           </div>
           {!collapsed && (
-            <span className="text-xl font-black tracking-tighter text-foreground">BUZZLY</span>
+            <span className="text-lg font-bold tracking-tight text-foreground">BUZZLY</span>
           )}
         </div>
       </div>
 
       {/* 2. WORKSPACE & PLAN INDICATOR */}
       {!collapsed && (
-        <div className="px-4 mb-4" draggable="false">
-          <div className="p-3 rounded-2xl bg-muted/40 border border-border/50 transition-all hover:bg-muted/60 group cursor-pointer" draggable="false">
-            <div className="flex items-center gap-3" draggable="false">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center text-white font-bold shadow-sm overflow-hidden" draggable="false">
+        <div className="px-4 mb-3 shrink-0">
+          <div className="p-2.5 rounded-xl border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center text-white text-sm font-bold overflow-hidden shrink-0">
                 {workspaceInfo?.logo_url ? (
                   <img src={workspaceInfo.logo_url} alt="Logo" className="h-full w-full object-cover" />
                 ) : (
@@ -113,10 +113,10 @@ export function AppSidebar() {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold truncate">{workspaceInfo?.name || "Buzzly Workspace"}</p>
-                <div className="flex items-center gap-1.5">
-                  <div className={cn("h-1.5 w-1.5 rounded-full", currentPlan === 'free' ? 'bg-slate-400' : 'bg-emerald-500 animate-pulse')} />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{currentPlan} Plan</span>
+                <p className="text-sm font-semibold truncate text-foreground">{workspaceInfo?.name || "Workspace"}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", currentPlan === "free" ? "bg-muted-foreground/60" : "bg-emerald-500")} />
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{currentPlan} Plan</span>
                 </div>
               </div>
             </div>
@@ -125,15 +125,15 @@ export function AppSidebar() {
       )}
 
       {/* 3. SCROLLABLE NAVIGATION */}
-      <nav className="flex-1 px-4 space-y-8 overflow-y-auto no-scrollbar py-4">
+      <nav className="flex-1 px-4 space-y-6 overflow-y-auto overflow-x-hidden py-2 min-h-0 no-scrollbar">
         {navGroups.map((group) => (
-          <div key={group.label} className="space-y-1.5">
+          <div key={group.label} className="space-y-1">
             {!collapsed && (
-              <h4 className="px-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 mb-3">
+              <h4 className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 {group.label}
               </h4>
             )}
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {group.items.map((item) => {
                 const accessible = isItemAccessible(item.requiresPlan);
                 const isActive =
@@ -147,16 +147,13 @@ export function AppSidebar() {
                       key={item.title}
                       onClick={() => setPlanDialogOpen(true)}
                       className={cn(
-                        "group relative flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-300 border border-transparent w-full text-left",
-                        "text-muted-foreground opacity-50 cursor-pointer grayscale hover:opacity-70",
-                        collapsed && "justify-center px-0 h-11 w-11 mx-auto"
+                        "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium w-full text-left transition-all duration-200",
+                        "text-muted-foreground opacity-60 cursor-pointer hover:opacity-80 hover:bg-muted/50",
+                        collapsed && "justify-center px-0 h-10 w-10 mx-auto"
                       )}
                     >
-                      <div className={cn(
-                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all",
-                        "bg-muted/50"
-                      )}>
-                        <item.icon className="h-4.5 w-4.5 transition-transform" />
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/50">
+                        <item.icon className="h-4 w-4" />
                       </div>
                       {!collapsed && <span className="flex-1 truncate tracking-tight">{item.title}</span>}
                       {!collapsed && (
@@ -178,24 +175,21 @@ export function AppSidebar() {
                     key={item.title}
                     to={item.url}
                     className={({ isActive: isLinkActive }) => cn(
-                      "group relative flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-300 border border-transparent",
+                      "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
                       isLinkActive
-                        ? "bg-slate-900 text-white shadow-[0_10px_20px_rgba(15,23,42,0.15)] border-slate-800"
-                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground hover:border-border/30",
-                      collapsed && "justify-center px-0 h-11 w-11 mx-auto",
+                        ? "bg-muted/60 text-foreground border-l-2 border-l-primary"
+                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                      collapsed && "justify-center px-0 h-10 w-10 mx-auto",
                     )}
                   >
                     <div className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-all",
-                      isActive ? "bg-white/10" : "bg-muted/50 group-hover:bg-background group-hover:shadow-sm"
+                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors",
+                      isActive ? "bg-primary/10 text-primary" : "bg-muted/50 group-hover:bg-muted text-muted-foreground group-hover:text-foreground"
                     )}>
-                      <item.icon className={cn(
-                        "h-4.5 w-4.5 transition-transform",
-                        isActive ? "text-white" : "group-hover:scale-110"
-                      )} />
+                      <item.icon className="h-4 w-4" />
                     </div>
 
-                    {!collapsed && <span className="flex-1 truncate tracking-tight">{item.title}</span>}
+                    {!collapsed && <span className="flex-1 truncate">{item.title}</span>}
 
                     {/* Tooltip for collapsed state */}
                     {collapsed && (
@@ -213,7 +207,7 @@ export function AppSidebar() {
       </nav>
 
       {/* 4. FOOTER SECTION */}
-      <div className="mt-auto border-t border-sidebar-border/50 p-4">
+      <div className="mt-auto shrink-0 border-t border-border/60">
         <SidebarBottomSection collapsed={collapsed} />
       </div>
 
@@ -222,7 +216,7 @@ export function AppSidebar() {
         variant="ghost"
         size="icon"
         onClick={toggle}
-        className="absolute -right-4 top-10 h-8 w-8 rounded-xl border border-border bg-background shadow-xl hover:bg-primary hover:text-white transition-all z-50"
+        className="absolute -right-3 top-8 h-7 w-7 rounded-lg border border-border/60 bg-background shadow-sm hover:bg-muted hover:border-border z-50"
       >
         {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
       </Button>

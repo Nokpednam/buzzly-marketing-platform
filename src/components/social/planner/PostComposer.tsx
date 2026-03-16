@@ -69,10 +69,10 @@ const DEFAULT_FORM: SocialPostFormData = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  draft: "แบบร่าง",
-  scheduled: "กำหนดเวลา",
-  published: "เผยแพร่",
-  archived: "เก็บถาวร",
+  draft: "Draft",
+  scheduled: "Scheduled",
+  published: "Published",
+  archived: "Archived",
 };
 
 function toDateTimeLocalValue(value?: string | null): string {
@@ -158,7 +158,7 @@ export function PostComposer({
     ? formData.hashtags.split(",").map((t) => t.trim()).filter(Boolean)
     : [];
 
-  const titleMap = { create: "สร้างโพสต์ใหม่", edit: "แก้ไขโพสต์", preview: "รายละเอียดโพสต์" };
+  const titleMap = { create: "Create New Post", edit: "Edit Post", preview: "Post Details" };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -166,7 +166,7 @@ export function PostComposer({
         <DialogHeader className="px-6 pb-4 pt-6">
           <DialogTitle>{titleMap[mode]}</DialogTitle>
           {isCreate && (
-            <DialogDescription>สร้างโพสต์ social media ใหม่</DialogDescription>
+            <DialogDescription>Create a new social media post</DialogDescription>
           )}
         </DialogHeader>
 
@@ -183,7 +183,7 @@ export function PostComposer({
             </div>
 
             <div className="space-y-2">
-              <Label>ประเภทโพสต์</Label>
+              <Label>Post Type</Label>
               <RadioGroup
                 value={formData.content_kind}
                 onValueChange={(value: "organic" | "paid") => update({ content_kind: value })}
@@ -232,7 +232,7 @@ export function PostComposer({
             <Input
               value={formData.headline}
               onChange={(e) => update({ headline: e.target.value })}
-              placeholder="ชื่อโพสต์หรือพาดหัวโฆษณา"
+              placeholder="Post name or ad headline"
               disabled={isPreview}
             />
           </div>
@@ -261,7 +261,7 @@ export function PostComposer({
             <Textarea
               value={formData.content}
               onChange={(e) => update({ content: e.target.value })}
-              placeholder="เขียนเนื้อหาโพสต์..."
+              placeholder="Write post content..."
               rows={4}
               disabled={isPreview}
             />
@@ -297,13 +297,13 @@ export function PostComposer({
               />
             )}
             {!isPreview && (
-              <p className="text-xs text-muted-foreground">คั่นด้วยเครื่องหมาย ,</p>
+              <p className="text-xs text-muted-foreground">Separate with commas</p>
             )}
           </div>
 
           {workspace?.id && (
             <div className="space-y-2">
-              <Label>กลุ่มเป้าหมาย (Personas)</Label>
+              <Label>Target Personas</Label>
               {isPreview ? (
                 <div className="flex flex-wrap gap-1.5 min-h-[2rem]">
                   {(formData.persona_ids ?? []).length > 0 ? (
@@ -337,10 +337,10 @@ export function PostComposer({
                   onValueChange={(v) => update({ ad_group_id: v === "none" ? null : v })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="ไม่ระบุกลุ่ม" />
+                    <SelectValue placeholder="None" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">ไม่ระบุกลุ่ม</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {adGroups.map((group) => (
                       <SelectItem key={group.id} value={group.id}>
                         {group.name}
@@ -351,14 +351,14 @@ export function PostComposer({
               )}
               {!isPreview && (
                 <p className="text-xs text-muted-foreground">
-                  เชื่อมโพสต์นี้กับ Ad Group เพื่อรวมในรายงาน analytics
+                  Link this post to an Ad Group to include in analytics reports
                 </p>
               )}
             </div>
           )}
 
           <div className="space-y-2">
-            <Label>สถานะ</Label>
+            <Label>Status</Label>
             {isPreview ? (
               <p className="text-sm">{STATUS_LABELS[formData.status] ?? formData.status}</p>
             ) : (
@@ -370,11 +370,11 @@ export function PostComposer({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="draft">แบบร่าง</SelectItem>
-                  <SelectItem value="scheduled">กำหนดเวลา</SelectItem>
-                  <SelectItem value="published">เผยแพร่</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
                   {!isCreate && (
-                    <SelectItem value="archived">เก็บถาวร</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
                   )}
                 </SelectContent>
               </Select>
@@ -382,11 +382,11 @@ export function PostComposer({
           </div>
 
           <div className="space-y-2">
-            <Label>วันเวลาที่กำหนด *</Label>
+            <Label>Scheduled Date & Time *</Label>
             {isPreview ? (
               <p className="text-sm">
                 {formData.scheduled_at
-                  ? new Date(formData.scheduled_at).toLocaleString("th-TH", {
+                  ? new Date(formData.scheduled_at).toLocaleString("en-US", {
                       day: "numeric",
                       month: "short",
                       year: "numeric",
@@ -398,26 +398,26 @@ export function PostComposer({
             ) : (
               <Input
                 type="datetime-local"
-                  value={scheduledAtInput}
+                value={scheduledAtInput}
                 min={toDateTimeLocalValue(new Date().toISOString())}
-                  onChange={(e) => handleScheduledAtChange(e.target.value)}
+                onChange={(e) => handleScheduledAtChange(e.target.value)}
                 required
                 aria-invalid={!hasValidScheduledAt}
               />
             )}
             {!isPreview && (
               <p className="text-xs text-muted-foreground">
-                Planner จะบันทึกทุกโพสต์พร้อมเวลาที่กำหนดเพื่อให้แสดงในปฏิทินได้เสมอ
+                Posts are saved with their scheduled time for display in the calendar
               </p>
             )}
             {!isPreview && !hasValidScheduledAt && (
-              <p className="text-xs text-destructive">กรุณาเลือกวันและเวลาที่ถูกต้อง</p>
+              <p className="text-xs text-destructive">Please select a valid date and time</p>
             )}
           </div>
 
           {isPreview && (formData.media_urls?.length || formData.media_url) && (
               <div className="space-y-2">
-                <Label>รูปภาพ / มีเดีย</Label>
+                <Label>Images / Media</Label>
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {(formData.media_urls?.length ? formData.media_urls : [formData.media_url]).map((url, i) => (
                     <img
@@ -435,19 +435,19 @@ export function PostComposer({
 
         <DialogFooter className="border-t bg-background px-6 py-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {isPreview ? "ปิด" : "ยกเลิก"}
+            {isPreview ? "Close" : "Cancel"}
           </Button>
           {isPreview ? (
-            <Button onClick={onRequestEdit}>แก้ไข</Button>
+            <Button onClick={onRequestEdit}>Edit</Button>
           ) : (
             <Button onClick={handleSubmit} disabled={!isValid || isPending}>
               {isPending
                 ? isCreate
-                  ? "กำลังสร้าง..."
-                  : "กำลังบันทึก..."
+                  ? "Creating..."
+                  : "Saving..."
                 : isCreate
-                  ? "สร้างโพสต์"
-                  : "บันทึก"}
+                  ? "Create Post"
+                  : "Save"}
             </Button>
           )}
         </DialogFooter>

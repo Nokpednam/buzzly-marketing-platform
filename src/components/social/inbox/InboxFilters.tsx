@@ -1,4 +1,4 @@
-import { Search, X } from "lucide-react";
+import { Search, X, Archive } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,14 +36,19 @@ export function InboxFilters({ filters, onFiltersChange }: InboxFiltersProps) {
     onFiltersChange({ ...filters, sentiment: filters.sentiment === value ? undefined : value });
   };
 
+  const toggleArchived = () => {
+    onFiltersChange({ ...filters, showArchived: !filters.showArchived });
+  };
+
   const clearAll = () => {
-    onFiltersChange({ search: filters.search });
+    onFiltersChange({ search: filters.search, showArchived: filters.showArchived });
   };
 
   const hasActiveFilters =
     (filters.platform_ids?.length ?? 0) > 0 ||
     filters.is_read !== undefined ||
-    !!filters.sentiment;
+    !!filters.sentiment ||
+    !!filters.showArchived;
 
   return (
     <div className="space-y-3 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-border/40 shadow-sm">
@@ -51,7 +56,7 @@ export function InboxFilters({ filters, onFiltersChange }: InboxFiltersProps) {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
         <Input
-          placeholder="ค้นหา ความคิดเห็น หรือ ผู้เขียน..."
+          placeholder="Search comments or author..."
           value={filters.search ?? ""}
           onChange={(e) => onFiltersChange({ ...filters, search: e.target.value || undefined })}
           className="pl-9 h-9 text-sm"
@@ -60,7 +65,7 @@ export function InboxFilters({ filters, onFiltersChange }: InboxFiltersProps) {
           <button
             onClick={() => onFiltersChange({ ...filters, search: undefined })}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            aria-label="ล้างการค้นหา"
+            aria-label="Clear search"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -81,7 +86,7 @@ export function InboxFilters({ filters, onFiltersChange }: InboxFiltersProps) {
                 : "border-border/40 text-muted-foreground"
             )}
           >
-            ยังไม่ได้อ่าน
+            Unread
           </Button>
           <Button
             size="sm"
@@ -94,7 +99,21 @@ export function InboxFilters({ filters, onFiltersChange }: InboxFiltersProps) {
                 : "border-border/40 text-muted-foreground"
             )}
           >
-            อ่านแล้ว
+            Read
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={toggleArchived}
+            className={cn(
+              "h-7 px-2.5 text-xs rounded-full border gap-1",
+              filters.showArchived
+                ? "border-primary bg-primary/10 text-primary font-semibold"
+                : "border-border/40 text-muted-foreground"
+            )}
+          >
+            <Archive className="h-3 w-3" />
+            Archived
           </Button>
         </div>
 
@@ -147,25 +166,33 @@ export function InboxFilters({ filters, onFiltersChange }: InboxFiltersProps) {
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground ml-auto"
           >
             <X className="h-3 w-3" />
-            ล้างตัวกรอง
+            Clear filters
           </button>
         )}
       </div>
 
       {hasActiveFilters && (
         <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-border/30">
-          <span className="text-xs text-muted-foreground">กรอง:</span>
+          <span className="text-xs text-muted-foreground">Filter:</span>
           {filters.is_read === false && (
             <Badge variant="secondary" className="text-xs h-5 gap-1">
-              ยังไม่ได้อ่าน
+              Unread
               <button onClick={() => onFiltersChange({ ...filters, is_read: undefined })}>
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {filters.showArchived && (
+            <Badge variant="secondary" className="text-xs h-5 gap-1">
+              Archived
+              <button onClick={() => onFiltersChange({ ...filters, showArchived: undefined })}>
                 <X className="h-3 w-3" />
               </button>
             </Badge>
           )}
           {filters.is_read === true && (
             <Badge variant="secondary" className="text-xs h-5 gap-1">
-              อ่านแล้ว
+              Read
               <button onClick={() => onFiltersChange({ ...filters, is_read: undefined })}>
                 <X className="h-3 w-3" />
               </button>

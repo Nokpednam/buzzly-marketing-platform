@@ -21,6 +21,7 @@ export interface InboxFiltersState {
   is_read?: boolean;
   sentiment?: string;
   search?: string;
+  showArchived?: boolean;
 }
 
 type SocialPostRow = Database["public"]["Tables"]["social_posts"]["Row"];

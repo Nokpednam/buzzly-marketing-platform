@@ -1,5 +1,4 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -18,10 +17,10 @@ import {
   Zap,
   MousePointer2,
   DollarSign,
-  Activity,
   TrendingDown,
   ShoppingCart,
   Users,
+  Minus,
 } from "lucide-react";
 import {
   AreaChart,
@@ -32,11 +31,11 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePlatformConnections } from "@/hooks/usePlatformConnections";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
+import { useRevenueMetrics } from "@/hooks/useRevenueMetrics";
 import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
 import { OnboardingBanner } from "@/components/dashboard/OnboardingBanner";
@@ -48,14 +47,19 @@ const formatValue = (value: number, format: string) => {
       if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
       if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
       return value.toLocaleString();
-    case "percent": return `${value.toFixed(1)}%`;
-    case "currency": return `฿${value.toLocaleString()}`;
-    case "multiplier": return `${value.toFixed(1)}x`;
-    default: return value.toString();
+    case "percent":
+      return `${value.toFixed(1)}%`;
+    case "currency":
+      return `฿${value.toLocaleString()}`;
+    case "multiplier":
+      return `${value.toFixed(1)}x`;
+    default:
+      return value.toString();
   }
 };
 
 export default function Dashboard() {
+  const queryClient = useQueryClient();
   const { connectedPlatforms } = usePlatformConnections();
   const { state: onboardingState } = useOnboardingGuard();
   const [dateRange, setDateRange] = React.useState("7d");
@@ -64,38 +68,22 @@ export default function Dashboard() {
 
   const { data: metrics, isLoading, refetch } = useDashboardMetrics(dateRange, selectedPlatform);
 
-  // Revenue metrics from revenue_metrics table
-  const { data: revenueMetrics } = useQuery({
-    queryKey: ["revenue-metrics-dashboard"],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-
-      // Get team ID
-      const { data: ws } = await supabase
-        .from("workspaces")
-        .select("id")
-        .eq("owner_id", user.id)
-        .maybeSingle();
-
-      const teamId = ws?.id ?? null;
-      if (!teamId) return null;
-
-      const { data } = await supabase
-        .from("revenue_metrics")
-        .select("gross_revenue, net_revenue, profit, profit_margin, revenue_growth_percent, total_orders, new_customers, metric_date")
-        .eq("team_id", teamId)
-        .order("metric_date", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      return data;
-    },
-  });
+  const { revenueMetrics, isFromAdInsights } = useRevenueMetrics(
+    metrics
+      ? {
+          totalSpend: metrics.totalSpend,
+          avgRoas: metrics.avgRoas,
+          totalConversions: metrics.totalConversions,
+        }
+      : undefined
+  );
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await refetch();
+    await Promise.all([
+      refetch(),
+      queryClient.invalidateQueries({ queryKey: ["revenue-metrics-dashboard"] }),
+    ]);
     setIsRefreshing(false);
   };
 
@@ -113,303 +101,507 @@ export default function Dashboard() {
 
   const hasData = metrics && (metrics.totalImpressions > 0 || metrics.totalClicks > 0);
 
-  return (
-    <div className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 animate-in fade-in duration-700">
+  // Derived stats from trend data
+  const trendData = metrics?.trendData ?? [];
+  const avgDailyImpressions = trendData.length > 0
+    ? Math.round(trendData.reduce((s, d) => s + d.impressions, 0) / trendData.length)
+    : 0;
+  const avgDailyClicks = trendData.length > 0
+    ? Math.round(trendData.reduce((s, d) => s + d.clicks, 0) / trendData.length)
+    : 0;
+  const peakDay = trendData.length > 0
+    ? trendData.reduce((best, d) => (d.impressions > (best?.impressions ?? 0) ? d : best), trendData[0])
+    : null;
+  const costPerConversion = metrics && metrics.totalConversions > 0
+    ? metrics.totalSpend / metrics.totalConversions
+    : 0;
 
-      {/* 1. DYNAMIC HEADER */}
-      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between border-b pb-8">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest">
-            <Activity className="h-4 w-4" /> Live Performance Monitor
-          </div>
-          <h1 className="text-4xl font-black tracking-tighter">MARKETING HUB</h1>
-          <p className="text-muted-foreground italic">
+  return (
+    <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 animate-in fade-in duration-500">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
             {selectedPlatform === "all"
-              ? `Aggregated insights across ${connectedPlatforms.length} connected platforms.`
-              : `Insights for ${connectedPlatforms.find(p => p.id === selectedPlatform)?.name || "Platform"}.`}
+              ? `${connectedPlatforms.length} platforms connected`
+              : connectedPlatforms.find((p) => p.id === selectedPlatform)?.name ?? "Platform"}
           </p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <div className="bg-muted/50 p-1 rounded-xl flex items-center gap-1">
-            <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger className="w-[140px] bg-background border-none shadow-none h-9 rounded-lg">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="7d">Last 7 Days</SelectItem>
-                <SelectItem value="30d">Last 30 Days</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
-              <SelectTrigger className="w-[140px] bg-background border-none shadow-none h-9 rounded-lg">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Platforms</SelectItem>
-                {connectedPlatforms.map(platform => (
-                  <SelectItem key={platform.id} value={platform.id}>
-                    {platform.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={handleRefresh} variant="ghost" size="icon" className="h-9 w-9 rounded-lg" disabled={isRefreshing}>
-              <RefreshCw className={cn("h-4 w-4 text-muted-foreground", isRefreshing && "animate-spin")} />
-            </Button>
-          </div>
+        <div className="flex items-center gap-2">
+          <Select value={dateRange} onValueChange={setDateRange}>
+            <SelectTrigger className="w-[130px] h-9 border-border/60 bg-background rounded-lg text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="7d">7 days</SelectItem>
+              <SelectItem value="30d">30 days</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
+            <SelectTrigger className="w-[130px] h-9 border-border/60 bg-background rounded-lg text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All platforms</SelectItem>
+              {connectedPlatforms.map((platform) => (
+                <SelectItem key={platform.id} value={platform.id}>
+                  {platform.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 rounded-lg shrink-0"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+          </Button>
         </div>
-      </div>
+      </header>
 
       {isLoading ? (
         <LoadingSkeleton />
       ) : !hasData ? (
         <NoDataState />
       ) : (
-        <div className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-3">
+          {/* Bento Grid — Row 1: Hero metrics */}
+          <BentoCard className="md:col-span-2 lg:col-span-4" size="large">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Impressions</p>
+                <p className="text-2xl font-semibold tracking-tight mt-0.5 text-foreground">
+                  {formatValue(metrics.totalImpressions, "number")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">Total reach</p>
+              </div>
+              <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
+                <Eye className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+          </BentoCard>
 
-          {/* 2. CORE METRICS BENTO GRID */}
-          <div className="grid gap-6 md:grid-cols-3">
-            <SummaryCard
-              title="Awareness Flow"
-              icon={Eye}
-              primaryLabel="Total Impressions"
-              primaryValue={formatValue(metrics.totalImpressions, "number")}
-              secondaryLabel="Engagement (Clicks)"
-              secondaryValue={formatValue(metrics.totalClicks, "number")}
-              color="blue"
-            />
-            <SummaryCard
-              title="Efficiency Rate"
-              icon={Target}
-              primaryLabel="Total Conversions"
-              primaryValue={formatValue(metrics.totalConversions, "number")}
-              secondaryLabel="Avg. CTR"
-              secondaryValue={formatValue(metrics.avgCtr, "percent")}
-              color="emerald"
-            />
-            <SummaryCard
-              title="Economic Impact"
-              icon={Wallet}
-              primaryLabel="ROAS"
-              primaryValue={formatValue(metrics.avgRoas, "multiplier")}
-              secondaryLabel="Total Ad Spend"
-              secondaryValue={formatValue(metrics.totalSpend, "currency")}
-              color="amber"
-            />
-          </div>
+          <BentoCard className="md:col-span-2 lg:col-span-4" size="large">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Clicks</p>
+                <p className="text-2xl font-semibold tracking-tight mt-0.5 text-foreground">
+                  {formatValue(metrics.totalClicks, "number")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">Engagement</p>
+              </div>
+              <div className="h-10 w-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
+                <MousePointer2 className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+              </div>
+            </div>
+          </BentoCard>
 
-          {/* 3. PERFORMANCE CHART */}
-          <Card className="border-none shadow-sm bg-muted/20 rounded-3xl overflow-hidden">
-            <CardHeader className="p-8 pb-0">
-              <div className="flex items-center justify-between">
+          <BentoCard className="md:col-span-2 lg:col-span-4" size="large">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Conversions</p>
+                <p className="text-2xl font-semibold tracking-tight mt-0.5 text-foreground">
+                  {formatValue(metrics.totalConversions, "number")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">CTR {formatValue(metrics.avgCtr, "percent")}</p>
+              </div>
+              <div className="h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                <Target className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </div>
+          </BentoCard>
+
+          {/* Row 2: Trend chart — full width */}
+          <BentoCard className="md:col-span-6 lg:col-span-8" size="xlarge">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <CardTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-primary" /> Multi-Channel Trend
-                  </CardTitle>
-                  <CardDescription>Visualizing Impression-to-Click volume over time</CardDescription>
+                  <p className="text-sm font-medium text-foreground">Performance trend</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Impressions & clicks over time</p>
                 </div>
-                <div className="flex gap-4">
-                  <LegendItem label="Impressions" color="hsl(var(--primary))" />
-                  <LegendItem label="Clicks" color="hsl(var(--chart-2))" />
+                <div className="flex flex-wrap items-center gap-4">
+                  <LegendDot color="#3b82f6" label="Impressions" />
+                  <LegendDot color="#8b5cf6" label="Clicks" />
+                  <span className="text-xs text-muted-foreground border-l border-border/60 pl-4">
+                    Avg: {formatValue(avgDailyImpressions, "number")} imp · {formatValue(avgDailyClicks, "number")} clk/day
+                  </span>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="p-8">
-              <div className="h-[350px] w-full bg-background rounded-2xl p-4 border shadow-inner">
+              <div className="h-[240px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={metrics.trendData}>
                     <defs>
                       <linearGradient id="colorImp" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.4} />
+                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
                       </linearGradient>
                       <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
+                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.4} />
+                        <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.6} />
                     <XAxis
                       dataKey="date"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 11, fontWeight: 600 }}
-                      tickFormatter={(val) => new Date(val).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                      tickFormatter={(val) =>
+                        new Date(val).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                      }
                     />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                     <Tooltip
-                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                      contentStyle={{
+                        borderRadius: "8px",
+                        border: "1px solid hsl(var(--border))",
+                        backgroundColor: "hsl(var(--card))",
+                        fontSize: "12px",
+                      }}
                     />
-                    <Area type="monotone" dataKey="impressions" stroke="hsl(var(--primary))" strokeWidth={3} fill="url(#colorImp)" />
-                    <Area type="monotone" dataKey="clicks" stroke="hsl(var(--chart-2))" strokeWidth={3} fill="url(#colorClicks)" />
+                    <Area
+                      type="monotone"
+                      dataKey="impressions"
+                      stroke="#3b82f6"
+                      strokeWidth={2.5}
+                      fill="url(#colorImp)"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="clicks"
+                      stroke="#8b5cf6"
+                      strokeWidth={2.5}
+                      fill="url(#colorClicks)"
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </BentoCard>
 
-          {/* 4. GRANULAR KPI ROW */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KPIItem label="Avg. CPC" value={formatValue(metrics.avgCpc, "currency")} icon={MousePointer2} />
-            <KPIItem label="Avg. CPM" value={formatValue(metrics.avgCpm, "currency")} icon={Zap} />
-            <KPIItem label="Total Investment" value={formatValue(metrics.totalSpend, "currency")} icon={DollarSign} />
-            <KPIItem label="Coverage" value={`${metrics.trendData.length} Days`} icon={BarChart3} />
-          </div>
+          {/* Row 2: ROAS & Spend — sidebar */}
+          <BentoCard className="md:col-span-6 lg:col-span-4" size="tall">
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">ROAS</p>
+                <p className="text-2xl font-semibold tracking-tight mt-0.5 text-foreground">
+                  {formatValue(metrics.avgRoas, "multiplier")}
+                </p>
+              </div>
+              <div className="pt-3 border-t border-border/60">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Ad spend</p>
+                <p className="text-xl font-semibold tracking-tight mt-0.5 text-foreground">
+                  {formatValue(metrics.totalSpend, "currency")}
+                </p>
+              </div>
+              <div className="pt-3 border-t border-border/60">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cost / conversion</p>
+                <p className="text-lg font-medium text-foreground mt-0.5">{formatValue(costPerConversion, "currency")}</p>
+              </div>
+              <div className="pt-3 border-t border-border/60 flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Coverage</span>
+                <span className="text-sm font-medium text-foreground">{metrics.trendData.length} days</span>
+              </div>
+              {peakDay && (
+                <div className="pt-3 border-t border-border/60">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Peak day</p>
+                  <p className="text-sm font-medium text-foreground mt-0.5">
+                    {new Date(peakDay.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })} · {formatValue(peakDay.impressions, "number")} imp
+                  </p>
+                </div>
+              )}
+            </div>
+          </BentoCard>
 
-          {/* 5. REVENUE METRICS SECTION */}
-          {revenueMetrics && (
-            <Card className="border-none shadow-sm bg-muted/20 rounded-3xl overflow-hidden">
-              <CardHeader className="p-8 pb-4">
-                <CardTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-emerald-500" /> Revenue Overview
-                </CardTitle>
-                <CardDescription>
-                  ข้อมูลรายได้จริงจากฐานข้อมูล · อัปเดตล่าสุด: {revenueMetrics.metric_date}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-8 pt-0">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <RevenueKPI
-                    label="Gross Revenue"
-                    value={`฿${Number(revenueMetrics.gross_revenue ?? 0).toLocaleString()}`}
+          {/* Row 3: Granular KPIs */}
+          <BentoCard className="md:col-span-3 lg:col-span-3" size="small">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+                <Zap className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Avg. CPC</p>
+                <p className="text-base font-semibold text-foreground">{formatValue(metrics.avgCpc, "currency")}</p>
+              </div>
+            </div>
+          </BentoCard>
+          <BentoCard className="md:col-span-3 lg:col-span-3" size="small">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
+                <BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Avg. CPM</p>
+                <p className="text-base font-semibold text-foreground">{formatValue(metrics.avgCpm, "currency")}</p>
+              </div>
+            </div>
+          </BentoCard>
+          <BentoCard className="md:col-span-3 lg:col-span-3" size="small">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
+                <Target className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">CTR</p>
+                <p className="text-base font-semibold text-foreground">{formatValue(metrics.avgCtr, "percent")}</p>
+              </div>
+            </div>
+          </BentoCard>
+          <BentoCard className="md:col-span-3 lg:col-span-3" size="small">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center shrink-0">
+                <DollarSign className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Total spend</p>
+                <p className="text-base font-semibold text-foreground">{formatValue(metrics.totalSpend, "currency")}</p>
+              </div>
+            </div>
+          </BentoCard>
+
+          {/* Row 4: Revenue — full width */}
+          <BentoCard className="md:col-span-6 lg:col-span-12" size="wide">
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Revenue overview</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {revenueMetrics
+                    ? isFromAdInsights
+                      ? `Estimated from ad performance · ${revenueMetrics.metric_date}`
+                      : `From revenue_metrics · ${revenueMetrics.metric_date}`
+                    : "Connect platforms or revenue data to see metrics"}
+                </p>
+              </div>
+              {revenueMetrics ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                  <RevenueItem
+                    label="Gross"
+                    value={`฿${Number(revenueMetrics.gross_revenue).toLocaleString()}`}
                     icon={DollarSign}
-                    color="text-emerald-600"
+                    variant="amber"
                   />
-                  <RevenueKPI
-                    label="Net Revenue"
-                    value={`฿${Number(revenueMetrics.net_revenue ?? 0).toLocaleString()}`}
+                  <RevenueItem
+                    label="Net"
+                    value={`฿${Number(revenueMetrics.net_revenue).toLocaleString()}`}
                     icon={Wallet}
-                    color="text-blue-600"
+                    variant="indigo"
                   />
-                  <RevenueKPI
-                    label="Profit Margin"
-                    value={`${Number(revenueMetrics.profit_margin ?? 0).toFixed(1)}%`}
-                    icon={revenueMetrics.profit_margin && revenueMetrics.profit_margin > 0 ? TrendingUp : TrendingDown}
-                    color={revenueMetrics.profit_margin && revenueMetrics.profit_margin > 0 ? "text-green-600" : "text-destructive"}
+                  <RevenueItem
+                    label="Margin"
+                    value={`${Number(revenueMetrics.profit_margin).toFixed(1)}%`}
+                    icon={revenueMetrics.profit_margin > 0 ? TrendingUp : TrendingDown}
+                    positive={revenueMetrics.profit_margin > 0}
                   />
-                  <RevenueKPI
-                    label="Revenue Growth"
-                    value={`${Number(revenueMetrics.revenue_growth_percent ?? 0) > 0 ? "+" : ""}${Number(revenueMetrics.revenue_growth_percent ?? 0).toFixed(1)}%`}
-                    icon={revenueMetrics.revenue_growth_percent && revenueMetrics.revenue_growth_percent > 0 ? TrendingUp : TrendingDown}
-                    color={revenueMetrics.revenue_growth_percent && revenueMetrics.revenue_growth_percent > 0 ? "text-green-600" : "text-destructive"}
+                  <RevenueItem
+                    label="Growth"
+                    value={
+                      revenueMetrics.revenue_growth_percent != null
+                        ? `${revenueMetrics.revenue_growth_percent > 0 ? "+" : ""}${revenueMetrics.revenue_growth_percent.toFixed(1)}%`
+                        : "—"
+                    }
+                    icon={
+                      revenueMetrics.revenue_growth_percent != null
+                        ? revenueMetrics.revenue_growth_percent > 0
+                          ? TrendingUp
+                          : revenueMetrics.revenue_growth_percent < 0
+                            ? TrendingDown
+                            : Minus
+                        : Minus
+                    }
+                    positive={
+                      revenueMetrics.revenue_growth_percent != null
+                        ? revenueMetrics.revenue_growth_percent > 0
+                          ? true
+                          : revenueMetrics.revenue_growth_percent < 0
+                            ? false
+                            : undefined
+                        : undefined
+                    }
+                    variant="sky"
                   />
-                </div>
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <RevenueKPI
-                    label="Total Orders"
-                    value={(revenueMetrics.total_orders ?? 0).toLocaleString()}
+                  <RevenueItem
+                    label="Orders"
+                    value={revenueMetrics.total_orders.toLocaleString()}
                     icon={ShoppingCart}
-                    color="text-purple-600"
+                    variant="blue"
                   />
-                  <RevenueKPI
-                    label="New Customers"
-                    value={(revenueMetrics.new_customers ?? 0).toLocaleString()}
+                  <RevenueItem
+                    label="New customers"
+                    value={revenueMetrics.new_customers.toLocaleString()}
                     icon={Users}
-                    color="text-amber-600"
+                    variant="violet"
                   />
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <p className="text-sm text-muted-foreground py-4">
+                  ไม่มีข้อมูลรายได้ — เชื่อมต่อแพลตฟอร์มโฆษณาหรือเพิ่มข้อมูลใน revenue_metrics
+                </p>
+              )}
+            </div>
+          </BentoCard>
         </div>
       )}
     </div>
   );
 }
 
-// --- SUB-COMPONENTS ---
-
-function SummaryCard({ title, icon: Icon, primaryLabel, primaryValue, secondaryLabel, secondaryValue, color }: any) {
-  const colors: any = {
-    blue: "from-blue-500/10 text-blue-600",
-    emerald: "from-emerald-500/10 text-emerald-600",
-    amber: "from-amber-500/10 text-amber-600"
-  };
-
-  return (
-    <Card className={cn("border-none shadow-none bg-gradient-to-br bg-background rounded-3xl group overflow-hidden border", colors[color])}>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 opacity-80 uppercase text-[10px] font-black tracking-widest">
-            <Icon className="h-4 w-4" /> {title}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div>
-          <h2 className="text-3xl font-black tracking-tighter text-foreground group-hover:scale-105 transition-transform origin-left duration-300">
-            {primaryValue}
-          </h2>
-          <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-tighter">{primaryLabel}</p>
-        </div>
-        <div className="pt-4 border-t border-current/10">
-          <div className="flex items-center justify-between">
-            <span className="text-lg font-bold text-foreground">{secondaryValue}</span>
-            <span className="text-[10px] font-bold uppercase text-muted-foreground">{secondaryLabel}</span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+// ─── Bento Card ─────────────────────────────────────────────────────────────
+interface BentoCardProps {
+  children: React.ReactNode;
+  className?: string;
+  size?: "small" | "large" | "tall" | "wide" | "xlarge";
 }
 
-function KPIItem({ label, value, icon: Icon }: any) {
+function BentoCard({ children, className, size = "large" }: BentoCardProps) {
   return (
-    <Card className="border-none bg-muted/20 shadow-none rounded-2xl p-4 flex items-center gap-4 group">
-      <div className="h-10 w-10 rounded-xl bg-background flex items-center justify-center shadow-sm group-hover:text-primary transition-colors">
-        <Icon className="h-5 w-5" />
-      </div>
-      <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-70">{label}</p>
-        <p className="text-lg font-black tracking-tight">{value}</p>
-      </div>
-    </Card>
-  );
-}
-
-function RevenueKPI({ label, value, icon: Icon, color }: { label: string; value: string; icon: any; color: string }) {
-  return (
-    <div className="flex items-center gap-3 p-4 rounded-2xl bg-background border shadow-sm">
-      <div className={cn("h-9 w-9 rounded-xl bg-muted flex items-center justify-center shrink-0", color)}>
-        <Icon className="h-4 w-4" />
-      </div>
-      <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
-        <p className={cn("text-base font-black tracking-tight", color)}>{value}</p>
-      </div>
+    <div
+      className={cn(
+        "rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm transition-colors hover:border-border/80 hover:bg-card/70",
+        size === "small" && "p-3",
+        size === "large" && "p-4",
+        size === "tall" && "p-4",
+        size === "wide" && "p-4",
+        size === "xlarge" && "p-4",
+        className
+      )}
+    >
+      {children}
     </div>
   );
 }
 
-function LegendItem({ label, color }: { label: string, color: string }) {
+function LegendDot({ color, label }: { color: string; label: string }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
+      <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+      <span className="text-xs text-muted-foreground">{label}</span>
     </div>
   );
 }
 
+type RevenueVariant =
+  | "amber"
+  | "indigo"
+  | "emerald"
+  | "red"
+  | "blue"
+  | "violet"
+  | "rose"
+  | "sky"
+  | "neutral";
+
+const revenueVariantStyles: Record<
+  RevenueVariant,
+  { icon: string; value: string }
+> = {
+  amber: {
+    icon: "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400",
+    value: "text-amber-600 dark:text-amber-400",
+  },
+  indigo: {
+    icon: "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400",
+    value: "text-indigo-600 dark:text-indigo-400",
+  },
+  emerald: {
+    icon: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400",
+    value: "text-emerald-600 dark:text-emerald-400",
+  },
+  red: {
+    icon: "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400",
+    value: "text-red-600 dark:text-red-400",
+  },
+  blue: {
+    icon: "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400",
+    value: "text-blue-600 dark:text-blue-400",
+  },
+  violet: {
+    icon: "bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400",
+    value: "text-violet-600 dark:text-violet-400",
+  },
+  rose: {
+    icon: "bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400",
+    value: "text-rose-600 dark:text-rose-400",
+  },
+  sky: {
+    icon: "bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400",
+    value: "text-sky-600 dark:text-sky-400",
+  },
+  neutral: {
+    icon: "bg-muted text-muted-foreground",
+    value: "text-foreground",
+  },
+};
+
+interface RevenueItemProps {
+  label: string;
+  value: string;
+  icon: React.ComponentType<{ className?: string }>;
+  /** true = เขียว, false = แดง, undefined = ใช้ variant */
+  positive?: boolean;
+  variant?: RevenueVariant;
+}
+
+function RevenueItem({ label, value, icon: Icon, positive, variant = "neutral" }: RevenueItemProps) {
+  const iconStyle =
+    positive === true
+      ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
+      : positive === false
+        ? "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400"
+        : revenueVariantStyles[variant].icon;
+
+  const valueStyle =
+    positive === true
+      ? "text-emerald-600 dark:text-emerald-400"
+      : positive === false
+        ? "text-red-600 dark:text-red-400"
+        : revenueVariantStyles[variant].value;
+
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors">
+      <div
+        className={cn(
+          "h-8 w-8 rounded-lg flex items-center justify-center shrink-0",
+          iconStyle
+        )}
+      >
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground truncate">{label}</p>
+        <p className={cn("text-sm font-medium truncate", valueStyle)}>{value}</p>
+      </div>
+    </div>
+  );
+}
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-8">
-      <div className="grid gap-6 md:grid-cols-3">
-        {[1, 2, 3].map(i => <Skeleton key={i} className="h-48 rounded-[2rem]" />)}
-      </div>
-      <Skeleton className="h-[400px] w-full rounded-[2rem]" />
+    <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-4">
+      {[1, 2, 3].map((i) => (
+        <Skeleton key={i} className="h-32 rounded-xl md:col-span-2 lg:col-span-4" />
+      ))}
+      <Skeleton className="h-80 rounded-xl md:col-span-6 lg:col-span-8" />
+      <Skeleton className="h-80 rounded-xl md:col-span-6 lg:col-span-4" />
+      {[1, 2, 3, 4].map((i) => (
+        <Skeleton key={i} className="h-20 rounded-xl md:col-span-3 lg:col-span-3" />
+      ))}
     </div>
   );
 }
 
 function NoDataState() {
   return (
-    <div className="py-20 flex flex-col items-center justify-center bg-muted/30 rounded-[3rem] border border-dashed">
-      <BarChart3 className="h-12 w-12 text-muted-foreground opacity-20 mb-4" />
-      <h3 className="text-lg font-bold">Awaiting Transaction Data</h3>
-      <p className="text-sm text-muted-foreground">Your connected platforms haven't reported any activity in this period yet.</p>
+    <div className="flex flex-col items-center justify-center py-24 rounded-xl border border-dashed border-border/60 bg-muted/20">
+      <BarChart3 className="h-10 w-10 text-muted-foreground/50 mb-4" />
+      <h3 className="text-base font-medium text-foreground">No data yet</h3>
+      <p className="text-sm text-muted-foreground mt-1 max-w-sm text-center">
+        Connect platforms and wait for activity to appear in this period.
+      </p>
     </div>
   );
 }

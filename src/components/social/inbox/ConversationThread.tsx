@@ -22,7 +22,7 @@ function SentimentIcon({ sentiment }: { sentiment: SocialComment["sentiment"] })
 }
 
 function formatTime(isoString: string): string {
-  return new Date(isoString).toLocaleString("th-TH", {
+  return new Date(isoString).toLocaleString("en-US", {
     day: "numeric",
     month: "short",
     hour: "2-digit",
@@ -103,7 +103,7 @@ function CommentBubble({ comment, onMarkRead }: CommentBubbleProps) {
               </span>
             )}
             {!comment.is_read && (
-              <span className="inline-block h-2 w-2 rounded-full bg-primary shrink-0" aria-label="ยังไม่ได้อ่าน" />
+              <span className="inline-block h-2 w-2 rounded-full bg-primary shrink-0" aria-label="Unread" />
             )}
           </div>
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -120,10 +120,10 @@ function CommentBubble({ comment, onMarkRead }: CommentBubbleProps) {
               variant="ghost"
               className="h-7 px-2 text-xs gap-1"
               onClick={() => onMarkRead(comment.id)}
-              title="ทำเครื่องหมายว่าอ่านแล้ว"
+              title="Mark as read"
             >
               <CheckCheck className="h-3.5 w-3.5" />
-              อ่านแล้ว
+              Read
             </Button>
           )}
         </div>
@@ -139,7 +139,7 @@ function CommentBubble({ comment, onMarkRead }: CommentBubbleProps) {
         <div className="ml-[2.75rem]">
           <Badge variant="secondary" className="text-xs gap-1">
             <CheckCheck className="h-3 w-3 text-emerald-500" />
-            ตอบกลับแล้ว
+            Replied
           </Badge>
         </div>
       )}
@@ -189,9 +189,9 @@ export function ConversationThread({
           <MessageSquareOff className="h-8 w-8 text-muted-foreground" />
         </div>
         <div>
-          <p className="text-base font-semibold text-foreground">เลือกการสนทนา</p>
+          <p className="text-base font-semibold text-foreground">Select a conversation</p>
           <p className="text-sm text-muted-foreground mt-1">
-            คลิกที่รายการทางซ้ายเพื่อดูความคิดเห็น
+            Click an item on the left to view comments
           </p>
         </div>
       </div>
@@ -216,7 +216,7 @@ export function ConversationThread({
       <div className="px-4 py-3 border-b border-border/40 bg-white dark:bg-slate-900 flex items-center gap-3 shrink-0">
         <div>
           <p className="text-sm font-semibold text-foreground line-clamp-1">
-            {thread.post_content ?? "โพสต์"}
+            {thread.post_content ?? "Post"}
           </p>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="text-xs text-muted-foreground capitalize">
@@ -224,13 +224,13 @@ export function ConversationThread({
             </span>
             <span className="text-muted-foreground/40">·</span>
             <span className="text-xs text-muted-foreground">
-              {thread.comments.length} ความคิดเห็น
+              {thread.comments.length} comments
             </span>
             {thread.unread_count > 0 && (
               <>
                 <span className="text-muted-foreground/40">·</span>
                 <span className="text-xs font-medium text-primary">
-                  {thread.unread_count} ยังไม่ได้อ่าน
+                  {thread.unread_count} unread
                 </span>
               </>
             )}
@@ -259,8 +259,8 @@ export function ConversationThread({
         isPending={isReplying}
         placeholder={
           latestUnreplied
-            ? `ตอบกลับ ${latestUnreplied.author_name}...`
-            : "เขียนตอบกลับ..."
+            ? `Reply to ${latestUnreplied.author_name}...`
+            : "Write a reply..."
         }
       />
     </div>
