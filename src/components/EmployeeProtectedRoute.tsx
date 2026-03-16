@@ -8,7 +8,7 @@ interface EmployeeProtectedRouteProps {
 
 export function EmployeeProtectedRoute({
   children,
-  allowedRoles = ["owner", "admin", "dev", "support", "developer"]
+  allowedRoles = ["owner", "admin", "dev", "support"]
 }: EmployeeProtectedRouteProps) {
   const { user, session, isEmployee, employeeRole, approvalStatus, loading } = useEmployeeAuth();
   const location = useLocation();

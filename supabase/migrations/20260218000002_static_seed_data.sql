@@ -106,7 +106,7 @@ INSERT INTO public.role_employees (role_name, description, permission_level) VAL
     ('owner', 'Buzzly Owner - Full access', 100),
     ('admin', 'Administrator - Manage Workspaces/Users', 80),
     ('support', 'Support - View Logs/Help Customers', 50),
-    ('developer', 'Developer - API/Pipelines', 60)
+    ('dev', 'Developer - API/Pipelines', 60)
 ON CONFLICT (role_name) DO NOTHING;
 
 

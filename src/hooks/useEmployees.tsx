@@ -113,7 +113,7 @@ export function useEmployees() {
         .insert({
           email: newEmployee.email,
           role_employees_id: newEmployee.role_employees_id,
-          status: "active",
+          status: "inactive",
           approval_status: "approved",
 
         })

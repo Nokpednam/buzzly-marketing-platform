@@ -37,7 +37,8 @@ CREATE TYPE public.app_role AS ENUM (
     'customer',
     'admin',
     'owner',
-    'dev'
+    'dev',
+    'support'
 );
 
 ALTER TYPE public.app_role OWNER TO postgres;
@@ -109,8 +110,12 @@ BEGIN
             END IF;
         END IF;
 
-        -- Always ensure status is active when approved
-        NEW.status := 'active';
+        -- Ensure status is active only if user is already linked (signed up)
+        IF NEW.user_id IS NOT NULL THEN
+            NEW.status := 'active';
+        ELSE
+            NEW.status := 'inactive';
+        END IF;
     END IF;
     
     RETURN NEW;
@@ -220,12 +225,14 @@ DECLARE
     existing_employee_id uuid;
     _gender_id uuid;
 BEGIN
-    -- Check if it's an employee signup
+    -- 1. Check if it's an EXPLICIT employee signup (/employee/signup sends this flag)
+    -- The user requires that employees sign up through the dedicated page
     IF (new.raw_user_meta_data->>'is_employee_signup')::boolean IS TRUE THEN
+        
         -- Check for existing employee record with same email that hasn't been linked yet
         SELECT id INTO existing_employee_id
         FROM public.employees
-        WHERE email = new.email
+        WHERE LOWER(email) = LOWER(new.email)
         AND user_id IS NULL
         LIMIT 1;
 
@@ -234,12 +241,15 @@ BEGIN
             UPDATE public.employees
             SET 
                 user_id = new.id,
+                status = 'active',
                 updated_at = now()
             WHERE id = existing_employee_id;
             
             new_employee_id := existing_employee_id;
             
-            -- Also ensure profile exists or is updated
+            -- DATA PRIORITY:
+            -- 1. Role (role_employees_id): STRICTLY FROM ADMIN (already in the existing record)
+            -- 2. Name/Profile: FROM USER (newly provided during signup)
             INSERT INTO public.employees_profile (
                 employees_id,
                 first_name,
@@ -249,9 +259,9 @@ BEGIN
             )
             VALUES (
                 new_employee_id,
-                new.raw_user_meta_data->>'first_name',
-                new.raw_user_meta_data->>'last_name',
-                new.raw_user_meta_data->>'aptitude',
+                COALESCE(new.raw_user_meta_data->>'first_name', ''),
+                COALESCE(new.raw_user_meta_data->>'last_name', ''),
+                COALESCE(new.raw_user_meta_data->>'aptitude', ''),
                 CASE 
                     WHEN new.raw_user_meta_data->>'birthday' IS NOT NULL 
                     AND new.raw_user_meta_data->>'birthday' != '' 
@@ -260,13 +270,14 @@ BEGIN
                 END
             )
             ON CONFLICT (employees_id) DO UPDATE SET
-                first_name = EXCLUDED.first_name,
-                last_name = EXCLUDED.last_name,
-                aptitude = EXCLUDED.aptitude,
-                birthday_at = EXCLUDED.birthday_at,
+                -- Update name/aptitude from user signup data
+                first_name = COALESCE(new.raw_user_meta_data->>'first_name', employees_profile.first_name),
+                last_name = COALESCE(new.raw_user_meta_data->>'last_name', employees_profile.last_name),
+                aptitude = COALESCE(new.raw_user_meta_data->>'aptitude', employees_profile.aptitude),
+                birthday_at = COALESCE((new.raw_user_meta_data->>'birthday')::date, employees_profile.birthday_at),
                 updated_at = now();
         ELSE
-            -- Create new employee record if no existing record found
+            -- Create new employee record if no existing record found (still an employee signup)
             INSERT INTO public.employees (
                 user_id, 
                 email, 
@@ -278,12 +289,12 @@ BEGIN
                 new.id, 
                 new.email, 
                 'active', 
-                'pending', -- Pending approval
-                NULL       -- Role will be assigned by Admin
+                'pending',
+                NULL
             )
             RETURNING id INTO new_employee_id;
 
-            -- Create employee profile if employee record was created
+            -- Create employee profile
             IF new_employee_id IS NOT NULL THEN
                 INSERT INTO public.employees_profile (
                     employees_id,
@@ -306,7 +317,7 @@ BEGIN
                 );
             END IF;
         END IF;
-
+    -- Note: If they sign up through the customer page, they fall through to the customer flow below
     ELSE
         -- Default customer flow (Strictly separated)
         
@@ -485,7 +496,8 @@ BEGIN
     -- Map 'admin' to 'admin' app_role
     -- Map 'owner' to 'owner' app_role
     -- Others defaults to null (no user_role entry)
-    IF NEW.user_id IS NOT NULL AND v_role_name IN ('owner', 'admin', 'dev') THEN
+    -- Map 'dev', 'admin', 'owner', 'support' to their respective app_roles
+    IF NEW.user_id IS NOT NULL AND v_role_name IN ('owner', 'admin', 'dev', 'support') THEN
         v_app_role := v_role_name::app_role;
         
         -- Upsert into user_roles
@@ -493,8 +505,11 @@ BEGIN
         VALUES (NEW.user_id, v_app_role)
         ON CONFLICT (user_id, role) DO NOTHING;
         
-        -- Optional: Remove other roles if we want strict 1:1 mapping
-        -- DELETE FROM public.user_roles WHERE user_id = NEW.user_id AND role != v_app_role;
+        -- STRICT MAPPING: When a user becomes an employee, remove their customer role
+        -- to ensure they are redirected to the employee dashboard
+        DELETE FROM public.user_roles 
+        WHERE user_id = NEW.user_id 
+        AND role = 'customer';
     END IF;
 
     RETURN NEW;
@@ -3322,7 +3337,7 @@ CREATE TRIGGER set_invoice_number BEFORE INSERT ON public.invoices FOR EACH ROW 
 -- Name: employees tr_sync_employee_to_user_roles; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
-CREATE TRIGGER tr_sync_employee_to_user_roles AFTER INSERT OR UPDATE OF role_employees_id ON public.employees FOR EACH ROW EXECUTE FUNCTION public.sync_employee_to_user_roles();
+CREATE TRIGGER tr_sync_employee_to_user_roles AFTER INSERT OR UPDATE OF role_employees_id, user_id ON public.employees FOR EACH ROW EXECUTE FUNCTION public.sync_employee_to_user_roles();
 
 --
 -- Name: api_configurations update_api_configurations_updated_at; Type: TRIGGER; Schema: public; Owner: postgres

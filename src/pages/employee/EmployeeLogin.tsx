@@ -31,6 +31,9 @@ export default function EmployeeLogin() {
                 throw authError;
             }
 
+// --- SELF-LINKAGE REMOVED PER USER REQUIREMENT ---
+// Employees must sign up with a new email and can no longer link existing customer accounts.
+
             // Check if user is an employee
             const { data: employeeData } = await supabase
                 .from("employees")
@@ -127,8 +130,9 @@ export default function EmployeeLogin() {
                 navigate("/owner/product-usage");
             } else if (roleName === "support") {
                 navigate("/support/workspaces");
+            } else if (roleName === "dev") {
+                navigate("/dev/monitor");
             } else {
-                // dev and any other employee roles
                 navigate("/dev/monitor");
             }
         } catch (error: any) {

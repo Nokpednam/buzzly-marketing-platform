@@ -120,6 +120,7 @@ SET search_path = public
 AS $$
 DECLARE
     new_employee_id uuid;
+    existing_employee_id uuid;
     new_customer_id uuid;
     _gender_id      uuid;
     _profile_id     uuid;
@@ -133,16 +134,57 @@ BEGIN
     IF (new.raw_user_meta_data->>'is_employee_signup')::boolean IS TRUE THEN
         RAISE NOTICE 'Employee signup detected for: %', new.email;
 
-        BEGIN
+        -- Check for existing employee record with same email that hasn't been linked yet
+        -- (Linkage Case)
+        SELECT id INTO existing_employee_id
+        FROM public.employees
+        WHERE LOWER(email) = LOWER(new.email)
+          AND user_id IS NULL
+        LIMIT 1;
+
+        IF existing_employee_id IS NOT NULL THEN
+            UPDATE public.employees
+            SET 
+                user_id = new.id,
+                status = 'active',
+                updated_at = NOW()
+            WHERE id = existing_employee_id;
+            
+            new_employee_id := existing_employee_id;
+            
+            -- DATA PRIORITY: Role from Admin (Existing), Profile from User (New)
+            INSERT INTO public.employees_profile (
+                employees_id, first_name, last_name, aptitude, birthday_at
+            )
+            VALUES (
+                new_employee_id,
+                COALESCE(new.raw_user_meta_data->>'first_name', ''),
+                COALESCE(new.raw_user_meta_data->>'last_name', ''),
+                COALESCE(new.raw_user_meta_data->>'aptitude', ''),
+                CASE 
+                    WHEN new.raw_user_meta_data->>'birthday' IS NOT NULL 
+                     AND new.raw_user_meta_data->>'birthday' != '' 
+                    THEN (new.raw_user_meta_data->>'birthday')::date
+                    ELSE NULL
+                END
+            )
+            ON CONFLICT (employees_id) DO UPDATE SET
+                first_name  = COALESCE(EXCLUDED.first_name, employees_profile.first_name),
+                last_name   = COALESCE(EXCLUDED.last_name, employees_profile.last_name),
+                aptitude    = COALESCE(EXCLUDED.aptitude, employees_profile.aptitude),
+                birthday_at = COALESCE(EXCLUDED.birthday_at, employees_profile.birthday_at),
+                updated_at  = NOW();
+        ELSE
+            -- (New Employee Case — Fresh Signup)
             INSERT INTO public.employees (
                 user_id, email, status, approval_status, role_employees_id
             )
             VALUES (
                 new.id, new.email, 'active', 'pending',
-                (SELECT id FROM public.role_employees WHERE LOWER(role_name) = 'admin' LIMIT 1)
+                (SELECT id FROM public.role_employees WHERE LOWER(role_name) = 'dev' LIMIT 1)
             )
-            ON CONFLICT (user_id) DO UPDATE
-                SET email = EXCLUDED.email, updated_at = NOW()
+            ON CONFLICT (user_id) DO UPDATE SET
+                email = EXCLUDED.email, updated_at = NOW()
             RETURNING id INTO new_employee_id;
 
             IF new_employee_id IS NOT NULL THEN
@@ -160,15 +202,9 @@ BEGIN
                         THEN (new.raw_user_meta_data->>'birthday')::date
                         ELSE NULL
                     END
-                )
-                ON CONFLICT (employees_id) DO UPDATE
-                    SET first_name = EXCLUDED.first_name,
-                        last_name  = EXCLUDED.last_name,
-                        updated_at = NOW();
+                );
             END IF;
-        EXCEPTION WHEN OTHERS THEN
-            RAISE WARNING 'Error creating employee record: %', SQLERRM;
-        END;
+        END IF;
 
     -- ==================================================
     -- 2. Customer Signup

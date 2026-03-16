@@ -199,6 +199,8 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
     switch (status) {
       case "active":
         return <Badge className="bg-success text-success-foreground">ใช้งาน</Badge>;
+      case "inactive":
+        return <Badge variant="outline" className="text-muted-foreground">ยังไม่สมัคร</Badge>;
       case "suspended":
         return <Badge variant="destructive">ระงับ</Badge>;
       default:

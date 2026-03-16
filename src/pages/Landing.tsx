@@ -110,8 +110,8 @@ export default function Landing() {
         return;
       }
 
-      if (["admin", "support", "developer"].includes(roleName)) {
-        navigate("/admin/dashboard", { replace: true });
+      if (["admin", "support", "dev"].includes(roleName)) {
+        navigate("/dev/monitor");
         return;
       }
     }
