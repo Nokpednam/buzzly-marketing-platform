@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useCustomerRewards } from "@/hooks/useCustomerRewards";
+import { useLoyaltyTier } from "@/hooks/useLoyaltyTier";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ interface RewardsCenterModalProps {
 
 export function RewardsCenterModal({ open, onOpenChange }: RewardsCenterModalProps) {
     const { catalog, campaigns, stats, completedRules, redeemReward } = useCustomerRewards();
+    const { userLoyalty } = useLoyaltyTier();
     const [selectedReward, setSelectedReward] = useState<RewardItem | null>(null);
 
     const handleRedeemClick = (reward: RewardItem) => {
@@ -35,9 +37,9 @@ export function RewardsCenterModal({ open, onOpenChange }: RewardsCenterModalPro
         setSelectedReward(null);
     };
 
-    const isLoading = catalog.isLoading || campaigns.isLoading || stats.isLoading;
-    const pointBalance = stats.data?.point_balance ?? 0;
-    const tierName = stats.data?.tier_name ?? "Bronze";
+    const isLoading = catalog.isLoading || campaigns.isLoading || stats.isLoading || !userLoyalty;
+    const pointBalance = userLoyalty?.points_balance ?? 0;
+    const tierName = userLoyalty?.tier?.name ?? "Bronze";
 
     const getTierColor = (tier: string) => {
         switch (tier) {

@@ -82,15 +82,15 @@ export function CreateBudgetDialog({ open, onOpenChange }: CreateBudgetDialogPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px] rounded-[2rem] p-8 border-none shadow-2xl">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[550px] max-h-[90vh] rounded-[2rem] p-0 border-none shadow-2xl flex flex-col overflow-hidden">
+        <DialogHeader className="p-8 pb-0">
           <DialogTitle className="text-2xl font-black uppercase tracking-tight">Create New Budget</DialogTitle>
           <DialogDescription className="text-muted-foreground font-medium">
             ตั้งค่างบประมาณสำหรับการตลาดเพื่อติดตามการใช้จ่ายแบบ Real-time
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-6 mt-6">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-8 py-4">
           <div className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Budget Name *</Label>
@@ -219,24 +219,25 @@ export function CreateBudgetDialog({ open, onOpenChange }: CreateBudgetDialogPro
               </p>
             </div>
           </div>
-
-          <DialogFooter className="gap-3 sm:gap-2 pt-6">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => onOpenChange(false)}
-              className="rounded-2xl h-12 flex-1 font-bold hover:bg-muted transition-colors"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className="rounded-2xl h-12 flex-1 font-black uppercase tracking-wider bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all active:scale-95"
-            >
-              Create Budget
-            </Button>
-          </DialogFooter>
         </form>
+
+        <DialogFooter className="p-8 pt-4 gap-3 sm:gap-2 bg-background border-t">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            className="rounded-2xl h-12 flex-1 font-bold hover:bg-muted transition-colors"
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={(e) => handleSubmit(e as any)}
+            className="rounded-2xl h-12 flex-1 font-black uppercase tracking-wider bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all active:scale-95"
+          >
+            Create Budget
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

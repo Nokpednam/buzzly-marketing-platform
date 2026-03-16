@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -96,6 +97,7 @@ export function useCustomerRewards() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["customer-loyalty-stats"] });
             queryClient.invalidateQueries({ queryKey: ["customer-rewards-catalog"] });
+            window.dispatchEvent(new CustomEvent('loyalty-refetch'));
             toast.success("แลกของรางวัลสำเร็จ โปรดรอแอดมินดำเนินการ");
         },
         onError: (error: Error) => {
@@ -128,6 +130,20 @@ export function useCustomerRewards() {
             }));
         },
     });
+
+    // Listen for global loyalty refetch events
+    useEffect(() => {
+        const handleRefetch = async () => {
+            console.log("[useCustomerRewards] Global refetch triggered");
+            // Force immediate refetch
+            await Promise.all([
+                queryClient.refetchQueries({ queryKey: ["customer-loyalty-stats"] }),
+                queryClient.refetchQueries({ queryKey: ["customer-completed-rules"] })
+            ]);
+        };
+        window.addEventListener('loyalty-refetch', handleRefetch);
+        return () => window.removeEventListener('loyalty-refetch', handleRefetch);
+    }, [queryClient]);
 
     return {
         catalog: activeCatalogQuery,

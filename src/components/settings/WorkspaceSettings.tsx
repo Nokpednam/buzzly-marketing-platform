@@ -56,8 +56,7 @@ export function WorkspaceSettings() {
       const missionResult = await awardMission('create_workspace');
       console.log('[Mission] create_workspace result:', missionResult);
       if (missionResult?.success) {
-        // Instantly sync sidebar + TierBadge via shared LoyaltyProvider
-        await refetchLoyalty();
+        // Global refetch now handled via event in useAwardMission or manually
       }
 
       navigate("/api-keys");

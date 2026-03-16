@@ -8,12 +8,12 @@ import { useLoyaltyTier } from "@/hooks/useLoyaltyTier";
 // ─── Client-side progress calculator (mirrors supabase/functions/_shared/campaignProgress.ts) ──
 
 export interface ProgressResult {
-  timeProgress:    number;
-  kpiProgress:     number;
+  timeProgress: number;
+  kpiProgress: number;
   overallProgress: number;
-  kpiLabel:        string;
-  kpiActual:       number;
-  kpiTarget:       number;
+  kpiLabel: string;
+  kpiActual: number;
+  kpiTarget: number;
 }
 
 export function calculateCampaignProgress(
@@ -28,25 +28,25 @@ export function calculateCampaignProgress(
   const now = nowMs ?? Date.now();
 
   const start = c.start_date ? new Date(c.start_date).getTime() : null;
-  const end   = c.end_date   ? new Date(c.end_date).getTime()   : null;
+  const end = c.end_date ? new Date(c.end_date).getTime() : null;
 
   let timeProgress = 0;
   if (start !== null && end !== null && end > start) {
-    if (now >= end)       timeProgress = 100;
+    if (now >= end) timeProgress = 100;
     else if (now > start) timeProgress = Math.min(100, Math.round(((now - start) / (end - start)) * 100));
   }
 
   const KPI_MAP: Record<string, { label: string; value: number }> = {
-    clicks:      { label: "Clicks",      value: c.clicks      ?? 0 },
-    spend:       { label: "Spend",       value: c.spend       ?? 0 },
+    clicks: { label: "Clicks", value: c.clicks ?? 0 },
+    spend: { label: "Spend", value: c.spend ?? 0 },
     conversions: { label: "Conversions", value: c.conversions ?? 0 },
     impressions: { label: "Impressions", value: c.impressions ?? 0 },
   };
 
-  const kpiTarget  = c.target_kpi_value  ?? 0;
-  const kpiDef     = c.target_kpi_metric ? KPI_MAP[c.target_kpi_metric] : null;
-  const kpiActual  = kpiDef?.value ?? 0;
-  const kpiLabel   = kpiDef?.label ?? "No KPI set";
+  const kpiTarget = c.target_kpi_value ?? 0;
+  const kpiDef = c.target_kpi_metric ? KPI_MAP[c.target_kpi_metric] : null;
+  const kpiActual = kpiDef?.value ?? 0;
+  const kpiLabel = kpiDef?.label ?? "No KPI set";
   const kpiProgress = kpiTarget > 0
     ? Math.min(100, Math.round((kpiActual / kpiTarget) * 100))
     : 0;
@@ -71,11 +71,6 @@ export interface CampaignWithInsights extends Campaign {
   spend: number;
   tags: Tag[];
   ad_account_name?: string | null;
-  // team_id added by migration — cast via any until types.ts is regenerated
-  team_id?: string | null;
-  // Phase 3 — from migration 20260314000002 (not yet in types.ts)
-  target_kpi_metric?: string | null;
-  target_kpi_value?: number | null;
   ad_ids?: string[];
 }
 
@@ -143,11 +138,11 @@ export function useCampaigns() {
       for (const row of (insights ?? []) as any[]) {
         const addTo = (map: Record<string, Metrics>, key: string) => {
           if (!map[key]) map[key] = { ...zero };
-          map[key].impressions  += row.impressions  || 0;
-          map[key].reach        += row.reach        || 0;
-          map[key].clicks       += row.clicks       || 0;
-          map[key].conversions  += row.conversions  || 0;
-          map[key].spend        += Number(row.spend || 0);
+          map[key].impressions += row.impressions || 0;
+          map[key].reach += row.reach || 0;
+          map[key].clicks += row.clicks || 0;
+          map[key].conversions += row.conversions || 0;
+          map[key].spend += Number(row.spend || 0);
         };
         if (row.campaign_id) {
           addTo(campaignDirectMap, row.campaign_id);
@@ -164,19 +159,19 @@ export function useCampaigns() {
         const agg: Metrics = campaignDirectMap[campaign.id]
           ? { ...campaignDirectMap[campaign.id] }
           : adIds.reduce(
-              (sum, adId) => {
-                const m = adInsightsMap[adId];
-                if (!m) return sum;
-                return {
-                  impressions: sum.impressions + m.impressions,
-                  reach:       sum.reach       + m.reach,
-                  clicks:      sum.clicks      + m.clicks,
-                  conversions: sum.conversions + m.conversions,
-                  spend:       sum.spend       + m.spend,
-                };
-              },
-              { ...zero },
-            );
+            (sum, adId) => {
+              const m = adInsightsMap[adId];
+              if (!m) return sum;
+              return {
+                impressions: sum.impressions + m.impressions,
+                reach: sum.reach + m.reach,
+                clicks: sum.clicks + m.clicks,
+                conversions: sum.conversions + m.conversions,
+                spend: sum.spend + m.spend,
+              };
+            },
+            { ...zero },
+          );
         return {
           ...campaign,
           ...agg,
@@ -220,7 +215,7 @@ export function useCampaigns() {
       console.log('[Mission] create_campaign result:', missionResult, missionError);
       if (missionResult?.success) {
         toast.success(`🎉 Mission Complete! +${missionResult.points_awarded} Points for launching your first Campaign!`);
-        await refetchLoyalty();
+        window.dispatchEvent(new CustomEvent('loyalty-refetch'));
       }
     },
     onError: (error: Error) => {

@@ -32,6 +32,10 @@ export function useAwardMission() {
           return null;
         }
 
+        if (data && (data as any).success) {
+          window.dispatchEvent(new CustomEvent('loyalty-refetch'));
+        }
+
         return data as unknown as MissionResult;
       } catch (err) {
         console.error('[useAwardMission] Unexpected error:', err);

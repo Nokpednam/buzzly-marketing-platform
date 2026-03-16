@@ -358,10 +358,6 @@ export default function APIKeys() {
     setConnecting(platformId);
     const key = apiKeyInputs[platformId]?.trim() || undefined;
     const success = await connectPlatform(platformId, key);
-    if (success) {
-      // Sync sidebar loyalty widget immediately after mission award
-      await refetchLoyalty();
-    }
     setConnecting(null);
     setOpenFormId(null);
     setApiKeyInputs(prev => { const next = { ...prev }; delete next[platformId]; return next; });

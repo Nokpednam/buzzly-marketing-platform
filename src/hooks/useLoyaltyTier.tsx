@@ -23,21 +23,32 @@ export interface UserLoyaltyInfo {
   points_balance: number;
   total_spend_amount: number;
   member_since: string | null;
+  recentTransactions: any[];
+}
+
+export interface Mission {
+  id: string;
+  action_type: string;
+  label: string;
+  points_awarded: number;
+  is_one_time: boolean;
+  is_active: boolean;
+  isCompleted: boolean;
 }
 
 // ─── UI Helpers (unchanged — no side-effects, safe to export as-is) ──────────
 
 export const tierColors: Record<string, { bg: string; text: string; border: string }> = {
-  Bronze:   { bg: "bg-amber-700/20",  text: "text-amber-700",  border: "border-amber-700" },
-  Silver:   { bg: "bg-slate-400/20",  text: "text-slate-500",  border: "border-slate-400" },
-  Gold:     { bg: "bg-yellow-500/20", text: "text-yellow-600", border: "border-yellow-500" },
-  Platinum: { bg: "bg-slate-300/20",  text: "text-slate-600",  border: "border-slate-400" },
+  Bronze: { bg: "bg-amber-700/20", text: "text-amber-700", border: "border-amber-700" },
+  Silver: { bg: "bg-slate-400/20", text: "text-slate-500", border: "border-slate-400" },
+  Gold: { bg: "bg-yellow-500/20", text: "text-yellow-600", border: "border-yellow-500" },
+  Platinum: { bg: "bg-slate-300/20", text: "text-slate-600", border: "border-slate-400" },
 };
 
 export const tierIcons: Record<string, string> = {
   Bronze: "🥉",
   Silver: "🥈",
-  Gold:   "🥇",
+  Gold: "🥇",
   Platinum: "💎",
 };
 
@@ -46,10 +57,15 @@ export const tierIcons: Record<string, string> = {
 interface LoyaltyContextType {
   userLoyalty: UserLoyaltyInfo | null;
   allTiers: LoyaltyTier[];
+  missions: Mission[];
   loading: boolean;
   error: string | null;
   getNextTier: () => LoyaltyTier | null;
   getProgressToNextTier: () => number;
+  completedCount: number;
+  totalMissions: number;
+  totalPoints: number;
+  earnedPoints: number;
   /** Call this after awarding mission points to instantly sync all consumers */
   refetch: () => Promise<void>;
 }
@@ -60,9 +76,10 @@ const LoyaltyContext = createContext<LoyaltyContextType | undefined>(undefined);
 
 export function LoyaltyProvider({ children }: { children: ReactNode }) {
   const [userLoyalty, setUserLoyalty] = useState<UserLoyaltyInfo | null>(null);
-  const [allTiers, setAllTiers]       = useState<LoyaltyTier[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [error, setError]             = useState<string | null>(null);
+  const [allTiers, setAllTiers] = useState<LoyaltyTier[]>([]);
+  const [missions, setMissions] = useState<Mission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchAllTiers = useCallback(async () => {
     try {
@@ -79,37 +96,57 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const fetchUserLoyalty = useCallback(async () => {
+  const fetchLoyaltyAndMissions = useCallback(async () => {
     try {
+      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setUserLoyalty(null);
+        setMissions([]);
         setLoading(false);
         return;
       }
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profile_customers")
-        .select(`
-          created_at,
-          loyalty_points (
-            point_balance,
-            loyalty_tiers (*)
-          )
-        `)
-        .eq("user_id", user.id)
-        .maybeSingle();
+      // Fetch Profile/Tier, Transactions, and Missions in parallel
+      const [profileRes, txsRes, catalogueRes, completionsRes, pointsTxsRes] = await Promise.all([
+        supabase
+          .from("profile_customers")
+          .select(`
+            created_at,
+            loyalty_points (
+              point_balance,
+              loyalty_tiers (*)
+            )
+          `)
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("payment_transactions")
+          .select("amount")
+          .eq("user_id", user.id),
+        (supabase as any)
+          .from('loyalty_missions')
+          .select('*')
+          .eq('is_active', true)
+          .order('points_awarded', { ascending: true }),
+        (supabase as any)
+          .from('loyalty_mission_completions')
+          .select('action_type')
+          .eq('user_id', user.id),
+        supabase
+          .from('points_transactions')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5),
+      ]);
 
-      if (profileError && profileError.code !== "PGRST116") throw profileError;
+      if (profileRes.error && profileRes.error.code !== "PGRST116") throw profileRes.error;
+      if (catalogueRes.error) throw catalogueRes.error;
 
-      const { data: txs } = await supabase
-        .from("payment_transactions")
-        .select("amount")
-        .eq("user_id", user.id);
-
-      const totalSpend = txs?.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0) || 0;
-
-      const loyaltyData = profile?.loyalty_points?.[0] || profile?.loyalty_points;
+      // 1. Process Loyalty Data
+      const totalSpend = txsRes.data?.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0) || 0;
+      const loyaltyData = profileRes.data?.loyalty_points?.[0] || profileRes.data?.loyalty_points;
       let tier: LoyaltyTier | null = (loyaltyData as any)?.loyalty_tiers || null;
 
       if (!tier) {
@@ -123,29 +160,60 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
 
       setUserLoyalty({
         tier,
-        points_balance:      (loyaltyData as any)?.point_balance || 0,
-        total_spend_amount:  totalSpend,
-        member_since:        profile?.created_at || null,
+        points_balance: (loyaltyData as any)?.point_balance || 0,
+        total_spend_amount: totalSpend,
+        member_since: profileRes.data?.created_at || null,
+        recentTransactions: pointsTxsRes.data || [],
       });
+
+      // 2. Process Mission Data
+      const completedTypes = new Set(
+        (completionsRes.data ?? []).map((c) => c.action_type)
+      );
+
+      const missionsData = (catalogueRes.data as any[]) ?? [];
+
+      const combinedMissions: Mission[] = missionsData.map((m) => ({
+        id: m.id,
+        action_type: m.action_type,
+        label: m.label,
+        points_awarded: m.points_awarded,
+        is_one_time: m.is_one_time,
+        is_active: m.is_active,
+        isCompleted: completedTypes.has(m.action_type),
+      }));
+
+      setMissions(combinedMissions);
+
     } catch (err) {
-      console.error("Error fetching user loyalty:", err);
+      console.error("Error fetching loyalty info:", err);
       setError("Failed to load loyalty info");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Initial load + re-fetch on auth change
+  // Initial load + re-fetch on auth change + global event listener
   useEffect(() => {
     fetchAllTiers();
-    fetchUserLoyalty();
+    fetchLoyaltyAndMissions();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      fetchUserLoyalty();
+      fetchLoyaltyAndMissions();
     });
 
-    return () => subscription.unsubscribe();
-  }, [fetchAllTiers, fetchUserLoyalty]);
+    const handleGlobalRefetch = () => {
+      console.log("[LoyaltyProvider] Global refetch event received");
+      fetchLoyaltyAndMissions();
+    };
+
+    window.addEventListener('loyalty-refetch', handleGlobalRefetch);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('loyalty-refetch', handleGlobalRefetch);
+    };
+  }, [fetchAllTiers, fetchLoyaltyAndMissions]);
 
   const getNextTier = useCallback((): LoyaltyTier | null => {
     if (!userLoyalty?.tier || allTiers.length === 0) return null;
@@ -157,25 +225,36 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
     const nextTier = getNextTier();
     if (!nextTier || !userLoyalty?.tier) return 100;
 
-    const currentPoints      = userLoyalty.points_balance;
-    const requiredPoints     = nextTier.min_points || 0;
-    const currentTierPoints  = userLoyalty.tier.min_points || 0;
+    const currentPoints = userLoyalty.points_balance;
+    const requiredPoints = nextTier.min_points || 0;
+    const currentTierPoints = userLoyalty.tier.min_points || 0;
 
     if (requiredPoints <= currentTierPoints) return 100;
     const progress = ((currentPoints - currentTierPoints) / (requiredPoints - currentTierPoints)) * 100;
     return Math.min(Math.max(progress, 0), 100);
   }, [userLoyalty, getNextTier]);
 
+  const completedCount = missions.filter((m) => m.isCompleted).length;
+  const totalPoints = missions.reduce((sum, m) => sum + m.points_awarded, 0);
+  const earnedPoints = missions
+    .filter((m) => m.isCompleted)
+    .reduce((sum, m) => sum + m.points_awarded, 0);
+
   return (
     <LoyaltyContext.Provider
       value={{
         userLoyalty,
         allTiers,
+        missions,
         loading,
         error,
         getNextTier,
         getProgressToNextTier,
-        refetch: fetchUserLoyalty,
+        completedCount,
+        totalMissions: missions.length,
+        totalPoints,
+        earnedPoints,
+        refetch: fetchLoyaltyAndMissions,
       }}
     >
       {children}
