@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
   Search,
   Filter,
   Activity,
+  MapPin,
 } from "lucide-react";
 import {
   PieChart,
@@ -113,6 +114,44 @@ export default function Prospects() {
     campaignId: selectedCampaignId,
   });
 
+  const displayStats = useMemo(() => {
+    // 1. Demographic data (Prefer Ad Audience data as it is real behavior)
+    let mainDevice = "N/A";
+    let primaryInterest = "N/A";
+    let topLocation = "N/A";
+
+    if (adPersonaData) {
+      // Main Device
+      const deviceEntries = Object.entries(adPersonaData.device_type);
+      if (deviceEntries.length > 0) {
+        const top = deviceEntries.reduce((a, b) => a[1] > b[1] ? a : b)[0];
+        mainDevice = top.charAt(0).toUpperCase() + top.slice(1);
+      }
+
+      // Primary Interest
+      if (adPersonaData.interests.length > 0) {
+        primaryInterest = adPersonaData.interests[0].name;
+      }
+
+      // Top Location
+      if (adPersonaData.top_locations.length > 0) {
+        topLocation = adPersonaData.top_locations[0].name;
+      }
+    } else {
+      // Fallback to manual stats if ad data is not yet available
+      mainDevice = stats.deviceDistribution[0]?.name || "N/A";
+      primaryInterest = stats.interestDistribution[0]?.name || "N/A";
+      topLocation = "N/A"; // Manual personas usually don't have aggregated top location in stats yet
+    }
+
+    return {
+      activeProfiles: personas?.length || 0,
+      topLocation,
+      mainDevice,
+      primaryInterest,
+    };
+  }, [adPersonaData, personas?.length, stats]);
+
   if (workspaceLoading || isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
@@ -166,12 +205,32 @@ export default function Prospects() {
       </div>
 
       {/* 2. KPI QUICK STATS (Visible if data exists) */}
-      {hasPersonas && (
+      {(hasPersonas || adsWithPersonaList.length > 0) && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Active Profiles" value={personas.length} icon={Users} color="text-blue-500" />
-          <StatCard label="Income Segments" value={stats.salaryDistribution.length} icon={TrendingUp} color="text-emerald-500" />
-          <StatCard label="Main Device" value={stats.deviceDistribution[0]?.name || "N/A"} icon={Smartphone} color="text-purple-500" />
-          <StatCard label="Primary Interest" value={stats.interestDistribution[0]?.name || "N/A"} icon={UserCheck} color="text-orange-500" />
+          <StatCard
+            label="Active Profiles"
+            value={displayStats.activeProfiles}
+            icon={Users}
+            color="text-blue-500"
+          />
+          <StatCard
+            label="Top Location"
+            value={displayStats.topLocation}
+            icon={MapPin}
+            color="text-emerald-500"
+          />
+          <StatCard
+            label="Main Device"
+            value={displayStats.mainDevice}
+            icon={Smartphone}
+            color="text-purple-500"
+          />
+          <StatCard
+            label="Primary Interest"
+            value={displayStats.primaryInterest}
+            icon={UserCheck}
+            color="text-orange-500"
+          />
         </div>
       )}
 
@@ -264,8 +323,8 @@ export default function Prospects() {
                   {adAudienceMode === "ad" && !selectedAdId
                     ? "Select an ad above to view its audience breakdown."
                     : adAudienceMode === "campaign" && !selectedCampaignId
-                    ? "Select a campaign above to view its audience breakdown."
-                    : "Connect a platform via Settings → Platform Connections to import ad audience data."}
+                      ? "Select a campaign above to view its audience breakdown."
+                      : "Connect a platform via Settings → Platform Connections to import ad audience data."}
                 </p>
               </CardContent>
             </Card>

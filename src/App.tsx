@@ -55,8 +55,6 @@ import BusinessPerformance from "./pages/owner/BusinessPerformance";
 import UserFeedback from "./pages/owner/UserFeedback";
 import ExecutiveReport from "./pages/owner/ExecutiveReport";
 import CustomerTiers from "./pages/owner/CustomerTiers";
-import OwnerDiscounts from "./pages/owner/OwnerDiscounts";
-import Discounts from "./pages/Discounts";
 
 // Dev pages (renamed from admin)
 import DevSupport from "./pages/dev/DevSupport";
@@ -214,7 +212,6 @@ const App = () => {
                     <Route path="/owner/user-feedback" element={<UserFeedback />} />
                     <Route path="/owner/executive-report" element={<ExecutiveReport />} />
                     <Route path="/owner/customer-tiers" element={<CustomerTiers />} />
-                    <Route path="/owner/discounts" element={<Discounts />} />
                   </Route>
 
                   <Route path="*" element={<NotFound />} />
