@@ -153,8 +153,10 @@ export default function Campaigns() {
     endDate: "",
     status: "draft",
     adAccountId: "",
-    kpiMetric: "",
-    kpiValue: "",
+    kpiClicks: "",
+    kpiConversions: "",
+    kpiSpend: "",
+    kpiImpressions: "",
   });
 
   const campaigns = useMemo(() => {
@@ -231,8 +233,10 @@ export default function Campaigns() {
       endDate: "",
       status: "draft",
       adAccountId: selectedAdAccount || "",
-      kpiMetric: "",
-      kpiValue: "",
+      kpiClicks: "",
+      kpiConversions: "",
+      kpiSpend: "",
+      kpiImpressions: "",
     });
     setIsDialogOpen(true);
   };
@@ -240,6 +244,12 @@ export default function Campaigns() {
   const openEditDialog = (campaign: CampaignWithInsights) => {
     setEditingCampaign(campaign);
     setSelectedAdIds(campaign.ad_ids || []);
+    const c = campaign as CampaignWithInsights & {
+      target_kpi_clicks?: number | null;
+      target_kpi_conversions?: number | null;
+      target_kpi_spend?: number | null;
+      target_kpi_impressions?: number | null;
+    };
     setFormData({
       name: campaign.name,
       objective: campaign.objective || "",
@@ -248,8 +258,10 @@ export default function Campaigns() {
       endDate: campaign.end_date?.split("T")[0] || "",
       status: campaign.status || "draft",
       adAccountId: campaign.ad_account_id || selectedAdAccount || "",
-      kpiMetric: campaign.target_kpi_metric || "",
-      kpiValue: campaign.target_kpi_value?.toString() || "",
+      kpiClicks: c.target_kpi_clicks != null ? String(c.target_kpi_clicks) : "",
+      kpiConversions: c.target_kpi_conversions != null ? String(c.target_kpi_conversions) : "",
+      kpiSpend: c.target_kpi_spend != null ? String(c.target_kpi_spend) : "",
+      kpiImpressions: c.target_kpi_impressions != null ? String(c.target_kpi_impressions) : "",
     });
     setIsDialogOpen(true);
   };
@@ -267,9 +279,11 @@ export default function Campaigns() {
         start_date: formData.startDate || null,
         end_date: formData.endDate || null,
         ad_account_id: adAccountId,
-        target_kpi_metric: formData.kpiMetric || null,
-        target_kpi_value: formData.kpiValue ? Number(formData.kpiValue) : null,
-      } as any; // new columns not yet in generated types.ts
+        target_kpi_clicks: formData.kpiClicks ? Number(formData.kpiClicks) : null,
+        target_kpi_conversions: formData.kpiConversions ? Number(formData.kpiConversions) : null,
+        target_kpi_spend: formData.kpiSpend ? Number(formData.kpiSpend) : null,
+        target_kpi_impressions: formData.kpiImpressions ? Number(formData.kpiImpressions) : null,
+      } as Record<string, unknown>;
 
       const status = (formData.status || "draft") as "draft" | "scheduled" | "active" | "paused" | "completed";
       if (editingCampaign) {
@@ -642,7 +656,7 @@ export default function Campaigns() {
                 <SelectTrigger className="h-12 rounded-xl bg-muted/30 border-none shadow-none focus:ring-2 ring-primary/20">
                   <SelectValue placeholder="Select Account" />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border-none shadow-xl">
+                <SelectContent position="item-aligned" className="rounded-xl border-none shadow-xl">
                   {adAccounts.map((acc) => (
                     <SelectItem key={acc.id} value={acc.id}>
                       {acc.account_name}
@@ -708,7 +722,7 @@ export default function Campaigns() {
                 <SelectTrigger className="h-12 rounded-xl bg-muted/30 border-none shadow-none focus:ring-2 ring-primary/20">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl border-none shadow-xl">
+                <SelectContent position="item-aligned" className="rounded-xl border-none shadow-xl">
                   <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="scheduled">Scheduled</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
@@ -747,38 +761,60 @@ export default function Campaigns() {
               </div>
             </div>
 
-            {/* KPI Target */}
+            {/* KPI Targets - all metrics settable */}
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                KPI Target
+                KPI Targets
               </Label>
               <div className="grid grid-cols-2 gap-4">
-                <Select
-                  value={formData.kpiMetric || "none"}
-                  onValueChange={(v) => setFormData((p) => ({ ...p, kpiMetric: v === "none" ? "" : v }))}
-                >
-                  <SelectTrigger className="h-12 rounded-xl bg-muted/30 border-none shadow-none focus:ring-2 ring-primary/20">
-                    <SelectValue placeholder="Select Metric" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl border-none shadow-xl">
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="clicks">Clicks</SelectItem>
-                    <SelectItem value="conversions">Conversions</SelectItem>
-                    <SelectItem value="spend">Spend (฿)</SelectItem>
-                    <SelectItem value="impressions">Impressions</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="number"
-                  min={0}
-                  step="any"
-                  placeholder="Target value"
-                  className="h-12 rounded-xl bg-muted/30 border-none shadow-none"
-                  value={formData.kpiValue}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, kpiValue: e.target.value }))
-                  }
-                />
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground">Clicks</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="1"
+                    placeholder="Target"
+                    className="h-10 rounded-xl bg-muted/30 border-none shadow-none"
+                    value={formData.kpiClicks}
+                    onChange={(e) => setFormData((p) => ({ ...p, kpiClicks: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground">Conversions</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="1"
+                    placeholder="Target"
+                    className="h-10 rounded-xl bg-muted/30 border-none shadow-none"
+                    value={formData.kpiConversions}
+                    onChange={(e) => setFormData((p) => ({ ...p, kpiConversions: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground">Spend (฿)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="any"
+                    placeholder="Target"
+                    className="h-10 rounded-xl bg-muted/30 border-none shadow-none"
+                    value={formData.kpiSpend}
+                    onChange={(e) => setFormData((p) => ({ ...p, kpiSpend: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground">Impressions</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="1"
+                    placeholder="Target"
+                    className="h-10 rounded-xl bg-muted/30 border-none shadow-none"
+                    value={formData.kpiImpressions}
+                    onChange={(e) => setFormData((p) => ({ ...p, kpiImpressions: e.target.value }))}
+                  />
+                </div>
               </div>
             </div>
 

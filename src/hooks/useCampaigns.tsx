@@ -16,13 +16,21 @@ export interface ProgressResult {
   kpiTarget: number;
 }
 
+type CampaignProgressInput = Pick<
+  CampaignWithInsights,
+  | "start_date" | "end_date"
+  | "clicks" | "spend" | "conversions" | "impressions"
+> & {
+  target_kpi_clicks?: number | null;
+  target_kpi_conversions?: number | null;
+  target_kpi_spend?: number | null;
+  target_kpi_impressions?: number | null;
+  target_kpi_metric?: string | null;
+  target_kpi_value?: number | null;
+};
+
 export function calculateCampaignProgress(
-  c: Pick<
-    CampaignWithInsights,
-    | "start_date" | "end_date"
-    | "target_kpi_metric" | "target_kpi_value"
-    | "clicks" | "spend" | "conversions" | "impressions"
-  >,
+  c: CampaignProgressInput,
   nowMs?: number,
 ): ProgressResult {
   const now = nowMs ?? Date.now();
@@ -36,20 +44,46 @@ export function calculateCampaignProgress(
     else if (now > start) timeProgress = Math.min(100, Math.round(((now - start) / (end - start)) * 100));
   }
 
-  const KPI_MAP: Record<string, { label: string; value: number }> = {
-    clicks: { label: "Clicks", value: c.clicks ?? 0 },
-    spend: { label: "Spend", value: c.spend ?? 0 },
-    conversions: { label: "Conversions", value: c.conversions ?? 0 },
-    impressions: { label: "Impressions", value: c.impressions ?? 0 },
-  };
+  const targets: { label: string; actual: number; target: number }[] = [];
+  if ((c.target_kpi_clicks ?? 0) > 0) {
+    targets.push({ label: "Clicks", actual: c.clicks ?? 0, target: c.target_kpi_clicks! });
+  }
+  if ((c.target_kpi_conversions ?? 0) > 0) {
+    targets.push({ label: "Conversions", actual: c.conversions ?? 0, target: c.target_kpi_conversions! });
+  }
+  if ((c.target_kpi_spend ?? 0) > 0) {
+    targets.push({ label: "Spend", actual: c.spend ?? 0, target: c.target_kpi_spend! });
+  }
+  if ((c.target_kpi_impressions ?? 0) > 0) {
+    targets.push({ label: "Impressions", actual: c.impressions ?? 0, target: c.target_kpi_impressions! });
+  }
 
-  const kpiTarget = c.target_kpi_value ?? 0;
-  const kpiDef = c.target_kpi_metric ? KPI_MAP[c.target_kpi_metric] : null;
-  const kpiActual = kpiDef?.value ?? 0;
-  const kpiLabel = kpiDef?.label ?? "No KPI set";
-  const kpiProgress = kpiTarget > 0
-    ? Math.min(100, Math.round((kpiActual / kpiTarget) * 100))
-    : 0;
+  // Fallback to legacy single KPI
+  if (targets.length === 0 && c.target_kpi_metric && (c.target_kpi_value ?? 0) > 0) {
+    const KPI_MAP: Record<string, { label: string; value: number }> = {
+      clicks: { label: "Clicks", value: c.clicks ?? 0 },
+      spend: { label: "Spend", value: c.spend ?? 0 },
+      conversions: { label: "Conversions", value: c.conversions ?? 0 },
+      impressions: { label: "Impressions", value: c.impressions ?? 0 },
+    };
+    const def = KPI_MAP[c.target_kpi_metric];
+    if (def) targets.push({ label: def.label, actual: def.value, target: c.target_kpi_value! });
+  }
+
+  let kpiProgress = 0;
+  let kpiLabel = "No KPI set";
+  let kpiActual = 0;
+  let kpiTarget = 0;
+
+  if (targets.length > 0) {
+    const progresses = targets.map((t) =>
+      t.target > 0 ? Math.min(100, Math.round((t.actual / t.target) * 100)) : 0,
+    );
+    kpiProgress = Math.round(progresses.reduce((a, b) => a + b, 0) / progresses.length);
+    kpiLabel = targets.map((t) => t.label).join(", ");
+    kpiActual = targets.reduce((s, t) => s + t.actual, 0);
+    kpiTarget = targets.reduce((s, t) => s + t.target, 0);
+  }
 
   const overallProgress = Math.round((kpiProgress * 0.5) + (timeProgress * 0.5));
 

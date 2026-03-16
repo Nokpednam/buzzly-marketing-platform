@@ -1,3 +1,4 @@
+Connecting to db 5432
 export type Json =
   | string
   | number
@@ -232,24 +233,36 @@ export type Database = {
       ad_groups: {
         Row: {
           created_at: string | null
+          description: string | null
+          external_group_id: string | null
+          group_type: string | null
           id: string
           name: string
+          source_platform: string | null
           status: string | null
           team_id: string | null
           updated_at: string | null
         }
         Insert: {
           created_at?: string | null
+          description?: string | null
+          external_group_id?: string | null
+          group_type?: string | null
           id?: string
           name: string
+          source_platform?: string | null
           status?: string | null
           team_id?: string | null
           updated_at?: string | null
         }
         Update: {
           created_at?: string | null
+          description?: string | null
+          external_group_id?: string | null
+          group_type?: string | null
           id?: string
           name?: string
+          source_platform?: string | null
           status?: string | null
           team_id?: string | null
           updated_at?: string | null
@@ -390,6 +403,7 @@ export type Database = {
         Row: {
           ad_copy: string | null
           ad_group_id: string | null
+          budget: number | null
           call_to_action: string | null
           content: string | null
           created_at: string | null
@@ -413,6 +427,7 @@ export type Database = {
         Insert: {
           ad_copy?: string | null
           ad_group_id?: string | null
+          budget?: number | null
           call_to_action?: string | null
           content?: string | null
           created_at?: string | null
@@ -436,6 +451,7 @@ export type Database = {
         Update: {
           ad_copy?: string | null
           ad_group_id?: string | null
+          budget?: number | null
           call_to_action?: string | null
           content?: string | null
           created_at?: string | null
@@ -830,7 +846,11 @@ export type Database = {
           objective: string | null
           start_date: string | null
           status: string | null
+          target_kpi_clicks: number | null
+          target_kpi_conversions: number | null
+          target_kpi_impressions: number | null
           target_kpi_metric: string | null
+          target_kpi_spend: number | null
           target_kpi_value: number | null
           team_id: string | null
           updated_at: string | null
@@ -847,7 +867,11 @@ export type Database = {
           objective?: string | null
           start_date?: string | null
           status?: string | null
+          target_kpi_clicks?: number | null
+          target_kpi_conversions?: number | null
+          target_kpi_impressions?: number | null
           target_kpi_metric?: string | null
+          target_kpi_spend?: number | null
           target_kpi_value?: number | null
           team_id?: string | null
           updated_at?: string | null
@@ -864,7 +888,11 @@ export type Database = {
           objective?: string | null
           start_date?: string | null
           status?: string | null
+          target_kpi_clicks?: number | null
+          target_kpi_conversions?: number | null
+          target_kpi_impressions?: number | null
           target_kpi_metric?: string | null
+          target_kpi_spend?: number | null
           target_kpi_value?: number | null
           team_id?: string | null
           updated_at?: string | null
@@ -1677,7 +1705,7 @@ export type Database = {
           {
             foreignKeyName: "employees_profile_employees_id_fkey"
             columns: ["employees_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
@@ -2115,6 +2143,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      loyalty_mission_completions: {
+        Row: {
+          action_type: string
+          completed_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          completed_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          completed_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      loyalty_missions: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          is_one_time: boolean | null
+          label: string
+          points_awarded: number
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_one_time?: boolean | null
+          label: string
+          points_awarded: number
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_one_time?: boolean | null
+          label?: string
+          points_awarded?: number
+        }
+        Relationships: []
       }
       loyalty_points: {
         Row: {
@@ -4421,6 +4500,7 @@ export type Database = {
       workspaces: {
         Row: {
           business_type_id: string | null
+          company_name: string | null
           created_at: string
           default_currency: string | null
           description: string | null
@@ -4436,6 +4516,7 @@ export type Database = {
         }
         Insert: {
           business_type_id?: string | null
+          company_name?: string | null
           created_at?: string
           default_currency?: string | null
           description?: string | null
@@ -4451,6 +4532,7 @@ export type Database = {
         }
         Update: {
           business_type_id?: string | null
+          company_name?: string | null
           created_at?: string
           default_currency?: string | null
           description?: string | null
@@ -4529,9 +4611,31 @@ export type Database = {
           overall_pct: number
         }[]
       }
+      award_loyalty_points: { Args: { p_action_type: string }; Returns: Json }
       can_manage_team: {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
+      }
+      create_ad_with_mirror_post: {
+        Args: {
+          p_ad_copy: string
+          p_ad_group_id: string
+          p_budget: number
+          p_call_to_action: string
+          p_content: string
+          p_creative_type: string
+          p_creative_url: string
+          p_headline: string
+          p_media_urls: string[]
+          p_name: string
+          p_platform_ad_id: string
+          p_platform_id: string
+          p_preview_url: string
+          p_scheduled_at: string
+          p_status: string
+          p_team_id: string
+        }
+        Returns: Json
       }
       debug_dashboard_visibility: { Args: never; Returns: string }
       get_available_discounts: {
