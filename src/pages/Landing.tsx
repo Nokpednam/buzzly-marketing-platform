@@ -393,23 +393,25 @@ export default function Landing() {
       {/* ─── Footer ────────────────────────────────────────────────────── */}
       <footer className="py-8 bg-white border-t border-slate-100">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-[#1A3FBF] flex items-center justify-center">
-                <span className="text-white font-black text-sm">B</span>
-              </div>
-              <span className="text-lg font-black text-[#1A3FBF] tracking-tight">BUZZLY</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <p className="text-sm text-slate-400 font-medium">
-                © 2026 Buzzly Intelligence. All rights reserved.
-              </p>
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex justify-center w-full">
               <Link
                 to="/employee/signup"
-                className="text-sm text-slate-400 hover:text-slate-600 transition-colors"
+                className="text-sm text-slate-400 hover:text-white transition-colors"
               >
                 Employee Signup
               </Link>
+            </div>
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#1A3FBF] flex items-center justify-center">
+                  <span className="text-white font-black text-sm">B</span>
+                </div>
+                <span className="text-lg font-black text-[#1A3FBF] tracking-tight">BUZZLY</span>
+              </div>
+              <p className="text-sm text-slate-400 font-medium">
+                © 2026 Buzzly Intelligence. All rights reserved.
+              </p>
             </div>
           </div>
         </div>
