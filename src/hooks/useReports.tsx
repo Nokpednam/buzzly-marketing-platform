@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspace } from "@/hooks/useWorkspace";
 import { toast } from "sonner";
 
 export interface Report {
@@ -62,9 +63,11 @@ async function getCurrentUserAndTeam() {
 
 export function useReports() {
     const queryClient = useQueryClient();
+    const { workspace } = useWorkspace();
+    const workspaceId = workspace?.id;
 
     const { data: reports = [], isLoading } = useQuery({
-        queryKey: ["reports"],
+        queryKey: ["reports", workspaceId],
         queryFn: async () => {
             const { teamId } = await getCurrentUserAndTeam();
 
@@ -136,10 +139,24 @@ export function useReports() {
         },
     });
 
+    const updateReportFileUrl = useMutation({
+        mutationFn: async ({ reportId, fileUrl }: { reportId: string; fileUrl: string }) => {
+            const { error } = await supabase
+                .from("reports")
+                .update({ file_url: fileUrl, status: "ready" })
+                .eq("id", reportId);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["reports"] });
+        },
+    });
+
     return {
         reports,
         isLoading,
         createReport,
         deleteReport,
+        updateReportFileUrl,
     };
 }
