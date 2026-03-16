@@ -21,6 +21,26 @@ import { usePostPersonaLinks } from "@/hooks/usePostPersonaLinks";
 import { useSocialFilters } from "@/contexts/SocialFiltersContext";
 import { logError } from "@/services/errorLogger";
 
+function toDateTimeLocalValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function getDefaultScheduledAt(prefilledDate?: string): string {
+  if (prefilledDate) {
+    return `${prefilledDate}T09:00`;
+  }
+
+  const nextHour = new Date();
+  nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0);
+  return toDateTimeLocalValue(nextHour);
+}
+
 export default function SocialPlanner() {
   const { dateRange } = useSocialFilters();
   const today = new Date();
@@ -49,9 +69,11 @@ export default function SocialPlanner() {
     setComposerMode("create");
     setEditingPostId(null);
     setComposerInitialData(
-      prefilledDate
-        ? { content_kind: "organic", status: "scheduled", scheduled_at: `${prefilledDate}T09:00` }
-        : { content_kind: "organic" }
+      {
+        content_kind: "organic",
+        status: "scheduled",
+        scheduled_at: getDefaultScheduledAt(prefilledDate),
+      }
     );
     setComposerOpen(true);
   };
@@ -106,14 +128,19 @@ export default function SocialPlanner() {
   };
 
   const handleComposerSubmit = async (data: SocialPostFormData) => {
+    const scheduledAtInput = data.scheduled_at?.trim() ?? "";
+    const parsedScheduledAt = scheduledAtInput ? new Date(scheduledAtInput) : null;
+
+    if (!parsedScheduledAt || Number.isNaN(parsedScheduledAt.getTime())) {
+      toast.error("กรุณากำหนดวันเวลาที่ถูกต้องก่อนบันทึกโพสต์");
+      return;
+    }
+
     const hashtagArray = data.hashtags
       ? data.hashtags.split(",").map((t) => t.trim()).filter(Boolean)
       : [];
     const mediaUrls = data.media_url.trim() ? [data.media_url.trim()] : null;
-    const normalizedScheduledAt =
-      data.status === "scheduled" && data.scheduled_at
-        ? new Date(data.scheduled_at).toISOString()
-        : null;
+    const normalizedScheduledAt = parsedScheduledAt.toISOString();
     const publishedAt = data.status === "published" ? new Date().toISOString() : null;
     const isPaidAd = data.content_kind === "paid";
 

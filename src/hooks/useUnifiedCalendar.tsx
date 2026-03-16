@@ -61,17 +61,28 @@ function toDateString(isoString: string): string {
   return isoString.slice(0, 10);
 }
 
+function normalizeCalendarTimestamp(value?: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return parsed.toISOString();
+}
+
+function getCalendarAnchorDate(item: Pick<CalendarItem, "scheduled_at" | "published_at">): string | null {
+  return normalizeCalendarTimestamp(item.scheduled_at) ?? normalizeCalendarTimestamp(item.published_at);
+}
+
 function groupByDate(items: CalendarItem[]): UnifiedCalendarDay[] {
   const map = new Map<string, CalendarItem[]>();
   for (const item of items) {
-    // Only place items that have an explicit schedule or publish date on the
-    // calendar. Drafts with only a created_at timestamp are intentionally
-    // excluded — they have no confirmed position in time.
-    const dateStr = item.scheduled_at
-      ? toDateString(item.scheduled_at)
-      : item.published_at
-        ? toDateString(item.published_at)
-        : null;
+    const anchorDate = getCalendarAnchorDate(item);
+    const dateStr = anchorDate ? toDateString(anchorDate) : null;
     if (!dateStr) continue;
     const existing = map.get(dateStr) ?? [];
     map.set(dateStr, [...existing, item]);
@@ -111,13 +122,17 @@ export function useUnifiedCalendar(dateRange: string, viewYear?: number, viewMon
           .filter((day) => day.date >= startDateStr)
           .map((day) => ({
             date: day.date,
-            items: day.items.map((mockItem) => ({
-              ...mockItem,
-              post_channel: mockItem.type === "ad" ? "ad" : "social",
-              ad_group_id: null,
-              ad_group_name: null,
-              created_at: null,
-            })) as CalendarItem[],
+            items: day.items
+              .map((mockItem) => ({
+                ...mockItem,
+                scheduled_at: normalizeCalendarTimestamp(mockItem.scheduled_at),
+                published_at: normalizeCalendarTimestamp(mockItem.published_at),
+                post_channel: mockItem.type === "ad" ? "ad" : "social",
+                ad_group_id: null,
+                ad_group_name: null,
+                created_at: null,
+              }))
+              .filter((item) => Boolean(getCalendarAnchorDate(item))) as CalendarItem[],
           }));
 
         return filtered;
@@ -144,7 +159,15 @@ export function useUnifiedCalendar(dateRange: string, viewYear?: number, viewMon
       if (postsResult.error) throw postsResult.error;
 
       const items: CalendarItem[] = (postsResult.data ?? [])
-        .filter((row) => row.post_type !== "chat")
+        .filter((row) => {
+          if (row.post_type === "chat") {
+            return false;
+          }
+
+          return Boolean(
+            normalizeCalendarTimestamp(row.scheduled_at) ?? normalizeCalendarTimestamp(row.published_at)
+          );
+        })
         .map((row) => {
           const platform = row.platforms as
             | { name: string; slug: string | null; icon_url: string | null }
@@ -163,8 +186,8 @@ export function useUnifiedCalendar(dateRange: string, viewYear?: number, viewMon
             post_channel: row.post_channel,
             title: getSocialPostDisplayTitle(row),
             status: row.status ?? "draft",
-            scheduled_at: row.scheduled_at,
-            published_at: row.published_at,
+            scheduled_at: normalizeCalendarTimestamp(row.scheduled_at),
+            published_at: normalizeCalendarTimestamp(row.published_at),
             platform_name: platform?.name ?? "Unknown",
             platform_slug: platform?.slug ?? "",
             platform_icon_url: platform?.icon_url ?? null,

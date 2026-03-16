@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Inbox, Wifi } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,20 @@ export default function SocialInbox() {
   const selectedThread = threads.find((t) => t.post_id === selectedPostId) ?? null;
 
   const totalUnread = threads.reduce((acc, t) => acc + t.unread_count, 0);
+
+  useEffect(() => {
+    if (threads.length === 0) {
+      if (selectedPostId !== null) {
+        setSelectedPostId(null);
+      }
+      return;
+    }
+
+    const hasSelectedThread = threads.some((thread) => thread.post_id === selectedPostId);
+    if (!hasSelectedThread) {
+      setSelectedPostId(threads[0].post_id);
+    }
+  }, [selectedPostId, threads]);
 
   const handleSelectThread = (postId: string) => {
     setSelectedPostId(postId);

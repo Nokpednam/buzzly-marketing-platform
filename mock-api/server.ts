@@ -141,10 +141,23 @@ interface ExternalLeadRecord {
 
 interface ExternalConversationRecord {
   last_message_time?: string | null;
-  messages?: Array<{ text?: string | null }> | null;
-  participant?: { name?: string | null } | null;
+  messages?: ExternalConversationMessageRecord[] | null;
+  page_id?: string | null;
+  participant?: {
+    id?: string | null;
+    name?: string | null;
+    profile_pic?: string | null;
+  } | null;
+  tags?: string[] | null;
   thread_id?: string | null;
   unread_count?: number | null;
+}
+
+interface ExternalConversationMessageRecord {
+  from?: string | null;
+  id?: string | null;
+  text?: string | null;
+  timestamp?: string | null;
 }
 
 interface SimulatedAdPayload {
@@ -349,18 +362,24 @@ const SYNTHETIC_ORGANIC_POSTS_BY_PLATFORM: Record<string, OrganicPostTemplate[]>
   ],
 };
 
-function enrichMetricFields<T extends Record<string, unknown>>(record: T) {
+function enrichMetricFields<T extends object>(record: T): T & {
+  clicks: number;
+  impressions: number;
+  spend: number;
+  total_cost: number;
+} {
+  const metricRecord = record as Record<string, unknown>;
   const spend = toFiniteNumber(
-    record.spend as number | string | null | undefined,
-    record.total_cost as number | string | null | undefined,
-    record.cost as number | string | null | undefined,
-    record.amount_spent as number | string | null | undefined
+    metricRecord.spend as number | string | null | undefined,
+    metricRecord.total_cost as number | string | null | undefined,
+    metricRecord.cost as number | string | null | undefined,
+    metricRecord.amount_spent as number | string | null | undefined
   );
   const clicks = toFiniteNumber(
-    record.clicks as number | string | null | undefined,
-    record.total_clicks as number | string | null | undefined
+    metricRecord.clicks as number | string | null | undefined,
+    metricRecord.total_clicks as number | string | null | undefined
   );
-  const impressions = toFiniteNumber(record.impressions as number | string | null | undefined);
+  const impressions = toFiniteNumber(metricRecord.impressions as number | string | null | undefined);
 
   return {
     ...record,
@@ -387,10 +406,14 @@ function buildSyntheticOrganicPosts(params: {
     timestamp.setUTCDate(timestamp.getUTCDate() - template.daysOffset);
     timestamp.setUTCHours(9 + index * 2, 0, 0, 0);
 
+    const scheduledAt = timestamp.toISOString();
     const publishedAt = template.status === "published" ? timestamp.toISOString() : null;
-    const scheduledAt = template.status === "scheduled" ? timestamp.toISOString() : null;
     const impressions = template.impressions + index * 320;
     const clicks = template.clicks + index * 17;
+    const likes = Math.max(24, Math.round(impressions * (0.035 + index * 0.002)));
+    const comments = Math.max(6, Math.round(clicks * 0.12));
+    const shares = Math.max(3, Math.round(comments * 0.55));
+    const reach = Math.max(clicks, Math.round(impressions * 0.74));
 
     return {
       team_id: workspaceId,
@@ -407,10 +430,57 @@ function buildSyntheticOrganicPosts(params: {
       impressions,
       clicks,
       click_count: clicks,
+      likes,
+      comments,
+      shares,
+      reach,
       engagement_rate: impressions > 0 ? parseFloat(((clicks / impressions) * 100).toFixed(2)) : 0,
       hashtags: template.hashtags,
     };
   });
+}
+
+function normalizeIsoString(value?: string | null, fallback?: string): string | null {
+  if (!value) {
+    return fallback ?? null;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return fallback ?? null;
+  }
+
+  return parsed.toISOString();
+}
+
+function inferMessageSentiment(text?: string | null): "positive" | "negative" | "neutral" {
+  const normalized = (text ?? "").toLowerCase();
+
+  if (
+    /(ขอบคุณ|thank|great|perfect|love|ยอดเยี่ยม|ดีมาก|awesome|excellent)/i.test(normalized)
+  ) {
+    return "positive";
+  }
+
+  if (
+    /(complaint|problem|issue|delay|ไม่ได้|เสีย|refund|อีเมลยืนยัน|not received|spam)/i.test(normalized)
+  ) {
+    return "negative";
+  }
+
+  return "neutral";
+}
+
+function isMessageReplied(
+  messages: ExternalConversationMessageRecord[],
+  index: number
+): boolean {
+  const current = messages[index];
+  if (current.from !== "user") {
+    return false;
+  }
+
+  return messages.slice(index + 1).some((message) => message.from === "page");
 }
 
 function getJsonStringField(value: unknown, key: string): string | null {
@@ -696,6 +766,7 @@ async function upsertSyncedAdPost(params: {
       (url): url is string => Boolean(url)
     ),
     published_at: publishedAt,
+    scheduled_at: publishedAt,
     status: ad.status === "ACTIVE" ? "active" : "paused",
     impressions,
     clicks,
@@ -711,6 +782,110 @@ async function upsertSyncedAdPost(params: {
   }
 
   return payload.id;
+}
+
+async function seedInboxThreads(params: {
+  conversations: ExternalConversationRecord[];
+  platformId: string | null;
+  supabase: SupabaseClient;
+  workspaceId: string;
+}) {
+  const { conversations, platformId, supabase, workspaceId } = params;
+  const threadRows: Record<string, unknown>[] = [];
+  const commentRows: Record<string, unknown>[] = [];
+
+  for (const conversation of conversations.slice(0, 5)) {
+    const threadMessages = (conversation.messages ?? [])
+      .filter((message): message is ExternalConversationMessageRecord & { text: string } => Boolean(message.text))
+      .sort((a, b) => {
+        const aTime = new Date(a.timestamp ?? 0).getTime();
+        const bTime = new Date(b.timestamp ?? 0).getTime();
+        return aTime - bTime;
+      });
+
+    if (threadMessages.length === 0) {
+      continue;
+    }
+
+    const lastMessageAt =
+      normalizeIsoString(conversation.last_message_time, normalizeIsoString(threadMessages[threadMessages.length - 1]?.timestamp))
+      ?? new Date().toISOString();
+    const firstMessageAt =
+      normalizeIsoString(threadMessages[0]?.timestamp, lastMessageAt)
+      ?? lastMessageAt;
+    const unreadCount = Math.max(0, Number(conversation.unread_count ?? 0));
+    const threadId = crypto.randomUUID();
+    const participantName = conversation.participant?.name?.trim() || "Social Customer";
+    const previewText = threadMessages[threadMessages.length - 1]?.text ?? threadMessages[0]?.text ?? "";
+
+    threadRows.push({
+      id: threadId,
+      team_id: workspaceId,
+      platform_id: platformId,
+      post_channel: "social",
+      post_type: "chat",
+      platform_post_id: conversation.thread_id ?? null,
+      name: participantName,
+      content: previewText,
+      comments: threadMessages.length,
+      created_at: firstMessageAt,
+      updated_at: lastMessageAt,
+      published_at: lastMessageAt,
+      scheduled_at: firstMessageAt,
+      status: "published",
+    });
+
+    const unreadStartIndex = Math.max(0, threadMessages.length - unreadCount);
+
+    for (const [index, message] of threadMessages.entries()) {
+      const createdAt =
+        normalizeIsoString(message.timestamp, index === 0 ? firstMessageAt : lastMessageAt)
+        ?? lastMessageAt;
+      const isOutbound = message.from === "page";
+
+      commentRows.push({
+        id: crypto.randomUUID(),
+        post_id: threadId,
+        team_id: workspaceId,
+        platform_id: platformId,
+        platform_comment_id: message.id ?? null,
+        author_name: isOutbound ? "You" : participantName,
+        author_avatar_url: isOutbound ? null : conversation.participant?.profile_pic ?? null,
+        author_platform_id: isOutbound
+          ? "__outbound__"
+          : conversation.participant?.id ?? conversation.thread_id ?? null,
+        content: message.text,
+        sentiment: isOutbound ? null : inferMessageSentiment(message.text),
+        is_read: isOutbound ? true : index < unreadStartIndex,
+        is_replied: isOutbound ? false : isMessageReplied(threadMessages, index),
+        replied_at: null,
+        reply_content: null,
+        created_at: createdAt,
+        updated_at: createdAt,
+      });
+    }
+  }
+
+  if (threadRows.length === 0) {
+    return { threadsInserted: 0, commentsInserted: 0 };
+  }
+
+  const { error: threadError } = await supabase.from("social_posts").insert(threadRows);
+  if (threadError) {
+    throw threadError;
+  }
+
+  if (commentRows.length > 0) {
+    const { error: commentError } = await supabase.from("social_comments").insert(commentRows);
+    if (commentError) {
+      throw commentError;
+    }
+  }
+
+  return {
+    threadsInserted: threadRows.length,
+    commentsInserted: commentRows.length,
+  };
 }
 
 // ─── Facebook Endpoints ──────────────────────────────────────────────
@@ -828,11 +1003,14 @@ app.post("/api/connect", async (req, res) => {
     const supabase = getSupabaseClient();
     const platformId = await resolvePlatformId(supabase, platform);
 
-    // 2. Fetch ads and (for Facebook) leads in parallel
-    const [adsRes, leadsRes] = await Promise.all([
+    // 2. Fetch ads and (for Facebook) leads + inbox chats in parallel
+    const [adsRes, leadsRes, chatsRes] = await Promise.all([
       fetch(`${EXTERNAL_API_BASE_URL}/${platform}/${tenant}/ads`),
       platform === "facebook"
         ? fetch(`${EXTERNAL_API_BASE_URL}/facebook/${tenant}/leads`)
+        : Promise.resolve(null),
+      platform === "facebook"
+        ? fetch(`${EXTERNAL_API_BASE_URL}/facebook/${tenant}/chats`)
         : Promise.resolve(null),
     ]);
 
@@ -842,15 +1020,22 @@ app.post("/api/connect", async (req, res) => {
       data?: ExternalAdRecord[];
       groups?: ExternalAdGroupRecord[];
     };
-    const adsPayload = {
+    const adsPayload: {
+      ad_groups?: ExternalAdGroupRecord[];
+      data: ExternalAdRecord[];
+      groups?: ExternalAdGroupRecord[];
+    } = {
       ...rawAdsPayload,
-      data: (rawAdsPayload.data ?? []).map((ad) => enrichMetricFields(ad)),
+      data: (rawAdsPayload.data ?? []).map((ad) => enrichMetricFields(ad) as ExternalAdRecord),
     };
     const adsData = adsPayload.data ?? [];
     const externalGroups = adsPayload.ad_groups ?? adsPayload.groups ?? [];
 
     const leadsData: ExternalLeadRecord[] = leadsRes?.ok
       ? ((await leadsRes.json()) as { data?: ExternalLeadRecord[] }).data ?? []
+      : [];
+    const conversationsData: ExternalConversationRecord[] = chatsRes?.ok
+      ? ((await chatsRes.json()) as { conversations?: ExternalConversationRecord[] }).conversations ?? []
       : [];
 
     // 3. Clear stale data for this workspace + platform (full-replace sync)
@@ -867,6 +1052,31 @@ app.post("/api/connect", async (req, res) => {
     }
     if (platform === "facebook") {
       // Remove previously synced legacy chat rows so they never appear as organic content again
+      const { data: existingChatPosts, error: existingChatPostsError } = await supabase
+        .from("social_posts")
+        .select("id")
+        .eq("team_id", workspaceId)
+        .eq("platform_id", platformId)
+        .eq("post_channel", "social")
+        .eq("post_type", "chat");
+
+      if (existingChatPostsError) {
+        throw existingChatPostsError;
+      }
+
+      const existingChatPostIds = (existingChatPosts ?? []).map((post) => post.id);
+      if (existingChatPostIds.length > 0) {
+        const { error: existingCommentsError } = await supabase
+          .from("social_comments")
+          .delete()
+          .eq("team_id", workspaceId)
+          .in("post_id", existingChatPostIds);
+
+        if (existingCommentsError) {
+          throw existingCommentsError;
+        }
+      }
+
       await supabase
         .from("social_posts")
         .delete()
@@ -976,8 +1186,8 @@ app.post("/api/connect", async (req, res) => {
       });
 
       const totalImpressions = toFiniteNumber(ad.impressions);
-      const totalClicks = toFiniteNumber(ad.clicks, ad.total_clicks);
-      const totalSpend = toFiniteNumber(ad.spend, ad.total_cost, ad.cost, ad.amount_spent);
+      const totalClicks = Math.max(1, toFiniteNumber(ad.clicks, ad.total_clicks));
+      const totalSpend = Math.max(1, toFiniteNumber(ad.spend, ad.total_cost, ad.cost, ad.amount_spent));
       const totalReach = toFiniteNumber(ad.reach);
       const totalConversions = toFiniteNumber(ad.conversions);
 
@@ -994,8 +1204,8 @@ app.post("/api/connect", async (req, res) => {
         date.setDate(date.getDate() + d);
         const jitter = 0.7 + Math.random() * 0.6;
         const dailyImpressions = Math.round((totalImpressions / totalDays) * jitter);
-        const dailyClicks = Math.round((totalClicks / totalDays) * jitter);
-        const dailySpend = parseFloat(((totalSpend / totalDays) * jitter).toFixed(2));
+        const dailyClicks = Math.max(1, Math.round((totalClicks / totalDays) * jitter));
+        const dailySpend = Math.max(0.25, parseFloat(((totalSpend / totalDays) * jitter).toFixed(2)));
         const dailyReach = Math.round((totalReach / totalDays) * jitter);
         const dailyConversions = Math.round((totalConversions / totalDays) * jitter);
 
@@ -1010,7 +1220,7 @@ app.post("/api/connect", async (req, res) => {
           reach: dailyReach,
           conversions: dailyConversions,
           ctr: dailyImpressions > 0 ? parseFloat(((dailyClicks / dailyImpressions) * 100).toFixed(2)) : toFiniteNumber(ad.ctr),
-          cpc: dailyClicks > 0 ? parseFloat((dailySpend / dailyClicks).toFixed(4)) : toFiniteNumber(ad.cpc),
+          cpc: parseFloat((dailySpend / dailyClicks).toFixed(4)),
           cpm: dailyImpressions > 0 ? parseFloat(((dailySpend / dailyImpressions) * 1000).toFixed(2)) : toFiniteNumber(ad.cpm),
           roas: toFiniteNumber(ad.roas),
         });
@@ -1132,6 +1342,19 @@ app.post("/api/connect", async (req, res) => {
       }
     }
 
+    let inboxThreadsInserted = 0;
+    let inboxCommentsInserted = 0;
+    if (platform === "facebook" && conversationsData.length > 0) {
+      const inboxSeedResult = await seedInboxThreads({
+        conversations: conversationsData,
+        platformId,
+        supabase,
+        workspaceId,
+      });
+      inboxThreadsInserted = inboxSeedResult.threadsInserted;
+      inboxCommentsInserted = inboxSeedResult.commentsInserted;
+    }
+
     // 8. Return summary — raw external data stays on the server
     res.json({
       message: "Data synced successfully",
@@ -1141,6 +1364,8 @@ app.post("/api/connect", async (req, res) => {
       personasInserted,
       personaLinksInserted,
       organicPostsInserted,
+      inboxThreadsInserted,
+      inboxCommentsInserted,
       platform,
       tenant,
     });

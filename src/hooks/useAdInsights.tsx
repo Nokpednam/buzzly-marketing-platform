@@ -39,6 +39,25 @@ const toMetricNumber = (...values: Array<number | string | null | undefined>): n
   return 0;
 };
 
+function normalizeInsightMetrics<T extends AdInsight>(insight: T): T {
+  const impressions = toMetricNumber(insight.impressions);
+  const clicks = Math.max(0, toMetricNumber(insight.clicks));
+  const spend = Math.max(0, toMetricNumber(insight.spend));
+  const ctr = impressions > 0 ? (clicks / impressions) * 100 : toMetricNumber(insight.ctr);
+  const cpc = clicks > 0 ? spend / clicks : toMetricNumber(insight.cpc);
+  const cpm = impressions > 0 ? (spend / impressions) * 1000 : toMetricNumber(insight.cpm);
+
+  return {
+    ...insight,
+    impressions,
+    clicks,
+    spend,
+    ctr: Number(ctr.toFixed(2)),
+    cpc: Number(cpc.toFixed(4)),
+    cpm: Number(cpm.toFixed(2)),
+  };
+}
+
 interface AdInsightWithJoins extends AdInsight {
   ad_accounts?: { platform_id: string; team_id?: string | null } | null;
   ads?: {
@@ -99,7 +118,7 @@ export function useAdInsights(
           rows = rows.filter((r) => r.ad_group_id === adGroupId);
         }
 
-        return rows as unknown as AdInsight[];
+        return rows.map((row) => normalizeInsightMetrics(row as AdInsight));
       }
 
       // ── LIVE MODE ────────────────────────────────────────────────────────
@@ -129,7 +148,7 @@ export function useAdInsights(
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as unknown as AdInsight[];
+      return (data ?? []).map((row) => normalizeInsightMetrics(row as unknown as AdInsight));
     },
   });
 

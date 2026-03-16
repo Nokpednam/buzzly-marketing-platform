@@ -68,7 +68,9 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-muted-foreground">{adGroups.length} Ad Groups</p>
-          <p className="text-xs text-muted-foreground">Read-only grouping overview for paid ads and linked organic posts</p>
+          <p className="text-xs text-muted-foreground">
+            Manual grouping overview for paid ads and linked organic posts
+          </p>
         </div>
       </div>
 
@@ -126,7 +128,7 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
               <div className="mt-3 flex flex-wrap gap-2">
                 <Badge variant="outline" className="gap-1">
                   <FileText className="h-3 w-3" />
-                  View only
+                  Shared reporting entity
                 </Badge>
                 <Badge variant="outline" className="gap-1">
                   <Link2 className="h-3 w-3" />
@@ -143,7 +145,7 @@ export function AdGroupsList({ onGroupsChange }: AdGroupsListProps) {
           <div className="text-center text-muted-foreground">
             <FolderOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p>ยังไม่มีกลุ่มโฆษณา</p>
-            <p className="text-sm">เชื่อมต่อแพลตฟอร์มเพื่อให้ระบบแสดงกลุ่มโฆษณาแบบอ่านอย่างเดียว</p>
+            <p className="text-sm">สร้างกลุ่มโฆษณาใหม่เพื่อเริ่มจัดหมวดหมู่ paid ads และ organic posts</p>
           </div>
         </Card>
       )}

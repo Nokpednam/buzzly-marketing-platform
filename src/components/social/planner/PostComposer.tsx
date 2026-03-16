@@ -62,6 +62,7 @@ const DEFAULT_FORM: SocialPostFormData = {
   budget: null,
   status: "draft",
   hashtags: "",
+  scheduled_at: "",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -70,6 +71,33 @@ const STATUS_LABELS: Record<string, string> = {
   published: "เผยแพร่",
   archived: "เก็บถาวร",
 };
+
+function toDateTimeLocalValue(value?: string | null): string {
+  if (!value) {
+    return "";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const hours = String(parsed.getHours()).padStart(2, "0");
+  const minutes = String(parsed.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function hasValidDateTime(value?: string | null): boolean {
+  if (!value) {
+    return false;
+  }
+
+  return !Number.isNaN(new Date(value).getTime());
+}
 
 export function PostComposer({
   mode,
@@ -89,15 +117,20 @@ export function PostComposer({
         ...DEFAULT_FORM,
         ...initialData,
         media_url: initialData?.media_urls?.[0] ?? initialData?.media_url ?? "",
+        scheduled_at: toDateTimeLocalValue(initialData?.scheduled_at),
       });
     }
   }, [open, initialData]);
 
   const isCreate = mode === "create";
   const isPreview = mode === "preview";
+  const hasValidScheduledAt = hasValidDateTime(formData.scheduled_at);
 
   const handleSubmit = () => {
-    onSubmit(formData);
+    onSubmit({
+      ...formData,
+      scheduled_at: formData.scheduled_at?.trim() ? formData.scheduled_at : undefined,
+    });
   };
 
   const update = (patch: Partial<SocialPostFormData>) =>
@@ -106,6 +139,7 @@ export function PostComposer({
   const isValid =
     formData.content.trim().length > 0 &&
     formData.platform_ids.length > 0 &&
+    hasValidScheduledAt &&
     (formData.content_kind === "organic" || (formData.budget ?? 0) > 0);
 
   const hashtagList = formData.hashtags
@@ -302,17 +336,25 @@ export function PostComposer({
             )}
           </div>
 
-          {(formData.status === "scheduled" || (isPreview && formData.scheduled_at)) && (
-            <div className="space-y-2">
-              <Label>วันเวลาที่กำหนด</Label>
-              <Input
-                type="datetime-local"
-                value={formData.scheduled_at ?? ""}
-                onChange={(e) => update({ scheduled_at: e.target.value })}
-                disabled={isPreview}
-              />
-            </div>
-          )}
+          <div className="space-y-2">
+            <Label>วันเวลาที่กำหนด *</Label>
+            <Input
+              type="datetime-local"
+              value={formData.scheduled_at ?? ""}
+              onChange={(e) => update({ scheduled_at: e.target.value })}
+              disabled={isPreview}
+              required
+              aria-invalid={!isPreview && !hasValidScheduledAt}
+            />
+            {!isPreview && (
+              <p className="text-xs text-muted-foreground">
+                Planner จะบันทึกทุกโพสต์พร้อมเวลาที่กำหนดเพื่อให้แสดงในปฏิทินได้เสมอ
+              </p>
+            )}
+            {!isPreview && !hasValidScheduledAt && (
+              <p className="text-xs text-destructive">กรุณาเลือกวันและเวลาที่ถูกต้อง</p>
+            )}
+          </div>
 
           {isPreview && (formData.media_urls?.length || formData.media_url) && (
               <div className="space-y-2">

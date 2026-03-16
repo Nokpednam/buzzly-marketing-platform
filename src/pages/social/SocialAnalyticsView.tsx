@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -19,15 +20,20 @@ import {
   Megaphone,
   CalendarDays,
   FileText,
+  Eye,
+  Plus,
 } from "lucide-react";
 import { PlatformFilterBar } from "@/components/social/layout/PlatformFilterBar";
 import { DateRangeSelector } from "@/components/social/layout/DateRangeSelector";
 import { AdInsightsSummary } from "@/components/social/analytics/AdInsightsSummary";
 import { AdsList } from "@/components/social/analytics/AdsList";
 import { AdGroupsList } from "@/components/social/analytics/AdGroupsList";
+import { AdGroupFormDialog } from "@/components/social/analytics/AdGroupFormDialog";
+import { PostDetailsDialog } from "@/components/social/analytics/PostDetailsDialog";
 import { useSocialAnalyticsSummary } from "@/hooks/useSocialAnalyticsSummary";
 import { useAdGroups } from "@/hooks/useAdGroups";
 import { useSocialPosts } from "@/hooks/useSocialPosts";
+import { usePlatformConnections } from "@/hooks/usePlatformConnections";
 import { useSocialFilters } from "@/contexts/SocialFiltersContext";
 
 interface AdGroupScopedProps {
@@ -190,11 +196,13 @@ function AnalyticsOverviewBar({ adGroupId }: AdGroupScopedProps) {
 
 function OrganicPostsList({ adGroupId }: AdGroupScopedProps) {
   const { dateRange } = useSocialFilters();
+  const { getPlatformById } = usePlatformConnections();
   const { posts, isLoading, error } = useSocialPosts({
     adGroupId,
     dateRange,
     postChannel: "social",
   });
+  const [selectedPost, setSelectedPost] = useState<(typeof posts)[number] | null>(null);
   const visiblePosts = posts.filter((post) => post.post_type !== "chat");
 
   const formatDate = (dateStr: string | null) => {
@@ -247,151 +255,250 @@ function OrganicPostsList({ adGroupId }: AdGroupScopedProps) {
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Leaf className="h-4 w-4 text-emerald-500" />
-          Organic Posts
-          <Badge variant="secondary" className="ml-1">{visiblePosts.length}</Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/40">
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Post Title</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Channel</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Scheduled / Published</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visiblePosts.map((post) => (
-                <tr key={post.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <span className="font-medium line-clamp-1">
-                        {post.display_title}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <ContentChannelBadge postChannel="social" />
-                  </td>
-                  <td className="px-4 py-3 capitalize text-muted-foreground text-xs">
-                    {post.post_type ?? "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(post.status)}`}>
-                      {post.status ?? "draft"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs flex items-center gap-1">
-                    <CalendarDays className="h-3 w-3 shrink-0" />
-                    {formatDate(post.published_at ?? post.scheduled_at)}
-                  </td>
+    <>
+      <Card className="border-border/60 shadow-sm">
+        <CardHeader className="pb-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Leaf className="h-4 w-4 text-emerald-500" />
+                Organic Posts
+                <Badge variant="secondary" className="ml-1">{visiblePosts.length}</Badge>
+              </CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Organic content is mapped as first-class social content with `post_channel = "social"`.
+              </p>
+            </div>
+            <Badge className="w-fit gap-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400">
+              <Leaf className="h-3 w-3" />
+              Organic Performance
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/40">
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Post Title</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Platform</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Channel</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Scheduled / Published</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Engagement</th>
+                  <th className="w-[120px] px-4 py-3 text-right font-medium text-muted-foreground">Details</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
+              </thead>
+              <tbody>
+                {visiblePosts.map((post) => {
+                  const platform = post.platform_id ? getPlatformById(post.platform_id) : undefined;
+                  const PlatformIcon = platform?.icon;
+
+                  return (
+                    <tr key={post.id} className="border-b last:border-0 hover:bg-muted/20 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
+                            <span className="font-medium line-clamp-1">
+                              {post.display_title}
+                            </span>
+                            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                              {post.post_type ?? "post"}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          {PlatformIcon ? <PlatformIcon className="h-3.5 w-3.5" /> : null}
+                          <span>{platform?.name ?? "Unknown"}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <ContentChannelBadge postChannel="social" />
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(post.status)}`}>
+                          {post.status ?? "draft"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                        <span className="flex items-center gap-1">
+                          <CalendarDays className="h-3 w-3 shrink-0" />
+                          {formatDate(post.published_at ?? post.scheduled_at)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1.5 text-xs">
+                          <Badge variant="outline">Likes {(post.likes ?? 0).toLocaleString()}</Badge>
+                          <Badge variant="outline">Comments {(post.comments ?? 0).toLocaleString()}</Badge>
+                          <Badge variant="outline">Shares {(post.shares ?? 0).toLocaleString()}</Badge>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1"
+                          onClick={() => setSelectedPost(post)}
+                        >
+                          <Eye className="h-4 w-4" />
+                          Details
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <PostDetailsDialog
+        open={Boolean(selectedPost)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedPost(null);
+          }
+        }}
+        post={selectedPost}
+      />
+    </>
   );
 }
 
 export default function SocialAnalyticsView() {
   const [adsTab, setAdsTab] = useState<"ad-groups" | "ads" | "organic">("ad-groups");
   const [selectedAdGroupId, setSelectedAdGroupId] = useState<string>("all");
+  const [adGroupDialogOpen, setAdGroupDialogOpen] = useState(false);
   const { adGroups } = useAdGroups();
   const activeAdGroupId = selectedAdGroupId === "all" ? undefined : selectedAdGroupId;
 
   return (
-    <div className="space-y-6 p-1">
-      {/* Filter bar row */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-        <div className="flex-1">
-          <PlatformFilterBar />
+    <div className="space-y-8 pb-6">
+      <Card className="border-border/60 shadow-sm">
+        <CardContent className="space-y-6 p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                <h1 className="text-2xl font-semibold tracking-tight">Social Analytics</h1>
+              </div>
+              <p className="max-w-3xl text-sm text-muted-foreground">
+                Unified analytics for organic social posts and paid ads, with manual ad-group management and platform-level performance views.
+              </p>
+            </div>
+            <AnalyticsOverviewBar adGroupId={activeAdGroupId} />
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <PlatformFilterBar />
+            <Card className="border-border/60">
+              <CardContent className="space-y-3 p-4">
+                <div>
+                  <p className="text-sm font-medium">Ad Group Filter</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    กรองทั้ง organic และ paid analytics ตามกลุ่มโฆษณาที่ต้องการตรวจสอบ
+                  </p>
+                </div>
+                <Select value={selectedAdGroupId} onValueChange={setSelectedAdGroupId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="ทุกกลุ่มโฆษณา" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">ทุกกลุ่มโฆษณา</SelectItem>
+                    {adGroups.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="pt-1">
+                  <DateRangeSelector />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </CardContent>
+      </Card>
+
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Paid Performance
+          </h2>
         </div>
-        <DateRangeSelector />
-      </div>
-
-      {/* Cross-platform summary pills */}
-      <AnalyticsOverviewBar adGroupId={activeAdGroupId} />
-
-      <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-medium">Ad Group Filter</p>
-          <p className="text-sm text-muted-foreground">
-            กรองข้อมูล analytics และรายการโฆษณาตามกลุ่มโฆษณา
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Analytics หน้านี้เป็นแบบดูข้อมูลอย่างเดียว พร้อมแยก Organic และ Paid Ads ชัดเจน
-          </p>
-        </div>
-        <Select value={selectedAdGroupId} onValueChange={setSelectedAdGroupId}>
-          <SelectTrigger className="w-full sm:w-[280px]">
-            <SelectValue placeholder="ทุกกลุ่มโฆษณา" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">ทุกกลุ่มโฆษณา</SelectItem>
-            {adGroups.map((group) => (
-              <SelectItem key={group.id} value={group.id}>
-                {group.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Ad insights: KPI cards + charts */}
-      <section>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-          <BarChart3 className="h-4 w-4" />
-          Ad Performance
-        </h2>
         <AdInsightsSummary adGroupId={activeAdGroupId} />
       </section>
 
-      {/* Platform breakdown table */}
-      <section>
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Layers className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Platform Breakdown
+          </h2>
+        </div>
         <PlatformBreakdownTable adGroupId={activeAdGroupId} />
       </section>
 
-      {/* Content breakdown: Organic Posts, Ad Groups, Ads */}
-      <section>
-        <Tabs value={adsTab} onValueChange={(v) => setAdsTab(v as typeof adsTab)}>
-          <TabsList>
-            <TabsTrigger value="organic" className="gap-1.5">
-              <Leaf className="h-3.5 w-3.5 text-emerald-500" />
-              Organic
-            </TabsTrigger>
-            <TabsTrigger value="ad-groups" className="gap-1.5">
-              <Megaphone className="h-3.5 w-3.5 text-blue-500" />
-              Ad Groups
-            </TabsTrigger>
-            <TabsTrigger value="ads" className="gap-1.5">
-              <Megaphone className="h-3.5 w-3.5 text-blue-400" />
-              Paid Ads
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="organic" className="mt-4">
-            <OrganicPostsList adGroupId={activeAdGroupId} />
-          </TabsContent>
-          <TabsContent value="ad-groups" className="mt-4">
-            <AdGroupsList />
-          </TabsContent>
-          <TabsContent value="ads" className="mt-4">
-            <AdsList
-              adGroups={adGroups.map((g) => ({ id: g.id, name: g.name }))}
-              filterAdGroupId={activeAdGroupId}
-            />
-          </TabsContent>
-        </Tabs>
+      <section className="space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Content Entities
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Organic posts stay distinct in green while paid entities remain blue throughout the analytics workspace.
+            </p>
+          </div>
+          <Button onClick={() => setAdGroupDialogOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Create Ad Group
+          </Button>
+        </div>
+
+        <Card className="border-border/60 shadow-sm">
+          <CardContent className="p-4 sm:p-6">
+            <Tabs value={adsTab} onValueChange={(v) => setAdsTab(v as typeof adsTab)}>
+              <TabsList className="h-auto w-full justify-start gap-2 rounded-xl border border-border/60 bg-muted/30 p-1">
+                <TabsTrigger value="organic" className="gap-1.5">
+                  <Leaf className="h-3.5 w-3.5 text-emerald-500" />
+                  Organic
+                </TabsTrigger>
+                <TabsTrigger value="ad-groups" className="gap-1.5">
+                  <Megaphone className="h-3.5 w-3.5 text-blue-500" />
+                  Ad Groups
+                </TabsTrigger>
+                <TabsTrigger value="ads" className="gap-1.5">
+                  <Megaphone className="h-3.5 w-3.5 text-blue-400" />
+                  Paid Ads
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="organic" className="mt-6">
+                <OrganicPostsList adGroupId={activeAdGroupId} />
+              </TabsContent>
+              <TabsContent value="ad-groups" className="mt-6">
+                <AdGroupsList />
+              </TabsContent>
+              <TabsContent value="ads" className="mt-6">
+                <AdsList
+                  adGroups={adGroups.map((g) => ({ id: g.id, name: g.name }))}
+                  filterAdGroupId={activeAdGroupId}
+                />
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
       </section>
+
+      <AdGroupFormDialog
+        open={adGroupDialogOpen}
+        onOpenChange={setAdGroupDialogOpen}
+      />
     </div>
   );
 }
