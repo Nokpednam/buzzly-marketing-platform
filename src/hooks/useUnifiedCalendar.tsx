@@ -128,7 +128,7 @@ export function useUnifiedCalendar(dateRange: string, viewYear?: number, viewMon
                 scheduled_at: normalizeCalendarTimestamp(mockItem.scheduled_at),
                 published_at: normalizeCalendarTimestamp(mockItem.published_at),
                 post_channel: mockItem.type === "ad" ? "ad" : "social",
-                ad_group_id: null,
+                ad_group_id: mockItem.ad_group_id ?? null,
                 ad_group_name: null,
                 created_at: null,
               }))

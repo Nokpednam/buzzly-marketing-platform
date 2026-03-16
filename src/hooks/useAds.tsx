@@ -10,6 +10,7 @@ import { USE_MOCK_DATA } from "@/lib/mock-api-data";
 export type Ad = Database["public"]["Tables"]["ads"]["Row"];
 export type AdInsert = Database["public"]["Tables"]["ads"]["Insert"];
 export type AdUpdate = Database["public"]["Tables"]["ads"]["Update"];
+type SocialPostUpdate = Database["public"]["Tables"]["social_posts"]["Update"];
 export const adsKeys = {
   all: ["ads"] as const,
   list: (workspaceId?: string) => ["ads", workspaceId] as const,
@@ -36,6 +37,19 @@ type ExtendedAdInsert = AdInsert & {
 type ExtendedAdUpdate = AdUpdate & {
   budget?: number | null;
 };
+
+function buildMirrorPostUpdates(updates: ExtendedAdUpdate): SocialPostUpdate {
+  return {
+    ad_group_id: updates.ad_group_id ?? null,
+    content: updates.content ?? null,
+    media_urls: updates.media_urls ?? null,
+    name: updates.name ?? null,
+    platform_id: updates.platform ?? null,
+    post_type: updates.creative_type ?? null,
+    scheduled_at: updates.scheduled_at ?? null,
+    status: updates.status ?? null,
+  };
+}
 
 interface CreateAdWithMirrorPostParams {
   p_team_id: string;
@@ -130,6 +144,18 @@ export function useAds() {
         .select()
         .single();
       if (error) throw error;
+
+      const mirrorUpdates = buildMirrorPostUpdates(updates);
+      const { error: mirrorError } = await supabase
+        .from("social_posts")
+        .update(mirrorUpdates)
+        .eq("id", id)
+        .eq("post_channel", "ad");
+
+      if (mirrorError) {
+        throw mirrorError;
+      }
+
       return data;
     },
     onSuccess: () => {

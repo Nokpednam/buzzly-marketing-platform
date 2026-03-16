@@ -76,6 +76,38 @@ export function useAdGroups() {
     }
   };
 
+  const syncAdsForPaidPosts = async (postIds: string[], adGroupId: string | null) => {
+    if (!workspaceId || postIds.length === 0) {
+      return;
+    }
+
+    const { data: paidPosts, error: paidPostsError } = await supabase
+      .from("social_posts")
+      .select("id")
+      .eq("team_id", workspaceId)
+      .eq("post_channel", "ad")
+      .in("id", postIds);
+
+    if (paidPostsError) {
+      throw paidPostsError;
+    }
+
+    const paidPostIds = (paidPosts ?? []).map((post) => post.id);
+    if (paidPostIds.length === 0) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from("ads")
+      .update({ ad_group_id: adGroupId })
+      .eq("team_id", workspaceId)
+      .in("id", paidPostIds);
+
+    if (error) {
+      throw error;
+    }
+  };
+
   const { data: adGroups = [], isLoading, error } = useQuery({
     queryKey: adGroupKeys.list(workspaceId),
     enabled: !!workspaceId,
@@ -209,9 +241,11 @@ export function useAdGroups() {
           supabase
             .from("social_posts")
             .update({ ad_group_id: groupId })
+            .eq("team_id", workspaceId)
             .in("id", postIds)
             .then(({ error }) => { if (error) throw error; })
         );
+        ops.push(syncAdsForPaidPosts(postIds, groupId));
       }
       await Promise.all(ops);
     },
@@ -240,6 +274,8 @@ export function useAdGroups() {
 
       if (table === "ads") {
         await syncAdGroupOnSyncedPosts([itemId], null);
+      } else {
+        await syncAdsForPaidPosts([itemId], null);
       }
     },
     onSuccess: async () => {
@@ -314,6 +350,70 @@ export function useAdGroups() {
     },
   });
 
+  const syncGroupPosts = useMutation({
+    mutationFn: async ({
+      groupId,
+      postIds,
+    }: {
+      groupId: string;
+      postIds: string[];
+    }) => {
+      if (!workspaceId) throw new Error("No active workspace");
+
+      const normalizedPostIds = Array.from(new Set(postIds));
+      const { data: currentlyLinkedPosts, error: currentPostsError } = await supabase
+        .from("social_posts")
+        .select("id")
+        .eq("team_id", workspaceId)
+        .eq("ad_group_id", groupId)
+        .in("post_channel", ["social", "ad"]);
+
+      if (currentPostsError) {
+        throw currentPostsError;
+      }
+
+      const postIdsToClear = (currentlyLinkedPosts ?? [])
+        .map((post) => post.id)
+        .filter((id) => !normalizedPostIds.includes(id));
+
+      if (postIdsToClear.length > 0) {
+        const { error: clearError } = await supabase
+          .from("social_posts")
+          .update({ ad_group_id: null })
+          .eq("team_id", workspaceId)
+          .in("id", postIdsToClear);
+
+        if (clearError) {
+          throw clearError;
+        }
+
+        await syncAdsForPaidPosts(postIdsToClear, null);
+      }
+
+      if (normalizedPostIds.length === 0) {
+        return;
+      }
+
+      const { error } = await supabase
+        .from("social_posts")
+        .update({ ad_group_id: groupId })
+        .eq("team_id", workspaceId)
+        .in("id", normalizedPostIds);
+
+      if (error) {
+        throw error;
+      }
+
+      await syncAdsForPaidPosts(normalizedPostIds, groupId);
+    },
+    onSuccess: async () => {
+      await invalidateAdGroupQueries();
+    },
+    onError: (error: Error) => {
+      toast.error(`ไม่สามารถอัปเดตโพสต์ในกลุ่ม: ${error.message}`);
+    },
+  });
+
   return {
     adGroups,
     isLoading,
@@ -323,6 +423,7 @@ export function useAdGroups() {
     deleteAdGroup,
     linkItemsToGroup,
     syncGroupAds,
+    syncGroupPosts,
     unlinkItemFromGroup,
   };
 }

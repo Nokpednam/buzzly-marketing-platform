@@ -206,6 +206,7 @@ export interface AdInsightRow {
   date: string;
   ad_account_id: string | null;
   ads_id: string | null;
+  ad_group_id: string | null;
   campaign_id: string | null;
   impressions: number | null;
   reach: number | null;
@@ -267,6 +268,7 @@ function spreadInsightOverDays(
       date: dateStr,
       ad_account_id: `mock-acc-${shopId}-${platform}`,
       ads_id: null,
+      ad_group_id: `mock-ad-group-${shopId}-${platform}`,
       campaign_id: `mock-campaign-${record.campaign_id}`,
       impressions: Math.round((totalImpressions / days) * w),
       reach: Math.round((totalReach / days) * w),
@@ -334,6 +336,7 @@ export interface MockCalendarItem {
   content: string | null;
   post_type: string | null;
   hashtags: string[] | null;
+  ad_group_id?: string | null;
 }
 
 export interface MockCalendarDay {
@@ -706,7 +709,12 @@ export const MOCK_CALENDAR_ITEMS: MockCalendarItem[] = [
     post_type: null,
     hashtags: null,
   },
-];
+].map((item) => ({
+  ...item,
+  ad_group_id: item.id.includes("-b-")
+    ? `mock-ad-group-shop-b-${item.platform_slug}`
+    : `mock-ad-group-shop-a-${item.platform_slug}`,
+}));
 
 /** Items grouped by date (same shape as UnifiedCalendarDay from useUnifiedCalendar). */
 export const MOCK_CALENDAR_DAYS: MockCalendarDay[] = (() => {

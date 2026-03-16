@@ -55,7 +55,7 @@ export default function SocialPlanner() {
 
   const { calendarDays, isLoading: calendarLoading } = useUnifiedCalendar(dateRange, calendarYear, calendarMonth);
   const { createPost, updatePost } = useSocialPosts(dateRange);
-  const { ads, createAd, updateAd, linkPersonas: linkAdPersonas } = useAds();
+  const { ads, createAdWithMirrorPost, updateAd, linkPersonas: linkAdPersonas } = useAds();
   const { adGroups } = useAdGroups();
   const { linkPersonas } = usePostPersonaLinks();
 
@@ -156,15 +156,16 @@ export default function SocialPlanner() {
             const sharedId = crypto.randomUUID();
 
             if (isPaidAd) {
-              await createAd.mutateAsync({
+              return createAdWithMirrorPost.mutateAsync({
                 id: sharedId,
-                ad_group_id: null,
+                ad_group_id: data.ad_group_id ?? null,
                 budget: data.budget,
                 content: data.content,
+                creative_type: data.post_type,
                 headline: data.headline || null,
                 media_urls: mediaUrls,
                 name: data.headline || "Untitled Ad",
-                platform: platformId,
+                platform_id: platformId,
                 scheduled_at: normalizedScheduledAt,
                 status:
                   data.status === "published"
@@ -229,6 +230,7 @@ export default function SocialPlanner() {
             updates: {
               budget: data.budget,
               content: data.content,
+              ad_group_id: data.ad_group_id ?? null,
               headline: data.headline || null,
               media_urls: mediaUrls,
               name: data.headline || "Untitled Ad",
@@ -346,7 +348,7 @@ export default function SocialPlanner() {
         isPending={
           createPost.isPending ||
           updatePost.isPending ||
-          createAd.isPending ||
+              createAdWithMirrorPost.isPending ||
           updateAd.isPending
         }
         onRequestEdit={switchToEdit}

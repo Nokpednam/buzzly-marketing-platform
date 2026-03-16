@@ -15,6 +15,8 @@ export interface CrossPlatformMetrics {
   totalSpend: number;
   totalConversions: number;
   totalPostCount: number;
+  organicPostCount: number;
+  paidPostCount: number;
   avgEngagementRate: number;
   avgCtr: number;
   avgCpc: number;
@@ -30,8 +32,10 @@ export interface PlatformBreakdown {
   clicks: number;
   spend: number;
   conversions: number;
-  engagement_rate: number;
+  ctr: number;
   post_count: number;
+  organic_post_count: number;
+  paid_post_count: number;
 }
 
 export interface DailyTrendPoint {
@@ -40,7 +44,7 @@ export interface DailyTrendPoint {
   clicks: number;
   spend: number;
   conversions: number;
-  engagement_rate: number;
+  engagement: number;
 }
 
 export interface AnalyticsSummary {
@@ -66,7 +70,10 @@ export function useSocialAnalyticsSummary(adGroupId?: string) {
     workspace?.id,
     adGroupId
   );
-  const { posts, isLoading: postsLoading, error: postsError } = useSocialPosts(dateRange);
+  const { posts, isLoading: postsLoading, error: postsError } = useSocialPosts({
+    dateRange,
+    postChannels: ["social", "ad"],
+  });
   const { connectedPlatforms } = usePlatformConnections();
 
   const platformLookup = useMemo(
@@ -107,6 +114,10 @@ export function useSocialAnalyticsSummary(adGroupId?: string) {
         return true;
       }
 
+       if (!platformId && !fallbackSlug) {
+        return true;
+      }
+
       const normalizedPlatformId = normalizePlatformId(platformId, fallbackSlug);
       return (
         (normalizedPlatformId !== null &&
@@ -117,7 +128,11 @@ export function useSocialAnalyticsSummary(adGroupId?: string) {
     };
 
     const filteredPosts = posts.filter((post) => {
-      if (!matchesActivePlatforms(post.platform_id, post.post_channel)) {
+      if (post.post_type === "chat") {
+        return false;
+      }
+
+      if (!matchesActivePlatforms(post.platform_id)) {
         return false;
       }
 
@@ -127,6 +142,9 @@ export function useSocialAnalyticsSummary(adGroupId?: string) {
 
       return true;
     });
+
+    const organicPosts = filteredPosts.filter((post) => post.post_channel === "social");
+    const paidPosts = filteredPosts.filter((post) => post.post_channel === "ad");
 
     // ── Per-platform aggregation ──────────────────────────────────────────────
     const byPlatform = new Map<string, Omit<PlatformBreakdown, "platform_name" | "platform_slug">>();
@@ -142,8 +160,10 @@ export function useSocialAnalyticsSummary(adGroupId?: string) {
         clicks: 0,
         spend: 0,
         conversions: 0,
-        engagement_rate: 0,
         post_count: 0,
+        ctr: 0,
+        organic_post_count: 0,
+        paid_post_count: 0,
       };
 
       existing.impressions += insight.impressions ?? 0;
@@ -166,30 +186,37 @@ export function useSocialAnalyticsSummary(adGroupId?: string) {
         clicks: 0,
         spend: 0,
         conversions: 0,
-        engagement_rate: 0,
         post_count: 0,
+        ctr: 0,
+        organic_post_count: 0,
+        paid_post_count: 0,
       };
 
       entry.post_count += 1;
+      if (post.post_channel === "ad") {
+        entry.paid_post_count += 1;
+      } else {
+        entry.organic_post_count += 1;
+      }
       byPlatform.set(platformId, entry);
     }
 
-    // Resolve platform name/slug and compute engagement_rate
+    // Resolve platform name/slug and compute CTR from paid metrics.
     const platformBreakdown: PlatformBreakdown[] = Array.from(byPlatform.values()).map((entry) => {
       const platform = platformLookup.get(entry.platform_id);
-      const engRate = entry.impressions > 0
+      const ctr = entry.impressions > 0
         ? ((entry.clicks / entry.impressions) * 100)
         : 0;
       return {
         ...entry,
         platform_name: platform?.name ?? entry.platform_id,
         platform_slug: platform?.slug ?? entry.platform_id,
-        engagement_rate: engRate,
+        ctr,
       };
     });
 
     // ── Daily trend ───────────────────────────────────────────────────────────
-    const byDate = new Map<string, Omit<DailyTrendPoint, "engagement_rate"> & { _impressions: number; _clicks: number }>();
+    const byDate = new Map<string, DailyTrendPoint>();
 
     for (const insight of rawInsights) {
       const date = insight.date;
@@ -199,28 +226,54 @@ export function useSocialAnalyticsSummary(adGroupId?: string) {
         clicks: 0,
         spend: 0,
         conversions: 0,
-        _impressions: 0,
-        _clicks: 0,
+        engagement: 0,
       };
       existing.impressions += insight.impressions ?? 0;
       existing.clicks += insight.clicks ?? 0;
       existing.spend += Number(insight.spend ?? 0);
       existing.conversions += insight.conversions ?? 0;
-      existing._impressions = existing.impressions;
-      existing._clicks = existing.clicks;
       byDate.set(date, existing);
     }
 
-    const dailyTrend: DailyTrendPoint[] = Array.from(byDate.values())
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .map(({ _impressions, _clicks, ...rest }) => ({
-        ...rest,
-        engagement_rate: _impressions > 0 ? (_clicks / _impressions) * 100 : 0,
-      }));
+    for (const post of organicPosts) {
+      const anchorDate = (
+        post.published_at ??
+        post.scheduled_at ??
+        post.created_at
+      )?.slice(0, 10);
+
+      if (!anchorDate) {
+        continue;
+      }
+
+      const existing = byDate.get(anchorDate) ?? {
+        date: anchorDate,
+        impressions: 0,
+        clicks: 0,
+        spend: 0,
+        conversions: 0,
+        engagement: 0,
+      };
+
+      existing.engagement +=
+        (post.likes ?? 0) +
+        (post.comments ?? 0) +
+        (post.shares ?? 0);
+
+      byDate.set(anchorDate, existing);
+    }
+
+    const dailyTrend: DailyTrendPoint[] = Array.from(byDate.values()).sort((a, b) =>
+      a.date.localeCompare(b.date)
+    );
 
     // ── Overview (cross-platform totals) ─────────────────────────────────────
     const totalImpressions = summary.totalImpressions;
-    const totalEngagement = summary.totalClicks; // proxy: clicks as engagement
+    const totalEngagement = organicPosts.reduce(
+      (sum, post) => sum + (post.likes ?? 0) + (post.comments ?? 0) + (post.shares ?? 0),
+      0
+    );
+    const organicReach = organicPosts.reduce((sum, post) => sum + (post.reach ?? 0), 0);
     const overview: CrossPlatformMetrics = {
       totalImpressions,
       totalReach: summary.totalReach,
@@ -229,7 +282,9 @@ export function useSocialAnalyticsSummary(adGroupId?: string) {
       totalSpend: summary.totalSpend,
       totalConversions: summary.totalConversions,
       totalPostCount: filteredPosts.length,
-      avgEngagementRate: totalImpressions > 0 ? (totalEngagement / totalImpressions) * 100 : 0,
+      organicPostCount: organicPosts.length,
+      paidPostCount: paidPosts.length,
+      avgEngagementRate: organicReach > 0 ? (totalEngagement / organicReach) * 100 : 0,
       avgCtr: summary.avgCtr,
       avgCpc: summary.avgCpc,
       avgRoas: summary.avgRoas,

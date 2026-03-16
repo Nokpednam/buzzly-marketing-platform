@@ -114,31 +114,39 @@ export function PostComposer({
 }: PostComposerProps) {
   const { workspace } = useWorkspace();
   const [formData, setFormData] = useState<SocialPostFormData>(DEFAULT_FORM);
+  const [scheduledAtInput, setScheduledAtInput] = useState("");
 
   useEffect(() => {
     if (open) {
+      const nextScheduledAt = toDateTimeLocalValue(initialData?.scheduled_at);
       setFormData({
         ...DEFAULT_FORM,
         ...initialData,
         media_url: initialData?.media_urls?.[0] ?? initialData?.media_url ?? "",
-        scheduled_at: toDateTimeLocalValue(initialData?.scheduled_at),
+        scheduled_at: nextScheduledAt,
       });
+      setScheduledAtInput(nextScheduledAt);
     }
   }, [open, initialData]);
 
   const isCreate = mode === "create";
   const isPreview = mode === "preview";
-  const hasValidScheduledAt = hasValidDateTime(formData.scheduled_at);
+  const hasValidScheduledAt = hasValidDateTime(scheduledAtInput);
 
   const handleSubmit = () => {
     onSubmit({
       ...formData,
-      scheduled_at: formData.scheduled_at?.trim() ? formData.scheduled_at : undefined,
+      scheduled_at: scheduledAtInput.trim() ? scheduledAtInput : undefined,
     });
   };
 
   const update = (patch: Partial<SocialPostFormData>) =>
     setFormData((prev) => ({ ...prev, ...patch }));
+
+  const handleScheduledAtChange = (value: string) => {
+    setScheduledAtInput(value);
+    update({ scheduled_at: value });
+  };
 
   const isValid =
     formData.content.trim().length > 0 &&
@@ -390,9 +398,9 @@ export function PostComposer({
             ) : (
               <Input
                 type="datetime-local"
-                value={formData.scheduled_at ?? ""}
+                  value={scheduledAtInput}
                 min={toDateTimeLocalValue(new Date().toISOString())}
-                onChange={(e) => update({ scheduled_at: e.target.value })}
+                  onChange={(e) => handleScheduledAtChange(e.target.value)}
                 required
                 aria-invalid={!hasValidScheduledAt}
               />

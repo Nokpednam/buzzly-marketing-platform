@@ -34,7 +34,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAdGroups, type AdGroupWithCount } from "@/hooks/useAdGroups";
-import { useAds } from "@/hooks/useAds";
+import { useSocialPosts } from "@/hooks/useSocialPosts";
 
 const GROUP_TYPE_OPTIONS = [
   { value: "seasonal", label: "Seasonal" },
@@ -49,7 +49,7 @@ const adGroupFormSchema = z.object({
   description: z.string().trim().max(500, "คำอธิบายต้องไม่เกิน 500 ตัวอักษร").optional(),
   groupType: z.string().min(1, "กรุณาเลือกประเภทของกลุ่ม"),
   status: z.string().min(1, "กรุณาเลือกสถานะ"),
-  adIds: z.array(z.string()),
+  postIds: z.array(z.string()),
 });
 
 type AdGroupFormValues = z.infer<typeof adGroupFormSchema>;
@@ -59,7 +59,7 @@ const getDefaultValues = (group?: AdGroupWithCount | null): AdGroupFormValues =>
   description: group?.description ?? "",
   groupType: group?.group_type ?? "seasonal",
   status: group?.status ?? "draft",
-  adIds: [],
+  postIds: [],
 });
 
 interface AdGroupFormDialogProps {
@@ -74,8 +74,10 @@ export const AdGroupFormDialog: React.FC<AdGroupFormDialogProps> = ({
   group,
 }) => {
   const isEditMode = Boolean(group);
-  const { adGroups, createAdGroup, updateAdGroup, syncGroupAds } = useAdGroups();
-  const { ads, isLoading: adsLoading } = useAds();
+  const { createAdGroup, updateAdGroup, syncGroupPosts } = useAdGroups();
+  const { posts, isLoading: postsLoading } = useSocialPosts({
+    postChannels: ["social", "ad"],
+  });
   const [searchValue, setSearchValue] = useState("");
 
   const form = useForm<AdGroupFormValues>({
@@ -84,7 +86,7 @@ export const AdGroupFormDialog: React.FC<AdGroupFormDialogProps> = ({
   });
 
   const isPending =
-    createAdGroup.isPending || updateAdGroup.isPending || syncGroupAds.isPending;
+    createAdGroup.isPending || updateAdGroup.isPending || syncGroupPosts.isPending;
 
   useEffect(() => {
     if (!open) {
@@ -92,31 +94,37 @@ export const AdGroupFormDialog: React.FC<AdGroupFormDialogProps> = ({
       return;
     }
 
-    const linkedAdIds = group
-      ? ads.filter((ad) => ad.ad_group_id === group.id).map((ad) => ad.id)
+    const linkedPostIds = group
+      ? posts
+        .filter((post) => post.post_type !== "chat" && post.ad_group_id === group.id)
+        .map((post) => post.id)
       : [];
 
     form.reset({
       ...getDefaultValues(group),
-      adIds: linkedAdIds,
+      postIds: linkedPostIds,
     });
     setSearchValue("");
-  }, [ads, form, group, open]);
+  }, [form, group, open, posts]);
 
-  const filteredAds = useMemo(() => {
+  const filteredPosts = useMemo(() => {
     const normalizedSearch = searchValue.trim().toLowerCase();
 
-    return ads.filter((ad) => {
+    return posts.filter((post) => {
+      if (post.post_type === "chat") {
+        return false;
+      }
+
       if (!normalizedSearch) {
         return true;
       }
 
-      return [ad.name, ad.headline ?? "", ad.ad_groups?.name ?? ""]
+      return [post.display_title, post.content ?? "", post.ad_group_name ?? ""]
         .join(" ")
         .toLowerCase()
         .includes(normalizedSearch);
     });
-  }, [ads, searchValue]);
+  }, [posts, searchValue]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!isPending) {
@@ -139,12 +147,12 @@ export const AdGroupFormDialog: React.FC<AdGroupFormDialogProps> = ({
           id: group.id,
           updates: payload,
         });
-        await syncGroupAds.mutateAsync({ groupId: group.id, adIds: values.adIds });
+        await syncGroupPosts.mutateAsync({ groupId: group.id, postIds: values.postIds });
       } else {
         const createdGroup = await createAdGroup.mutateAsync(payload);
-        await syncGroupAds.mutateAsync({
+        await syncGroupPosts.mutateAsync({
           groupId: createdGroup.id,
-          adIds: values.adIds,
+          postIds: values.postIds,
         });
       }
 
@@ -164,7 +172,7 @@ export const AdGroupFormDialog: React.FC<AdGroupFormDialogProps> = ({
             {isEditMode ? "แก้ไขกลุ่มโฆษณา" : "สร้างกลุ่มโฆษณาใหม่"}
           </DialogTitle>
           <DialogDescription>
-            กำหนดรายละเอียดของกลุ่มและเลือกโฆษณาที่ต้องการจัดไว้ด้วยกัน
+            กำหนดรายละเอียดของกลุ่มและเลือกโพสต์จาก `social_posts` ทั้ง Organic และ Paid ไว้ด้วยกัน
           </DialogDescription>
         </DialogHeader>
 
@@ -259,14 +267,14 @@ export const AdGroupFormDialog: React.FC<AdGroupFormDialogProps> = ({
 
             <FormField
               control={form.control}
-              name="adIds"
+              name="postIds"
               render={({ field }) => (
                 <FormItem className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <FormLabel>โฆษณาในกลุ่ม</FormLabel>
+                      <FormLabel>โพสต์ในกลุ่ม</FormLabel>
                       <FormDescription>
-                        เลือกหลายรายการได้ และสามารถย้ายโฆษณาจากกลุ่มอื่นเข้ามาได้ทันที
+                        เลือกได้จาก `social_posts` ทุกแถวที่เป็น `social` หรือ `ad` และย้ายจากกลุ่มอื่นได้ทันที
                       </FormDescription>
                     </div>
                     <Badge variant="secondary">
@@ -279,53 +287,62 @@ export const AdGroupFormDialog: React.FC<AdGroupFormDialogProps> = ({
                     <Input
                       value={searchValue}
                       onChange={(event) => setSearchValue(event.target.value)}
-                      placeholder="ค้นหาจากชื่อโฆษณา headline หรือชื่อกลุ่ม"
+                      placeholder="ค้นหาจากชื่อโพสต์ เนื้อหา หรือชื่อกลุ่มเดิม"
                       className="pl-9"
                     />
                   </div>
 
                   <ScrollArea className="h-80 rounded-md border">
                     <div className="space-y-2 p-3">
-                      {adsLoading ? (
+                      {postsLoading ? (
                         <div className="flex min-h-52 items-center justify-center text-sm text-muted-foreground">
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          กำลังโหลดโฆษณา...
+                          กำลังโหลดโพสต์...
                         </div>
-                      ) : filteredAds.length === 0 ? (
+                      ) : filteredPosts.length === 0 ? (
                         <div className="flex min-h-52 items-center justify-center text-sm text-muted-foreground">
-                          ไม่พบโฆษณาตามคำค้นหา
+                          ไม่พบโพสต์ตามคำค้นหา
                         </div>
                       ) : (
-                        filteredAds.map((ad) => {
-                          const checked = field.value.includes(ad.id);
-                          const currentGroupName = ad.ad_groups?.name ?? null;
+                        filteredPosts.map((post) => {
+                          const checked = field.value.includes(post.id);
+                          const currentGroupName = post.ad_group_name ?? null;
                           const isFromAnotherGroup =
-                            Boolean(ad.ad_group_id) && ad.ad_group_id !== group?.id;
+                            Boolean(post.ad_group_id) && post.ad_group_id !== group?.id;
+                          const channelLabel =
+                            post.post_channel === "ad" ? "Paid Ad" : "Organic Post";
+                          const channelClassName =
+                            post.post_channel === "ad"
+                              ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                              : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
 
                           return (
                             <label
-                              key={ad.id}
+                              key={post.id}
                               className="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors hover:bg-muted/40"
                             >
                               <Checkbox
                                 checked={checked}
                                 onCheckedChange={(value) => {
                                   if (value) {
-                                    field.onChange([...field.value, ad.id]);
+                                    field.onChange([...field.value, post.id]);
                                     return;
                                   }
 
                                   field.onChange(
-                                    field.value.filter((adId) => adId !== ad.id)
+                                    field.value.filter((postId) => postId !== post.id)
                                   );
                                 }}
                               />
                               <div className="min-w-0 flex-1 space-y-1">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <span className="font-medium">{ad.name}</span>
-                                  {ad.status && (
+                                  <span className="font-medium">{post.display_title}</span>
+                                  <Badge className={`text-[10px] ${channelClassName}`}>
+                                    {channelLabel}
+                                  </Badge>
+                                  {post.status && (
                                     <Badge variant="outline" className="text-[10px]">
-                                      {ad.status}
+                                      {post.status}
                                     </Badge>
                                   )}
                                   {currentGroupName && (
@@ -339,9 +356,9 @@ export const AdGroupFormDialog: React.FC<AdGroupFormDialogProps> = ({
                                     </Badge>
                                   )}
                                 </div>
-                                {ad.headline && (
+                                {post.content && (
                                   <p className="truncate text-sm text-muted-foreground">
-                                    {ad.headline}
+                                    {post.content}
                                   </p>
                                 )}
                               </div>

@@ -22,6 +22,7 @@ interface SocialPostsOptions {
   dateRange?: string;
   postType?: string;
   postChannel?: string;
+  postChannels?: string[];
 }
 
 function getNormalizedOptions(options?: string | SocialPostsOptions): SocialPostsOptions {
@@ -36,7 +37,10 @@ export function useSocialPosts(options?: string | SocialPostsOptions) {
   const queryClient = useQueryClient();
   const { workspace } = useWorkspace();
   const workspaceId = workspace.id;
-  const { adGroupId, dateRange, postChannel, postType } = getNormalizedOptions(options);
+  const { adGroupId, dateRange, postChannel, postChannels, postType } = getNormalizedOptions(options);
+  const normalizedPostChannels = postChannels
+    ?.filter(Boolean)
+    .filter((channel, index, channels) => channels.indexOf(channel) === index);
 
   // Calculate date filter based on dateRange
   const getDateFilter = () => {
@@ -48,7 +52,15 @@ export function useSocialPosts(options?: string | SocialPostsOptions) {
   };
 
   const { data: posts = [], isLoading, error } = useQuery({
-    queryKey: ["social_posts", workspaceId, dateRange, postChannel ?? "all", postType ?? "all", adGroupId ?? "all-groups"],
+    queryKey: [
+      "social_posts",
+      workspaceId,
+      dateRange,
+      postChannel ?? "all",
+      normalizedPostChannels?.join(",") ?? "all-channels",
+      postType ?? "all",
+      adGroupId ?? "all-groups",
+    ],
     enabled: !!workspaceId,
     queryFn: async () => {
       if (!workspaceId) {
@@ -67,7 +79,9 @@ export function useSocialPosts(options?: string | SocialPostsOptions) {
         query = query.eq("post_type", postType);
       }
 
-      if (postChannel) {
+      if (normalizedPostChannels && normalizedPostChannels.length > 0) {
+        query = query.in("post_channel", normalizedPostChannels);
+      } else if (postChannel) {
         query = query.eq("post_channel", postChannel);
       }
 

@@ -144,7 +144,7 @@ function PlatformBreakdownTable({ adGroupId }: AdGroupScopedProps) {
                   <td className="px-4 py-3 text-right tabular-nums">{formatNumber(row.clicks)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">
                     <Badge variant="secondary" className="font-mono">
-                      {row.engagement_rate.toFixed(2)}%
+                      {row.ctr.toFixed(2)}%
                     </Badge>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatCurrency(row.spend)}</td>
@@ -166,27 +166,8 @@ interface OverviewBarProps extends AdGroupScopedProps {
 
 function AnalyticsOverviewBar({ adGroupId, category }: OverviewBarProps) {
   const { overview, isLoading } = useSocialAnalyticsSummary(adGroupId);
-  const { dateRange } = useSocialFilters();
-  const { posts: organicPosts, isLoading: organicLoading } = useSocialPosts({
-    adGroupId,
-    dateRange,
-    postChannel: "social",
-  });
 
-  const organicKpis = useMemo(() => {
-    const visible = organicPosts.filter((p) => p.post_type !== "chat");
-    const totalLikes = visible.reduce((s, p) => s + (p.likes ?? 0), 0);
-    const totalComments = visible.reduce((s, p) => s + (p.comments ?? 0), 0);
-    const totalShares = visible.reduce((s, p) => s + (p.shares ?? 0), 0);
-    const totalReach = visible.reduce((s, p) => s + (p.reach ?? 0), 0);
-    const avgEngagementRate =
-      totalReach > 0
-        ? (((totalLikes + totalComments + totalShares) / totalReach) * 100)
-        : 0;
-    return { count: visible.length, totalLikes, totalComments, totalShares, avgEngagementRate };
-  }, [organicPosts]);
-
-  if (isLoading || (category !== "ads" && organicLoading)) {
+  if (isLoading) {
     return (
       <div className="flex flex-wrap gap-4">
         {[1, 2, 3].map((i) => (
@@ -204,9 +185,9 @@ function AnalyticsOverviewBar({ adGroupId, category }: OverviewBarProps) {
 
   if (category === "organic") {
     const pills = [
-      { label: `${organicKpis.count} Organic Posts`, color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400", Icon: Leaf },
-      { label: `${formatNumber(organicKpis.totalLikes)} Likes`, color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400", Icon: Heart },
-      { label: `Eng. Rate ${organicKpis.avgEngagementRate.toFixed(2)}%`, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400", Icon: TrendingUp },
+      { label: `${overview.organicPostCount} Organic Posts`, color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400", Icon: Leaf },
+      { label: `${formatNumber(overview.totalEngagement)} Engagement`, color: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400", Icon: Heart },
+      { label: `Eng. Rate ${overview.avgEngagementRate.toFixed(2)}%`, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400", Icon: TrendingUp },
     ];
     return (
       <div className="flex flex-wrap items-center gap-2">
@@ -222,7 +203,7 @@ function AnalyticsOverviewBar({ adGroupId, category }: OverviewBarProps) {
 
   if (category === "ads") {
     const pills = [
-      { label: `${overview.totalPostCount} Paid Posts`, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400", Icon: Megaphone },
+      { label: `${overview.paidPostCount} Paid Posts`, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400", Icon: Megaphone },
       { label: `ROAS ${overview.avgRoas.toFixed(2)}x`, color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400", Icon: TrendingUp },
       { label: `Avg CTR ${overview.avgCtr.toFixed(2)}%`, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400", Icon: BarChart3 },
     ];
@@ -240,9 +221,9 @@ function AnalyticsOverviewBar({ adGroupId, category }: OverviewBarProps) {
 
   // "all" — combined view
   const pills = [
-    { label: `${overview.totalPostCount + organicKpis.count} Total Posts`, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400", Icon: TrendingUp },
-    { label: `${organicKpis.count} Organic`, color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400", Icon: Leaf },
-    { label: `ROAS ${overview.avgRoas.toFixed(2)}x`, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400", Icon: Megaphone },
+    { label: `${overview.totalPostCount} Total Posts`, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400", Icon: TrendingUp },
+    { label: `${overview.organicPostCount} Organic`, color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400", Icon: Leaf },
+    { label: `${overview.paidPostCount} Paid`, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400", Icon: Megaphone },
   ];
 
   return (
@@ -257,16 +238,38 @@ function AnalyticsOverviewBar({ adGroupId, category }: OverviewBarProps) {
   );
 }
 
-function OrganicPostsList({ adGroupId }: AdGroupScopedProps) {
+interface UnifiedPostsListProps extends AdGroupScopedProps {
+  category: AnalyticsCategory;
+}
+
+function UnifiedPostsList({ adGroupId, category }: UnifiedPostsListProps) {
   const { dateRange } = useSocialFilters();
   const { getPlatformById } = usePlatformConnections();
   const { posts, isLoading, error } = useSocialPosts({
     adGroupId,
     dateRange,
-    postChannel: "social",
+    postChannels: ["social", "ad"],
   });
   const [selectedPost, setSelectedPost] = useState<(typeof posts)[number] | null>(null);
-  const visiblePosts = posts.filter((post) => post.post_type !== "chat");
+  const visiblePosts = useMemo(
+    () =>
+      posts.filter((post) => {
+        if (post.post_type === "chat") {
+          return false;
+        }
+
+        if (category === "organic") {
+          return post.post_channel === "social";
+        }
+
+        if (category === "ads") {
+          return post.post_channel === "ad";
+        }
+
+        return post.post_channel === "social" || post.post_channel === "ad";
+      }),
+    [category, posts]
+  );
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "—";
@@ -309,9 +312,9 @@ function OrganicPostsList({ adGroupId }: AdGroupScopedProps) {
     return (
       <Card className="p-8">
         <div className="text-center text-muted-foreground">
-          <Leaf className="h-10 w-10 mx-auto mb-3 opacity-40" />
-          <p className="font-medium">ไม่มี Organic Post ในช่วงนี้</p>
-          <p className="text-sm">ไม่พบโพสต์ Organic สำหรับช่วงวันที่หรือ Ad Group ที่เลือก</p>
+          <FileText className="h-10 w-10 mx-auto mb-3 opacity-40" />
+          <p className="font-medium">ไม่มี Post ในช่วงนี้</p>
+          <p className="text-sm">ไม่พบรายการจาก `social_posts` สำหรับช่วงวันที่หรือ Ad Group ที่เลือก</p>
         </div>
       </Card>
     );
@@ -324,17 +327,17 @@ function OrganicPostsList({ adGroupId }: AdGroupScopedProps) {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="text-base flex items-center gap-2">
-                <Leaf className="h-4 w-4 text-emerald-500" />
-                Organic Posts
+                <FileText className="h-4 w-4 text-primary" />
+                Unified Posts
                 <Badge variant="secondary" className="ml-1">{visiblePosts.length}</Badge>
               </CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                Organic content is mapped as first-class social content with `post_channel = "social"`.
+                Every `social_posts` row in the selected scope is rendered here, whether `post_channel` is `social` or `ad`.
               </p>
             </div>
-            <Badge className="w-fit gap-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400">
-              <Leaf className="h-3 w-3" />
-              Organic Performance
+            <Badge className="w-fit gap-1 bg-violet-100 text-violet-700 hover:bg-violet-100 dark:bg-violet-900/30 dark:text-violet-400">
+              <Layers className="h-3 w-3" />
+              Unified Entity View
             </Badge>
           </div>
         </CardHeader>
@@ -379,7 +382,7 @@ function OrganicPostsList({ adGroupId }: AdGroupScopedProps) {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <ContentChannelBadge postChannel="social" />
+                        <ContentChannelBadge postChannel={post.post_channel as "social" | "ad"} />
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(post.status)}`}>
@@ -434,7 +437,7 @@ function OrganicPostsList({ adGroupId }: AdGroupScopedProps) {
 
 export default function SocialAnalyticsView() {
   const [category, setCategory] = useState<AnalyticsCategory>("all");
-  const [adsTab, setAdsTab] = useState<"ad-groups" | "ads" | "organic">("organic");
+  const [adsTab, setAdsTab] = useState<"posts" | "ad-groups" | "ads">("posts");
   const [selectedAdGroupId, setSelectedAdGroupId] = useState<string>("all");
   const [adGroupDialogOpen, setAdGroupDialogOpen] = useState(false);
   const { adGroups } = useAdGroups();
@@ -443,9 +446,7 @@ export default function SocialAnalyticsView() {
   // Auto-switch the content tab when category changes so the relevant view is visible
   const handleCategoryChange = (next: AnalyticsCategory) => {
     setCategory(next);
-    if (next === "organic") setAdsTab("organic");
-    else if (next === "ads") setAdsTab("ad-groups");
-    else setAdsTab("organic");
+    setAdsTab("posts");
   };
 
   const showPaidSections = category === "all" || category === "ads";
@@ -535,10 +536,22 @@ export default function SocialAnalyticsView() {
           <div className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Paid Performance
+              Performance Trends
             </h2>
           </div>
-          <AdInsightsSummary adGroupId={activeAdGroupId} />
+          <AdInsightsSummary adGroupId={activeAdGroupId} category={category} />
+        </section>
+      )}
+
+      {!showPaidSections && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+              Performance Trends
+            </h2>
+          </div>
+          <AdInsightsSummary adGroupId={activeAdGroupId} category={category} />
         </section>
       )}
 
@@ -576,12 +589,10 @@ export default function SocialAnalyticsView() {
           <CardContent className="p-4 sm:p-6">
             <Tabs value={adsTab} onValueChange={(v) => setAdsTab(v as typeof adsTab)}>
               <TabsList className="h-auto w-full justify-start gap-2 rounded-xl border border-border/60 bg-muted/30 p-1">
-                {showOrganicSections && (
-                  <TabsTrigger value="organic" className="gap-1.5">
-                    <Leaf className="h-3.5 w-3.5 text-emerald-500" />
-                    Organic
-                  </TabsTrigger>
-                )}
+                <TabsTrigger value="posts" className="gap-1.5">
+                  <FileText className="h-3.5 w-3.5 text-primary" />
+                  Posts
+                </TabsTrigger>
                 {showPaidSections && (
                   <TabsTrigger value="ad-groups" className="gap-1.5">
                     <Megaphone className="h-3.5 w-3.5 text-blue-500" />
@@ -595,11 +606,9 @@ export default function SocialAnalyticsView() {
                   </TabsTrigger>
                 )}
               </TabsList>
-              {showOrganicSections && (
-                <TabsContent value="organic" className="mt-6">
-                  <OrganicPostsList adGroupId={activeAdGroupId} />
-                </TabsContent>
-              )}
+              <TabsContent value="posts" className="mt-6">
+                <UnifiedPostsList adGroupId={activeAdGroupId} category={category} />
+              </TabsContent>
               {showPaidSections && (
                 <TabsContent value="ad-groups" className="mt-6">
                   <AdGroupsList />

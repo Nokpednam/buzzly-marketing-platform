@@ -10,6 +10,7 @@ export interface LinkablePost {
   status: string | null;
   scheduled_at: string | null;
   ad_group_id: string | null;
+  post_channel: string | null;
 }
 
 export interface LinkableAd {
@@ -29,9 +30,9 @@ export function useLinkableItems(groupId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("social_posts")
-        .select("id, name, content, platform_id, status, scheduled_at, ad_group_id")
+        .select("id, name, content, platform_id, status, scheduled_at, ad_group_id, post_channel")
         .eq("team_id", workspace!.id)
-        .eq("post_channel", "social")
+        .in("post_channel", ["social", "ad"])
         .is("ad_group_id", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -60,9 +61,10 @@ export function useLinkableItems(groupId: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("social_posts")
-        .select("id, name, content, platform_id, status, scheduled_at, ad_group_id")
+        .select("id, name, content, platform_id, status, scheduled_at, ad_group_id, post_channel")
+        .eq("team_id", workspace!.id)
         .eq("ad_group_id", groupId)
-        .eq("post_channel", "social")
+        .in("post_channel", ["social", "ad"])
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as LinkablePost[];
