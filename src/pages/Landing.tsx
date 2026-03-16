@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -400,9 +400,17 @@ export default function Landing() {
               </div>
               <span className="text-lg font-black text-[#1A3FBF] tracking-tight">BUZZLY</span>
             </div>
-            <p className="text-sm text-slate-400 font-medium">
-              © 2026 Buzzly Intelligence. All rights reserved.
-            </p>
+            <div className="flex items-center gap-4">
+              <p className="text-sm text-slate-400 font-medium">
+                © 2026 Buzzly Intelligence. All rights reserved.
+              </p>
+              <Link
+                to="/employee/signup"
+                className="text-sm text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                Employee Signup
+              </Link>
+            </div>
           </div>
         </div>
       </footer>
