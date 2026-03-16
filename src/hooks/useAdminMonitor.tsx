@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface ServerHealth {
@@ -51,6 +52,25 @@ export function computeServerStatus(server: any): string {
 }
 
 export function useServerHealth() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-server-health-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "server" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["admin-server-health"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ["admin-server-health"],
     queryFn: async (): Promise<ServerHealth[]> => {
@@ -73,6 +93,25 @@ export function useServerHealth() {
 }
 
 export function useDataPipelines() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-pipelines-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "data_pipeline" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["admin-data-pipelines"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ["admin-data-pipelines"],
     queryFn: async (): Promise<DataPipeline[]> => {
@@ -113,6 +152,25 @@ export function useExternalAPIStatus() {
 }
 
 export function useErrorLogStats() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-error-logs-live")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "error_logs" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["admin-error-log-stats"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ["admin-error-log-stats"],
     queryFn: async () => {
@@ -156,6 +214,25 @@ export function useErrorLogStats() {
 }
 
 export function usePerformanceMetrics() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-perf-metrics-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "server" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["admin-performance-metrics"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ["admin-performance-metrics"],
     queryFn: async () => {
