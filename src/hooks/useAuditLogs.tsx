@@ -16,9 +16,9 @@ export interface AuditLog {
   user_role?: string | null;
 }
 
-export function useAuditLogs(category?: string, page: number = 1, pageSize: number = 8, searchQuery: string = "") {
+export function useAuditLogs(category?: string, page: number = 1, pageSize: number = 8, searchQuery: string = "", roleFilter: string = "all", statusFilter: string = "all") {
   return useQuery({
-    queryKey: ["audit-logs", category, page, pageSize, searchQuery],
+    queryKey: ["audit-logs", category, page, pageSize, searchQuery, roleFilter, statusFilter],
     placeholderData: keepPreviousData,
     queryFn: async () => {
       const from = (page - 1) * pageSize;
@@ -69,6 +69,10 @@ export function useAuditLogs(category?: string, page: number = 1, pageSize: numb
 
       if (searchQuery) {
         query = query.or(`description.ilike.%${searchQuery}%,ip_address.ilike.%${searchQuery}%,user_id.ilike.%${searchQuery}%`);
+      }
+
+      if (statusFilter && statusFilter !== "all") {
+        query = query.eq("status", statusFilter);
       }
 
       const { data, error, count } = await query
@@ -133,8 +137,15 @@ export function useAuditLogs(category?: string, page: number = 1, pageSize: numb
         };
       });
 
+      // Apply role filter client-side after enrichment
+      const filteredLogs = roleFilter && roleFilter !== "all"
+        ? enrichedLogs.filter((log: any) =>
+            (log.user_role || '').toLowerCase().includes(roleFilter.toLowerCase())
+          )
+        : enrichedLogs;
+
       return {
-        logs: enrichedLogs as AuditLog[],
+        logs: filteredLogs as AuditLog[],
         totalCount: count || 0,
         totalPages: Math.ceil((count || 0) / pageSize)
       };

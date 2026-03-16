@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAwardMission } from '@/hooks/useAwardMission';
+import { auditSettings } from '@/lib/auditLogger';
 
 interface Team {
   id: string;
@@ -217,6 +218,9 @@ export function useWorkspace() {
         });
       }
 
+      // Log workspace creation
+      await auditSettings.settingsChanged(user.id, 'Workspace Created', null, name);
+
       return data;
     } catch (error: any) {
       toast({
@@ -255,10 +259,18 @@ export function useWorkspace() {
 
       if (error) throw error;
 
-      // Sync company_name to customer table for consistent billing/profile data
-      if (data.company_name !== undefined) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
+      // Log the workspace settings update + sync company_name
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await auditSettings.settingsChanged(
+          user.id,
+          'Workspace Settings Updated',
+          null,
+          { name: data.name, company_name: data.company_name }
+        );
+
+        // Sync company_name to customer table for consistent billing/profile data
+        if (data.company_name !== undefined) {
           await supabase
             .from('customer')
             .update({ company_name: data.company_name })
