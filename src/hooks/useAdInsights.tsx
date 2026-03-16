@@ -243,29 +243,53 @@ export function useCampaignInsights(campaignId: string | null | undefined) {
       }
 
       // ── LIVE MODE ──────────────────────────────────────────────────────
-      const { data, error } = await supabase
+      // Two paths (same as useCampaigns): (1) direct campaign_id, (2) via campaign_ads → ads_id
+      // Use only one path to avoid double-counting; prefer direct when present
+      const byDate = new Map<string, CampaignDailyInsight>();
+
+      const aggregate = (rows: Array<{ date: string; impressions?: number; reach?: number; clicks?: number; conversions?: number; spend?: number }>) => {
+        for (const row of rows) {
+          const key = row.date;
+          if (!byDate.has(key)) {
+            byDate.set(key, { date: key, impressions: 0, reach: 0, clicks: 0, conversions: 0, spend: 0 });
+          }
+          const entry = byDate.get(key)!;
+          entry.impressions += row.impressions || 0;
+          entry.reach += row.reach || 0;
+          entry.clicks += row.clicks || 0;
+          entry.conversions += row.conversions || 0;
+          entry.spend += Number(row.spend || 0);
+        }
+      };
+
+      // Path 1: Direct campaign_id (legacy)
+      const { data: directData } = await supabase
         .from("ad_insights")
         .select("date, impressions, reach, clicks, conversions, spend")
         .eq("campaign_id", campaignId!)
         .order("date", { ascending: true });
 
-      if (error) throw error;
+      if ((directData ?? []).length > 0) {
+        aggregate(directData ?? []);
+      } else {
+        // Path 2: Via campaign_ads (ads assigned to campaign) — primary when campaign_id is null
+        const { data: campaignAds } = await supabase
+          .from("campaign_ads")
+          .select("ad_id")
+          .eq("campaign_id", campaignId!);
 
-      const byDate = new Map<string, CampaignDailyInsight>();
-      for (const row of data ?? []) {
-        const key = row.date;
-        if (!byDate.has(key)) {
-          byDate.set(key, { date: key, impressions: 0, reach: 0, clicks: 0, conversions: 0, spend: 0 });
+        const adIds = (campaignAds ?? []).map((r) => r.ad_id).filter(Boolean);
+        if (adIds.length > 0) {
+          const { data: adsData } = await supabase
+            .from("ad_insights")
+            .select("date, impressions, reach, clicks, conversions, spend")
+            .in("ads_id", adIds)
+            .order("date", { ascending: true });
+          aggregate(adsData ?? []);
         }
-        const entry = byDate.get(key)!;
-        entry.impressions += row.impressions || 0;
-        entry.reach += row.reach || 0;
-        entry.clicks += row.clicks || 0;
-        entry.conversions += row.conversions || 0;
-        entry.spend += Number(row.spend || 0);
       }
 
-      return Array.from(byDate.values());
+      return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
     },
   });
 
