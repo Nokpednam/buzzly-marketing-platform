@@ -9,6 +9,8 @@ export interface CalendarItem {
   created_at: string | null;
   id: string;
   type: "post" | "ad";
+  /** Raw value of `post_channel` from the DB — e.g. "social", "organic", "ad". */
+  post_channel: string;
   title: string;
   status: string;
   scheduled_at: string | null;
@@ -61,12 +63,13 @@ function toDateString(isoString: string): string {
 function groupByDate(items: CalendarItem[]): UnifiedCalendarDay[] {
   const map = new Map<string, CalendarItem[]>();
   for (const item of items) {
+    // Only place items that have an explicit schedule or publish date on the
+    // calendar. Drafts with only a created_at timestamp are intentionally
+    // excluded — they have no confirmed position in time.
     const dateStr = item.scheduled_at
       ? toDateString(item.scheduled_at)
       : item.published_at
         ? toDateString(item.published_at)
-        : item.created_at
-          ? toDateString(item.created_at)
         : null;
     if (!dateStr) continue;
     const existing = map.get(dateStr) ?? [];
@@ -101,13 +104,19 @@ export function useUnifiedCalendar(dateRange: string, viewYear?: number, viewMon
         const startDate = getEffectiveStartDate(dateRange, resolvedYear, resolvedMonth);
         const startDateStr = startDate.slice(0, 10);
 
-        // Filter mock calendar to the requested date window
+        // Filter mock calendar to the requested date window and normalise items
+        // to the full CalendarItem shape (MockCalendarItem is a subset).
         const filtered: UnifiedCalendarDay[] = MOCK_CALENDAR_DAYS
           .filter((day) => day.date >= startDateStr)
           .map((day) => ({
             date: day.date,
-            // Cast: MockCalendarItem is structurally identical to CalendarItem
-            items: day.items as CalendarItem[],
+            items: day.items.map((mockItem) => ({
+              ...mockItem,
+              post_channel: mockItem.type === "ad" ? "ad" : "social",
+              ad_group_id: null,
+              ad_group_name: null,
+              created_at: null,
+            })) as CalendarItem[],
           }));
 
         return filtered;
@@ -123,8 +132,10 @@ export function useUnifiedCalendar(dateRange: string, viewYear?: number, viewMon
           "*, ad_groups(name), platforms(name, slug, icon_url), post_personas(persona_id, customer_personas(persona_name))"
         )
         .eq("team_id", workspace.id)
+        // Only fetch posts that have an explicit scheduled_at or published_at.
+        // Drafts without either date are not relevant for the calendar view.
         .or(
-          `scheduled_at.gte.${startDate},and(scheduled_at.is.null,published_at.gte.${startDate}),and(scheduled_at.is.null,published_at.is.null,created_at.gte.${startDate})`
+          `scheduled_at.gte.${startDate},and(scheduled_at.is.null,published_at.gte.${startDate})`
         )
         .order("scheduled_at", { ascending: true, nullsFirst: false })
         .order("published_at", { ascending: true, nullsFirst: false })
@@ -148,6 +159,7 @@ export function useUnifiedCalendar(dateRange: string, viewYear?: number, viewMon
           ad_group_name: row.ad_groups?.name ?? null,
           created_at: row.created_at ?? null,
           type: isAd ? ("ad" as const) : ("post" as const),
+          post_channel: row.post_channel,
           title: row.name ?? row.content ?? "Untitled Post",
           status: row.status ?? "draft",
           scheduled_at: row.scheduled_at,

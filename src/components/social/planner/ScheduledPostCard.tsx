@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { Clock, Megaphone } from "lucide-react";
+import { Clock, Megaphone, Leaf } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CalendarItem } from "@/hooks/useUnifiedCalendar";
 
@@ -59,24 +59,35 @@ export function ScheduledPostCard({ item, onClick }: ScheduledPostCardProps) {
       className={cn(
         "w-full text-left rounded-lg border px-2 py-1.5 text-xs transition-all",
         "hover:shadow-sm hover:scale-[1.01] active:scale-[0.99]",
-        isAd && "border-l-[3px] border-l-amber-400 dark:border-l-amber-500",
+        isAd
+          ? "border-l-[3px] border-l-amber-400 dark:border-l-amber-500"
+          : "border-l-[3px] border-l-sky-400 dark:border-l-sky-500",
         statusStyle
       )}
     >
       <div className="flex items-center justify-between gap-1 mb-0.5">
         <span className="font-semibold truncate max-w-[75%] flex items-center gap-1">
-          {isAd && (
+          {isAd ? (
             <Megaphone className="h-2.5 w-2.5 shrink-0 text-amber-500" aria-hidden />
+          ) : (
+            <Leaf className="h-2.5 w-2.5 shrink-0 text-sky-500" aria-hidden />
           )}
           {item.platform_name}
         </span>
         <div className="flex items-center gap-0.5 shrink-0">
-          {isAd && (
+          {isAd ? (
             <Badge
               variant="outline"
               className="text-[9px] px-1 py-0 h-4 bg-amber-500/10 border-amber-300 text-amber-700 dark:text-amber-400"
             >
               Ad
+            </Badge>
+          ) : (
+            <Badge
+              variant="outline"
+              className="text-[9px] px-1 py-0 h-4 bg-sky-500/10 border-sky-300 text-sky-700 dark:text-sky-400"
+            >
+              Organic
             </Badge>
           )}
           <Badge

@@ -4,14 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   User, 
-  MapPin, 
   Briefcase, 
   DollarSign, 
   Smartphone, 
   Clock,
   Target,
   Trash2,
-  Edit
+  Edit,
+  Building2,
+  AlertCircle,
+  Flag,
 } from "lucide-react";
 import type { CustomerPersona } from "@/hooks/useCustomerPersonas";
 
@@ -90,6 +92,12 @@ export function PersonaCard({ persona, genderName, onEdit, onDelete }: PersonaCa
               )}
             </div>
           )}
+          {persona.company_size && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Building2 className="h-4 w-4" />
+              <span>{persona.company_size}</span>
+            </div>
+          )}
           {persona.salary_range && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <DollarSign className="h-4 w-4" />
@@ -117,6 +125,50 @@ export function PersonaCard({ persona, genderName, onEdit, onDelete }: PersonaCa
             </div>
           )}
         </div>
+
+        {/* Goals */}
+        {persona.goals && persona.goals.length > 0 && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+              <Flag className="h-3.5 w-3.5" />
+              <span>Goals</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {persona.goals.slice(0, 3).map((goal) => (
+                <Badge key={goal} variant="outline" className="text-xs border-emerald-200 text-emerald-700 dark:border-emerald-800 dark:text-emerald-400">
+                  {goal}
+                </Badge>
+              ))}
+              {persona.goals.length > 3 && (
+                <Badge variant="outline" className="text-xs border-emerald-200 text-emerald-700 dark:border-emerald-800 dark:text-emerald-400">
+                  +{persona.goals.length - 3}
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Pain Points */}
+        {persona.pain_points && persona.pain_points.length > 0 && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+              <AlertCircle className="h-3.5 w-3.5" />
+              <span>Pain Points</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {persona.pain_points.slice(0, 3).map((point) => (
+                <Badge key={point} variant="outline" className="text-xs border-rose-200 text-rose-700 dark:border-rose-800 dark:text-rose-400">
+                  {point}
+                </Badge>
+              ))}
+              {persona.pain_points.length > 3 && (
+                <Badge variant="outline" className="text-xs border-rose-200 text-rose-700 dark:border-rose-800 dark:text-rose-400">
+                  +{persona.pain_points.length - 3}
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Interests */}
         {persona.interests && persona.interests.length > 0 && (
