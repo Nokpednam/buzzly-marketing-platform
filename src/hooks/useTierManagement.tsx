@@ -5,6 +5,21 @@ import { toast } from "sonner";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+export const ADMIN_PAGE_SIZE = 8;
+export const ALERTS_PAGE_SIZE = 5;
+
+/** Row from the new loyalty_tier_history table (simple denormalized log) */
+export interface LoyaltyTierHistoryEntry {
+    id: string;
+    profile_customer_id: string;
+    old_tier: string | null;
+    new_tier: string;
+    changed_at: string;
+    // Joined
+    customer?: { full_name: string | null; email: string | null } | null;
+}
+
+
 export interface TierHistoryEntry {
     id: string;
     user_id: string;
@@ -60,10 +75,37 @@ export interface CustomerSearchResult {
     created_at: string;
 }
 
-export const ADMIN_PAGE_SIZE = 8;
-export const ALERTS_PAGE_SIZE = 5;
 
-// ─── Tier History ─────────────────────────────────────────────────────────────
+// ─── Loyalty Tier History (new simple table) ──────────────────────────────────
+
+export function useLoyaltyTierHistory(page = 0) {
+    return useQuery({
+        queryKey: ["loyalty-tier-history", page],
+        queryFn: async () => {
+            const from = page * ADMIN_PAGE_SIZE;
+            const to = from + ADMIN_PAGE_SIZE;
+
+            // Join profile_customers to get user email/name
+            const { data, error } = await (supabase as any)
+                .from("loyalty_tier_history")
+                .select(`
+                    *,
+                    customer:profile_customers!loyalty_tier_history_profile_customer_id_fkey(
+                        first_name, last_name, user_id
+                    )
+                `)
+                .order("changed_at", { ascending: false })
+                .range(from, to);
+
+            if (error) throw error;
+            return (data as unknown as LoyaltyTierHistoryEntry[]) ?? [];
+        },
+        placeholderData: keepPreviousData,
+    });
+}
+
+
+// ─── Tier History (legacy complex table) ─────────────────────────────────────
 
 export function useTierHistory(page = 0) {
     return useQuery({
@@ -250,7 +292,7 @@ export function useCustomerSearch() {
             // Query customer table directly — has loyalty_tier_id FK to loyalty_tiers,
             // loyalty_points_balance, and total_spend_amount as direct columns.
             // Avoid id.eq.${query} which crashes Postgres when query is not a valid UUID.
-            const { data, error } = await supabase
+            const { data, error } = await (supabase as any)
                 .from("customer")
                 .select(`
                     id, full_name, email, created_at,
@@ -262,7 +304,7 @@ export function useCustomerSearch() {
 
             if (error) throw error;
 
-            const results: CustomerSearchResult[] = (data ?? []).map(c => ({
+            const results: CustomerSearchResult[] = ((data ?? []) as any[]).map((c: any) => ({
                 id: c.id,
                 full_name: c.full_name,
                 email: c.email,
@@ -310,14 +352,14 @@ export function useManualTierOverride() {
             if (!tierData) throw new Error(`Tier "${newTierName}" not found`);
 
             // Get customer's current tier for history record
-            const { data: currentCustomer } = await supabase
+            const { data: currentCustomer } = await (supabase as any)
                 .from("customer")
                 .select("loyalty_tier_id")
                 .eq("id", userId)
                 .maybeSingle();
 
             // Update customer.loyalty_tier_id directly
-            const { error: updateError } = await supabase
+            const { error: updateError } = await (supabase as any)
                 .from("customer")
                 .update({ loyalty_tier_id: tierData.id })
                 .eq("id", userId);
@@ -329,7 +371,7 @@ export function useManualTierOverride() {
                 .from("tier_history")
                 .insert({
                     user_id: userId,
-                    previous_tier_id: currentCustomer?.loyalty_tier_id ?? null,
+                    previous_tier_id: (currentCustomer as any)?.loyalty_tier_id ?? null,
                     new_tier_id: tierData.id,
                     change_reason: reason,
                     changed_by: adminUser?.id ?? null,

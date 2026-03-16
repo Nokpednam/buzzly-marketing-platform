@@ -45,10 +45,10 @@ import MonitorDashboard from "./pages/dev/MonitorDashboard";
 import AuditLogs from "./pages/dev/AuditLogs";
 import EmployeeManagement from "./pages/dev/EmployeeManagement";
 import TierManagement from "./pages/support/TierManagement";
-import RewardsCampaigns from "./pages/support/RewardsCampaigns";
 import RewardsManagement from "./pages/support/RewardsManagement";
 import RedemptionRequests from "./pages/support/RedemptionRequests";
 import DiscountManagement from "./pages/support/DiscountManagement";
+import ActivityCodes from "./pages/support/ActivityCodes";
 import TeamManagement from "./pages/TeamManagement";
 import ProductUsage from "./pages/owner/ProductUsage";
 import BusinessPerformance from "./pages/owner/BusinessPerformance";
@@ -203,10 +203,10 @@ const App = () => {
                     <Route path="/support" element={<Navigate to="/support/workspaces" replace />} />
                     <Route path="/support/workspaces" element={<DevWorkspaces />} />
                     <Route path="/support/tier-management" element={<TierManagement />} />
-                    <Route path="/support/rewards-campaigns" element={<RewardsCampaigns />} />
                     <Route path="/support/rewards-management" element={<RewardsManagement />} />
                     <Route path="/support/redemption-requests" element={<RedemptionRequests />} />
                     <Route path="/support/discount-management" element={<DiscountManagement />} />
+                    <Route path="/support/activity-codes" element={<ActivityCodes />} />
                   </Route>
 
                   {/* Owner Employee Routes */}

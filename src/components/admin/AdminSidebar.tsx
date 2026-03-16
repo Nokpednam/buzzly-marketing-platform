@@ -65,11 +65,6 @@ const adminNavItems = [
         href: "/admin/tier-management",
     },
     {
-        title: "Rewards Campaigns",
-        icon: Gift,
-        href: "/admin/rewards-campaigns",
-    },
-    {
         title: "Rewards Catalog",
         icon: PackageOpen,
         href: "/admin/rewards-management",
