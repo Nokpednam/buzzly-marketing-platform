@@ -127,6 +127,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
       id: selectedEmployee.id,
       profileId: selectedEmployee.profile?.id,
       updates: {
+        email: formData.email,
         first_name: formData.first_name,
         last_name: formData.last_name,
         role_employees_id: formData.role_employees_id,
@@ -457,7 +458,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">อีเมล</Label>
+              <Label htmlFor="email">อีเมล (ใช้สำหรับเชื่อมต่อบัญชีตอนสมัคร)</Label>
               <Input
                 id="email"
                 type="email"
@@ -465,7 +466,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
                 }
-                placeholder="employee@example.com"
+                placeholder="employee@buzzly.co"
               />
             </div>
             <div className="space-y-2">
@@ -547,6 +548,18 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                   }
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">อีเมล (ใช้สำหรับเชื่อมต่อบัญชีตอนสมัคร)</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                placeholder="employee@example.com"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-role">บทบาท</Label>

@@ -217,29 +217,29 @@ CREATE FUNCTION public.handle_new_user() RETURNS trigger
     AS $$
 DECLARE
     new_employee_id uuid;
+    existing_employee_id uuid;
     _gender_id uuid;
 BEGIN
     -- Check if it's an employee signup
     IF (new.raw_user_meta_data->>'is_employee_signup')::boolean IS TRUE THEN
-        -- Create employee record
-        INSERT INTO public.employees (
-            user_id, 
-            email, 
-            status, 
-            approval_status,
-            role_employees_id
-        )
-        VALUES (
-            new.id, 
-            new.email, 
-            'active', 
-            'pending', -- Pending approval
-            NULL       -- Role will be assigned by Admin
-        )
-        RETURNING id INTO new_employee_id;
+        -- Check for existing employee record with same email that hasn't been linked yet
+        SELECT id INTO existing_employee_id
+        FROM public.employees
+        WHERE email = new.email
+        AND user_id IS NULL
+        LIMIT 1;
 
-        -- Create employee profile if employee record was created
-        IF new_employee_id IS NOT NULL THEN
+        IF existing_employee_id IS NOT NULL THEN
+            -- Link new user to existing record
+            UPDATE public.employees
+            SET 
+                user_id = new.id,
+                updated_at = now()
+            WHERE id = existing_employee_id;
+            
+            new_employee_id := existing_employee_id;
+            
+            -- Also ensure profile exists or is updated
             INSERT INTO public.employees_profile (
                 employees_id,
                 first_name,
@@ -258,7 +258,53 @@ BEGIN
                     THEN (new.raw_user_meta_data->>'birthday')::date
                     ELSE NULL
                 END
-            );
+            )
+            ON CONFLICT (employees_id) DO UPDATE SET
+                first_name = EXCLUDED.first_name,
+                last_name = EXCLUDED.last_name,
+                aptitude = EXCLUDED.aptitude,
+                birthday_at = EXCLUDED.birthday_at,
+                updated_at = now();
+        ELSE
+            -- Create new employee record if no existing record found
+            INSERT INTO public.employees (
+                user_id, 
+                email, 
+                status, 
+                approval_status,
+                role_employees_id
+            )
+            VALUES (
+                new.id, 
+                new.email, 
+                'active', 
+                'pending', -- Pending approval
+                NULL       -- Role will be assigned by Admin
+            )
+            RETURNING id INTO new_employee_id;
+
+            -- Create employee profile if employee record was created
+            IF new_employee_id IS NOT NULL THEN
+                INSERT INTO public.employees_profile (
+                    employees_id,
+                    first_name,
+                    last_name,
+                    aptitude,
+                    birthday_at
+                )
+                VALUES (
+                    new_employee_id,
+                    new.raw_user_meta_data->>'first_name',
+                    new.raw_user_meta_data->>'last_name',
+                    new.raw_user_meta_data->>'aptitude',
+                    CASE 
+                        WHEN new.raw_user_meta_data->>'birthday' IS NOT NULL 
+                        AND new.raw_user_meta_data->>'birthday' != '' 
+                        THEN (new.raw_user_meta_data->>'birthday')::date
+                        ELSE NULL
+                    END
+                );
+            END IF;
         END IF;
 
     ELSE
@@ -439,7 +485,7 @@ BEGIN
     -- Map 'admin' to 'admin' app_role
     -- Map 'owner' to 'owner' app_role
     -- Others defaults to null (no user_role entry)
-    IF v_role_name IN ('owner', 'admin', 'dev') THEN
+    IF NEW.user_id IS NOT NULL AND v_role_name IN ('owner', 'admin', 'dev') THEN
         v_app_role := v_role_name::app_role;
         
         -- Upsert into user_roles
