@@ -193,12 +193,21 @@ export default function Campaigns() {
     id: string,
     currentStatus: string | null,
   ) => {
-    if (currentStatus !== "active" && currentStatus !== "paused") {
-      toast.error("Cannot toggle this status");
+    // Pause: only from active
+    if (currentStatus === "active") {
+      await updateCampaign.mutateAsync({ id, updates: { status: "paused" } });
       return;
     }
-    const newStatus = currentStatus === "active" ? "paused" : "active";
-    await updateCampaign.mutateAsync({ id, updates: { status: newStatus } });
+    // Activate: from paused, draft, or scheduled
+    if (currentStatus === "paused" || currentStatus === "draft" || currentStatus === "scheduled") {
+      await updateCampaign.mutateAsync({ id, updates: { status: "active" } });
+      return;
+    }
+    if (currentStatus === "completed") {
+      toast.error("Cannot change completed campaign");
+      return;
+    }
+    toast.error("Cannot toggle this status");
   };
 
   const handleDelete = (id: string) => {
@@ -262,14 +271,15 @@ export default function Campaigns() {
         target_kpi_value: formData.kpiValue ? Number(formData.kpiValue) : null,
       } as any; // new columns not yet in generated types.ts
 
+      const status = (formData.status || "draft") as "draft" | "scheduled" | "active" | "paused" | "completed";
       if (editingCampaign) {
         await updateCampaign.mutateAsync({
           id: editingCampaign.id,
-          updates: payload,
+          updates: { ...payload, status },
           adIds: selectedAdIds,
         });
       } else {
-        await createCampaign.mutateAsync({ ...payload, status: "draft", adIds: selectedAdIds });
+        await createCampaign.mutateAsync({ ...payload, status, adIds: selectedAdIds });
       }
       setIsDialogOpen(false);
     } catch (e: any) {
@@ -510,20 +520,22 @@ export default function Campaigns() {
                       className="flex items-center gap-2"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        className="rounded-full h-10 w-10 shadow-sm"
-                        onClick={() =>
-                          handleToggleStatus(campaign.id, campaign.status)
-                        }
-                      >
-                        {campaign.status === "active" ? (
-                          <Pause className="h-4 w-4" />
-                        ) : (
-                          <Play className="h-4 w-4 fill-current" />
-                        )}
-                      </Button>
+                      {campaign.status !== "completed" && (
+                        <Button
+                          variant="secondary"
+                          size="icon"
+                          className="rounded-full h-10 w-10 shadow-sm"
+                          onClick={() =>
+                            handleToggleStatus(campaign.id, campaign.status)
+                          }
+                        >
+                          {campaign.status === "active" ? (
+                            <Pause className="h-4 w-4" />
+                          ) : (
+                            <Play className="h-4 w-4 fill-current" />
+                          )}
+                        </Button>
+                      )}
 
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -684,6 +696,28 @@ export default function Campaigns() {
               </div>
             </div>
 
+            {/* Status */}
+            <div className="space-y-2">
+              <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Status
+              </Label>
+              <Select
+                value={formData.status}
+                onValueChange={(v) => setFormData((p) => ({ ...p, status: v }))}
+              >
+                <SelectTrigger className="h-12 rounded-xl bg-muted/30 border-none shadow-none focus:ring-2 ring-primary/20">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-none shadow-xl">
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="paused">Paused</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
@@ -720,13 +754,14 @@ export default function Campaigns() {
               </Label>
               <div className="grid grid-cols-2 gap-4">
                 <Select
-                  value={formData.kpiMetric}
-                  onValueChange={(v) => setFormData((p) => ({ ...p, kpiMetric: v }))}
+                  value={formData.kpiMetric || "none"}
+                  onValueChange={(v) => setFormData((p) => ({ ...p, kpiMetric: v === "none" ? "" : v }))}
                 >
                   <SelectTrigger className="h-12 rounded-xl bg-muted/30 border-none shadow-none focus:ring-2 ring-primary/20">
                     <SelectValue placeholder="Select Metric" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-none shadow-xl">
+                    <SelectItem value="none">None</SelectItem>
                     <SelectItem value="clicks">Clicks</SelectItem>
                     <SelectItem value="conversions">Conversions</SelectItem>
                     <SelectItem value="spend">Spend (฿)</SelectItem>
@@ -735,6 +770,8 @@ export default function Campaigns() {
                 </Select>
                 <Input
                   type="number"
+                  min={0}
+                  step="any"
                   placeholder="Target value"
                   className="h-12 rounded-xl bg-muted/30 border-none shadow-none"
                   value={formData.kpiValue}

@@ -1,8 +1,5 @@
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -14,16 +11,14 @@ import {
   Users,
   Plus,
   Smartphone,
-  TrendingUp,
   Loader2,
   LayoutGrid,
   UserCheck,
   Target,
-  Search,
-  Filter,
   Activity,
   MapPin,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   PieChart,
   Pie,
@@ -37,21 +32,14 @@ import {
   CartesianGrid,
 } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { useCustomerPersonas } from "@/hooks/useCustomerPersonas";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
 import { OnboardingBanner } from "@/components/dashboard/OnboardingBanner";
-import { PersonaCard } from "@/components/persona/PersonaCard";
-import { CreatePersonaDialog } from "@/components/persona/CreatePersonaDialog";
-import type { CustomerPersona } from "@/hooks/useCustomerPersonas";
 import { useAdPersonas, type AdAudienceMode, type PersonaData } from "@/hooks/useAdPersonas";
-import { useAds } from "@/hooks/useAds";
 import { useCampaigns } from "@/hooks/useCampaigns";
-import {
-  transformLeadToPersona,
-  type MockLeadRecord,
-} from "@/lib/mock-api-data";
+import { useCustomerPersonas } from "@/hooks/useCustomerPersonas";
+import { CreatePersonaDialog } from "@/components/persona/CreatePersonaDialog";
+import { LocationMap } from "@/components/persona/LocationMap";
 
 const GENDER_COLORS: Record<string, string> = {
   Male: "#3B82F6",
@@ -69,97 +57,57 @@ const DEVICE_COLORS: Record<string, string> = {
   tablet: "#F59E0B",
 };
 
+/**
+ * /personas — Business Logic: Connect API → persona data flows in → display as graph.
+ * Ad Audience tab: Shows aggregated audience data from connected ad platforms (ads.persona_data).
+ * Gallery tab: Placeholder — build your own.
+ */
 export default function Prospects() {
-  const navigate = useNavigate();
-  const { workspace, loading: workspaceLoading, hasTeam } = useWorkspace();
-  const {
-    personas,
-    isLoading,
-    genders,
-    createPersona,
-    updatePersona,
-    deletePersona,
-    getPersonaStats,
-  } = useCustomerPersonas(workspace.id);
+  const { workspace, loading: workspaceLoading } = useWorkspace();
   const { state: onboardingState } = useOnboardingGuard();
-  type CustomerPersona = NonNullable<typeof personas>[number];
 
+  const [activeTab, setActiveTab] = useState<"ad-audience" | "gallery">("ad-audience");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cards" | "ad-audience">("ad-audience");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [editingPersona, setEditingPersona] = useState<CustomerPersona | null>(null);
-
-  const handleImportLead = (lead: MockLeadRecord) => {
-    const transformed = transformLeadToPersona(lead, workspace.id ?? "");
-    createPersona.mutate(transformed, {
-      onSuccess: () => {
-        setShowCreateDialog(false);
-      },
-    });
-  };
-
-  // Ad Audience filter state
   const [adAudienceMode, setAdAudienceMode] = useState<AdAudienceMode>("all");
   const [selectedAdId, setSelectedAdId] = useState<string | undefined>();
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | undefined>();
 
-  const stats = getPersonaStats();
-
-  // Hooks for Ad Audience dropdowns + persona aggregation
-  const { ads } = useAds();
   const { campaigns } = useCampaigns();
-  const { personaData: adPersonaData, isLoading: adPersonaLoading, adsWithPersona } = useAdPersonas({
+  const { createPersona, genders } = useCustomerPersonas(workspace.id);
+  const { personaData: adPersonaData, isLoading: adPersonaLoading, adsWithPersona, totalImpressions } = useAdPersonas({
     mode: adAudienceMode,
     adId: selectedAdId,
     campaignId: selectedCampaignId,
   });
 
   const displayStats = useMemo(() => {
-    // 1. Demographic data (Prefer Ad Audience data as it is real behavior)
     let mainDevice = "N/A";
     let primaryInterest = "N/A";
     let topLocation = "N/A";
 
     if (adPersonaData) {
-      // Main Device
       const deviceEntries = Object.entries(adPersonaData.device_type);
       if (deviceEntries.length > 0) {
-        const top = deviceEntries.reduce((a, b) => a[1] > b[1] ? a : b)[0];
+        const top = deviceEntries.reduce((a, b) => (a[1] > b[1] ? a : b))[0];
         mainDevice = top.charAt(0).toUpperCase() + top.slice(1);
       }
-
-      // Primary Interest
-      if (adPersonaData.interests.length > 0) {
-        primaryInterest = adPersonaData.interests[0].name;
-      }
-
-      // Top Location
-      if (adPersonaData.top_locations.length > 0) {
-        topLocation = adPersonaData.top_locations[0].name;
-      }
-    } else {
-      // Fallback to manual stats if ad data is not yet available
-      mainDevice = stats.deviceDistribution[0]?.name || "N/A";
-      primaryInterest = stats.interestDistribution[0]?.name || "N/A";
-      topLocation = "N/A"; // Manual personas usually don't have aggregated top location in stats yet
+      if (adPersonaData.interests.length > 0) primaryInterest = adPersonaData.interests[0].name;
+      if (adPersonaData.top_locations.length > 0) topLocation = adPersonaData.top_locations[0].name;
     }
 
     return {
-      activeProfiles: personas?.length || 0,
+      activeProfiles: adsWithPersona.length,
       topLocation,
       mainDevice,
       primaryInterest,
     };
-  }, [adPersonaData, personas?.length, stats]);
+  }, [adPersonaData, adsWithPersona.length]);
 
-  if (workspaceLoading || isLoading) {
+  if (workspaceLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <div className="relative">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <Users className="h-5 w-5 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-        </div>
-        <p className="text-sm font-medium text-muted-foreground animate-pulse">Building your audience profiles...</p>
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="text-sm font-medium text-muted-foreground animate-pulse">Loading...</p>
       </div>
     );
   }
@@ -168,99 +116,52 @@ export default function Prospects() {
     return <OnboardingBanner state={onboardingState} />;
   }
 
-  const hasPersonas = personas && personas.length > 0;
-  const filteredPersonas = personas?.filter(p =>
-    p.persona_name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const adsWithPersonaList = adsWithPersona;
-
   return (
     <div className="max-w-7xl mx-auto space-y-8 p-4 md:p-8">
-
-      {/* 1. MINIMALIST HEADER */}
+      {/* Header */}
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between border-b pb-8">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest">
             <Target className="h-4 w-4" /> Audience Intelligence
           </div>
           <h1 className="text-4xl font-black tracking-tight">Customer Personas</h1>
-          <p className="text-muted-foreground">Defining the ideal customers for <span className="text-foreground font-semibold">{workspace.name}</span></p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="relative hidden sm:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search personas..."
-              className="pl-9 w-[200px] bg-muted/50 border-none rounded-xl"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <Button onClick={() => setShowCreateDialog(true)} className="rounded-xl shadow-lg shadow-primary/20 gap-2 px-6">
-            <Plus className="h-4 w-4" /> Create Persona
-          </Button>
+          <p className="text-muted-foreground">
+            Connect your ad platforms to see audience data flow in and display as graphs.
+          </p>
         </div>
       </div>
 
-      {/* 2. KPI QUICK STATS (Visible if data exists) */}
-      {(hasPersonas || adsWithPersonaList.length > 0) && (
+      {/* KPI Stats — from API persona data */}
+      {adsWithPersona.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            label="Active Profiles"
-            value={displayStats.activeProfiles}
-            icon={Users}
-            color="text-blue-500"
-          />
-          <StatCard
-            label="Top Location"
-            value={displayStats.topLocation}
-            icon={MapPin}
-            color="text-emerald-500"
-          />
-          <StatCard
-            label="Main Device"
-            value={displayStats.mainDevice}
-            icon={Smartphone}
-            color="text-purple-500"
-          />
-          <StatCard
-            label="Primary Interest"
-            value={displayStats.primaryInterest}
-            icon={UserCheck}
-            color="text-orange-500"
-          />
+          <StatCard label="Ads with Data" value={displayStats.activeProfiles} icon={Users} color="text-blue-500" />
+          <StatCard label="Top Location" value={displayStats.topLocation} icon={MapPin} color="text-emerald-500" />
+          <StatCard label="Main Device" value={displayStats.mainDevice} icon={Smartphone} color="text-purple-500" />
+          <StatCard label="Primary Interest" value={displayStats.primaryInterest} icon={UserCheck} color="text-orange-500" />
         </div>
       )}
 
-      {/* 3. MAIN CONTENT — always-visible Tabs */}
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-6">
-        <div className="flex items-center justify-between">
-          <TabsList className="bg-muted/50 p-1 rounded-xl">
-            <TabsTrigger value="ad-audience" className="rounded-lg gap-2">
-              <Activity className="h-4 w-4" /> Ad Audience
-            </TabsTrigger>
-            <TabsTrigger value="cards" className="rounded-lg gap-2">
-              <LayoutGrid className="h-4 w-4" /> Gallery
-            </TabsTrigger>
-          </TabsList>
-          {activeTab !== "ad-audience" && (
-            <Button variant="ghost" size="sm" className="text-muted-foreground" disabled title="Coming soon">
-              <Filter className="h-4 w-4 mr-2" /> Filter
-            </Button>
-          )}
-        </div>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "ad-audience" | "gallery")} className="space-y-6">
+        <TabsList className="bg-muted/50 p-1 rounded-xl">
+          <TabsTrigger value="ad-audience" className="rounded-lg gap-2">
+            <Activity className="h-4 w-4" /> Ad Audience
+          </TabsTrigger>
+          <TabsTrigger value="gallery" className="rounded-lg gap-2">
+            <LayoutGrid className="h-4 w-4" /> Gallery
+          </TabsTrigger>
+        </TabsList>
 
-        {/* ── AD AUDIENCE TAB ── */}
+        {/* ── AD AUDIENCE TAB: API → persona data → graph ── */}
         <TabsContent value="ad-audience" className="space-y-6 animate-in fade-in duration-500">
-          {/* Filter Controls */}
           <div className="flex flex-wrap items-center gap-3">
-            <Select value={adAudienceMode} onValueChange={(v) => {
-              setAdAudienceMode(v as AdAudienceMode);
-              setSelectedAdId(undefined);
-              setSelectedCampaignId(undefined);
-            }}>
+            <Select
+              value={adAudienceMode}
+              onValueChange={(v) => {
+                setAdAudienceMode(v as AdAudienceMode);
+                setSelectedAdId(undefined);
+                setSelectedCampaignId(undefined);
+              }}
+            >
               <SelectTrigger className="w-[180px] rounded-xl bg-muted/50 border-none">
                 <SelectValue placeholder="Select scope" />
               </SelectTrigger>
@@ -277,7 +178,7 @@ export default function Prospects() {
                   <SelectValue placeholder="Select an ad…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {adsWithPersonaList.map((ad) => (
+                  {adsWithPersona.map((ad) => (
                     <SelectItem key={ad.id} value={ad.id}>
                       <span className="font-medium">{ad.name}</span>
                       {ad.platform && (
@@ -285,8 +186,10 @@ export default function Prospects() {
                       )}
                     </SelectItem>
                   ))}
-                  {adsWithPersonaList.length === 0 && (
-                    <SelectItem value="__none" disabled>No ads with audience data</SelectItem>
+                  {adsWithPersona.length === 0 && (
+                    <SelectItem value="__none" disabled>
+                      No ads with audience data
+                    </SelectItem>
                   )}
                 </SelectContent>
               </Select>
@@ -299,17 +202,20 @@ export default function Prospects() {
                 </SelectTrigger>
                 <SelectContent>
                   {campaigns.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
                   ))}
                   {campaigns.length === 0 && (
-                    <SelectItem value="__none" disabled>No campaigns found</SelectItem>
+                    <SelectItem value="__none" disabled>
+                      No campaigns found
+                    </SelectItem>
                   )}
                 </SelectContent>
               </Select>
             )}
           </div>
 
-          {/* Charts */}
           {adPersonaLoading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -329,97 +235,63 @@ export default function Prospects() {
               </CardContent>
             </Card>
           ) : (
-            <AdAudienceCharts data={adPersonaData} />
+            <AdAudienceCharts data={adPersonaData} totalImpressions={totalImpressions} />
           )}
         </TabsContent>
 
-        <TabsContent value="cards" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {!hasPersonas ? (
-            <EmptyPersonaState onGetStarted={() => setShowCreateDialog(true)} />
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {filteredPersonas?.map((persona) => (
-                <PersonaCard
-                  key={persona.id}
-                  persona={persona}
-                  genderName={genders?.find((g) => g.id === persona.gender_id)?.name_gender}
-                  onEdit={(persona) => setEditingPersona(persona as CustomerPersona)}
-                  onDelete={(id) => deletePersona.mutate(id)}
-                />
-              ))}
-              <button
-                onClick={() => setShowCreateDialog(true)}
-                className="group border-2 border-dashed rounded-3xl flex flex-col items-center justify-center p-8 hover:bg-primary/5 hover:border-primary/50 transition-all min-h-[300px]"
-              >
-                <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
-                  <Plus className="h-6 w-6" />
-                </div>
-                <p className="mt-4 font-bold text-muted-foreground group-hover:text-primary">Add New Persona</p>
-              </button>
-            </div>
-          )}
+        {/* ── GALLERY TAB: Placeholder — build your own ── */}
+        <TabsContent value="gallery" className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+          <div className="flex justify-end">
+            <Button onClick={() => setShowCreateDialog(true)} className="rounded-xl shadow-lg shadow-primary/20 gap-2 px-6">
+              <Plus className="h-4 w-4" /> Create Persona
+            </Button>
+          </div>
+          <Card className="border-2 border-dashed bg-muted/20 rounded-3xl">
+            <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+              <LayoutGrid className="h-16 w-16 text-muted-foreground/40 mb-4" />
+              <h3 className="text-xl font-bold mb-2">Gallery</h3>
+              <p className="text-muted-foreground max-w-md">
+                Build your own gallery here. This area is reserved for your custom implementation.
+              </p>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
       <CreatePersonaDialog
         open={showCreateDialog}
-        onOpenChange={(open) => setShowCreateDialog(open)}
+        onOpenChange={setShowCreateDialog}
         onSubmit={(data) =>
           createPersona.mutate(data, {
-            onSuccess: () => {
-              setShowCreateDialog(false);
-            },
+            onSuccess: () => setShowCreateDialog(false),
           })
         }
         teamId={workspace.id}
-        genders={genders || []}
+        genders={genders ?? []}
         isLoading={createPersona.isPending}
         isOwner
       />
-
-      {editingPersona && (
-        <CreatePersonaDialog
-          open={!!editingPersona}
-          onOpenChange={(open) => { if (!open) setEditingPersona(null); }}
-          onSubmit={(data) =>
-            updatePersona.mutate(
-              { id: editingPersona.id, ...data },
-              { onSuccess: () => setEditingPersona(null) }
-            )
-          }
-          teamId={workspace.id}
-          genders={genders || []}
-          isLoading={updatePersona.isPending}
-          initialData={editingPersona}
-          isOwner
-        />
-      )}
     </div>
   );
 }
 
 // ── Ad Audience Charts ──────────────────────────────────────────────────────
-function AdAudienceCharts({ data }: { data: PersonaData }) {
-  const ageData = Object.entries(data.age_distribution)
+function AdAudienceCharts({ data, totalImpressions = 0 }: { data: PersonaData; totalImpressions?: number }) {
+  const ageData = Object.entries(data.age_distribution ?? {})
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([name, value]) => ({ name, value: Math.round(value * 100) }));
 
-  const genderData = Object.entries(data.gender).map(([name, value]) => ({
+  const genderData = Object.entries(data.gender ?? {}).map(([name, value]) => ({
     name: name.charAt(0).toUpperCase() + name.slice(1),
     value: Math.round(value * 100),
   }));
 
-  const locationData = data.top_locations.map(l => ({
-    name: l.name,
-    value: Math.round(l.pct * 100),
-  }));
-
-  const interestData = data.interests.map(i => ({
+  const interestData = (data.interests ?? []).map((i) => ({
     name: i.name,
     value: Math.round(i.pct * 100),
   }));
 
-  const deviceData = Object.entries(data.device_type).map(([name, value]) => ({
+  const deviceData = Object.entries(data.device_type ?? {}).map(([name, value]) => ({
     name: name.charAt(0).toUpperCase() + name.slice(1),
     value: Math.round(value * 100),
   }));
@@ -430,7 +302,9 @@ function AdAudienceCharts({ data }: { data: PersonaData }) {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2 rounded-3xl border-none shadow-sm bg-muted/10">
           <CardHeader>
-            <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Age Distribution</CardTitle>
+            <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+              Age Distribution
+            </CardTitle>
             <CardDescription>Audience breakdown by age group</CardDescription>
           </CardHeader>
           <CardContent>
@@ -441,8 +315,8 @@ function AdAudienceCharts({ data }: { data: PersonaData }) {
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 500 }} />
                   <YAxis hide />
                   <Tooltip
-                    cursor={{ fill: 'transparent' }}
-                    contentStyle={{ borderRadius: '12px', border: 'none' }}
+                    cursor={{ fill: "transparent" }}
+                    contentStyle={{ borderRadius: "12px", border: "none" }}
                     formatter={(v: number) => [`${v}%`, "Share"]}
                   />
                   <Bar dataKey="value" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} barSize={36} />
@@ -454,7 +328,9 @@ function AdAudienceCharts({ data }: { data: PersonaData }) {
 
         <Card className="lg:col-span-1 rounded-3xl overflow-hidden border-none shadow-sm bg-muted/30">
           <CardHeader>
-            <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Gender Split</CardTitle>
+            <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+              Gender Split
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[200px]">
@@ -462,7 +338,7 @@ function AdAudienceCharts({ data }: { data: PersonaData }) {
                 <PieChart>
                   <Pie data={genderData} innerRadius={55} outerRadius={80} paddingAngle={4} dataKey="value">
                     {genderData.map((entry, i) => (
-                      <Cell key={i} fill={GENDER_COLORS[entry.name] || "#8b5cf6"} stroke="none" />
+                      <Cell key={i} fill={GENDER_COLORS[entry.name] ?? "#8b5cf6"} stroke="none" />
                     ))}
                   </Pie>
                   <Tooltip formatter={(v: number) => [`${v}%`, "Share"]} />
@@ -472,7 +348,10 @@ function AdAudienceCharts({ data }: { data: PersonaData }) {
             <div className="grid grid-cols-1 gap-2 mt-2">
               {genderData.map((item) => (
                 <div key={item.name} className="flex items-center gap-2 p-2 rounded-lg bg-background/50">
-                  <div className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: GENDER_COLORS[item.name] || "#8b5cf6" }} />
+                  <div
+                    className="h-2 w-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: GENDER_COLORS[item.name] ?? "#8b5cf6" }}
+                  />
                   <span className="text-xs font-bold">{item.name}</span>
                   <span className="text-xs text-muted-foreground ml-auto">{item.value}%</span>
                 </div>
@@ -486,7 +365,9 @@ function AdAudienceCharts({ data }: { data: PersonaData }) {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2 rounded-3xl border-none shadow-sm bg-muted/10">
           <CardHeader>
-            <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Top Interests</CardTitle>
+            <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+              Top Interests
+            </CardTitle>
             <CardDescription>Interest categories weighted by ad impressions</CardDescription>
           </CardHeader>
           <CardContent>
@@ -497,8 +378,8 @@ function AdAudienceCharts({ data }: { data: PersonaData }) {
                   <XAxis type="number" hide />
                   <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 500 }} width={140} />
                   <Tooltip
-                    cursor={{ fill: 'transparent' }}
-                    contentStyle={{ borderRadius: '12px', border: 'none' }}
+                    cursor={{ fill: "transparent" }}
+                    contentStyle={{ borderRadius: "12px", border: "none" }}
                     formatter={(v: number) => [`${v}%`, "Affinity"]}
                   />
                   <Bar dataKey="value" fill="#8B5CF6" radius={[0, 10, 10, 0]} barSize={22} />
@@ -510,7 +391,9 @@ function AdAudienceCharts({ data }: { data: PersonaData }) {
 
         <Card className="lg:col-span-1 rounded-3xl overflow-hidden border-none shadow-sm bg-muted/30">
           <CardHeader>
-            <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Device Type</CardTitle>
+            <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+              Device Type
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[200px]">
@@ -518,7 +401,7 @@ function AdAudienceCharts({ data }: { data: PersonaData }) {
                 <PieChart>
                   <Pie data={deviceData} innerRadius={55} outerRadius={80} paddingAngle={4} dataKey="value">
                     {deviceData.map((entry, i) => (
-                      <Cell key={i} fill={DEVICE_COLORS[entry.name.toLowerCase()] || "#94A3B8"} stroke="none" />
+                      <Cell key={i} fill={DEVICE_COLORS[entry.name.toLowerCase()] ?? "#94A3B8"} stroke="none" />
                     ))}
                   </Pie>
                   <Tooltip formatter={(v: number) => [`${v}%`, "Share"]} />
@@ -528,7 +411,10 @@ function AdAudienceCharts({ data }: { data: PersonaData }) {
             <div className="grid grid-cols-1 gap-2 mt-2">
               {deviceData.map((item) => (
                 <div key={item.name} className="flex items-center gap-2 p-2 rounded-lg bg-background/50">
-                  <div className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: DEVICE_COLORS[item.name.toLowerCase()] || "#94A3B8" }} />
+                  <div
+                    className="h-2 w-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: DEVICE_COLORS[item.name.toLowerCase()] ?? "#94A3B8" }}
+                  />
                   <span className="text-xs font-bold">{item.name}</span>
                   <span className="text-xs text-muted-foreground ml-auto">{item.value}%</span>
                 </div>
@@ -538,55 +424,33 @@ function AdAudienceCharts({ data }: { data: PersonaData }) {
         </Card>
       </div>
 
-      {/* Row 3: Locations */}
+      {/* Row 3: Locations — choropleth map (darker = more users) */}
       <Card className="rounded-3xl border-none shadow-sm bg-muted/10">
         <CardHeader>
-          <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Top Locations</CardTitle>
-          <CardDescription>Geographic reach of your ad audience</CardDescription>
+          <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+            Top Locations
+          </CardTitle>
+          <CardDescription>Geographic reach — darker color means more users</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={locationData} layout="vertical" margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--muted))" />
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 500 }} width={140} />
-                <Tooltip
-                  cursor={{ fill: 'transparent' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none' }}
-                  formatter={(v: number) => [`${v}%`, "Share"]}
-                />
-                <Bar dataKey="value" fill="#10B981" radius={[0, 10, 10, 0]} barSize={28} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <LocationMap locations={data.top_locations ?? []} totalImpressions={totalImpressions} />
         </CardContent>
       </Card>
     </div>
   );
 }
 
-// ── Sub-components ──────────────────────────────────────────────────────────
-function EmptyPersonaState({ onGetStarted }: { onGetStarted: () => void }) {
-  return (
-    <Card className="border-2 border-dashed bg-muted/20 rounded-3xl">
-      <CardContent className="flex flex-col items-center justify-center py-20 text-center">
-        <div className="bg-background p-6 rounded-full shadow-xl mb-6">
-          <Users className="h-12 w-12 text-primary opacity-20" />
-        </div>
-        <h3 className="text-2xl font-bold mb-2">No Personas Defined</h3>
-        <p className="text-muted-foreground max-w-sm mb-8">
-          Create detailed customer profiles to help your team understand who you are building for.
-        </p>
-        <Button size="lg" onClick={onGetStarted} className="rounded-full px-8">
-          Get Started
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-
-function StatCard({ label, value, icon: Icon, color }: any) {
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+}) {
   return (
     <Card className="border-none bg-muted/20 shadow-none rounded-2xl">
       <CardContent className="p-4 flex items-center gap-4">
@@ -597,33 +461,6 @@ function StatCard({ label, value, icon: Icon, color }: any) {
           <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
           <p className="text-xl font-black">{value}</p>
         </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function DistributionProgress({ title, data, color, icon: Icon }: any) {
-  const total = data.reduce((a: number, b: any) => a + b.value, 0);
-  return (
-    <Card className="rounded-3xl border-none bg-muted/20 shadow-none">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-bold flex items-center gap-2">
-          <Icon className="h-4 w-4 text-muted-foreground" /> {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {data.map((item: any) => {
-          const pct = Math.round((item.value / total) * 100);
-          return (
-            <div key={item.name} className="space-y-1">
-              <div className="flex justify-between text-xs font-bold uppercase tracking-tighter">
-                <span>{item.name}</span>
-                <span>{pct}%</span>
-              </div>
-              <Progress value={pct} className={`h-2 bg-background ${color}`} />
-            </div>
-          );
-        })}
       </CardContent>
     </Card>
   );

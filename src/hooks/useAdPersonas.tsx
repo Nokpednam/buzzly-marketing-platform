@@ -85,10 +85,10 @@ export function useAdPersonas({ mode, adId, campaignId }: AdPersonaFilter) {
     },
   });
 
-  // Fetch impressions per ad (for weighting). Skipped in single-ad mode.
+  // Fetch impressions per ad (for weighting and total display).
   const { data: insightsRaw = [], isLoading: insightsLoading } = useQuery({
     queryKey: ["ad-personas-insights", workspaceId],
-    enabled: !!workspaceId && mode !== "ad",
+    enabled: !!workspaceId,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -146,10 +146,26 @@ export function useAdPersonas({ mode, adId, campaignId }: AdPersonaFilter) {
     );
   }, [mode, adId, campaignId, adsRaw, campaignAdsRaw, impressionsMap]);
 
+  const totalImpressions = useMemo(() => {
+    if (!personaData) return 0;
+    if (mode === "ad" && adId) {
+      return impressionsMap[adId] ?? 0;
+    }
+    if (mode === "campaign" && campaignId) {
+      const adIds = new Set(
+        campaignAdsRaw.filter(r => r.campaign_id === campaignId).map(r => r.ad_id)
+      );
+      return adsRaw
+        .filter(a => adIds.has(a.id))
+        .reduce((s, a) => s + (impressionsMap[a.id] ?? 0), 0);
+    }
+    return adsRaw.reduce((s, a) => s + (impressionsMap[a.id] ?? 0), 0);
+  }, [mode, adId, campaignId, adsRaw, campaignAdsRaw, impressionsMap, personaData]);
+
   const isLoading =
     adsLoading ||
     (mode !== "ad" && insightsLoading) ||
     (mode === "campaign" && campaignAdsLoading);
 
-  return { personaData, isLoading, adsWithPersona: adsRaw };
+  return { personaData, isLoading, adsWithPersona: adsRaw, totalImpressions };
 }
