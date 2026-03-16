@@ -25,7 +25,8 @@ interface LinkItemsDialogProps {
 }
 
 function formatPostLabel(post: LinkablePost): string {
-  if (post.name) return post.name;
+  if (post.content?.trim()) return post.content.trim();
+  if (post.name?.trim()) return post.name.trim();
   const preview = post.content ? post.content.slice(0, 60) : "(ไม่มีชื่อโพสต์)";
   return preview.length < (post.content?.length ?? 0) ? `${preview}…` : preview;
 }

@@ -117,13 +117,18 @@ export function useAdInsights(
   });
 
   const insightRows = insights as AdInsightWithJoins[];
+  const totalImpressions = insightRows.reduce((sum, insight) => sum + (insight.impressions || 0), 0);
+  const totalClicks = insightRows.reduce((sum, insight) => sum + (insight.clicks || 0), 0);
+  const totalSpend = insightRows.reduce((sum, insight) => sum + Number(insight.spend || 0), 0);
+  const totalConversions = insightRows.reduce((sum, insight) => sum + (insight.conversions || 0), 0);
+  const totalReach = insightRows.reduce((sum, insight) => sum + (insight.reach || 0), 0);
 
   const summary: AdInsightsSummary = {
-    totalImpressions: insightRows.reduce((sum, i) => sum + (i.impressions || 0), 0),
-    totalClicks: insightRows.reduce((sum, i) => sum + (i.clicks || 0), 0),
-    totalSpend: insightRows.reduce((sum, i) => sum + Number(i.spend || 0), 0),
-    totalConversions: insightRows.reduce((sum, i) => sum + (i.conversions || 0), 0),
-    totalReach: insightRows.reduce((sum, i) => sum + (i.reach || 0), 0),
+    totalImpressions,
+    totalClicks,
+    totalSpend,
+    totalConversions,
+    totalReach,
     avgRoas:
       insightRows.length > 0
         ? insightRows.reduce((sum, i) => sum + Number(i.roas || 0), 0) / insightRows.length
@@ -132,10 +137,7 @@ export function useAdInsights(
       insightRows.length > 0
         ? insightRows.reduce((sum, i) => sum + Number(i.ctr || 0), 0) / insightRows.length
         : 0,
-    avgCpc:
-      insightRows.length > 0
-        ? insightRows.reduce((sum, i) => sum + Number(i.cpc || 0), 0) / insightRows.length
-        : 0,
+    avgCpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
     avgCpm:
       insightRows.length > 0
         ? insightRows.reduce((sum, i) => sum + Number(i.cpm || 0), 0) / insightRows.length

@@ -250,7 +250,7 @@ function OrganicPostsList() {
                     <div className="flex items-center gap-2">
                       <FileText className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <span className="font-medium line-clamp-1">
-                        {post.name ?? post.content?.slice(0, 60) ?? "Untitled Post"}
+                        {post.display_title}
                       </span>
                     </div>
                   </td>

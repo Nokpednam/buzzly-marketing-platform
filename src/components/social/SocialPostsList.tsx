@@ -206,7 +206,7 @@ export function SocialPostsList({
                     <div className="relative">
                       <img
                         src={post.media_urls?.[0] ?? "/placeholder.svg"}
-                        alt={post.content?.slice(0, 30) ?? "Post"}
+                        alt={post.display_title}
                         className="h-40 w-full object-cover"
                       />
                       <div className="absolute top-2 left-2">
@@ -275,7 +275,7 @@ export function SocialPostsList({
                         </DropdownMenu>
                       </div>
 
-                      <p className="text-sm line-clamp-2 mb-3">{post.content}</p>
+                      <p className="text-sm line-clamp-2 mb-3">{post.content ?? post.display_title}</p>
 
                       {post.status === "published" && (
                         <div className="grid grid-cols-4 gap-2 text-xs">

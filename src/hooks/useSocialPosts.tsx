@@ -4,11 +4,15 @@ import { useWorkspace } from "@/hooks/useWorkspace";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { invalidateSocialRealtimeQueries } from "@/lib/socialQueryInvalidation";
+import { getSocialPostDisplayTitle } from "@/lib/socialPostDisplay";
 
 type SocialPostRow = Database["public"]["Tables"]["social_posts"]["Row"];
 export type SocialPost = SocialPostRow & {
   ad_groups?: { name: string | null } | null;
   ad_group_name?: string | null;
+  display_title: string;
+  persona_ids: string[];
+  persona_names: string[];
 };
 export type SocialPostInsert = Database["public"]["Tables"]["social_posts"]["Insert"];
 export type SocialPostUpdate = Database["public"]["Tables"]["social_posts"]["Update"];
@@ -52,7 +56,7 @@ export function useSocialPosts(options?: string | SocialPostsOptions) {
 
       let query = supabase
         .from("social_posts")
-        .select("*, ad_groups(name)")
+        .select("*, ad_groups(name), post_personas(persona_id, customer_personas(persona_name))")
         .eq("team_id", workspaceId)
         .order("scheduled_at", { ascending: false, nullsFirst: false })
         .order("published_at", { ascending: false, nullsFirst: false })
@@ -82,6 +86,13 @@ export function useSocialPosts(options?: string | SocialPostsOptions) {
       return (data ?? []).map((post) => ({
         ...post,
         ad_group_name: post.ad_groups?.name ?? null,
+        display_title: getSocialPostDisplayTitle(post),
+        persona_ids: (post.post_personas ?? [])
+          .map((postPersona) => postPersona.persona_id ?? "")
+          .filter(Boolean),
+        persona_names: (post.post_personas ?? [])
+          .map((postPersona) => postPersona.customer_personas?.persona_name ?? "")
+          .filter(Boolean),
       })) as SocialPost[];
     },
   });
