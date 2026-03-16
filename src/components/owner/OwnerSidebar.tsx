@@ -46,12 +46,6 @@ const ownerNavItems = [
     description: "Sentiment Analysis",
   },
   {
-    title: "Discount Analytic",
-    icon: Tag,
-    href: "/owner/discounts",
-    description: "Dashboard discount",
-  },
-  {
     title: "Executive Report",
     icon: FileText,
     href: "/owner/executive-report",
