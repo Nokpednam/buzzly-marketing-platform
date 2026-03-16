@@ -116,7 +116,7 @@ export function ContentCalendar({
   if (isLoading) return <LoadingSkeleton />;
 
   return (
-    <Card className="overflow-hidden rounded-2xl border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white dark:bg-slate-900">
+    <Card className="overflow-hidden rounded-2xl border-slate-200/60 bg-white shadow-sm dark:border-slate-700/50 dark:bg-slate-900">
       <CardHeader className="pb-3 px-6 pt-5 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -152,7 +152,7 @@ export function ContentCalendar({
         </div>
 
         {/* Filter toggle */}
-        <div className="flex items-center gap-1 self-start rounded-lg bg-muted p-1">
+        <div className="flex items-center gap-1 self-start rounded-lg bg-slate-100 p-1 dark:bg-slate-800">
           {FILTER_OPTIONS.map((opt) => (
             <button
               key={opt.value}
@@ -161,8 +161,8 @@ export function ContentCalendar({
               className={cn(
                 "px-3 py-1 text-xs font-medium rounded-md transition-colors",
                 activeFilter === opt.value
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-300"
               )}
             >
               {opt.label}
@@ -201,9 +201,9 @@ export function ContentCalendar({
                 <div
                   key={dateISO}
                   className={cn(
-                    "min-h-[7rem] rounded-xl border border-border/50 p-1.5 flex flex-col gap-1",
-                    "transition-colors hover:bg-muted/40",
-                    isToday && "border-primary/30 bg-primary/[0.03]"
+                    "group min-h-[7rem] rounded-xl border border-slate-200/60 p-1.5 flex flex-col gap-1 transition-colors dark:border-slate-700/50",
+                    "hover:bg-slate-50 dark:hover:bg-slate-800/50",
+                    isToday && "border-primary/40 bg-primary/5 dark:bg-primary/10"
                   )}
                 >
                   <div className="flex items-center justify-between">
@@ -220,7 +220,7 @@ export function ContentCalendar({
                     <button
                       type="button"
                       onClick={() => onDayClick(dateISO)}
-                      className="h-5 w-5 rounded-md flex items-center justify-center text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+                      className="flex h-5 w-5 items-center justify-center rounded-md text-slate-400 opacity-0 transition-all hover:bg-slate-900/10 hover:text-slate-900 group-hover:opacity-100 dark:hover:bg-white/10 dark:hover:text-white"
                       aria-label={`เพิ่มโพสต์ ${dateISO}`}
                     >
                       <Plus className="h-3 w-3" />

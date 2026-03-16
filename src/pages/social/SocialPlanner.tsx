@@ -278,23 +278,27 @@ export default function SocialPlanner() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      {/* Page header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">Content Planner</h2>
-          <p className="text-sm text-muted-foreground">
-            วางแผนและกำหนดตารางโพสต์ social media
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+            Content Planner
+          </h2>
+          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+            วางแผนและกำหนดตารางโพสต์
           </p>
         </div>
         <Button
           onClick={() => openCreateComposer()}
-          className="gap-2 self-start sm:self-auto"
+          className="h-10 gap-2 self-start rounded-lg px-4 sm:self-center"
         >
           <Plus className="h-4 w-4" />
-          โพสต์ใหม่
+          สร้างโพสต์
         </Button>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Filters */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <PlatformFilterBar />
         <DateRangeSelector />
       </div>
@@ -309,18 +313,18 @@ export default function SocialPlanner() {
         onViewChange={handleViewChange}
       />
 
-      <div>
-        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+      <div className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm dark:border-slate-700/50 dark:bg-slate-900">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-white">
             รายการโพสต์
           </h3>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">จัดกลุ่ม</span>
+            <span className="text-sm text-slate-500 dark:text-slate-400">จัดกลุ่ม</span>
             <Select
               value={postGrouping}
               onValueChange={(value: "none" | "ad-group") => setPostGrouping(value)}
             >
-              <SelectTrigger className="w-[190px]">
+              <SelectTrigger className="h-9 w-[180px] rounded-lg">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -330,13 +334,15 @@ export default function SocialPlanner() {
             </Select>
           </div>
         </div>
-        <SocialPostsList
+        <div className="rounded-xl border border-slate-200/60 bg-slate-50/50 p-4 dark:border-slate-700/50 dark:bg-slate-900/30">
+          <SocialPostsList
           groupingMode={postGrouping}
           selectedPosts={selectedPosts}
           onSelectPost={handleSelectPost}
           onRequestCreate={() => openCreateComposer()}
           onRequestEdit={openEditComposer}
-        />
+          />
+        </div>
       </div>
 
       <PostComposer

@@ -96,23 +96,22 @@ export default function SocialInbox() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Page header */}
-      <div className="flex items-center gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-foreground">Social Inbox</h2>
-            {totalUnread > 0 && (
-              <Badge className="h-5 min-w-5 px-1.5 text-xs rounded-full bg-primary text-primary-foreground">
-                {totalUnread}
-              </Badge>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-            <Wifi className="h-3.5 w-3.5 text-emerald-500" aria-hidden />
-            ความคิดเห็นจาก social media อัปเดตแบบเรียลไทม์
-          </p>
+    <div className="space-y-6">
+      <div>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+            Social Inbox
+          </h2>
+          {totalUnread > 0 && (
+            <Badge className="h-5 min-w-5 rounded-full bg-slate-900 px-1.5 text-xs text-white dark:bg-white dark:text-slate-900">
+              {totalUnread}
+            </Badge>
+          )}
         </div>
+        <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
+          <Wifi className="h-3.5 w-3.5 text-emerald-500" aria-hidden />
+          ความคิดเห็นจาก social media อัปเดตแบบเรียลไทม์
+        </p>
       </div>
 
       {/* Filters */}
@@ -121,14 +120,12 @@ export default function SocialInbox() {
       {/* Split-panel layout */}
       <div
         className={cn(
-          "grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-0 rounded-2xl border border-border/40 overflow-hidden",
-          "bg-white dark:bg-slate-900 shadow-sm",
-          "min-h-[600px]"
+          "grid min-h-[600px] grid-cols-1 gap-0 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-700/50 dark:bg-slate-900 lg:grid-cols-[360px_1fr]"
         )}
       >
         {/* Left: Conversation list */}
-        <div className="border-r border-border/40 flex flex-col">
-          <div className="px-4 py-3 border-b border-border/40 bg-slate-50/80 dark:bg-slate-800/50 shrink-0">
+        <div className="flex flex-col border-r border-slate-200/60 dark:border-slate-700/50">
+          <div className="shrink-0 border-b border-slate-200/60 bg-slate-50/80 px-4 py-3 dark:border-slate-700/50 dark:bg-slate-800/50">
             <div className="flex items-center gap-2">
               <Inbox className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium text-foreground">

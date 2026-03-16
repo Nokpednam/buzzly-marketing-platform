@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, BarChart3, MessageSquare, Plug } from "lucide-react";
+import { Calendar, BarChart3, MessageSquare } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const TABS = [
   { value: "planner", label: "Planner", icon: Calendar, path: "/social/planner" },
@@ -18,19 +18,26 @@ export function SocialTabNav() {
     (TABS.find((t) => location.pathname.startsWith(t.path))?.value as TabValue) ?? "planner";
 
   return (
-    <Tabs value={activeTab} onValueChange={(value) => navigate(`/social/${value}`)}>
-      <TabsList className="bg-muted/50 p-1 h-11 rounded-2xl gap-1">
-        {TABS.map(({ value, label, icon: Icon }) => (
-          <TabsTrigger
+    <nav className="flex gap-1 rounded-xl bg-white p-1 shadow-sm ring-1 ring-slate-200/60 dark:bg-slate-900 dark:ring-slate-700/50">
+      {TABS.map(({ value, label, icon: Icon, path }) => {
+        const isActive = activeTab === value;
+        return (
+          <button
             key={value}
-            value={value}
-            className="rounded-xl px-5 gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            type="button"
+            onClick={() => navigate(path)}
+            className={cn(
+              "flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all",
+              isActive
+                ? "bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-900"
+                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+            )}
           >
             <Icon className="h-4 w-4" />
             <span className="hidden sm:inline">{label}</span>
-          </TabsTrigger>
-        ))}
-      </TabsList>
-    </Tabs>
+          </button>
+        );
+      })}
+    </nav>
   );
 }

@@ -23,6 +23,8 @@ interface SocialPostsOptions {
   postType?: string;
   postChannel?: string;
   postChannels?: string[];
+  /** When true and adGroupId is set, include organic posts (post_channel=social) regardless of ad_group_id */
+  includeOrganicWhenFilteringAdGroup?: boolean;
 }
 
 function getNormalizedOptions(options?: string | SocialPostsOptions): SocialPostsOptions {
@@ -37,7 +39,8 @@ export function useSocialPosts(options?: string | SocialPostsOptions) {
   const queryClient = useQueryClient();
   const { workspace } = useWorkspace();
   const workspaceId = workspace.id;
-  const { adGroupId, dateRange, postChannel, postChannels, postType } = getNormalizedOptions(options);
+  const { adGroupId, dateRange, postChannel, postChannels, postType, includeOrganicWhenFilteringAdGroup } =
+    getNormalizedOptions(options);
   const normalizedPostChannels = postChannels
     ?.filter(Boolean)
     .filter((channel, index, channels) => channels.indexOf(channel) === index);
@@ -60,6 +63,7 @@ export function useSocialPosts(options?: string | SocialPostsOptions) {
       normalizedPostChannels?.join(",") ?? "all-channels",
       postType ?? "all",
       adGroupId ?? "all-groups",
+      includeOrganicWhenFilteringAdGroup ?? false,
     ],
     enabled: !!workspaceId,
     queryFn: async () => {
@@ -86,7 +90,11 @@ export function useSocialPosts(options?: string | SocialPostsOptions) {
       }
 
       if (adGroupId) {
-        query = query.eq("ad_group_id", adGroupId);
+        if (includeOrganicWhenFilteringAdGroup) {
+          query = query.or(`ad_group_id.eq.${adGroupId},post_channel.eq.social`);
+        } else {
+          query = query.eq("ad_group_id", adGroupId);
+        }
       }
 
       const dateFilter = getDateFilter();

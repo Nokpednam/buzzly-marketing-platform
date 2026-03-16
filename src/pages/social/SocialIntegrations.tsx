@@ -97,13 +97,12 @@ export default function SocialIntegrations() {
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-foreground">การเชื่อมต่อแพลตฟอร์ม</h2>
-          </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+            การเชื่อมต่อแพลตฟอร์ม
+          </h2>
+          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
             จัดการการเชื่อมต่อ API และซิงค์ข้อมูลจากแพลตฟอร์มโฆษณา
           </p>
         </div>
@@ -136,7 +135,7 @@ export default function SocialIntegrations() {
       {loading ? (
         <PlatformGridSkeleton />
       ) : platforms.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-16 text-center rounded-2xl border border-dashed border-border bg-white dark:bg-slate-900">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center dark:border-slate-700 dark:bg-slate-900">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
             <Link2 className="h-6 w-6 text-muted-foreground" />
           </div>

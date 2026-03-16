@@ -16,7 +16,7 @@ export function SocialFiltersProvider({ children }: { children: ReactNode }) {
   const [activePlatforms, setActivePlatforms] = useState<string[]>(() =>
     connectedPlatforms.map((p) => p.id)
   );
-  const [dateRange, setDateRange] = useState("7");
+  const [dateRange, setDateRange] = useState("30");
 
   // Sync when connectedPlatforms changes:
   // - Remove platforms that are no longer connected

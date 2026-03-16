@@ -13,14 +13,21 @@ export default function SocialLayout() {
 
   return (
     <SocialFiltersProvider>
-      <div className="relative min-h-[90vh] w-full bg-[#f4f7fb] dark:bg-background font-sans">
-        <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-6 animate-in fade-in duration-500">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border/40 pb-6">
-            <h1 className="text-4xl font-black tracking-tight text-slate-900 dark:text-foreground inline-block bg-white dark:bg-slate-900 px-4 py-2 rounded-2xl shadow-sm">
-              Social
-            </h1>
+      <div className="min-h-[90vh] w-full bg-slate-50/80 dark:bg-slate-950/50">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+          {/* Header */}
+          <header className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-3xl">
+                Social
+              </h1>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                จัดการโพสต์ แสดงผล และตอบกลับ
+              </p>
+            </div>
             <SocialTabNav />
-          </div>
+          </header>
+
           <Outlet />
         </div>
       </div>
