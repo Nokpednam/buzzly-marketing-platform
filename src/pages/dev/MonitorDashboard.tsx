@@ -6,33 +6,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import {
-  Activity,
-  Server,
-  Database,
-  Cpu,
-  HardDrive,
-  Wifi,
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
-  RefreshCw,
-  Clock,
-  TrendingUp,
-  TrendingDown,
-  Zap,
-  Globe,
-  AlertCircle,
-} from "lucide-react";
+import { Activity, Server, Database, Cpu, HardDrive, Wifi, AlertTriangle, CheckCircle2, XCircle, RefreshCw, Clock, TrendingUp, TrendingDown, Zap, Globe, AlertCircle, Search, Play, Filter } from "lucide-react";
 import { useServerHealth, useDataPipelines, useExternalAPIStatus, useErrorLogStats, usePerformanceMetrics } from "@/hooks/useAdminMonitor";
 import { formatDistanceToNow } from "date-fns";
 import { SparklineTrend } from "@/components/dev/SparklineTrend";
+import { Input } from "@/components/ui/input";
+
+// Removed MOCK_PIPELINES as we are now using data from the database
 
 const getStatusIcon = (status: string | null) => {
   switch (status?.toLowerCase()) {
     case "healthy":
     case "running":
     case "operational":
+    case "active":
+    case "success":
       return <CheckCircle2 className="h-4 w-4 text-green-500" />;
     case "warning":
     case "degraded":
@@ -40,6 +28,7 @@ const getStatusIcon = (status: string | null) => {
     case "critical":
     case "down":
     case "error":
+    case "failed":
       return <XCircle className="h-4 w-4 text-red-500" />;
     default:
       return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
@@ -51,6 +40,8 @@ const getStatusBadge = (status: string | null) => {
     case "healthy":
     case "running":
     case "operational":
+    case "active":
+    case "success":
       return <Badge className="bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20">{status}</Badge>;
     case "warning":
     case "degraded":
@@ -58,6 +49,7 @@ const getStatusBadge = (status: string | null) => {
     case "critical":
     case "down":
     case "error":
+    case "failed":
       return <Badge className="bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20">{status}</Badge>;
     default:
       return <Badge variant="secondary" className="bg-slate-800 text-slate-300 border-slate-700">{status || "Unknown"}</Badge>;
@@ -83,6 +75,8 @@ export default function MonitorDashboard() {
   const serversPerPage = 4;
   const [pipelinePage, setPipelinePage] = useState(1);
   const pipelinesPerPage = 8;
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
 
   const { data: servers, isLoading: serversLoading, refetch: refetchServers } = useServerHealth();
 
@@ -93,10 +87,18 @@ export default function MonitorDashboard() {
 
   const { data: pipelines, isLoading: pipelinesLoading, refetch: refetchPipelines } = useDataPipelines();
 
+  const filteredAndSortedPipelines = (pipelines || [])
+    .filter(pipeline => pipeline.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter(pipeline => statusFilter === "All" || (pipeline.status || "").toLowerCase() === statusFilter.toLowerCase())
+    .sort((a, b) => {
+      const order: Record<string, number> = { failed: 0, error: 0, critical: 0, warning: 1, active: 2, running: 2, healthy: 2 };
+      return (order[(a.status || "").toLowerCase()] ?? 3) - (order[(b.status || "").toLowerCase()] ?? 3);
+    });
+
   const indexOfLastPipeline = pipelinePage * pipelinesPerPage;
   const indexOfFirstPipeline = indexOfLastPipeline - pipelinesPerPage;
-  const currentPipelines = pipelines?.slice(indexOfFirstPipeline, indexOfLastPipeline);
-  const totalPipelinePages = Math.ceil((pipelines?.length || 0) / pipelinesPerPage);
+  const currentPipelines = filteredAndSortedPipelines.slice(indexOfFirstPipeline, indexOfLastPipeline);
+  const totalPipelinePages = Math.ceil(filteredAndSortedPipelines.length / pipelinesPerPage);
 
   const { data: externalApis, isLoading: apisLoading, refetch: refetchApis } = useExternalAPIStatus();
   const { data: errorStats, refetch: refetchErrors } = useErrorLogStats();
@@ -121,7 +123,7 @@ export default function MonitorDashboard() {
       : "Healthy";
 
   return (
-    <div className="dark space-y-6 bg-[#0B0F1A] p-8 -m-8 min-h-screen text-slate-200">
+    <div className="space-y-6 text-slate-200 pb-12">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -380,68 +382,104 @@ export default function MonitorDashboard() {
 
         {/* Data Pipelines Tab */}
         <TabsContent value="pipelines">
-          <Card className="bg-[#111827] border-slate-800">
-            <CardHeader>
-              <CardTitle className="text-white">Data Pipeline Status</CardTitle>
-              <CardDescription className="text-slate-400">Monitoring real-time data ingestion and processing workflows</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {pipelinesLoading ? (
-                <div className="text-center py-12 text-slate-500 font-medium">Synchronizing pipeline states...</div>
-              ) : pipelines?.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 font-medium">No active data pipelines discovered</div>
+          <Card className="bg-[#0B0F1A] border-slate-800 shadow-xl overflow-hidden">
+            <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#111827]">
+              <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                <Input
+                  type="text"
+                  placeholder="Search pipelines..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 bg-[#1F2937]/50 border-slate-700 text-slate-200 placeholder:text-slate-500 h-9"
+                />
+              </div>
+              <div className="flex items-center gap-1.5 p-1 bg-[#1F2937]/50 rounded-lg border border-slate-700 overflow-x-auto w-full sm:w-auto">
+                <Filter className="h-4 w-4 text-slate-500 ml-2 mr-1" />
+                {['All', 'Active', 'Warning', 'Failed'].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setStatusFilter(status)}
+                    className={cn(
+                      "px-3 py-1 text-xs font-semibold rounded-md transition-all whitespace-nowrap",
+                      statusFilter === status
+                        ? "bg-slate-700 text-white shadow-sm"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
+                    )}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <CardContent className="p-0">
+              {currentPipelines.length === 0 ? (
+                <div className="text-center py-12 text-slate-500 font-medium">No pipelines match your search criteria</div>
               ) : (
-                <div className="space-y-4">
-                  <div className="space-y-4">
-                    {currentPipelines?.map((pipeline) => (
-                      <div
-                        key={pipeline.id}
-                        className="flex items-center justify-between p-4 rounded-lg border border-slate-800 bg-[#1F2937]/30 hover:bg-[#1F2937]/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-4">
-                          {getStatusIcon(pipeline.status)}
+                <div className="divide-y divide-slate-800">
+                  {currentPipelines.map((pipeline) => (
+                    <div
+                      key={pipeline.id}
+                      className="group flex flex-col md:flex-row md:items-center p-4 hover:bg-[#1F2937]/30 transition-colors bg-[#0B0F1A]"
+                    >
+                      {/* Col 1: Name and Subtitle */}
+                      <div className="flex-1 min-w-[200px] mb-3 md:mb-0">
+                        <div className="flex items-center gap-3">
+                          <Database className="h-4 w-4 text-slate-500" />
                           <div>
-                            <p className="font-semibold text-slate-200">{pipeline.name}</p>
-                            <p className="text-xs text-slate-500 font-medium uppercase tracking-tighter">
+                            <p className="font-semibold text-white tracking-tight text-sm">{pipeline.name}</p>
+                            <p className="text-[11px] text-slate-500 font-medium mt-0.5">
                               {pipeline.last_run_at
-                                ? `Processed: ${formatDistanceToNow(new Date(pipeline.last_run_at), { addSuffix: true })}`
+                                ? `Processed ${formatDistanceToNow(new Date(pipeline.last_run_at), { addSuffix: true })}`
                                 : "Awaiting first execution"}
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-6">
-                          <div className="text-right">
-                            <p className="text-sm font-bold text-slate-300 font-mono">{pipeline.schedule_cron || "MANUAL"}</p>
-                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Schedule</p>
-                          </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 md:gap-8 justify-between md:justify-end flex-wrap md:flex-nowrap">
+
+                        {/* Col 2: Cron Schedule */}
+                        <div className="w-[100px] text-left">
+                          <p className="font-mono text-xs font-semibold text-slate-400">{pipeline.schedule_cron || "MANUAL"}</p>
+                          <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Schedule</p>
+                        </div>
+
+                        {/* Col 3: Status Badge */}
+                        <div className="w-[100px] text-right">
                           {getStatusBadge(pipeline.status)}
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
+                  
+                  {/* Pagination Footer */}
                   {totalPipelinePages > 1 && (
-                    <div className="flex justify-center items-center gap-4 mt-8">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPipelinePage((p) => Math.max(1, p - 1))}
-                        disabled={pipelinePage === 1}
-                        className="bg-[#111827] border-slate-700 text-slate-300 hover:text-white"
-                      >
-                        Previous
-                      </Button>
-                      <span className="text-sm text-slate-500 font-medium">
-                        Page <span className="text-slate-200">{pipelinePage}</span> of <span className="text-slate-200">{totalPipelinePages}</span>
+                    <div className="flex items-center justify-between px-4 py-3 bg-[#111827] border-t border-slate-800">
+                      <span className="text-xs text-slate-500 font-medium">
+                        Showing {indexOfFirstPipeline + 1} to {Math.min(indexOfLastPipeline, filteredAndSortedPipelines.length)} of {filteredAndSortedPipelines.length}
                       </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPipelinePage((p) => Math.min(totalPipelinePages, p + 1))}
-                        disabled={pipelinePage === totalPipelinePages}
-                        className="bg-[#111827] border-slate-700 text-slate-300 hover:text-white"
-                      >
-                        Next
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPipelinePage((p) => Math.max(1, p - 1))}
+                          disabled={pipelinePage === 1}
+                          className="h-8 bg-[#1F2937] border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700"
+                        >
+                          Prev
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPipelinePage((p) => Math.min(totalPipelinePages, p + 1))}
+                          disabled={pipelinePage === totalPipelinePages}
+                          className="h-8 bg-[#1F2937] border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700"
+                        >
+                          Next
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>

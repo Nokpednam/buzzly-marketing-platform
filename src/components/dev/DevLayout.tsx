@@ -107,9 +107,9 @@ export function DevLayout() {
 
     return (
         <SidebarProvider>
-            <div className="flex min-h-screen w-full animate-fade-in font-sans">
+            <div className="dark flex min-h-screen w-full animate-fade-in font-sans bg-[#0B0F1A]">
                 <DevSidebar />
-                <main className="flex-1 overflow-y-auto bg-background px-8 pt-6 pb-10">
+                <main className="flex-1 overflow-y-auto px-8 pt-6 pb-10">
                     <Outlet />
                 </main>
             </div>
