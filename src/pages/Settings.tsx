@@ -67,6 +67,7 @@ export default function Settings() {
   const {
     preferences: notificationPrefs,
     isLoading: notificationPrefsLoading,
+    isUpdating: notificationPrefsUpdating,
     setEmailReports,
     setPushNotifications,
     setWeeklyDigest,
@@ -354,18 +355,21 @@ export default function Settings() {
                       desc="Daily campaign summaries delivered to your inbox."
                       checked={notificationPrefs.email_reports}
                       onCheckedChange={setEmailReports}
+                      disabled={notificationPrefsUpdating}
                     />
                     <NotificationSwitch
                       title="Push Notifications"
                       desc="Instant updates in your browser for budget alerts."
                       checked={notificationPrefs.push_notifications}
                       onCheckedChange={setPushNotifications}
+                      disabled={notificationPrefsUpdating}
                     />
                     <NotificationSwitch
                       title="Weekly Performance Digest"
                       desc="A deep-dive analysis into your growth metrics."
                       checked={notificationPrefs.weekly_digest}
                       onCheckedChange={setWeeklyDigest}
+                      disabled={notificationPrefsUpdating}
                     />
                   </>
                 )}
@@ -441,14 +445,26 @@ function SettingInput({ label, id, ...props }: any) {
   );
 }
 
-function NotificationSwitch({ title, desc, checked, onCheckedChange }: any) {
+function NotificationSwitch({
+  title,
+  desc,
+  checked,
+  onCheckedChange,
+  disabled = false,
+}: {
+  title: string;
+  desc: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
   return (
     <div className="flex items-center justify-between p-6 rounded-2xl bg-background border border-border/50 hover:border-primary/20 transition-all group">
       <div className="space-y-1">
         <p className="font-bold text-sm group-hover:text-primary transition-colors">{title}</p>
         <p className="text-xs text-muted-foreground">{desc}</p>
       </div>
-      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+      <Switch checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
     </div>
   );
 }

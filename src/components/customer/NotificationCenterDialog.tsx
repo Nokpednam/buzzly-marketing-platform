@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useCustomerCoupons, CustomerNotification } from "@/hooks/useCustomerCoupons";
 import { useTeamManagement } from "@/hooks/useTeamManagement";
+import { useWorkspaceNotifications } from "@/hooks/useWorkspaceNotifications";
 import {
     Bell,
     Ticket,
@@ -18,7 +19,10 @@ import {
     Users,
     Check,
     X,
+    AlertTriangle,
+    FileText,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 export function NotificationCenterDialog({
@@ -60,6 +64,8 @@ function AllNotificationsContent() {
     const { notifications, isLoadingNotifications, markNotificationRead, collectCoupon, collectedCoupons } =
         useCustomerCoupons();
     const { receivedInvitations, acceptInvitation, declineInvitation, loading: isLoadingTeam } = useTeamManagement();
+    const { notifications: workspaceNotifs, markAsRead: markWorkspaceRead } = useWorkspaceNotifications();
+    const navigate = useNavigate();
     const [collectingId, setCollectingId] = useState<string | null>(null);
     const [actioningId, setActioningId] = useState<string | null>(null);
 
@@ -113,7 +119,7 @@ function AllNotificationsContent() {
         );
     }
 
-    // Merge notifications and invitations
+    // Merge notifications, invitations, and workspace notifications
     const combinedNotifications = [
         ...notifications.map(n => ({ ...n, itemType: 'notification' as const })),
         ...receivedInvitations.map(inv => ({
@@ -125,6 +131,17 @@ function AllNotificationsContent() {
             created_at: inv.created_at,
             itemType: 'invitation' as const,
             invitation: inv
+        })),
+        ...workspaceNotifs.map(wn => ({
+            id: wn.id,
+            title: wn.title,
+            message: wn.body ?? undefined,
+            type: wn.type,
+            is_read: wn.is_read,
+            created_at: wn.created_at,
+            itemType: 'workspace' as const,
+            link: wn.link,
+            workspaceNotif: wn
         }))
     ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
@@ -153,11 +170,10 @@ function AllNotificationsContent() {
                         variant="ghost"
                         size="sm"
                         className="h-6 text-xs text-primary px-2"
-                        onClick={() =>
-                            notifications
-                                .filter((n) => !n.is_read)
-                                .forEach((n) => markNotificationRead.mutate(n.id))
-                        }
+                        onClick={() => {
+                            notifications.filter((n) => !n.is_read).forEach((n) => markNotificationRead.mutate(n.id));
+                            workspaceNotifs.filter((n) => !n.is_read).forEach((n) => markWorkspaceRead.mutate(n.id));
+                        }}
                     >
                         Mark all read
                     </Button>
@@ -165,6 +181,48 @@ function AllNotificationsContent() {
             )}
             <div className="max-h-[65vh] overflow-y-auto divide-y divide-border/50">
                 {combinedNotifications.map((notif) => {
+                    if (notif.itemType === 'workspace') {
+                        const wn = notif.workspaceNotif!;
+                        const icon = wn.type === 'budget_alert' ? AlertTriangle : FileText;
+                        const Icon = icon;
+                        return (
+                            <div
+                                key={notif.id}
+                                className={cn(
+                                    "flex items-start gap-3 px-6 py-4 transition-colors cursor-pointer",
+                                    !notif.is_read ? "bg-amber-500/5 hover:bg-amber-500/8" : "hover:bg-muted/40"
+                                )}
+                                onClick={() => {
+                                    if (!notif.is_read) markWorkspaceRead.mutate(notif.id);
+                                    if (wn.link) navigate(wn.link);
+                                }}
+                            >
+                                <div className="h-9 w-9 rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <Icon className="h-4 w-4 text-amber-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                        <p className="text-sm font-semibold leading-tight">{notif.title}</p>
+                                        {!notif.is_read && (
+                                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 shrink-0" />
+                                        )}
+                                    </div>
+                                    {notif.message && (
+                                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{notif.message}</p>
+                                    )}
+                                    <p className="text-[10px] text-muted-foreground/60 mt-1">
+                                        {new Date(notif.created_at).toLocaleString("th-TH", {
+                                            day: "numeric",
+                                            month: "short",
+                                            year: "numeric",
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                        })}
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    }
                     if (notif.itemType === 'invitation') {
                         return (
                             <div

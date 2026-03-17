@@ -30,7 +30,7 @@ export function useNotificationPreferences() {
   }, []);
 
   const query = useQuery({
-    queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY,
+    queryKey: [...NOTIFICATION_PREFERENCES_QUERY_KEY, userId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notification_preferences")
@@ -50,7 +50,7 @@ export function useNotificationPreferences() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const cached = queryClient.getQueryData<NotificationPreferences | null>(NOTIFICATION_PREFERENCES_QUERY_KEY);
+      const cached = queryClient.getQueryData<NotificationPreferences | null>([...NOTIFICATION_PREFERENCES_QUERY_KEY, user.id]);
       const merged = { ...DEFAULT_PREFERENCES, ...cached, ...prefs };
       const { error } = await supabase
         .from("notification_preferences")
@@ -67,10 +67,7 @@ export function useNotificationPreferences() {
       if (error) throw error;
     },
     onSuccess: (_, variables) => {
-      queryClient.setQueryData(NOTIFICATION_PREFERENCES_QUERY_KEY, (old: NotificationPreferences | null) => ({
-        ...(old ?? DEFAULT_PREFERENCES),
-        ...variables,
-      }));
+      queryClient.invalidateQueries({ queryKey: NOTIFICATION_PREFERENCES_QUERY_KEY });
       toast({ title: "Preferences saved", description: "Your notification settings have been updated." });
     },
     onError: (err) => {

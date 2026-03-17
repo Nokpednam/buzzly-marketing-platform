@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Mail, Lock, Loader2, Sparkles, ArrowRight, Zap, CheckCircle2 } from "lucide-react";
+import { Mail, Lock, Loader2, Sparkles, ArrowRight, Zap, CheckCircle2, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { loginSchema } from "@/lib/validations/auth";
@@ -170,12 +170,15 @@ export default function Auth() {
         <div className="absolute inset-0 bg-blue-600/90 mix-blend-multiply" />
 
         <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-8">
-            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center shadow-lg">
+          <Link
+            to="/"
+            className="flex items-center gap-2 mb-8 w-fit group"
+          >
+            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
               <Zap className="h-6 w-6 text-blue-600 fill-current" />
             </div>
             <span className="text-2xl font-bold text-white tracking-tight">Buzzly</span>
-          </div>
+          </Link>
 
           <div className="max-w-md space-y-4">
             <Badge className="bg-white/20 text-white border-none backdrop-blur-md">
@@ -209,6 +212,13 @@ export default function Auth() {
       {/* Right side - Login Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-white">
         <div className="w-full max-w-md space-y-8">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Landing
+          </Link>
           <div className="text-center lg:text-left space-y-2">
             <h2 className="text-3xl font-bold tracking-tight text-slate-900">Welcome Back</h2>
             <p className="text-slate-500">Sign in to manage your marketing ecosystem.</p>

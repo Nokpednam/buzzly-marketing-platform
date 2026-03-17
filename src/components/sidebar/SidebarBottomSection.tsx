@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Zap, Bell, LogOut, Settings, ChevronUp, Gift, TrendingUp, History, ArrowUp, ArrowDown, ArrowUpRight, Users } from "lucide-react";
+import { Zap, Bell, LogOut, Settings, ChevronUp, Gift, TrendingUp, History, ArrowUp, ArrowDown, ArrowUpRight, Users, AlertTriangle } from "lucide-react";
 import { RewardsCenterModal } from "@/components/customer/RewardsCenterModal";
 import { MyCouponsModal } from "@/components/customer/MyCouponsModal";
 import { cn } from "@/lib/utils";
@@ -30,6 +30,7 @@ import { MessageSquarePlus, Ticket } from "lucide-react";
 import { auditAuth } from "@/lib/auditLogger";
 import { useCustomerCoupons } from "@/hooks/useCustomerCoupons";
 import { useTeamManagement } from "@/hooks/useTeamManagement";
+import { useWorkspaceNotifications } from "@/hooks/useWorkspaceNotifications";
 import { NotificationCenterDialog } from "@/components/customer/NotificationCenterDialog";
 import { useProfileCustomer } from "@/hooks/useProfileCustomer";
 
@@ -75,11 +76,12 @@ export function SidebarBottomSection({ collapsed = false }: SidebarBottomSection
   const { currentPlan, loading: planLoading } = usePlanAccess();
   const { userLoyalty, getNextTier, getProgressToNextTier, loading: loyaltyLoading } = useLoyaltyTier();
   const { notifications } = useCustomerCoupons();
-  const { receivedInvitations, acceptInvitation, declineInvitation } = useTeamManagement();
+  const { receivedInvitations } = useTeamManagement();
+  const { unreadCount: workspaceUnread } = useWorkspaceNotifications();
 
   const unreadNotifs = notifications.filter(n => !n.is_read).length;
   const unreadInvites = receivedInvitations.length; // Pending invitations are always "unread" for this purpose
-  const unreadCount = unreadNotifs + unreadInvites;
+  const unreadCount = unreadNotifs + unreadInvites + workspaceUnread;
 
   const navigate = useNavigate();
 
@@ -466,12 +468,14 @@ function TierPopoverContent({
 function MiniNotifPopover({ unreadCount, onViewAll }: { unreadCount: number; onViewAll: () => void }) {
   const { notifications, markNotificationRead, collectCoupon, collectedCoupons } = useCustomerCoupons();
   const { receivedInvitations, acceptInvitation, declineInvitation } = useTeamManagement();
+  const { notifications: workspaceNotifs, markAsRead: markWorkspaceRead } = useWorkspaceNotifications();
+  const navigate = useNavigate();
 
   const collectedDiscountIds = new Set(collectedCoupons.map((c) => c.discount_id));
   const [collectingId, setCollectingId] = useState<string | null>(null);
   const [actioningId, setActioningId] = useState<string | null>(null);
 
-  // Merge recent notifications and invitations
+  // Merge recent notifications, invitations, and workspace notifications
   const recent = [
     ...notifications.slice(0, 4).map(n => ({ ...n, itemType: 'notification' as const })),
     ...receivedInvitations.slice(0, 2).map(inv => ({
@@ -482,6 +486,16 @@ function MiniNotifPopover({ unreadCount, onViewAll }: { unreadCount: number; onV
       is_read: false,
       created_at: inv.created_at,
       itemType: 'invitation' as const,
+    })),
+    ...workspaceNotifs.slice(0, 2).map(wn => ({
+      id: wn.id,
+      title: wn.title,
+      message: wn.body ?? '',
+      type: wn.type,
+      is_read: wn.is_read,
+      created_at: wn.created_at,
+      itemType: 'workspace' as const,
+      link: wn.link,
     }))
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 5);
 
@@ -525,6 +539,11 @@ function MiniNotifPopover({ unreadCount, onViewAll }: { unreadCount: number; onV
                   if (notif.itemType === 'notification' && !notif.is_read) {
                     markNotificationRead.mutate(notif.id);
                   }
+                  if (notif.itemType === 'workspace') {
+                    if (!notif.is_read) markWorkspaceRead.mutate(notif.id);
+                    if (notif.link) navigate(notif.link);
+                    else onViewAll();
+                  }
                 }}
               >
                 <div className={cn(
@@ -535,7 +554,9 @@ function MiniNotifPopover({ unreadCount, onViewAll }: { unreadCount: number; onV
                     ? <Ticket className="h-3.5 w-3.5 text-emerald-600" />
                     : notif.itemType === 'invitation'
                       ? <Users className="h-3.5 w-3.5 text-primary" />
-                      : <Zap className="h-3.5 w-3.5 text-primary" />}
+                      : notif.itemType === 'workspace'
+                        ? <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                        : <Zap className="h-3.5 w-3.5 text-primary" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
