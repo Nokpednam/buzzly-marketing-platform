@@ -347,19 +347,56 @@ export function useCustomerSearch() {
     const searchResult = useQuery({
         queryKey: ["customer-search", debouncedQuery],
         queryFn: async () => {
-            if (!debouncedQuery || debouncedQuery.trim().length < 2) return [];
+            const q = debouncedQuery.trim().replace(/,/g, " "); // commas break .or()
+            if (!q || q.length < 1) return [];
 
-            // Use RPC for reliable search: name, email, user_id — avoids RLS/filter issues
-            const { data, error } = await (supabase as any).rpc("search_customers_for_support", {
-                p_query: debouncedQuery.trim(),
-            });
+            // Escape ilike wildcards: % _ \ (so user "50%" searches literal 50%)
+            const escaped = q.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+            const pattern = `%${escaped}%`;
 
-            if (error) {
-                console.error("customer search error", error);
-                throw error;
+            // Primary: direct query (works with employees_can_read_all_profile_customers RLS)
+            const { data: directData, error: directError } = await supabase
+                .from("profile_customers")
+                .select(`
+                    id,
+                    user_id,
+                    first_name,
+                    last_name,
+                    created_at,
+                    loyalty_points(point_balance, loyalty_tiers(name))
+                `)
+                .or(`first_name.ilike.${pattern},last_name.ilike.${pattern},user_id.ilike.${pattern}`)
+                .limit(15)
+                .order("first_name", { ascending: true });
+
+            if (!directError && directData && directData.length > 0) {
+                return (directData as any[]).map((c: any) => {
+                    const lp = c.loyalty_points?.[0] ?? c.loyalty_points;
+                    const tierName = lp?.loyalty_tiers?.name ?? null;
+                    const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ").trim() || null;
+                    return {
+                        id: c.user_id,
+                        full_name: fullName,
+                        email: `${c.user_id?.slice(0, 8) ?? "?"}@...`,
+                        created_at: c.created_at ?? "",
+                        loyalty_tier: tierName,
+                        loyalty_points_balance: lp?.point_balance ?? 0,
+                        total_spend: 0,
+                    } as CustomerSearchResult;
+                });
             }
 
-            const rows = (data ?? []) as Array<{
+            // Fallback: RPC (if direct query fails due to RLS or empty)
+            const { data: rpcData, error: rpcError } = await (supabase as any).rpc("search_customers_for_support", {
+                p_query: q,
+            });
+
+            if (rpcError) {
+                if (directError) throw directError;
+                throw rpcError;
+            }
+
+            const rows = (rpcData ?? []) as Array<{
                 id: string;
                 full_name: string | null;
                 email: string | null;
@@ -368,19 +405,17 @@ export function useCustomerSearch() {
                 loyalty_points_balance: number;
             }>;
 
-            const results: CustomerSearchResult[] = rows.map((r) => ({
+            return rows.map((r) => ({
                 id: r.id,
                 full_name: r.full_name,
-                email: r.email ?? `${r.id.slice(0, 8)}@...`,
+                email: r.email ?? `${r.id?.slice(0, 8) ?? "?"}@...`,
                 created_at: r.created_at ?? "",
                 loyalty_tier: r.loyalty_tier,
                 loyalty_points_balance: r.loyalty_points_balance ?? 0,
                 total_spend: 0,
-            }));
-
-            return results;
+            })) as CustomerSearchResult[];
         },
-        enabled: debouncedQuery.trim().length >= 2,
+        enabled: debouncedQuery.trim().length >= 1,
     });
 
     return { query, setQuery, ...searchResult };
@@ -498,7 +533,7 @@ export function useManualTierOverride() {
             queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history"] });
             queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-all"] });
             queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-manual"] });
-            queryClient.invalidateQueries({ queryKey: ["points-transactions"] });
+            queryClient.invalidateQueries({ queryKey: ["points-transactions-admin"] });
             toast.success("Tier updated successfully");
         },
         onError: (error: Error) => {

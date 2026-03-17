@@ -430,7 +430,7 @@ export default function TierManagement() {
             </TabsList>
           </div>
 
-          {searchQuery.length >= 2 && (
+          {searchQuery.length >= 1 && (
             <div className="px-6 py-4 border-b border-slate-100">
               {searchError ? (
                 <p className="text-sm text-destructive text-center py-4">
