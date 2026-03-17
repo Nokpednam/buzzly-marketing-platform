@@ -15,8 +15,6 @@
  * ── TODO: If you need to change data or calculations ──────────
  *   • Add/rename icons   → src/utils/missionHelpers.ts  (MISSION_ICONS)
  *   • Change calculations → src/utils/missionHelpers.ts  (helper fns)
- *   • Switch to mock data → src/hooks/useLoyaltyMissions.ts (useMock flag)
- *   • Add mock missions   → src/data/missionsMockData.ts (MOCK_MISSIONS)
  * ─────────────────────────────────────────────────────────────
  */
 
@@ -56,8 +54,6 @@ export function LoyaltyMissionsList() {
   //   The hook already queries Supabase:
   //     loyalty_activity_codes (is_active = true) → mission catalogue
   //     loyalty_mission_completions               → completion status per user
-  //   If you need a mock-data fallback while backend is down, set the
-  //   useMock flag in useLoyaltyMissions.ts.
   const {
     missions,
     loading,

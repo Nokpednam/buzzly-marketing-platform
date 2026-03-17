@@ -69,6 +69,8 @@ import {
   useCustomerSearch,
   useManualTierOverride,
   useLoyaltyTierHistory,
+  useLoyaltyTierHistoryManual,
+  useAllCustomers,
   ADMIN_PAGE_SIZE,
   ALERTS_PAGE_SIZE,
   type CustomerSearchResult,
@@ -93,6 +95,13 @@ export default function TierManagement() {
   const [overrideTier, setOverrideTier] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
 
+  // God-Mode state
+  const [godCustomerSearch, setGodCustomerSearch] = useState("");
+  const [godCustomerId, setGodCustomerId] = useState("");
+  const [godTier, setGodTier] = useState("");
+  const [godReason, setGodReason] = useState("");
+  const [godDropdownOpen, setGodDropdownOpen] = useState(false);
+
   // Pagination state
   const [historyPage, setHistoryPage] = useState(0);
   const [loyaltyHistoryPage, setLoyaltyHistoryPage] = useState(0);
@@ -100,12 +109,13 @@ export default function TierManagement() {
   const [activitiesPage, setActivitiesPage] = useState(0);
 
   // Real DB hooks
-  const { data: tierHistory = [], isLoading: historyLoading, isError: historyError, error: historyErrorDetail } = useTierHistory(historyPage);
+  const { data: tierHistory = [], isLoading: historyLoading, isError: historyError, error: historyErrorDetail } = useLoyaltyTierHistoryManual(historyPage);
   const { data: loyaltyTierHistory = [], isLoading: loyaltyHistoryLoading, isError: loyaltyHistoryError } = useLoyaltyTierHistory(loyaltyHistoryPage);
   const { data: pointsTransactions = [], isLoading: txLoading, isError: txError, error: txErrorDetail } = usePointsTransactions(transactionsPage);
   const { data: suspiciousActivities = [], isLoading: alertsLoading, unresolvedCount, resolveActivity, suspendCustomer } = useSuspiciousActivities(activitiesPage);
   const { query: searchQuery, setQuery: setSearchQuery, data: searchResults = [], isFetching: searchLoading } = useCustomerSearch();
   const manualOverride = useManualTierOverride();
+  const { data: allCustomers = [], isLoading: allCustomersLoading } = useAllCustomers();
 
   const safeTierIcons = tierIcons || defaultTierIcons;
   const safeTierColors = tierColors || defaultTierColors;
@@ -142,6 +152,30 @@ export default function TierManagement() {
     setOverrideReason("");
   };
 
+  // God-mode helpers
+  const filteredCustomers = allCustomers.filter((c) => {
+    if (!godCustomerSearch.trim()) return true;
+    const q = godCustomerSearch.toLowerCase();
+    return (
+      c.full_name?.toLowerCase().includes(q) ||
+      c.id.toLowerCase().includes(q)
+    );
+  });
+  const godSelectedCustomer = allCustomers.find((c) => c.id === godCustomerId) ?? null;
+
+  const handleGodOverride = async () => {
+    if (!godCustomerId || !godTier || !godReason.trim()) return;
+    await manualOverride.mutateAsync({
+      userId: godCustomerId,
+      newTierName: godTier,
+      reason: godReason,
+    });
+    setGodCustomerId("");
+    setGodCustomerSearch("");
+    setGodTier("");
+    setGodReason("");
+  };
+
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
@@ -149,6 +183,142 @@ export default function TierManagement() {
         <h1 className="text-3xl font-bold text-foreground">Tier Management</h1>
         <p className="text-muted-foreground">จัดการและตรวจสอบ Loyalty Tier ของลูกค้า</p>
       </div>
+
+      {/* ⚡ GOD-MODE: Manual Tier Adjustment */}
+      <Card className="border-2 border-destructive/40 bg-destructive/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-destructive">
+            <Award className="h-5 w-5" />
+            ⚡ God-Mode: Manual Tier Adjustment
+          </CardTitle>
+          <CardDescription>
+            บังคับเปลี่ยน Tier ของผู้ใช้ใด ๆ ในระบบ — ถูกบันทึกใน loyalty_tier_history ด้วย change_type = 'manual'
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Step 1: Customer picker */}
+          <div className="space-y-2">
+            <Label>Step 1 — เลือกลูกค้า</Label>
+            <div className="relative">
+              <Input
+                placeholder={allCustomersLoading ? "กำลังโหลดรายชื่อลูกค้า..." : "ค้นหาชื่อหรือ ID ลูกค้า..."}
+                value={godCustomerSearch}
+                onChange={(e) => { setGodCustomerSearch(e.target.value); setGodDropdownOpen(true); }}
+                onFocus={() => setGodDropdownOpen(true)}
+                disabled={allCustomersLoading}
+              />
+              {allCustomersLoading && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
+
+            {/* Customer dropdown list */}
+            {godDropdownOpen && (godCustomerSearch.length > 0 || filteredCustomers.length > 0) && (
+              <div className="border rounded-lg max-h-48 overflow-y-auto bg-background shadow-md z-10 relative">
+                {filteredCustomers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-3">ไม่พบลูกค้า</p>
+                ) : (
+                  filteredCustomers.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={cn(
+                        "w-full flex items-center justify-between px-3 py-2 text-left hover:bg-muted/60 transition-colors text-sm",
+                        godCustomerId === c.id && "bg-destructive/10 font-semibold"
+                      )}
+                      onClick={() => {
+                        setGodCustomerId(c.id);
+                        setGodCustomerSearch(c.full_name ?? c.id.slice(0, 8));
+                        setGodDropdownOpen(false);
+                      }}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span>{safeTierIcons[c.loyalty_tier ?? ""] ?? "👤"}</span>
+                        <span>{c.full_name ?? "ไม่ระบุชื่อ"}</span>
+                      </span>
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "text-[10px]",
+                          safeTierColors[c.loyalty_tier ?? ""]?.bg,
+                          safeTierColors[c.loyalty_tier ?? ""]?.text
+                        )}
+                      >
+                        {c.loyalty_tier ?? "—"}
+                      </Badge>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Selected customer preview */}
+            {godSelectedCustomer && (
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
+                <span className="text-2xl">{safeTierIcons[godSelectedCustomer.loyalty_tier ?? ""] ?? "👤"}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm">{godSelectedCustomer.full_name ?? "ไม่ระบุชื่อ"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {(godSelectedCustomer.loyalty_points_balance ?? 0).toLocaleString()} pts
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Tier ปัจจุบัน:</span>
+                  <Badge
+                    className={cn(
+                      safeTierColors[godSelectedCustomer.loyalty_tier ?? ""]?.bg,
+                      safeTierColors[godSelectedCustomer.loyalty_tier ?? ""]?.text
+                    )}
+                  >
+                    {godSelectedCustomer.loyalty_tier ?? "ไม่มี"}
+                  </Badge>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Step 2 + 3 inline */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Step 2 — Tier ใหม่</Label>
+              <Select value={godTier} onValueChange={setGodTier}>
+                <SelectTrigger>
+                  <SelectValue placeholder="เลือก Tier ใหม่" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Bronze">🥉 Bronze</SelectItem>
+                  <SelectItem value="Silver">🥈 Silver</SelectItem>
+                  <SelectItem value="Gold">🥇 Gold</SelectItem>
+                  <SelectItem value="Platinum">💎 Platinum</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Step 3 — เหตุผล (บังคับ)</Label>
+              <Input
+                placeholder="เหตุผลในการเปลี่ยน Tier..."
+                value={godReason}
+                onChange={(e) => setGodReason(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Action button */}
+          <Button
+            variant="destructive"
+            className="w-full font-bold"
+            disabled={!godCustomerId || !godTier || !godReason.trim() || manualOverride.isPending}
+            onClick={handleGodOverride}
+          >
+            {manualOverride.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Award className="h-4 w-4 mr-2" />
+            )}
+            Force Update Tier
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Customer Search */}
       <Card>
@@ -369,8 +539,10 @@ export default function TierManagement() {
 
                           return (
                             <TableRow key={h.id}>
-                              <TableCell className="text-sm">
-                                {format(new Date(h.changed_at), "d MMM yyyy HH:mm", { locale: safeLocale })}
+                              <TableCell className="text-sm border-r w-32 border-b-0 whitespace-nowrap">
+                                {h.changed_at || (h as any).created_at 
+                                  ? format(new Date(h.changed_at || (h as any).created_at), "d MMM yyyy HH:mm", { locale: safeLocale })
+                                  : "—"}
                               </TableCell>
                               <TableCell className="font-medium">{customerName}</TableCell>
                               <TableCell>
@@ -472,18 +644,24 @@ export default function TierManagement() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {tierHistory.slice(0, ADMIN_PAGE_SIZE).map((history) => {
-                          const prevTierName = history.previous_tier?.name ?? "—";
-                          const newTierName = history.new_tier?.name ?? "—";
-                          const customerName = history.customer?.full_name ?? history.customer?.email ?? history.user_id.slice(0, 8);
-                          const changerName = history.is_manual_override
-                            ? (history.changer?.full_name ?? "Admin")
-                            : "System";
+                        {(tierHistory as any[]).slice(0, ADMIN_PAGE_SIZE).map((history) => {
+                          const prevTierName = history.old_tier ?? "—";
+                          const newTierName = history.new_tier ?? "—";
+                          // Attempt to get user_id from joined customer, otherwise fallback
+                          const fallbackId = history.customer?.user_id ?? history.profile_customer_id ?? "";
+                          const customerName = history.customer?.first_name 
+                            ? `${history.customer.first_name} ${history.customer.last_name ?? ""}`.trim() 
+                            : history.customer?.email ?? fallbackId.slice(0, 8);
+                          const changerName = history.changer?.first_name 
+                            ? `${history.changer.first_name} ${history.changer.last_name ?? ""}`.trim() 
+                            : "Admin";
 
                           return (
                             <TableRow key={history.id}>
-                              <TableCell className="text-sm">
-                                {format(new Date(history.created_at), "d MMM yyyy", { locale: safeLocale })}
+                              <TableCell className="text-sm border-r w-32 border-b-0 whitespace-nowrap">
+                                {history.changed_at || history.created_at
+                                  ? format(new Date(history.changed_at || history.created_at), "d MMM yyyy HH:mm", { locale: safeLocale })
+                                  : "—"}
                               </TableCell>
                               <TableCell className="font-medium">{customerName}</TableCell>
                               <TableCell>
@@ -523,7 +701,7 @@ export default function TierManagement() {
                               </TableCell>
                               <TableCell className="max-w-[200px] truncate">{history.change_reason ?? "—"}</TableCell>
                               <TableCell>
-                                <Badge variant={history.is_manual_override ? "destructive" : "secondary"}>
+                                <Badge variant="destructive">
                                   {changerName}
                                 </Badge>
                               </TableCell>

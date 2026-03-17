@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useUserRedeemedCoupons } from "@/hooks/useUserRedeemedCoupons";
+import { useUserRedeemedCoupons, isCouponUsed } from "@/hooks/useUserRedeemedCoupons";
 import { Ticket, Copy, CheckCircle2, Clock, Gift, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -52,14 +52,14 @@ export function MyRedeemedCouponsDialog({ children }: { children: React.ReactNod
                         </div>
                     ) : (
                         coupons.map((coupon) => {
-                            const isUsed = coupon.status === "used";
+                            const isUsed = isCouponUsed(coupon);
                             return (
                                 <div
                                     key={coupon.id}
                                     className={cn(
                                         "rounded-2xl border p-4 transition-all",
                                         isUsed
-                                            ? "opacity-60 bg-muted/30"
+                                            ? "opacity-50 grayscale bg-muted/40 border-muted"
                                             : "bg-card hover:border-amber-500/30 hover:shadow-md"
                                     )}
                                 >
@@ -75,8 +75,9 @@ export function MyRedeemedCouponsDialog({ children }: { children: React.ReactNod
                                                     {coupon.reward_item?.points_cost?.toLocaleString()} pts
                                                 </Badge>
                                                 {isUsed ? (
-                                                    <Badge className="text-[10px] h-5 px-2 bg-slate-500/10 text-slate-600 border-slate-500/20">
-                                                        <CheckCircle2 className="h-2.5 w-2.5 mr-1" />Used
+                                                    <Badge className="text-[10px] h-5 px-2.5 font-extrabold tracking-wide bg-slate-700 text-white border-transparent">
+                                                        <CheckCircle2 className="h-2.5 w-2.5 mr-1" />
+                                                        Used · ใช้แล้ว
                                                     </Badge>
                                                 ) : (
                                                     <Badge className="text-[10px] h-5 px-2 bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
@@ -95,8 +96,22 @@ export function MyRedeemedCouponsDialog({ children }: { children: React.ReactNod
                                         </div>
                                     </div>
 
-                                    {/* Coupon code row */}
-                                    <div className="flex items-center justify-between gap-3 bg-muted/50 rounded-xl px-3 py-2.5 border border-dashed">
+                                    {/* Coupon code row — with USED watermark stamp */}
+                                    <div className="relative flex items-center justify-between gap-3 bg-muted/50 rounded-xl px-3 py-2.5 border border-dashed overflow-hidden">
+                                        {/* Diagonal USED stamp overlay */}
+                                        {isUsed && (
+                                            <div
+                                                className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                                                aria-hidden="true"
+                                            >
+                                                <span
+                                                    className="text-slate-500/30 font-black text-3xl select-none"
+                                                    style={{ transform: "rotate(-20deg)", letterSpacing: "0.3em" }}
+                                                >
+                                                    USED
+                                                </span>
+                                            </div>
+                                        )}
                                         <code className="font-mono font-black text-primary text-sm tracking-widest flex-1 truncate">
                                             {coupon.coupon_code}
                                         </code>
@@ -106,7 +121,7 @@ export function MyRedeemedCouponsDialog({ children }: { children: React.ReactNod
                                             className="h-8 w-8 p-0 shrink-0 text-primary hover:bg-primary/10"
                                             onClick={() => copyCode(coupon.coupon_code)}
                                             disabled={isUsed}
-                                            title="Copy code"
+                                            title={isUsed ? "Coupon already used" : "Copy code"}
                                         >
                                             <Copy className="h-4 w-4" />
                                         </Button>

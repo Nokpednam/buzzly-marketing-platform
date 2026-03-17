@@ -173,6 +173,14 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
 
       const missionsData = (catalogueRes.data as any[]) ?? [];
 
+      // Maps new action_codes → legacy action_types that may be stored in the DB
+      const legacyMap: Record<string, string> = {
+        'first_campaign': 'create_campaign',
+        'connect_ad_api': 'connect_api',
+        'pro_upgrade':    'upgrade_plan',
+        'create_workspace': 'create_workspace',
+      };
+
       const combinedMissions: Mission[] = missionsData.map((m) => ({
         id: m.id,
         // loyalty_activity_codes uses action_code; loyalty_missions uses action_type — support both
@@ -183,7 +191,11 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
         points_awarded: m.reward_points ?? m.points_awarded,
         is_one_time: m.is_one_time ?? true,
         is_active: m.is_active,
-        isCompleted: completedTypes.has(m.action_code ?? m.action_type),
+        // Check new action_code, legacy action_type, OR the legacy equivalent of the new code
+        isCompleted:
+          completedTypes.has(m.action_code) ||
+          completedTypes.has(m.action_type) ||
+          completedTypes.has(legacyMap[m.action_code]),
       }));
 
       setMissions(combinedMissions);

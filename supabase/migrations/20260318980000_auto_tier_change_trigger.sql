@@ -1,12 +1,12 @@
 -- ============================================================================
--- Migration: Add Real-Time Auto-Log Trigger for Tier Changes (INSERT & UPDATE)
--- Timestamp: 20260318990000
+-- Migration: Add Real-Time Auto-Log Trigger for Tier Changes
+-- Timestamp: 20260318980000
 --
--- Problem:  The previous trigger only fired on UPDATE, completely missing
---           new users (INSERT) who are assigned a tier upon creation.
+-- Problem:  loyalty_tier_history is missing real-time logs for new users
+--           or when the tier system organically levels someone up.
 --
--- Fix:      Update log_auto_tier_change() to handle BOTH TG_OP = 'INSERT'
---           and TG_OP = 'UPDATE' events correctly.
+-- Fix:      Create a dedicated trigger specifically tracking AFTER UPDATE OF
+--           loyalty_tier_id to insert an 'auto' record into history.
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.log_auto_tier_change()
@@ -19,32 +19,29 @@ DECLARE
     v_old_tier_name TEXT;
     v_new_tier_name TEXT;
 BEGIN
-    -- 1. Handle UPDATE logic: skip if tier didn't actually change
-    IF TG_OP = 'UPDATE' THEN
-        IF OLD.loyalty_tier_id IS NOT DISTINCT FROM NEW.loyalty_tier_id THEN
-            RETURN NEW;
-        END IF;
-
-        -- Fetch old tier name if possible
-        IF OLD.loyalty_tier_id IS NOT NULL THEN
-            SELECT name INTO v_old_tier_name
-            FROM public.loyalty_tiers
-            WHERE id = OLD.loyalty_tier_id;
-        END IF;
+    -- Only act when tier actually changes
+    IF OLD.loyalty_tier_id IS NOT DISTINCT FROM NEW.loyalty_tier_id THEN
+        RETURN NEW;
     END IF;
 
-    -- 2. Handle INSERT logic (or missing old tier on UPDATE)
-    --    Default old tier name to 'None' for new signups
+    -- Fetch the old tier name (handle NULLs safely)
+    IF OLD.loyalty_tier_id IS NOT NULL THEN
+        SELECT name INTO v_old_tier_name
+        FROM public.loyalty_tiers
+        WHERE id = OLD.loyalty_tier_id;
+    END IF;
+
+    -- Default to 'None' if they didn't have a tier previously
     v_old_tier_name := COALESCE(v_old_tier_name, 'None');
 
-    -- 3. Fetch the new tier name
+    -- Fetch the new tier name
     IF NEW.loyalty_tier_id IS NOT NULL THEN
         SELECT name INTO v_new_tier_name
         FROM public.loyalty_tiers
         WHERE id = NEW.loyalty_tier_id;
     END IF;
 
-    -- 4. Insert the log into history if a tier was assigned
+    -- Insert the auto-log into history
     IF v_new_tier_name IS NOT NULL THEN
         INSERT INTO public.loyalty_tier_history (
             profile_customer_id,
@@ -65,12 +62,12 @@ BEGIN
 END;
 $$;
 
--- Drop the old UPDATE-only trigger
+-- Drop existing if it exists
 DROP TRIGGER IF EXISTS trg_log_auto_tier_change ON public.loyalty_points;
 
--- Create the new INSERT or UPDATE trigger
+-- Recreate trigger
 CREATE TRIGGER trg_log_auto_tier_change
-    AFTER INSERT OR UPDATE OF loyalty_tier_id ON public.loyalty_points
+    AFTER UPDATE OF loyalty_tier_id ON public.loyalty_points
     FOR EACH ROW
     EXECUTE FUNCTION public.log_auto_tier_change();
 

@@ -151,9 +151,5 @@ ON CONFLICT (action_code) DO NOTHING;
 
 INSERT INTO public.reward_items (id, name, description, reward_type, points_cost, stock_quantity, image_url, is_active)
 VALUES
-    ('dd23789c-13e2-4547-981d-090743fc6829', '1,000 Extra Email Quota', 'เพิ่มโควต้าส่งอีเมล 1,000 ฉบับ สำหรับเดือนปัจจุบัน', 'system_quota', 500, NULL, NULL, true),
-    ('51ee0686-503f-47a0-92f8-b9ccc94d7126', 'Priority Support Ticket (1ea)', 'เปิดตั๋ว Support ระดับ Priority ทีมงานจะตอบกลับเร่งด่วนภายใน 1 ชม.', 'service', 1000, NULL, NULL, true),
-    ('a8e1b522-efb7-44e1-8692-d60fa2ddb6de', 'Premium Template Pack A', 'ปลดล็อคเทมเพลตอีเมลการตลาดชุด Premium A จำนวน 10 แบบ', 'digital_asset', 2000, NULL, NULL, true),
-    ('3635b8d4-6940-4f8a-8de0-03646c136f20', '1-on-1 Consult (30 Mins)', 'ปรึกษาและวิเคราะห์แคมเปญกับผู้เชี่ยวชาญการตลาดแบบ 1-on-1 (30 นาที)', 'service', 10000, 10, NULL, true),
-    ('fa9aa06e-1d6c-41d7-a4e5-d7967803f76f', 'Canva Pro Promo Code (1 Month)', 'รับโค้ดส่วนลดใช้งาน Canva Pro ฟรี 1 เดือน', 'partner_perk', 3000, 50, NULL, true)
+    ('dd23789c-13e2-4547-981d-090743fc6829', 'คูปองส่วนลด 20%', 'โค้ดส่วนลด 20% สำหรับการสั่งซื้อ (จำกัด 1 สิทธิ์ต่อผู้ใช้)', 'DISCOUNT', 400, 1, NULL, true)
 ON CONFLICT DO NOTHING;
