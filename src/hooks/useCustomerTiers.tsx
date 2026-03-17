@@ -1,7 +1,37 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subMonths } from "date-fns";
+import { format, subMonths, endOfMonth, startOfMonth } from "date-fns";
 import { th } from "date-fns/locale";
+
+export interface GenderSegment {
+  gender: string;
+  count: number;
+  percentage: number;
+}
+
+export interface GenderTrendPoint {
+  month: string;
+  Male: number;
+  Female: number;
+  "Not Specified": number;
+}
+
+export interface KPISparkline {
+  date: string;
+  value: number;
+}
+
+export interface AccountGrowthPoint {
+  month: string;
+  creations: number;
+  activations: number;
+}
+
+export interface RetentionChurnPoint {
+  month: string;
+  retentionRate: number;
+  churnRate: number;
+}
 
 export interface TierDistribution {
     name: string;
@@ -56,6 +86,18 @@ export interface CustomerTiersData {
     totalRevenue: number;
     avgSpendAll: number;
     platinumCount: number;
+    // Overview / Customer Overview
+    byGender: GenderSegment[];
+    genderTrend: GenderTrendPoint[];
+    kpiSparklines: {
+        totalCustomers: KPISparkline[];
+        newMonthly: KPISparkline[];
+        active: KPISparkline[];
+        churned: KPISparkline[];
+    };
+    kpiChange: { totalCustomers: number; newMonthly: number; active: number; churned: number };
+    accountGrowth: AccountGrowthPoint[];
+    retentionChurn: RetentionChurnPoint[];
 }
 
 const TIER_COLORS: Record<string, string> = {
@@ -72,6 +114,9 @@ async function fetchCustomerTiersData(timePeriod: string): Promise<CustomerTiers
       user_id,
       first_name,
       last_name,
+      created_at,
+      gender,
+      last_active,
       loyalty_point_id,
       loyalty_points(
         point_balance,
@@ -318,6 +363,136 @@ async function fetchCustomerTiersData(timePeriod: string): Promise<CustomerTiers
         ([month, data]) => ({ month, upgrades: data.up, downgrades: data.down })
     );
 
+    // ── Overview: Gender, KPIs, Account Growth, Retention/Churn ─────────────────
+    const normalizeGender = (g: string | null | undefined): string => {
+        const v = (g ?? "").trim().toLowerCase();
+        if (v === "male") return "Male";
+        if (v === "female") return "Female";
+        return "Not Specified";
+    };
+
+    const byGenderMap = new Map<string, number>();
+    let totalForGender = 0;
+    customers.forEach((c: any) => {
+        const g = normalizeGender(c.gender);
+        byGenderMap.set(g, (byGenderMap.get(g) || 0) + 1);
+        totalForGender++;
+    });
+    const byGender: GenderSegment[] = ["Male", "Female", "Not Specified"].map((g) => {
+        const count = byGenderMap.get(g) || 0;
+        return { gender: g, count, percentage: totalForGender > 0 ? Math.round((count / totalForGender) * 100) : 0 };
+    });
+
+    const sixMonthsAgo = subMonths(endDate, 3);
+    const monthLabels: string[] = [];
+    for (let i = 5; i >= 0; i--) {
+        const d = subMonths(endDate, i);
+        monthLabels.push(format(d, "MMM yy", { locale: th }));
+    }
+
+    const genderTrend: GenderTrendPoint[] = monthLabels.map((label, idx) => {
+        const monthEnd = endOfMonth(subMonths(endDate, 5 - idx));
+        const counts = { Male: 0, Female: 0, "Not Specified": 0 };
+        customers.forEach((c: any) => {
+            const created = c.created_at ? new Date(c.created_at) : null;
+            if (created && created <= monthEnd) {
+                const g = normalizeGender(c.gender);
+                counts[g as keyof typeof counts]++;
+            }
+        });
+        return { month: label, ...counts };
+    });
+
+    const monthlyCreations = new Map<string, number>();
+    const monthlyActive = new Map<string, number>();
+    const monthlyChurned = new Map<string, number>();
+    monthLabels.forEach((label) => {
+        monthlyCreations.set(label, 0);
+        monthlyActive.set(label, 0);
+        monthlyChurned.set(label, 0);
+    });
+
+    customers.forEach((c: any) => {
+        const created = c.created_at ? new Date(c.created_at) : null;
+        const lastActive = c.last_active ? new Date(c.last_active) : userLastTxMap.get(c.user_id) ?? null;
+        const lastActivity = lastActive ?? created;
+
+        monthLabels.forEach((label, idx) => {
+            const monthEnd = endOfMonth(subMonths(endDate, 5 - idx));
+            const monthStart = startOfMonth(monthEnd);
+            if (created && created >= monthStart && created <= monthEnd) {
+                monthlyCreations.set(label, (monthlyCreations.get(label) || 0) + 1);
+            }
+            const activeThreshold = new Date(monthEnd.getTime() - 30 * 24 * 3600 * 1000);
+            const churnThreshold = new Date(monthEnd.getTime() - 60 * 24 * 3600 * 1000);
+            if (lastActivity && lastActivity >= activeThreshold) {
+                monthlyActive.set(label, (monthlyActive.get(label) || 0) + 1);
+            }
+            if (lastActivity && lastActivity < churnThreshold && lastActivity >= monthStart) {
+                monthlyChurned.set(label, (monthlyChurned.get(label) || 0) + 1);
+            }
+        });
+    });
+
+    const totalCustomersSparkline = monthLabels.map((label, idx) => {
+        const monthEnd = endOfMonth(subMonths(endDate, 5 - idx));
+        let count = 0;
+        customers.forEach((c: any) => {
+            const created = c.created_at ? new Date(c.created_at) : null;
+            if (created && created <= monthEnd) count++;
+        });
+        return { date: label, value: count };
+    });
+
+    const newMonthlySparkline = monthLabels.map((label) => ({ date: label, value: monthlyCreations.get(label) || 0 }));
+    const activeSparkline = monthLabels.map((label) => ({ date: label, value: monthlyActive.get(label) || 0 }));
+    const churnedSparkline = monthLabels.map((label) => ({ date: label, value: monthlyChurned.get(label) || 0 }));
+
+    const prevTotal = totalCustomersSparkline[4]?.value ?? totalCustomers;
+    const currTotal = totalCustomersSparkline[5]?.value ?? totalCustomers;
+    const prevNew = newMonthlySparkline[4]?.value ?? 0;
+    const currNew = newMonthlySparkline[5]?.value ?? 0;
+    const prevActive = activeSparkline[4]?.value ?? 0;
+    const currActive = activeSparkline[5]?.value ?? 0;
+    const prevChurned = churnedSparkline[4]?.value ?? 0;
+    const currChurned = churnedSparkline[5]?.value ?? 0;
+
+    const pct = (prev: number, curr: number) => (prev > 0 ? Math.round(((curr - prev) / prev) * 1000) / 10 : 0);
+
+    const kpiChange = {
+        totalCustomers: pct(prevTotal, currTotal),
+        newMonthly: pct(prevNew, currNew),
+        active: pct(prevActive, currActive),
+        churned: pct(prevChurned, currChurned),
+    };
+
+    const accountGrowth: AccountGrowthPoint[] = monthLabels.map((label) => ({
+        month: label,
+        creations: monthlyCreations.get(label) || 0,
+        activations: monthlyActive.get(label) || 0,
+    }));
+
+    const retentionChurn: RetentionChurnPoint[] = monthLabels.map((label, idx) => {
+        const monthEnd = endOfMonth(subMonths(endDate, 5 - idx));
+        let countAsOf = 0;
+        let activeCount = 0;
+        let churnedCount = 0;
+        const churnCutoff = new Date(monthEnd.getTime() - 60 * 24 * 3600 * 1000);
+        const activeCutoff = new Date(monthEnd.getTime() - 30 * 24 * 3600 * 1000);
+        customers.forEach((c: any) => {
+            const created = c.created_at ? new Date(c.created_at) : null;
+            if (!created || created > monthEnd) return;
+            countAsOf++;
+            const lastActive = c.last_active ? new Date(c.last_active) : userLastTxMap.get(c.user_id) ?? null;
+            const lastActivity = lastActive ?? created;
+            if (lastActivity >= activeCutoff) activeCount++;
+            else if (lastActivity < churnCutoff) churnedCount++;
+        });
+        const retentionRate = countAsOf > 0 ? Math.round((activeCount / countAsOf) * 100) : 0;
+        const churnRate = countAsOf > 0 ? Math.round((churnedCount / countAsOf) * 100) : 0;
+        return { month: label, retentionRate, churnRate };
+    });
+
     return {
         tierDistribution,
         revenueByTier,
@@ -330,6 +505,17 @@ async function fetchCustomerTiersData(timePeriod: string): Promise<CustomerTiers
         totalRevenue,
         avgSpendAll,
         platinumCount,
+        byGender,
+        genderTrend,
+        kpiSparklines: {
+            totalCustomers: totalCustomersSparkline,
+            newMonthly: newMonthlySparkline,
+            active: activeSparkline,
+            churned: churnedSparkline,
+        },
+        kpiChange,
+        accountGrowth,
+        retentionChurn,
     };
 }
 

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "./useWorkspace";
+import { USE_MOCK_DATA, getMockAds } from "@/lib/mock-api-data";
 
 export interface PersonaData {
   age_distribution: Record<string, number>;
@@ -65,30 +66,45 @@ export function weightedAvg(ads: { persona_data: PersonaData; weight: number }[]
   };
 }
 
+type AdWithPersona = { id: string; persona_data: PersonaData; name: string; platform: string | null };
+
+function buildMockAdsWithPersona(workspaceId: string | null): AdWithPersona[] {
+  const mockAds = getMockAds(workspaceId);
+  return mockAds.map((ad, i) => ({
+    id: `mock-ad-${i}`,
+    name: ad.ad_name ?? "Untitled Ad",
+    platform: ad.platform ?? null,
+    persona_data: ad.persona_data as PersonaData,
+  }));
+}
+
 export function useAdPersonas({ mode, adId, campaignId }: AdPersonaFilter) {
   const { workspace } = useWorkspace();
   const workspaceId = workspace.id;
 
   // Fetch all workspace ads that have persona_data (minimal columns for performance)
   const { data: adsRaw = [], isLoading: adsLoading } = useQuery({
-    queryKey: ["ad-personas-ads", workspaceId],
-    enabled: !!workspaceId,
+    queryKey: ["ad-personas-ads", workspaceId, USE_MOCK_DATA ? "mock" : "live"],
+    enabled: !!workspaceId || USE_MOCK_DATA,
     staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
+    queryFn: async (): Promise<AdWithPersona[]> => {
+      if (USE_MOCK_DATA) {
+        return buildMockAdsWithPersona(workspaceId ?? null);
+      }
       const { data, error } = await (supabase as any)
         .from("ads")
         .select("id, persona_data, name, platform")
         .eq("team_id", workspaceId)
         .not("persona_data", "is", null);
       if (error) throw error;
-      return data as { id: string; persona_data: PersonaData; name: string; platform: string | null }[];
+      return data as AdWithPersona[];
     },
   });
 
   // Fetch impressions per ad (for weighting and total display).
   const { data: insightsRaw = [], isLoading: insightsLoading } = useQuery({
-    queryKey: ["ad-personas-insights", workspaceId],
-    enabled: !!workspaceId,
+    queryKey: ["ad-personas-insights", workspaceId, USE_MOCK_DATA ? "mock" : "live"],
+    enabled: !USE_MOCK_DATA && !!workspaceId,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -102,7 +118,7 @@ export function useAdPersonas({ mode, adId, campaignId }: AdPersonaFilter) {
   // Fetch campaign → ad assignments (only when campaign filter is active)
   const { data: campaignAdsRaw = [], isLoading: campaignAdsLoading } = useQuery({
     queryKey: ["ad-personas-campaign-ads", workspaceId],
-    enabled: mode === "campaign",
+    enabled: mode === "campaign" && !USE_MOCK_DATA,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -113,29 +129,48 @@ export function useAdPersonas({ mode, adId, campaignId }: AdPersonaFilter) {
     },
   });
 
+  // Mock impressions: use fixture impressions for weighting when in mock mode
+  const mockImpressionsMap = useMemo(() => {
+    if (!USE_MOCK_DATA) return {};
+    const mockAds = getMockAds(workspaceId ?? null);
+    const map: Record<string, number> = {};
+    mockAds.forEach((ad, i) => {
+      map[`mock-ad-${i}`] = ad.impressions ?? 1;
+    });
+    return map;
+  }, [workspaceId]);
+
   // Aggregate impressions per ad for weighting
   const impressionsMap = useMemo(() => {
+    if (USE_MOCK_DATA) return mockImpressionsMap;
     const map: Record<string, number> = {};
     for (const row of insightsRaw) {
       if (row.ads_id) map[row.ads_id] = (map[row.ads_id] ?? 0) + (row.impressions ?? 0);
     }
     return map;
-  }, [insightsRaw]);
+  }, [insightsRaw, mockImpressionsMap]);
+
+  // Use mock ads as fallback when no real data (so graphs always display)
+  const effectiveAds = useMemo((): AdWithPersona[] => {
+    if (adsRaw.length > 0) return adsRaw;
+    if (USE_MOCK_DATA) return buildMockAdsWithPersona(workspaceId ?? null);
+    return buildMockAdsWithPersona(workspaceId ?? null); // fallback to demo data when empty
+  }, [adsRaw, workspaceId]);
 
   const personaData = useMemo((): PersonaData | null => {
-    if (!adsRaw.length) return null;
+    if (!effectiveAds.length) return null;
 
     if (mode === "ad") {
-      const ad = adsRaw.find(a => a.id === adId);
+      const ad = effectiveAds.find(a => a.id === adId);
       return ad?.persona_data ?? null;
     }
 
-    let targetAds = adsRaw;
-    if (mode === "campaign" && campaignId) {
+    let targetAds = effectiveAds;
+    if (mode === "campaign" && campaignId && !USE_MOCK_DATA && campaignAdsRaw.length > 0) {
       const adIds = new Set(
         campaignAdsRaw.filter(r => r.campaign_id === campaignId).map(r => r.ad_id)
       );
-      targetAds = adsRaw.filter(a => adIds.has(a.id));
+      targetAds = effectiveAds.filter(a => adIds.has(a.id));
     }
 
     return weightedAvg(
@@ -144,28 +179,37 @@ export function useAdPersonas({ mode, adId, campaignId }: AdPersonaFilter) {
         weight: impressionsMap[a.id] ?? 1, // fallback weight=1 so zero-impression ads still count
       }))
     );
-  }, [mode, adId, campaignId, adsRaw, campaignAdsRaw, impressionsMap]);
+  }, [mode, adId, campaignId, effectiveAds, campaignAdsRaw, impressionsMap]);
 
   const totalImpressions = useMemo(() => {
     if (!personaData) return 0;
     if (mode === "ad" && adId) {
       return impressionsMap[adId] ?? 0;
     }
-    if (mode === "campaign" && campaignId) {
+    if (mode === "campaign" && campaignId && !USE_MOCK_DATA) {
       const adIds = new Set(
         campaignAdsRaw.filter(r => r.campaign_id === campaignId).map(r => r.ad_id)
       );
-      return adsRaw
+      return effectiveAds
         .filter(a => adIds.has(a.id))
         .reduce((s, a) => s + (impressionsMap[a.id] ?? 0), 0);
     }
-    return adsRaw.reduce((s, a) => s + (impressionsMap[a.id] ?? 0), 0);
-  }, [mode, adId, campaignId, adsRaw, campaignAdsRaw, impressionsMap, personaData]);
+    return effectiveAds.reduce((s, a) => s + (impressionsMap[a.id] ?? 0), 0);
+  }, [mode, adId, campaignId, effectiveAds, campaignAdsRaw, impressionsMap, personaData]);
 
   const isLoading =
-    adsLoading ||
-    (mode !== "ad" && insightsLoading) ||
-    (mode === "campaign" && campaignAdsLoading);
+    !USE_MOCK_DATA &&
+    (adsLoading ||
+      (mode !== "ad" && insightsLoading) ||
+      (mode === "campaign" && campaignAdsLoading));
 
-  return { personaData, isLoading, adsWithPersona: adsRaw, totalImpressions };
+  const isFallbackData = effectiveAds.length > 0 && adsRaw.length === 0 && !USE_MOCK_DATA;
+
+  return {
+    personaData,
+    isLoading,
+    adsWithPersona: effectiveAds,
+    totalImpressions,
+    isFallbackData,
+  };
 }

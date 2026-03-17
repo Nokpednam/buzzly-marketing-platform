@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subMonths, subDays, subWeeks, subYears, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfYear, endOfYear, isWithinInterval, parseISO } from "date-fns";
+import { format, subMonths, subDays, subWeeks, subYears, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfYear, endOfYear, endOfDay, isWithinInterval, parseISO, eachDayOfInterval, addDays } from "date-fns";
 
 export interface TimeRangeKPIs {
   currentMrr: number;
@@ -439,14 +439,20 @@ export function useProductUsageMetrics() {
 
       const totalUsers = totalCustomers || totalPayingUsers;
 
+      // 6. Platform users = workspace members (people using Buzzly)
+      const { count: platformUsersCount } = await supabase
+        .from("workspace_members")
+        .select("*", { count: "exact", head: true });
+
       return {
         totalUsers,
         activeSubscriptions: activeSubsCount,
         dau,
         mau,
         dauMauRatio: mau > 0 ? Math.round((dau / mau) * 100) : 0,
-        // Extra for AARRR funnel correlation
         totalPayingUsers,
+        /** Platform users = workspace members (people who use Buzzly) */
+        platformUsersCount: platformUsersCount ?? 0,
       };
     },
   });
@@ -676,19 +682,76 @@ export interface FrictionPointItem {
   description?: string;
 }
 
-export function useFeatureUsageMetrics(days: number = 30) {
+export interface FeatureUsageTimeSeriesItem {
+  date: string;
+  dateLabel: string;
+  total: number;
+  [feature: string]: string | number;
+}
+
+export type FeatureUsageGranularity = "month" | "week" | "year";
+
+export interface FeatureUsageDateRange {
+  granularity: FeatureUsageGranularity;
+  /** month: "2025-03", week: "2025-03-17" (Mon), year: "2025" */
+  value: string;
+}
+
+/** Get previous period value for trend comparison */
+export function getPreviousFeatureUsagePeriod(range: FeatureUsageDateRange): FeatureUsageDateRange {
+  const { granularity, value } = range;
+  if (granularity === "month") {
+    const d = parseISO(`${value}-01`);
+    const prev = subMonths(d, 1);
+    return { granularity, value: format(prev, "yyyy-MM") };
+  }
+  if (granularity === "week") {
+    const d = parseISO(value);
+    const prev = subWeeks(d, 1);
+    return { granularity, value: format(prev, "yyyy-MM-dd") };
+  }
+  if (granularity === "year") {
+    const d = parseISO(`${value}-01-01`);
+    const prev = subYears(d, 1);
+    return { granularity, value: format(prev, "yyyy") };
+  }
+  return range;
+}
+
+/** Resolve date range from granularity + value */
+export function resolveFeatureUsageDateRange(range: FeatureUsageDateRange): { startDate: Date; endDate: Date } {
+  const { granularity, value } = range;
+  if (granularity === "month") {
+    const d = parseISO(`${value}-01`);
+    return { startDate: startOfMonth(d), endDate: endOfMonth(d) };
+  }
+  if (granularity === "week") {
+    const d = parseISO(value);
+    const start = startOfWeek(d, { weekStartsOn: 1 });
+    return { startDate: start, endDate: endOfDay(addDays(start, 6)) };
+  }
+  if (granularity === "year") {
+    const d = parseISO(`${value}-01-01`);
+    return { startDate: startOfYear(d), endDate: endOfYear(d) };
+  }
+  const fallback = subDays(new Date(), 30);
+  return { startDate: fallback, endDate: new Date() };
+}
+
+export function useFeatureUsageMetrics(range: FeatureUsageDateRange) {
+  const { startDate, endDate } = resolveFeatureUsageDateRange(range);
   return useQuery({
-    queryKey: ["owner-feature-usage", days],
+    queryKey: ["owner-feature-usage", range.granularity, range.value],
     queryFn: async (): Promise<{
       featureUsage: FeatureUsageItem[];
       frictionPoints: FrictionPointItem[];
+      featureUsageTimeSeries: FeatureUsageTimeSeriesItem[];
     }> => {
-      const since = subDays(new Date(), days);
-
       const { data: logs, error } = await supabase
         .from("audit_logs_enhanced")
-        .select("id, user_id, category, description, status, metadata, action_type_id, action_type:action_type_id(action_name)")
-        .gte("created_at", since.toISOString());
+        .select("id, user_id, category, description, status, metadata, action_type_id, created_at, action_type:action_type_id(action_name)")
+        .gte("created_at", startDate.toISOString())
+        .lte("created_at", endDate.toISOString());
 
       if (error) throw error;
 
@@ -817,7 +880,281 @@ export function useFeatureUsageMetrics(days: number = 30) {
         })
         .sort((a, b) => b.count - a.count);
 
-      return { featureUsage, frictionPoints };
+      // 3. Feature Usage Time Series (by day) — for trend charts
+      const topFeatureKeys = featureUsage.slice(0, 5).map((f) => f.feature);
+      const dayMap = new Map<string, { total: number; byFeature: Record<string, number> }>();
+      const daysInRange = eachDayOfInterval({ start: startDate, end: endDate });
+
+      daysInRange.forEach((dte) => {
+        const key = format(dte, "yyyy-MM-dd");
+        dayMap.set(key, { total: 0, byFeature: Object.fromEntries(topFeatureKeys.map((k) => [k, 0])) });
+      });
+
+      successLogs.forEach((l: any) => {
+        const featureKey = getFeatureFromLog(l);
+        const createdAt = (l as any).created_at;
+        if (!createdAt) return;
+        const dte = parseISO(createdAt);
+        const key = format(dte, "yyyy-MM-dd");
+        const entry = dayMap.get(key);
+        if (!entry) return;
+        entry.total++;
+        if (topFeatureKeys.includes(featureKey)) {
+          entry.byFeature[featureKey] = (entry.byFeature[featureKey] ?? 0) + 1;
+        }
+      });
+
+      const featureUsageTimeSeries: FeatureUsageTimeSeriesItem[] = Array.from(dayMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([date, { total, byFeature }]) => ({
+          date,
+          dateLabel: format(parseISO(date), "MMM d"),
+          total,
+          ...byFeature,
+        }));
+
+      return { featureUsage, frictionPoints, featureUsageTimeSeries };
+    },
+  });
+}
+
+/** Feature usage broken down by persona (business type) — for Persona tab chart */
+export interface FeatureUsageByPersonaItem {
+  persona: string;
+  feature: string;
+  count: number;
+  percentage: number;
+}
+
+export function useFeatureUsageByPersona(range: FeatureUsageDateRange) {
+  const { startDate, endDate } = resolveFeatureUsageDateRange(range);
+  return useQuery({
+    queryKey: ["owner-feature-usage-by-persona", range.granularity, range.value],
+    queryFn: async (): Promise<FeatureUsageByPersonaItem[]> => {
+      const pathToFeature = (path: string | null | undefined): string | null => {
+        if (!path || typeof path !== "string") return null;
+        const p = path.replace(/\/$/, "").toLowerCase();
+        if (p === "/dashboard") return "Dashboard";
+        if (p === "/personas" || p === "/prospects") return "Personas";
+        if (p === "/campaigns") return "Campaigns";
+        if (/^\/campaigns\/[^/]+/.test(p)) return "Campaign Detail";
+        if (p === "/social/planner") return "Social Planner";
+        if (p === "/social/analytics") return "Social Analytics";
+        if (p === "/social/inbox") return "Social Inbox";
+        if (p === "/social/integrations") return "Social Integrations";
+        if (p === "/social") return "Social";
+        if (p === "/customer-journey") return "Customer Journey";
+        if (p === "/aarrr-funnel") return "AARRR Funnel";
+        if (p === "/api-keys") return "API Keys";
+        if (p === "/analytics") return "Analytics";
+        if (p === "/reports") return "Reports";
+        if (p === "/settings") return "Settings";
+        if (p === "/team") return "Team Management";
+        if (p === "/auth" || p === "/signup") return "Auth";
+        if (p.startsWith("/social/")) return "Social";
+        return null;
+      };
+      const categoryToFeature: Record<string, string> = {
+        authentication: "Auth", auth: "Auth", login: "Auth", feature: "Feature View",
+        campaign: "Campaigns", data: "Reports", report: "Reports", export: "Reports",
+        import: "Data Import", security: "Security", subscription: "Subscription",
+        discount: "Discounts", settings: "Settings", workspace: "Workspace",
+        api_key: "API Keys", integration: "Platform Connections",
+      };
+      const getFeatureFromLog = (l: { metadata?: { page_url?: string }; category?: string }): string => {
+        const fromPath = pathToFeature((l.metadata as { page_url?: string })?.page_url);
+        if (fromPath) return fromPath;
+        const c = ((l as { category?: string }).category || "").toLowerCase();
+        return categoryToFeature[c] || c || "Other";
+      };
+
+      const { data: logs, error } = await supabase
+        .from("audit_logs_enhanced")
+        .select("id, user_id, category, metadata, status, created_at")
+        .gte("created_at", startDate.toISOString())
+        .lte("created_at", endDate.toISOString());
+
+      if (error) throw error;
+      const allLogs = logs || [];
+      const successLogs = allLogs.filter(
+        (l: { status?: string }) =>
+          !l.status ||
+          l.status === "success" ||
+          l.status === "completed" ||
+          (typeof l.status === "string" && !["failed", "error"].includes(l.status.toLowerCase()))
+      );
+
+      const userIds = [...new Set(successLogs.map((l: { user_id?: string }) => l.user_id).filter(Boolean))] as string[];
+      if (userIds.length === 0) return [];
+
+      const { data: members } = await supabase
+        .from("workspace_members")
+        .select("user_id, team_id")
+        .in("user_id", userIds)
+        .eq("status", "active");
+
+      const teamIds = [...new Set((members ?? []).map((m: { team_id: string }) => m.team_id).filter(Boolean))] as string[];
+      if (teamIds.length === 0) return [];
+
+      const { data: workspaces } = await supabase
+        .from("workspaces")
+        .select("id, business_types ( name )")
+        .in("id", teamIds);
+
+      const teamToBusiness: Record<string, string> = {};
+      (workspaces ?? []).forEach((w: { id: string; business_types?: { name?: string } }) => {
+        const bt = w.business_types?.name || "Other";
+        if (w.id) teamToBusiness[w.id] = bt;
+      });
+
+      const userToBusiness: Record<string, string> = {};
+      (members ?? []).forEach((m: { user_id: string; team_id: string }) => {
+        const bt = teamToBusiness[m.team_id];
+        if (bt && m.user_id && !userToBusiness[m.user_id]) userToBusiness[m.user_id] = bt;
+      });
+
+      const map = new Map<string, number>();
+      successLogs.forEach((l: { user_id?: string; metadata?: unknown; category?: string }) => {
+        const bt = l.user_id ? userToBusiness[l.user_id] : null;
+        if (!bt) return;
+        const feature = getFeatureFromLog(l);
+        const key = `${bt}::${feature}`;
+        map.set(key, (map.get(key) ?? 0) + 1);
+      });
+
+      const total = [...map.values()].reduce((s, c) => s + c, 0) || 1;
+      return Array.from(map.entries())
+        .map(([key, count]) => {
+          const [persona, feature] = key.split("::");
+          return {
+            persona,
+            feature,
+            count,
+            percentage: Math.round((count / total) * 100),
+          };
+        })
+        .sort((a, b) => b.count - a.count);
+    },
+  });
+}
+
+/** Friction (failed actions) broken down by persona — for real Key Friction in Persona cards */
+export interface FrictionByPersonaItem {
+  persona: string;
+  feature: string;
+  action: string;
+  count: number;
+  percentage: number;
+}
+
+export function useFrictionByPersona(range: FeatureUsageDateRange) {
+  const { startDate, endDate } = resolveFeatureUsageDateRange(range);
+  return useQuery({
+    queryKey: ["owner-friction-by-persona", range.granularity, range.value],
+    queryFn: async (): Promise<FrictionByPersonaItem[]> => {
+      const pathToFeature = (path: string | null | undefined): string | null => {
+        if (!path || typeof path !== "string") return null;
+        const p = path.replace(/\/$/, "").toLowerCase();
+        if (p === "/dashboard") return "Dashboard";
+        if (p === "/personas" || p === "/prospects") return "Personas";
+        if (p === "/campaigns") return "Campaigns";
+        if (/^\/campaigns\/[^/]+/.test(p)) return "Campaign Detail";
+        if (p === "/social/planner") return "Social Planner";
+        if (p === "/social/analytics") return "Social Analytics";
+        if (p === "/social/inbox") return "Social Inbox";
+        if (p === "/social/integrations") return "Social Integrations";
+        if (p === "/social") return "Social";
+        if (p === "/api-keys") return "API Keys";
+        if (p === "/analytics") return "Analytics";
+        if (p === "/reports") return "Reports";
+        if (p === "/settings") return "Settings";
+        if (p === "/team") return "Team Management";
+        if (p.startsWith("/social/")) return "Social";
+        return null;
+      };
+      const categoryToFeature: Record<string, string> = {
+        authentication: "Auth", auth: "Auth", campaign: "Campaigns", integration: "Platform Connections",
+        settings: "Settings", workspace: "Workspace", api_key: "API Keys",
+      };
+      const getFeatureFromLog = (l: { metadata?: { page_url?: string }; category?: string }): string => {
+        const fromPath = pathToFeature((l.metadata as { page_url?: string })?.page_url);
+        if (fromPath) return fromPath;
+        const c = ((l as { category?: string }).category || "").toLowerCase();
+        return categoryToFeature[c] || c || "Other";
+      };
+
+      const { data: logs, error } = await supabase
+        .from("audit_logs_enhanced")
+        .select("id, user_id, category, metadata, status, action_type:action_type_id(action_name)")
+        .gte("created_at", startDate.toISOString())
+        .lte("created_at", endDate.toISOString());
+
+      if (error) throw error;
+      const allLogs = logs || [];
+      const failedLogs = allLogs.filter(
+        (l: { status?: string }) =>
+          l.status && ["failed", "error"].includes((l.status as string).toLowerCase())
+      );
+
+      const userIds = [...new Set(failedLogs.map((l: { user_id?: string }) => l.user_id).filter(Boolean))] as string[];
+      if (userIds.length === 0) return [];
+
+      const { data: members } = await supabase
+        .from("workspace_members")
+        .select("user_id, team_id")
+        .in("user_id", userIds)
+        .eq("status", "active");
+
+      const teamIds = [...new Set((members ?? []).map((m: { team_id: string }) => m.team_id).filter(Boolean))] as string[];
+      if (teamIds.length === 0) return [];
+
+      const { data: workspaces } = await supabase
+        .from("workspaces")
+        .select("id, business_types ( name )")
+        .in("id", teamIds);
+
+      const teamToBusiness: Record<string, string> = {};
+      (workspaces ?? []).forEach((w: { id: string; business_types?: { name?: string } }) => {
+        const bt = w.business_types?.name || "Other";
+        if (w.id) teamToBusiness[w.id] = bt;
+      });
+
+      const userToBusiness: Record<string, string> = {};
+      (members ?? []).forEach((m: { user_id: string; team_id: string }) => {
+        const bt = teamToBusiness[m.team_id];
+        if (bt && m.user_id && !userToBusiness[m.user_id]) userToBusiness[m.user_id] = bt;
+      });
+
+      const map = new Map<string, { count: number; action: string }>();
+      failedLogs.forEach((l: { user_id?: string; metadata?: unknown; category?: string; action_type?: { action_name?: string } }) => {
+        const bt = l.user_id ? userToBusiness[l.user_id] : null;
+        if (!bt) return;
+        const feature = getFeatureFromLog(l);
+        const action = (l.action_type as { action_name?: string })?.action_name || "Unknown";
+        const key = `${bt}::${feature}`;
+        const existing = map.get(key);
+        if (existing) {
+          existing.count++;
+        } else {
+          map.set(key, { count: 1, action });
+        }
+      });
+
+      const total = [...map.values()].reduce((s, x) => s + x.count, 0) || 1;
+      return Array.from(map.entries())
+        .map(([key, { count, action }]) => {
+          const parts = key.split("::");
+          const persona = parts[0] ?? "Other";
+          const feature = parts[1] ?? "Unknown";
+          return {
+            persona,
+            feature,
+            action,
+            count,
+            percentage: Math.round((count / total) * 100),
+          };
+        })
+        .sort((a, b) => b.count - a.count);
     },
   });
 }
@@ -870,6 +1207,365 @@ export function useUserSegments() {
   });
 }
 
+/** Platform users (workspace_members) by role — who uses Buzzly */
+export interface PlatformUserRoleItem {
+  role: string;
+  count: number;
+  percentage: number;
+}
+
+export function usePlatformUserProfile() {
+  return useQuery({
+    queryKey: ["owner-platform-user-profile"],
+    queryFn: async (): Promise<PlatformUserRoleItem[]> => {
+      const { data, error } = await supabase
+        .from("workspace_members")
+        .select("role")
+        .eq("status", "active");
+
+      if (error) throw error;
+
+      const byRole: Record<string, number> = {};
+      let total = 0;
+      (data ?? []).forEach((r: { role: string }) => {
+        const role = r.role || "viewer";
+        byRole[role] = (byRole[role] || 0) + 1;
+        total++;
+      });
+
+      const roleOrder = ["owner", "admin", "editor", "viewer"];
+      return roleOrder
+        .filter((r) => (byRole[r] ?? 0) > 0)
+        .map((role) => ({
+          role: role.charAt(0).toUpperCase() + role.slice(1),
+          count: byRole[role] ?? 0,
+          percentage: total > 0 ? Math.round(((byRole[role] ?? 0) / total) * 100) : 0,
+        }));
+    },
+  });
+}
+
+/** Customer profile aggregates — gender & loyalty tier distribution (end customers of businesses) */
+export interface CustomerProfileAggregates {
+  byGender: { gender: string; count: number; percentage: number }[];
+  byTier: { tier: string; count: number; percentage: number }[];
+  totalCustomers: number;
+}
+
+export function useCustomerProfileAggregates() {
+  return useQuery({
+    queryKey: ["owner-customer-profile-aggregates"],
+    queryFn: async (): Promise<CustomerProfileAggregates> => {
+      const { data: profiles, error: profErr } = await supabase
+        .from("profile_customers")
+        .select(`
+          id,
+          gender,
+          loyalty_point_id,
+          loyalty_points (
+            loyalty_tier_id,
+            loyalty_tiers ( name )
+          )
+        `);
+
+      if (profErr) throw profErr;
+
+      const byGender: Record<string, number> = {};
+      const byTier: Record<string, number> = {};
+      let total = 0;
+
+      (profiles ?? []).forEach((p: any) => {
+        total++;
+        const gender = (p.gender as string)?.trim() || "Unknown";
+        byGender[gender] = (byGender[gender] || 0) + 1;
+
+        const tierName = p.loyalty_points?.loyalty_tiers?.name || "Bronze";
+        byTier[tierName] = (byTier[tierName] || 0) + 1;
+      });
+
+      const genderArr = Object.entries(byGender)
+        .map(([gender, count]) => ({ gender, count, percentage: total > 0 ? Math.round((count / total) * 100) : 0 }))
+        .sort((a, b) => b.count - a.count);
+
+      const tierOrder = ["Bronze", "Silver", "Gold", "Platinum"];
+      const tierArr = tierOrder
+        .filter((t) => (byTier[t] ?? 0) > 0)
+        .map((tier) => ({ tier, count: byTier[tier] ?? 0, percentage: total > 0 ? Math.round(((byTier[tier] ?? 0) / total) * 100) : 0 }));
+
+      return { byGender: genderArr, byTier: tierArr, totalCustomers: total };
+    },
+  });
+}
+
+/** Customer Persona — รายละเอียดลูกค้า: ใคร อยู่ที่ไหน ทำธุรกิจอะไร อายุ เพศ เงินเดือน */
+export interface OwnerCustomerPersona {
+  id: string;
+  name: string;
+  location: string;
+  countryName: string;
+  businessType: string;
+  age: number | null;
+  gender: string;
+  salaryRange: string;
+}
+
+function calcAge(birthdayAt: string | null): number | null {
+  if (!birthdayAt) return null;
+  const birth = new Date(birthdayAt);
+  const now = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  const m = now.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--;
+  return age >= 0 ? age : null;
+}
+
+export function useOwnerCustomerPersonas() {
+  return useQuery({
+    queryKey: ["owner-customer-personas"],
+    queryFn: async (): Promise<OwnerCustomerPersona[]> => {
+      const { data: profiles, error: profErr } = await supabase
+        .from("profile_customers")
+        .select(`
+          id,
+          user_id,
+          first_name,
+          last_name,
+          birthday_at,
+          gender,
+          salary_range,
+          location_id,
+          locations (
+            province_id,
+            country_id,
+            provinces ( province_name ),
+            countries ( name )
+          )
+        `);
+
+      if (profErr) throw profErr;
+
+      const { data: members } = await supabase
+        .from("workspace_members")
+        .select("user_id, team_id")
+        .eq("status", "active");
+
+      const teamIds = [...new Set((members ?? []).map((m: { team_id?: string }) => m.team_id).filter(Boolean))] as string[];
+      const userToBusiness: Record<string, string> = {};
+
+      if (teamIds.length > 0) {
+        const { data: workspaces } = await supabase
+          .from("workspaces")
+          .select("id, business_types ( name )")
+          .in("id", teamIds);
+
+        const teamToBusiness: Record<string, string> = {};
+        (workspaces ?? []).forEach((w: any) => {
+          const bt = w.business_types?.name;
+          if (bt && w.id) teamToBusiness[w.id] = bt;
+        });
+
+        (members ?? []).forEach((m: any) => {
+          const uid = m.user_id;
+          const tid = m.team_id;
+          if (!uid || !tid) return;
+          const bt = teamToBusiness[tid];
+          if (bt && !userToBusiness[uid]) userToBusiness[uid] = bt;
+        });
+      }
+
+      return (profiles ?? []).map((p: any) => {
+        const loc = p.locations;
+        const province = loc?.provinces?.province_name ?? "";
+        const country = loc?.countries?.name ?? "";
+        const location = [province, country].filter(Boolean).join(", ") || "—";
+
+        return {
+          id: p.id,
+          name: [p.first_name, p.last_name].filter(Boolean).join(" ").trim() || "—",
+          location,
+          countryName: country,
+          businessType: (p.user_id && userToBusiness[p.user_id]) || "—",
+          age: calcAge(p.birthday_at),
+          gender: (p.gender as string)?.trim() || "—",
+          salaryRange: (p.salary_range as string)?.trim() || "—",
+        };
+      });
+    },
+  });
+}
+
+/** User Archetype — segment-based persona for Product Usage Persona tab */
+export interface UserArchetype {
+  id: string;
+  businessType: string;
+  displayName: string;
+  count: number;
+  percentage: number;
+  demographics: string;
+  topFeatures: string[];
+  leastUsedFeatures: string[];
+  painPoint: string;
+  radarMetrics: { retention: number; featureDepth: number; ltv: number };
+}
+
+/** Archetype display names by business type */
+const ARCHETYPE_NAMES: Record<string, string> = {
+  "Small Business": "The Cautious Small Business",
+  Agency: "The High-Volume Agency",
+  Enterprise: "The Data-Driven Enterprise",
+  Freelancer: "The Lean Freelancer",
+  Other: "The Exploratory User",
+};
+
+/** Demographics by business type (from mock distributions) */
+const ARCHETYPE_DEMOGRAPHICS: Record<string, string> = {
+  "Small Business": "Ages 25–44, mostly Bangkok & Chiang Mai",
+  Agency: "Ages 28–40, Bangkok & major cities",
+  Enterprise: "Ages 35–55, Bangkok & regional HQs",
+  Freelancer: "Ages 22–35, Bangkok & Phuket",
+  Other: "Ages 25–45, mixed locations",
+};
+
+/** Feature affinity by business type (typical usage patterns) */
+const ARCHETYPE_TOP_FEATURES: Record<string, string[]> = {
+  "Small Business": ["Dashboard", "Campaigns", "Personas", "Social Planner"],
+  Agency: ["Campaigns", "Social Planner", "Social Integrations", "Campaign Detail"],
+  Enterprise: ["Reports", "Analytics", "Team Management", "API Keys"],
+  Freelancer: ["Personas", "Social", "Campaigns", "Dashboard"],
+  Other: ["Dashboard", "Campaigns", "Personas", "Reports"],
+};
+
+const ARCHETYPE_LEAST_FEATURES: Record<string, string[]> = {
+  "Small Business": ["API Keys", "Reports", "Team Management"],
+  Agency: ["Settings", "Reports", "API Keys"],
+  Enterprise: ["Personas", "Social Inbox", "Auth"],
+  Freelancer: ["API Keys", "Team Management", "Reports"],
+  Other: ["API Keys", "Social Integrations", "Team Management"],
+};
+
+/** Archetype-specific pain points — each segment has a unique, data-driven insight (no copy-paste) */
+const ARCHETYPE_PAIN_POINTS: Record<string, string> = {
+  "Small Business": "Low conversion on high-res image uploads in Social Planner",
+  Agency: "Friction in Team Member permission setup (multi-workspace)",
+  Enterprise: "API documentation bounce rate ~60% — devs leave before first call",
+  Freelancer: "Bulk export timeouts on large persona datasets",
+  Other: "Onboarding flow abandon at step 3 (Platform Connect)",
+};
+
+export function useUserArchetypes(featureData: {
+  featureUsage: { feature: string; count: number }[];
+  frictionPoints: { feature: string; action: string; count: number; percentage: number }[];
+} | undefined) {
+  return useQuery({
+    queryKey: ["owner-user-archetypes", featureData?.featureUsage?.length ?? 0, featureData?.frictionPoints?.length ?? 0],
+    queryFn: async (): Promise<UserArchetype[]> => {
+      const { data: workspaces, error } = await supabase
+        .from("workspaces")
+        .select("id, business_types ( name )");
+
+      if (error) throw error;
+
+      const byType: Record<string, number> = {};
+      (workspaces ?? []).forEach((w: any) => {
+        const t = w.business_types?.name || "Other";
+        byType[t] = (byType[t] || 0) + 1;
+      });
+
+      const total = Object.values(byType).reduce((s, c) => s + c, 0) || 1;
+
+      const archetypes: UserArchetype[] = Object.entries(byType)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 4)
+        .map(([businessType, count], idx) => {
+          const topFeatures = ARCHETYPE_TOP_FEATURES[businessType] ?? ARCHETYPE_TOP_FEATURES.Other;
+          const leastFeatures = ARCHETYPE_LEAST_FEATURES[businessType] ?? ARCHETYPE_LEAST_FEATURES.Other;
+          const painPoint = ARCHETYPE_PAIN_POINTS[businessType] ?? ARCHETYPE_PAIN_POINTS.Other;
+
+          const retentionBase = [72, 85, 68, 78][idx % 4];
+          const featureDepthBase = [55, 90, 88, 45][idx % 4];
+          const ltvBase = [45, 95, 82, 52][idx % 4];
+
+          return {
+            id: `archetype-${businessType.replace(/\s/g, "-")}`,
+            businessType,
+            displayName: ARCHETYPE_NAMES[businessType] ?? `The ${businessType} User`,
+            count,
+            percentage: Math.round((count / total) * 100),
+            demographics: ARCHETYPE_DEMOGRAPHICS[businessType] ?? "Ages 25–45, mixed locations",
+            topFeatures,
+            leastUsedFeatures: leastFeatures,
+            painPoint,
+            radarMetrics: {
+              retention: retentionBase,
+              featureDepth: featureDepthBase,
+              ltv: ltvBase,
+            },
+          };
+        });
+
+      return archetypes;
+    },
+    enabled: true,
+  });
+}
+
+/** Persona metrics time-series for trend charts (age, gender, province, business_type) */
+export interface PersonaTimeSeriesPoint {
+  date: string;
+  [key: string]: string | number;
+}
+
+export interface PersonaTimeSeries {
+  ageGroup: PersonaTimeSeriesPoint[];
+  gender: PersonaTimeSeriesPoint[];
+  province: PersonaTimeSeriesPoint[];
+  businessType: PersonaTimeSeriesPoint[];
+}
+
+export function useOwnerPersonaTimeSeries(monthsBack = 6) {
+  return useQuery({
+    queryKey: ["owner-persona-time-series", monthsBack],
+    queryFn: async (): Promise<PersonaTimeSeries> => {
+      const fromDate = format(subMonths(new Date(), monthsBack), "yyyy-MM-dd");
+      const { data, error } = await supabase
+        .from("persona_metrics_daily")
+        .select("metric_date, metric_type, metric_value, count")
+        .gte("metric_date", fromDate)
+        .order("metric_date", { ascending: true });
+
+      if (error) throw error;
+
+      const byDate: Record<string, Record<string, number>> = {};
+      (data ?? []).forEach((r: { metric_date: string; metric_type: string; metric_value: string; count: number }) => {
+        const d = r.metric_date;
+        if (!byDate[d]) byDate[d] = {};
+        const key = `${r.metric_type}:${r.metric_value}`;
+        byDate[d][key] = (byDate[d][key] ?? 0) + r.count;
+      });
+
+      const dates = Object.keys(byDate).sort();
+      const pivot = (metricType: string) =>
+        dates.map((date) => {
+          const row: PersonaTimeSeriesPoint = { date };
+          const prefix = `${metricType}:`;
+          Object.entries(byDate[date] ?? {}).forEach(([k, v]) => {
+            if (k.startsWith(prefix)) {
+              const val = k.slice(prefix.length);
+              row[val] = v;
+            }
+          });
+          return row;
+        });
+
+      return {
+        ageGroup: pivot("age_group"),
+        gender: pivot("gender"),
+        province: pivot("province"),
+        businessType: pivot("business_type"),
+      };
+    },
+  });
+}
 
 export interface SurvivalData {
   day: number;

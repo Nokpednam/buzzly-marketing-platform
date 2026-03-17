@@ -35,6 +35,13 @@ vi.mock('@/integrations/supabase/client', () => ({
     },
 }));
 
+// Mock ResizeObserver (required by recharts ResponsiveContainer)
+global.ResizeObserver = class ResizeObserver {
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+};
+
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
     writable: true,

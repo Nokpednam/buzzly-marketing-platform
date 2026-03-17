@@ -86,7 +86,7 @@ export default function Prospects() {
   const { createPersona, genders } = useCustomerPersonas(workspace.id);
   const { persona: savedPersona, upsertPersona, ensurePersonaFromApi } = useWorkspaceAdPersona(workspace.id);
   const [showEditHeroDialog, setShowEditHeroDialog] = useState(false);
-  const { personaData: adPersonaData, isLoading: adPersonaLoading, adsWithPersona, totalImpressions } = useAdPersonas({
+  const { personaData: adPersonaData, isLoading: adPersonaLoading, adsWithPersona, totalImpressions, isFallbackData } = useAdPersonas({
     mode: adAudienceMode,
     adId: selectedAdId,
     campaignId: selectedCampaignId,
@@ -329,7 +329,14 @@ export default function Prospects() {
               </CardContent>
             </Card>
           ) : (
-            <AdAudienceCharts data={adPersonaData} totalImpressions={totalImpressions} />
+            <div className="space-y-4">
+              {isFallbackData && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+                  <strong>Sample data.</strong> Connect your ad platform via API Keys to import your real audience data.
+                </div>
+              )}
+              <AdAudienceCharts data={adPersonaData} totalImpressions={totalImpressions} />
+            </div>
           )}
         </TabsContent>
 

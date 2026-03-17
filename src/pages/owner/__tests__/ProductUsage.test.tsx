@@ -1,24 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import ProductUsage from '../ProductUsage';
 import { BrowserRouter } from 'react-router-dom';
 import * as OwnerMetricsHooks from '@/hooks/useOwnerMetrics';
-import * as FunnelDataHooks from '@/hooks/useFunnelData';
-import * as PersonasHooks from '@/hooks/usePersonas';
 
 // Mock the hooks
-vi.mock('@/hooks/useOwnerMetrics', () => ({
-    useProductUsageMetrics: vi.fn(),
-    useUserSegments: vi.fn(),
-}));
-
-vi.mock('@/hooks/useFunnelData', () => ({
-    useFunnelData: vi.fn(),
-}));
-
-vi.mock('@/hooks/usePersonas', () => ({
-    usePersonas: vi.fn(),
-}));
+vi.mock('@/hooks/useOwnerMetrics', async (importOriginal) => {
+    const actual = await importOriginal() as object;
+    return {
+        ...actual,
+        useProductUsageMetrics: vi.fn(),
+        useUserSegments: vi.fn(),
+        useAARRRMetrics: vi.fn(),
+        useFeatureUsageMetrics: vi.fn(),
+        useOwnerAARRRTimeSeriesData: vi.fn(),
+        usePlatformUserProfile: vi.fn(),
+        useCustomerProfileAggregates: vi.fn(),
+        useOwnerCustomerPersonas: vi.fn(),
+        useOwnerPersonaTimeSeries: vi.fn(),
+        useUserArchetypes: vi.fn(),
+    };
+});
 
 vi.mock('sonner', () => ({
     toast: {
@@ -52,19 +54,31 @@ describe('ProductUsage Page', () => {
         vi.clearAllMocks();
     });
 
+    const defaultOwnerMocks = () => {
+        vi.mocked(OwnerMetricsHooks.useAARRRMetrics).mockReturnValue({ isLoading: false, data: [], isError: false } as any);
+        vi.mocked(OwnerMetricsHooks.useFeatureUsageMetrics).mockReturnValue({ isLoading: false, data: undefined, isError: false } as any);
+        vi.mocked(OwnerMetricsHooks.useOwnerAARRRTimeSeriesData).mockReturnValue({ isLoading: false, data: [] } as any);
+        vi.mocked(OwnerMetricsHooks.usePlatformUserProfile).mockReturnValue({ isLoading: false, data: [] } as any);
+        vi.mocked(OwnerMetricsHooks.useCustomerProfileAggregates).mockReturnValue({ isLoading: false, data: { totalCustomers: 0, byGender: [], byTier: [] } } as any);
+        vi.mocked(OwnerMetricsHooks.useOwnerCustomerPersonas).mockReturnValue({ isLoading: false, data: [] } as any);
+        vi.mocked(OwnerMetricsHooks.useUserArchetypes).mockReturnValue({
+            isLoading: false,
+            data: [],
+        } as any);
+        vi.mocked(OwnerMetricsHooks.useOwnerPersonaTimeSeries).mockReturnValue({
+            isLoading: false,
+            data: undefined,
+        } as any);
+    };
+
     it('renders loading state when any hook is loading', () => {
         vi.mocked(OwnerMetricsHooks.useProductUsageMetrics).mockReturnValue({
-            isLoading: true, data: undefined, refetch: vi.fn()
-        } as any);
-        vi.mocked(FunnelDataHooks.useFunnelData).mockReturnValue({
-            isLoading: false, aarrrCategories: [], funnelStages: [], refetch: vi.fn()
+            isLoading: true, data: undefined, isError: false
         } as any);
         vi.mocked(OwnerMetricsHooks.useUserSegments).mockReturnValue({
-            isLoading: false, data: [], refetch: vi.fn()
+            isLoading: false, data: [], isError: false
         } as any);
-        vi.mocked(PersonasHooks.usePersonas).mockReturnValue({
-            personas: [], createPersona: {} as any, deletePersona: {} as any
-        } as any);
+        defaultOwnerMocks();
 
         render(
             <BrowserRouter>
@@ -79,17 +93,12 @@ describe('ProductUsage Page', () => {
 
     it('renders empty state when no data is available', () => {
         vi.mocked(OwnerMetricsHooks.useProductUsageMetrics).mockReturnValue({
-            isLoading: false, data: { totalUsers: 0 } as any, refetch: vi.fn()
-        } as any);
-        vi.mocked(FunnelDataHooks.useFunnelData).mockReturnValue({
-            isLoading: false, aarrrCategories: [], funnelStages: [], refetch: vi.fn()
+            isLoading: false, data: { totalUsers: 0 } as any, isError: false
         } as any);
         vi.mocked(OwnerMetricsHooks.useUserSegments).mockReturnValue({
-            isLoading: false, data: [], refetch: vi.fn()
+            isLoading: false, data: [], isError: false
         } as any);
-        vi.mocked(PersonasHooks.usePersonas).mockReturnValue({
-            personas: [], createPersona: {} as any, deletePersona: {} as any
-        } as any);
+        defaultOwnerMocks();
 
         render(
             <BrowserRouter>
@@ -103,7 +112,6 @@ describe('ProductUsage Page', () => {
     });
 
     it('renders dashboard with data correctly', () => {
-        // Mock Data
         vi.mocked(OwnerMetricsHooks.useProductUsageMetrics).mockReturnValue({
             isLoading: false,
             data: {
@@ -112,32 +120,25 @@ describe('ProductUsage Page', () => {
                 dau: 200,
                 dauMauRatio: 25
             } as any,
-            refetch: vi.fn()
+            isError: false
         } as any);
 
-        vi.mocked(FunnelDataHooks.useFunnelData).mockReturnValue({
+        vi.mocked(OwnerMetricsHooks.useAARRRMetrics).mockReturnValue({
             isLoading: false,
-            aarrrCategories: [
+            data: [
                 { name: 'Acquisition', value: 1000, percentage: 100 },
                 { name: 'Activation', value: 500, percentage: 50 }
             ],
-            funnelStages: [],
-            refetch: vi.fn()
+            isError: false
         } as any);
 
         vi.mocked(OwnerMetricsHooks.useUserSegments).mockReturnValue({
             isLoading: false,
             data: [{ type: 'Enterprise', count: 50, percentage: 10 }],
-            refetch: vi.fn()
+            isError: false
         } as any);
 
-        vi.mocked(PersonasHooks.usePersonas).mockReturnValue({
-            personas: [
-                { id: '1', name: 'Growth Marketer', description: 'Focus on scaling', characteristics: { list: ['Tech Savvy'] }, behaviors: { list: ['Daily Login'] }, createdAt: new Date() }
-            ],
-            createPersona: { mutateAsync: vi.fn(), isPending: false } as any,
-            deletePersona: { mutateAsync: vi.fn() } as any
-        } as any);
+        defaultOwnerMocks();
 
         render(
             <BrowserRouter>
@@ -150,43 +151,30 @@ describe('ProductUsage Page', () => {
         // Header
         expect(screen.getByText('Product Usage')).toBeInTheDocument();
 
-        // Stats
-        expect(screen.getByText('1,250')).toBeInTheDocument(); // Total Users
-        expect(screen.getByText('800')).toBeInTheDocument();   // MAU
-
-        // Funnel Tab (Default)
-        expect(screen.getByText('Acquisition')).toBeInTheDocument();
-        expect(screen.getByText('1,000')).toBeInTheDocument();
+        // Quick Stats (always visible)
+        expect(screen.getByText('1,250')).toBeInTheDocument();
     });
 
-    it('can see personas content (via mocked tabs)', async () => {
-        // Mock Data
+    it('can see Persona tab content', () => {
         vi.mocked(OwnerMetricsHooks.useProductUsageMetrics).mockReturnValue({
             isLoading: false,
             data: { totalUsers: 100 } as any,
-            refetch: vi.fn()
+            isError: false
         } as any);
 
-        vi.mocked(FunnelDataHooks.useFunnelData).mockReturnValue({
+        vi.mocked(OwnerMetricsHooks.useAARRRMetrics).mockReturnValue({
             isLoading: false,
-            aarrrCategories: [],
-            funnelStages: [],
-            refetch: vi.fn()
+            data: [{ name: 'Acquisition', value: 100, percentage: 100 }],
+            isError: false
         } as any);
 
         vi.mocked(OwnerMetricsHooks.useUserSegments).mockReturnValue({
             isLoading: false,
-            data: [],
-            refetch: vi.fn()
+            data: [{ type: 'Small Business', count: 10, percentage: 50 }],
+            isError: false
         } as any);
 
-        vi.mocked(PersonasHooks.usePersonas).mockReturnValue({
-            personas: [
-                { id: '1', name: 'Power User', description: 'Uses all features', characteristics: { list: [] }, behaviors: { list: [] }, createdAt: new Date() }
-            ],
-            createPersona: { mutateAsync: vi.fn(), isPending: false } as any,
-            deletePersona: { mutateAsync: vi.fn() } as any
-        } as any);
+        defaultOwnerMocks();
 
         render(
             <BrowserRouter>
@@ -196,10 +184,7 @@ describe('ProductUsage Page', () => {
             </BrowserRouter>
         );
 
-        // With mocked tabs, content is rendered directly in div
-        expect(screen.getByText('Power User')).toBeInTheDocument();
-
-        // Check if trigger is present
+        expect(screen.getByText(/Archetype Comparison/)).toBeInTheDocument();
         expect(screen.getByTestId('tab-trigger-persona')).toBeInTheDocument();
     });
 });

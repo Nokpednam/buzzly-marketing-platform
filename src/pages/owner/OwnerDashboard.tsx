@@ -18,15 +18,22 @@ import {
   TrendingDown,
   ShoppingCart,
   Users,
+  ArrowRight,
+  Building2,
+  FileText,
+  MessageSquareHeart,
+  Crown,
 } from "lucide-react";
 import {
-  AreaChart,
+  ComposedChart,
   Area,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  TooltipProps,
 } from "recharts";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -38,6 +45,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Link } from "react-router-dom";
 
 const formatValue = (value: number, format: string) => {
   switch (format) {
@@ -96,524 +104,525 @@ export default function OwnerDashboard() {
   const monthlyData = subscriptionMetrics?.monthlyData ?? [];
   const trendData = monthlyData.slice(-12).map((d) => ({
     date: d.month,
-    impressions: d.mrr,
-    clicks: d.activeAt,
+    mrr: d.mrr,
+    payingWorkspaces: d.activeAt,
   }));
+
+  const platformUsers = usageMetrics?.platformUsersCount ?? 0;
+  const breakdown = timeRangeData?.breakdown ?? { newMrr: 0, expansion: 0, churn: 0 };
 
   const hasData =
     currentMrr > 0 ||
     activeSubs > 0 ||
     totalWorkspaces > 0 ||
-    (usageMetrics?.totalUsers ?? 0) > 0 ||
+    platformUsers > 0 ||
     (feedbackMetrics?.totalReviews ?? 0) > 0;
 
-  // Derived stats from trend data
-  const avgDailyImpressions =
-    trendData.length > 0
-      ? Math.round(trendData.reduce((s, d) => s + d.impressions, 0) / trendData.length)
-      : 0;
-  const avgDailyClicks =
-    trendData.length > 0
-      ? Math.round(trendData.reduce((s, d) => s + d.clicks, 0) / trendData.length)
-      : 0;
-  const peakDay =
+  const peakMonth =
     trendData.length > 0
       ? trendData.reduce(
-          (best, d) => (d.impressions > (best?.impressions ?? 0) ? d : best),
+          (best, d) => (d.mrr > (best?.mrr ?? 0) ? d : best),
           trendData[0]
         )
       : null;
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 animate-in fade-in duration-500">
-      {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">Platform Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Platform-wide data — Revenue, customers & usage
-          </p>
+    <div className="min-h-screen animate-in fade-in duration-500">
+      {/* Hero Header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 md:p-8 mb-6 text-white shadow-xl">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(6,182,212,0.15),transparent)]" />
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Crown className="h-5 w-5 text-amber-400" />
+              <span className="text-xs font-medium uppercase tracking-widest text-slate-400">
+                Owner
+              </span>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+              Platform Overview
+            </h1>
+            <p className="mt-1 text-sm text-slate-400">
+              Buzzly business overview — Revenue · Workspaces · Satisfaction
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={timeRange} onValueChange={(v) => setTimeRange(v as typeof timeRange)}>
+              <SelectTrigger className="w-[130px] h-9 border-slate-600/50 bg-slate-800/50 text-white [&>span]:text-slate-300">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7d">7 days</SelectItem>
+                <SelectItem value="1m">1 month</SelectItem>
+                <SelectItem value="3m">3 months</SelectItem>
+                <SelectItem value="6m">6 months</SelectItem>
+                <SelectItem value="1y">1 year</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 text-slate-400 hover:bg-slate-700/50 hover:text-white"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Select value={timeRange} onValueChange={(v) => setTimeRange(v as typeof timeRange)}>
-            <SelectTrigger className="w-[130px] h-9 border-border/60 bg-background rounded-lg text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">7 days</SelectItem>
-              <SelectItem value="1m">1 month</SelectItem>
-              <SelectItem value="3m">3 months</SelectItem>
-              <SelectItem value="6m">6 months</SelectItem>
-              <SelectItem value="1y">1 year</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 rounded-lg shrink-0"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-          </Button>
-        </div>
-      </header>
+      </div>
 
       {isLoading ? (
         <LoadingSkeleton />
       ) : !hasData ? (
         <NoDataState />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-3">
-          {/* Row 1: Owner metrics */}
-          <BentoCard className="md:col-span-2 lg:col-span-4" size="large">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Platform MRR
-                </p>
-                <p className="text-2xl font-semibold tracking-tight mt-0.5 text-foreground">
-                  {formatValue(currentMrr, "currency")}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Total platform revenue
-                </p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-          </BentoCard>
+        <div className="space-y-6">
+          {/* Top KPIs — 4 cards */}
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <StatCard
+              label="Platform MRR"
+              value={formatValue(currentMrr, "currency")}
+              sublabel="Total revenue"
+              icon={DollarSign}
+              accent="emerald"
+            />
+            <StatCard
+              label="Platform ARR"
+              value={formatValue(arr, "currency")}
+              sublabel="Annual revenue"
+              icon={Wallet}
+              accent="blue"
+            />
+            <StatCard
+              label="Workspaces"
+              value={`${totalWorkspaces}`}
+              sublabel={`${activeSubs} paying`}
+              icon={Building2}
+              accent="violet"
+            />
+            <StatCard
+              label="Platform NPS"
+              value={`${feedbackMetrics?.npsScore ?? 0}`}
+              sublabel={`${feedbackMetrics?.totalReviews ?? 0} reviews`}
+              icon={Target}
+              accent="amber"
+            />
+          </div>
 
-          <BentoCard className="md:col-span-2 lg:col-span-4" size="large">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Total Workspaces
-                </p>
-                <p className="text-2xl font-semibold tracking-tight mt-0.5 text-foreground">
-                  {formatValue(totalWorkspaces, "number")}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {activeSubs} paying · {mrrGrowth >= 0 ? "+" : ""}{formatValue(mrrGrowth, "percent")} growth
-                </p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
-                <Users className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-              </div>
-            </div>
-          </BentoCard>
-
-          <BentoCard className="md:col-span-2 lg:col-span-4" size="large">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Customer NPS
-                </p>
-                <p className="text-2xl font-semibold tracking-tight mt-0.5 text-foreground">
-                  {feedbackMetrics?.npsScore ?? 0}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  From {feedbackMetrics?.totalReviews ?? 0} customer reviews
-                </p>
-              </div>
-              <div className="h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
-                <Target className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-            </div>
-          </BentoCard>
-
-          {/* Row 2: Platform revenue trend */}
-          <BentoCard className="md:col-span-6 lg:col-span-8" size="xlarge">
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-foreground">Platform revenue trend</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    MRR and paying customers across the platform
-                  </p>
+          {/* Chart + Sidebar */}
+          <div className="grid gap-4 lg:grid-cols-3">
+            {/* Charts — separate MRR and Paying workspaces for clear scale */}
+            <div className="flex flex-col gap-4 lg:col-span-2">
+              {/* MRR Chart */}
+              <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+                <div className="mb-3">
+                  <h3 className="font-semibold text-foreground">MRR Trend</h3>
+                  <p className="text-xs text-muted-foreground">Monthly revenue (THB)</p>
                 </div>
-                <div className="flex flex-wrap items-center gap-4">
-                  <LegendDot color="#3b82f6" label="Platform MRR" />
-                  <LegendDot color="#8b5cf6" label="Paying customers" />
-                  <span className="text-xs text-muted-foreground border-l border-border/60 pl-4">
-                    Avg: {formatValue(avgDailyImpressions, "number")} MRR · {formatValue(avgDailyClicks, "number")}/month
-                  </span>
+                <div className="h-[160px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={trendData} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+                      <defs>
+                        <linearGradient id="ownerMrr" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="hsl(199 89% 48%)" stopOpacity={0.4} />
+                          <stop offset="100%" stopColor="hsl(199 89% 48%)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        vertical={false}
+                        stroke="hsl(var(--border))"
+                        opacity={0.5}
+                      />
+                      <XAxis
+                        dataKey="date"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                        tickFormatter={(val) =>
+                          typeof val === "string" ? val.split(" ")[0] : String(val)
+                        }
+                      />
+                      <YAxis
+                        yAxisId="left"
+                        orientation="left"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                        tickFormatter={(v) => (v >= 1000 ? `${v / 1000}K` : String(v))}
+                        width={36}
+                      />
+                      <Tooltip content={<ChartTooltip />} />
+                      <Area
+                        yAxisId="left"
+                        type="monotone"
+                        dataKey="mrr"
+                        stroke="hsl(199 89% 48%)"
+                        strokeWidth={2.5}
+                        fill="url(#ownerMrr)"
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
-              <div className="h-[240px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={trendData}>
-                    <defs>
-                      <linearGradient id="ownerColorImp" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.4} />
-                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="ownerColorClicks" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.4} />
-                        <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      vertical={false}
-                      stroke="hsl(var(--border))"
-                      opacity={0.6}
-                    />
-                    <XAxis
-                      dataKey="date"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                      tickFormatter={(val) =>
-                        typeof val === "string" ? val.split(" ")[0] : String(val)
-                      }
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: "8px",
-                        border: "1px solid hsl(var(--border))",
-                        backgroundColor: "hsl(var(--card))",
-                        fontSize: "12px",
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="impressions"
-                      stroke="#3b82f6"
-                      strokeWidth={2.5}
-                      fill="url(#ownerColorImp)"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="clicks"
-                      stroke="#8b5cf6"
-                      strokeWidth={2.5}
-                      fill="url(#ownerColorClicks)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </BentoCard>
 
-          {/* Row 2: Sidebar — Platform summary */}
-          <BentoCard className="md:col-span-6 lg:col-span-4" size="tall">
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Platform ARR
-                </p>
-                <p className="text-2xl font-semibold tracking-tight mt-0.5 text-foreground">
-                  {formatValue(arr, "currency")}
-                </p>
-              </div>
-              <div className="pt-3 border-t border-border/60">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Workspaces
-                </p>
-                <p className="text-xl font-semibold tracking-tight mt-0.5 text-foreground">
-                  {formatValue(totalWorkspaces, "number")} total
-                </p>
-              </div>
-              <div className="pt-3 border-t border-border/60">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Registered users
-                </p>
-                <p className="text-lg font-medium text-foreground mt-0.5">
-                  {formatValue(usageMetrics?.totalUsers ?? 0, "number")} users
-                </p>
-              </div>
-              <div className="pt-3 border-t border-border/60 flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Data range
-                </span>
-                <span className="text-sm font-medium text-foreground">
-                  {trendData.length} months
-                </span>
-              </div>
-              {peakDay && (
-                <div className="pt-3 border-t border-border/60">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Peak month
-                  </p>
-                  <p className="text-sm font-medium text-foreground mt-0.5">
-                    {typeof peakDay.date === "string"
-                      ? peakDay.date
-                      : String(peakDay.date)}{" "}
-                    · {formatValue(peakDay.impressions, "currency")} MRR
-                  </p>
+              {/* Paying Workspaces Chart */}
+              <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+                <div className="mb-3">
+                  <h3 className="font-semibold text-foreground">Paying Workspaces</h3>
+                  <p className="text-xs text-muted-foreground">Count per month</p>
                 </div>
-              )}
+                <div className="h-[110px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={trendData} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        vertical={false}
+                        stroke="hsl(var(--border))"
+                        opacity={0.5}
+                      />
+                      <XAxis
+                        dataKey="date"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                        tickFormatter={(val) =>
+                          typeof val === "string" ? val.split(" ")[0] : String(val)
+                        }
+                      />
+                      <YAxis
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                        allowDecimals={false}
+                        width={28}
+                      />
+                      <Tooltip
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null;
+                          return (
+                            <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
+                              <p className="mb-1 text-xs font-medium text-muted-foreground">
+                                {label}
+                              </p>
+                              <p className="font-semibold">
+                                {payload[0]?.value} workspaces
+                              </p>
+                            </div>
+                          );
+                        }}
+                      />
+                      <Bar
+                        dataKey="payingWorkspaces"
+                        fill="hsl(243 75% 59% / 0.7)"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={32}
+                      />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             </div>
-          </BentoCard>
 
-          {/* Row 3: Owner KPIs */}
-          <BentoCard className="md:col-span-3 lg:col-span-3" size="small">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
-                <Zap className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            {/* Sidebar */}
+            <div className="flex flex-col gap-4">
+              <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Quick actions
+                </h4>
+                <div className="flex flex-col gap-1">
+                  <QuickLink to="/owner/business-performance" icon={TrendingUp}>
+                    Business Performance
+                  </QuickLink>
+                  <QuickLink to="/owner/product-usage" icon={BarChart3}>
+                    Product Usage
+                  </QuickLink>
+                  <QuickLink to="/owner/user-feedback" icon={MessageSquareHeart}>
+                    User Feedback
+                  </QuickLink>
+                  <QuickLink to="/owner/executive-report" icon={FileText}>
+                    Executive Report
+                  </QuickLink>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">DAU (platform)</p>
-                <p className="text-base font-semibold text-foreground">
-                  {formatValue(usageMetrics?.dau ?? 0, "number")}
-                </p>
-              </div>
-            </div>
-          </BentoCard>
-          <BentoCard className="md:col-span-3 lg:col-span-3" size="small">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center shrink-0">
-                <BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">MAU (platform)</p>
-                <p className="text-base font-semibold text-foreground">
-                  {formatValue(usageMetrics?.mau ?? 0, "number")}
-                </p>
-              </div>
-            </div>
-          </BentoCard>
-          <BentoCard className="md:col-span-3 lg:col-span-3" size="small">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center shrink-0">
-                <Target className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Paying workspaces</p>
-                <p className="text-base font-semibold text-foreground">
-                  {formatValue(activeSubs, "number")}
-                </p>
-              </div>
-            </div>
-          </BentoCard>
-          <BentoCard className="md:col-span-3 lg:col-span-3" size="small">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center shrink-0">
-                <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">MRR growth</p>
-                <p className="text-base font-semibold text-foreground">
-                  {mrrGrowth >= 0 ? "+" : ""}{formatValue(mrrGrowth, "percent")}
-                </p>
-              </div>
-            </div>
-          </BentoCard>
 
-          {/* Row 4: Platform overview */}
-          <BentoCard className="md:col-span-6 lg:col-span-12" size="wide">
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm font-medium text-foreground">Platform overview</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Platform-wide metrics — Revenue, customers & satisfaction
-                </p>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                <RevenueItem
-                  label="Platform MRR"
-                  value={formatValue(currentMrr, "currency")}
-                  icon={DollarSign}
-                  variant="amber"
-                />
-                <RevenueItem
-                  label="Platform ARR"
-                  value={formatValue(arr, "currency")}
-                  icon={Wallet}
-                  variant="indigo"
-                />
-                <RevenueItem
-                  label="MRR Growth"
-                  value={`${mrrGrowth >= 0 ? "+" : ""}${formatValue(mrrGrowth, "percent")}`}
-                  icon={mrrGrowth >= 0 ? TrendingUp : TrendingDown}
-                  positive={mrrGrowth >= 0}
-                  variant="sky"
-                />
-                <RevenueItem
-                  label="Total Workspaces"
-                  value={totalWorkspaces.toLocaleString()}
-                  icon={Users}
-                  variant="blue"
-                />
-                <RevenueItem
-                  label="Paying Workspaces"
-                  value={activeSubs.toLocaleString()}
-                  icon={ShoppingCart}
-                  variant="violet"
-                />
-                <RevenueItem
-                  label="Customer NPS"
-                  value={`${feedbackMetrics?.npsScore ?? 0}`}
-                  icon={(feedbackMetrics?.npsScore ?? 0) >= 0 ? TrendingUp : TrendingDown}
-                  positive={(feedbackMetrics?.npsScore ?? 0) >= 0}
-                  variant="emerald"
-                />
+              <div className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
+                <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Summary for this period
+                </h4>
+                <div className="space-y-3">
+                  <SummaryRow label="Platform users" value={`${formatValue(platformUsers, "number")} users`} />
+                  <SummaryRow
+                    label="New MRR"
+                    value={`฿${breakdown.newMrr.toLocaleString()}`}
+                    valueClassName="text-emerald-600 dark:text-emerald-400"
+                  />
+                  <SummaryRow
+                    label="Churn"
+                    value={`฿${breakdown.churn.toLocaleString()}`}
+                    valueClassName="text-rose-600 dark:text-rose-400"
+                  />
+                  <SummaryRow
+                    label="MRR growth"
+                    value={`${mrrGrowth >= 0 ? "+" : ""}${formatValue(mrrGrowth, "percent")}`}
+                    valueClassName={cn(
+                      mrrGrowth >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                    )}
+                  />
+                  {peakMonth && (
+                    <div className="border-t border-border/60 pt-3 mt-3">
+                      <SummaryRow
+                        label="Highest month"
+                        value={`${typeof peakMonth.date === "string" ? peakMonth.date : String(peakMonth.date)} · ${formatValue(peakMonth.mrr, "currency")}`}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </BentoCard>
+          </div>
+
+          {/* Bottom row: DAU, MAU, Paying, Growth */}
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <MiniStat icon={Zap} label="DAU" value={usageMetrics?.dau ?? 0} accent="amber" />
+            <MiniStat icon={BarChart3} label="MAU" value={usageMetrics?.mau ?? 0} accent="blue" />
+            <MiniStat icon={ShoppingCart} label="Paying workspaces" value={activeSubs} accent="violet" />
+            <MiniStat
+              icon={mrrGrowth >= 0 ? TrendingUp : TrendingDown}
+              label="MRR growth"
+              value={`${mrrGrowth >= 0 ? "+" : ""}${formatValue(mrrGrowth, "percent")}`}
+              positive={mrrGrowth >= 0}
+              accent={mrrGrowth >= 0 ? "emerald" : "rose"}
+            />
+          </div>
+
+          {/* Workspaces by Business Type — table + colored bars */}
+          {userSegments.length > 0 && (
+            <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
+              <h4 className="mb-4 text-sm font-semibold text-foreground">
+                Workspaces by Business Type
+              </h4>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[320px] text-sm">
+                  <thead>
+                    <tr className="border-b border-border/60">
+                      <th className="text-left py-2.5 font-medium text-muted-foreground">Type</th>
+                      <th className="text-right py-2.5 font-medium text-muted-foreground w-20">Count</th>
+                      <th className="text-right py-2.5 font-medium text-muted-foreground w-16">%</th>
+                      <th className="w-32 pl-4" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...userSegments]
+                      .sort((a, b) => b.count - a.count)
+                      .map((seg, i) => {
+                        const pct = totalWorkspaces > 0 ? Math.round((seg.count / totalWorkspaces) * 100) : 0;
+                        const barColors = [
+                          "bg-teal-500",
+                          "bg-blue-500",
+                          "bg-violet-500",
+                          "bg-amber-500",
+                          "bg-rose-500",
+                          "bg-emerald-500",
+                          "bg-cyan-500",
+                          "bg-fuchsia-500",
+                        ];
+                        const barColor = barColors[i % barColors.length];
+                        return (
+                          <tr key={seg.type} className="border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors">
+                            <td className="py-2.5 font-medium">
+                              <span className="inline-flex items-center gap-2">
+                                <span className={cn("h-2 w-2 rounded-full shrink-0", barColor)} />
+                                {seg.type}
+                              </span>
+                            </td>
+                            <td className="py-2.5 text-right font-mono tabular-nums">{seg.count}</td>
+                            <td className="py-2.5 text-right text-muted-foreground tabular-nums">{pct}%</td>
+                            <td className="py-2.5 pl-4">
+                              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                <div
+                                  className={cn("h-full rounded-full min-w-[4px]", barColor)}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-// ─── Bento Card (same as Customer) ─────────────────────────────────────────
-interface BentoCardProps {
-  children: React.ReactNode;
-  className?: string;
-  size?: "small" | "large" | "tall" | "wide" | "xlarge";
-}
+// ─── Components ─────────────────────────────────────────────────────────────
 
-function BentoCard({ children, className, size = "large" }: BentoCardProps) {
-  return (
-    <div
-      className={cn(
-        "rounded-xl border border-border/60 bg-card/50 backdrop-blur-sm transition-colors hover:border-border/80 hover:bg-card/70",
-        size === "small" && "p-3",
-        size === "large" && "p-4",
-        size === "tall" && "p-4",
-        size === "wide" && "p-4",
-        size === "xlarge" && "p-4",
-        className
-      )}
-    >
-      {children}
-    </div>
-  );
-}
-
-function LegendDot({ color, label }: { color: string; label: string }) {
-  return (
-    <div className="flex items-center gap-2">
-      <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-      <span className="text-xs text-muted-foreground">{label}</span>
-    </div>
-  );
-}
-
-type RevenueVariant =
-  | "amber"
-  | "indigo"
-  | "emerald"
-  | "red"
-  | "blue"
-  | "violet"
-  | "rose"
-  | "sky"
-  | "neutral";
-
-const revenueVariantStyles: Record<
-  RevenueVariant,
-  { icon: string; value: string }
-> = {
-  amber: {
-    icon: "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400",
-    value: "text-amber-600 dark:text-amber-400",
-  },
-  indigo: {
-    icon: "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400",
-    value: "text-indigo-600 dark:text-indigo-400",
-  },
-  emerald: {
-    icon: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400",
-    value: "text-emerald-600 dark:text-emerald-400",
-  },
-  red: {
-    icon: "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400",
-    value: "text-red-600 dark:text-red-400",
-  },
-  blue: {
-    icon: "bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400",
-    value: "text-blue-600 dark:text-blue-400",
-  },
-  violet: {
-    icon: "bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400",
-    value: "text-violet-600 dark:text-violet-400",
-  },
-  rose: {
-    icon: "bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400",
-    value: "text-rose-600 dark:text-rose-400",
-  },
-  sky: {
-    icon: "bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400",
-    value: "text-sky-600 dark:text-sky-400",
-  },
-  neutral: {
-    icon: "bg-muted text-muted-foreground",
-    value: "text-foreground",
-  },
-};
-
-interface RevenueItemProps {
+function StatCard({
+  label,
+  value,
+  sublabel,
+  icon: Icon,
+  accent,
+}: {
   label: string;
   value: string;
+  sublabel: string;
   icon: React.ComponentType<{ className?: string }>;
-  positive?: boolean;
-  variant?: RevenueVariant;
-}
-
-function RevenueItem({ label, value, icon: Icon, positive, variant = "neutral" }: RevenueItemProps) {
-  const iconStyle =
-    positive === true
-      ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
-      : positive === false
-        ? "bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400"
-        : revenueVariantStyles[variant].icon;
-
-  const valueStyle =
-    positive === true
-      ? "text-emerald-600 dark:text-emerald-400"
-      : positive === false
-        ? "text-red-600 dark:text-red-400"
-        : revenueVariantStyles[variant].value;
-
+  accent: "emerald" | "blue" | "violet" | "amber";
+}) {
+  const accentStyles = {
+    emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    blue: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    violet: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+    amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  };
   return (
-    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors">
-      <div
-        className={cn(
-          "h-8 w-8 rounded-lg flex items-center justify-center shrink-0",
-          iconStyle
-        )}
-      >
-        <Icon className="h-4 w-4" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs text-muted-foreground truncate">{label}</p>
-        <p className={cn("text-sm font-medium truncate", valueStyle)}>{value}</p>
+    <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            {label}
+          </p>
+          <p className="mt-1 text-2xl font-bold tracking-tight text-foreground">{value}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{sublabel}</p>
+        </div>
+        <div className={cn("rounded-xl p-2.5", accentStyles[accent])}>
+          <Icon className="h-5 w-5" />
+        </div>
       </div>
     </div>
+  );
+}
+
+const MINI_STAT_ACCENTS = {
+  amber: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  blue: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+  violet: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
+  emerald: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  rose: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+} as const;
+
+function MiniStat({
+  icon: Icon,
+  label,
+  value,
+  positive,
+  accent = "blue",
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number | string;
+  positive?: boolean;
+  accent?: keyof typeof MINI_STAT_ACCENTS;
+}) {
+  const valueColor = positive === true ? "text-emerald-600 dark:text-emerald-400" : positive === false ? "text-rose-600 dark:text-rose-400" : "text-foreground";
+  return (
+    <div className="flex items-center gap-4 rounded-xl border border-border/60 bg-card/50 px-4 py-3">
+      <div className={cn("rounded-lg p-2", MINI_STAT_ACCENTS[accent])}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className={cn("font-semibold", valueColor)}>
+          {typeof value === "number" ? value.toLocaleString() : String(value)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ChartTooltip({ active, payload, label }: TooltipProps<number, string>) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-border bg-card px-4 py-3 shadow-lg">
+      <p className="mb-2 text-xs font-medium text-muted-foreground">{label}</p>
+      <div className="space-y-1">
+        {payload.map((p) => (
+          <div key={p.dataKey} className="flex items-center justify-between gap-4">
+            <span className="text-xs text-muted-foreground">
+              {p.dataKey === "mrr" ? "MRR" : "Paying workspaces"}
+            </span>
+            <span className="font-medium">
+              {p.dataKey === "mrr"
+                ? `฿${Number(p.value).toLocaleString()}`
+                : p.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({
+  label,
+  value,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+}) {
+  return (
+    <div className="grid grid-cols-[1fr_minmax(7rem,auto)] items-baseline gap-4">
+      <span className="text-sm text-muted-foreground truncate">{label}</span>
+      <span className={cn("font-medium tabular-nums text-right", valueClassName)}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function QuickLink({
+  to,
+  icon: Icon,
+  children,
+}: {
+  to: string;
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      to={to}
+      className="flex items-center gap-3 rounded-lg py-2 px-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/70"
+    >
+      <Icon className="h-4 w-4 text-muted-foreground" />
+      <span className="flex-1">{children}</span>
+      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+    </Link>
   );
 }
 
 function LoadingSkeleton() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-6 lg:grid-cols-12 gap-4">
-      {[1, 2, 3].map((i) => (
-        <Skeleton key={i} className="h-32 rounded-xl md:col-span-2 lg:col-span-4" />
-      ))}
-      <Skeleton className="h-80 rounded-xl md:col-span-6 lg:col-span-8" />
-      <Skeleton className="h-80 rounded-xl md:col-span-6 lg:col-span-4" />
-      {[1, 2, 3, 4].map((i) => (
-        <Skeleton key={i} className="h-20 rounded-xl md:col-span-3 lg:col-span-3" />
-      ))}
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-28 rounded-2xl" />
+        ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Skeleton className="h-80 rounded-2xl lg:col-span-2" />
+        <Skeleton className="h-80 rounded-2xl" />
+      </div>
     </div>
   );
 }
 
 function NoDataState() {
   return (
-    <div className="flex flex-col items-center justify-center py-24 rounded-xl border border-dashed border-border/60 bg-muted/20">
-      <BarChart3 className="h-10 w-10 text-muted-foreground/50 mb-4" />
-      <h3 className="text-base font-medium text-foreground">No platform data yet</h3>
-      <p className="text-sm text-muted-foreground mt-1 max-w-sm text-center">
-        Data will appear once customer workspaces and subscriptions exist
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 bg-muted/20 py-24">
+      <BarChart3 className="mb-4 h-12 w-12 text-muted-foreground/50" />
+      <h3 className="text-base font-semibold text-foreground">No platform data yet</h3>
+      <p className="mt-1 max-w-sm text-center text-sm text-muted-foreground">
+        Data will appear when Workspaces and subscriptions exist
       </p>
     </div>
   );

@@ -72,6 +72,8 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       queryClient.invalidateQueries({ queryKey: ["revenue-metrics-dashboard"] }),
       queryClient.invalidateQueries({ queryKey: ["customer-personas"] }),
       queryClient.invalidateQueries({ queryKey: ["sync_history"] }),
+      queryClient.invalidateQueries({ queryKey: ["ad-personas-ads"] }),
+      queryClient.invalidateQueries({ queryKey: ["ad-personas-insights"] }),
     ]);
   };
 

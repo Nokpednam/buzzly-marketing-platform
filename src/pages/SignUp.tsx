@@ -40,6 +40,18 @@ const SALARY_RANGES = [
   "Above 120,000 THB",
 ];
 
+const ACQUISITION_SOURCES = [
+  { value: "google", label: "Google / Search" },
+  { value: "facebook", label: "Facebook" },
+  { value: "instagram", label: "Instagram" },
+  { value: "tiktok", label: "TikTok" },
+  { value: "line", label: "LINE" },
+  { value: "referral", label: "เพื่อน/คนรู้จักแนะนำ" },
+  { value: "advertisement", label: "โฆษณา" },
+  { value: "blog", label: "Blog / บทความ" },
+  { value: "other", label: "อื่นๆ" },
+];
+
 const SignUp = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
@@ -65,6 +77,7 @@ const SignUp = () => {
     phone: "",
     genderId: "",
     salaryRange: "",
+    acquisitionSource: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -122,7 +135,8 @@ const SignUp = () => {
             full_name: formData.displayName || `${formData.firstName} ${formData.lastName}`,
             phone: formData.phone,
             gender: formData.genderId,
-            salary_range: formData.salaryRange
+            salary_range: formData.salaryRange,
+            acquisition_source: formData.acquisitionSource || null,
           }
         },
       });
@@ -137,6 +151,7 @@ const SignUp = () => {
           email: formData.email,
           full_name: displayName,
           plan_type: 'free',
+          acquisition_source: formData.acquisitionSource || null,
         }, { onConflict: 'id' });
 
         await supabase.from('profile_customers').upsert({
@@ -269,6 +284,20 @@ const SignUp = () => {
               </Select>
             </div>
 
+            <div className="space-y-2">
+              <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">เจอเราผ่านช่องทางไหน?</Label>
+              <Select value={formData.acquisitionSource} onValueChange={(v) => setFormData(p => ({ ...p, acquisitionSource: v }))}>
+                <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-200">
+                  <SelectValue placeholder="เลือกช่องทางที่เจอ Buzzly" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-none shadow-xl">
+                  {ACQUISITION_SOURCES.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="rounded-2xl bg-blue-50/50 border border-blue-100 p-5 mt-6">
               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 mb-3 flex items-center gap-2">
                 <ClipboardCheck className="h-3 w-3" /> Profile Summary
@@ -277,6 +306,7 @@ const SignUp = () => {
                 <div className="space-y-0.5"><p className="text-slate-400 font-bold uppercase text-[9px]">Identity</p><p className="font-bold text-slate-900 truncate">{formData.firstName} {formData.lastName}</p></div>
                 <div className="space-y-0.5"><p className="text-slate-400 font-bold uppercase text-[9px]">Contact</p><p className="font-bold text-slate-900 truncate">{formData.email}</p></div>
                 {formData.phone && <div className="space-y-0.5"><p className="text-slate-400 font-bold uppercase text-[9px]">Mobile</p><p className="font-bold text-slate-900">{formData.phone}</p></div>}
+                {formData.acquisitionSource && <div className="space-y-0.5 col-span-2"><p className="text-slate-400 font-bold uppercase text-[9px]">เจอเราผ่าน</p><p className="font-bold text-slate-900">{ACQUISITION_SOURCES.find((s) => s.value === formData.acquisitionSource)?.label ?? formData.acquisitionSource}</p></div>}
               </div>
             </div>
           </div>
