@@ -62,6 +62,24 @@ export function useAuditLogs(category?: string, page: number = 1, pageSize: numb
           case "integration":
             categories = ["integration"];
             break;
+          case "feature":
+            categories = ["feature"];
+            break;
+          case "discount":
+            categories = ["discount"];
+            break;
+          case "reward":
+            categories = ["reward"];
+            break;
+          case "redemption":
+            categories = ["redemption"];
+            break;
+          case "activity_code":
+            categories = ["activity_code"];
+            break;
+          case "tier":
+            categories = ["tier"];
+            break;
         }
 
         query = query.in("category", categories);
@@ -125,15 +143,50 @@ export function useAuditLogs(category?: string, page: number = 1, pageSize: numb
         });
       });
 
+      const getPageLabel = (path: string | undefined): string => {
+        if (!path) return path || "";
+        const map: Record<string, string> = {
+          "/dashboard": "Dashboard",
+          "/personas": "Personas",
+          "/campaigns": "Campaigns",
+          "/social/planner": "Social Planner",
+          "/social/analytics": "Social Analytics",
+          "/social/inbox": "Social Inbox",
+          "/social/integrations": "Social Integrations",
+          "/customer-journey": "Customer Journey",
+          "/aarrr-funnel": "AARRR Funnel",
+          "/api-keys": "API Keys",
+          "/analytics": "Analytics",
+          "/reports": "Reports",
+          "/settings": "Settings",
+          "/team": "Team Management",
+          "/support/workspaces": "Support: Workspaces",
+          "/support/tier-management": "Support: Tier Management",
+          "/support/rewards-management": "Support: Rewards",
+          "/support/redemption-requests": "Support: Redemption Requests",
+          "/support/discount-management": "Support: Discount Management",
+          "/support/activity-codes": "Support: Activity Codes",
+        };
+        if (map[path]) return map[path];
+        if (/^\/campaigns\/[^/]+/.test(path)) return "Campaign Detail";
+        return path;
+      };
+
       const enrichedLogs = logs.map((log: any) => {
         const userInfo = log.user_id ? userMap.get(log.user_id) : null;
         const metadata = log.metadata as any || {};
+        const pageUrl = metadata?.page_url;
+        const baseAction = log.action_type?.action_name || metadata.action_name || "Unknown";
+        const isPageView = log.category === "feature" && (baseAction === "Page View" || metadata.action_name === "Page View");
+        const displayAction = isPageView && pageUrl
+          ? `เข้าหน้า ${getPageLabel(pageUrl)}`
+          : baseAction;
 
         return {
           ...log,
-          action_name: log.action_type?.action_name || metadata.action_name || "Unknown",
-          user_email: userInfo?.email || metadata.email || 'Unknown',
-          user_role: userInfo?.role || metadata.role || 'User',
+          action_name: displayAction,
+          user_email: userInfo?.email || metadata.email || "Unknown",
+          user_role: userInfo?.role || metadata.role || "User",
         };
       });
 
@@ -146,9 +199,11 @@ export function useAuditLogs(category?: string, page: number = 1, pageSize: numb
 
       // Apply action filter client-side
       const filteredLogs = actionFilter && actionFilter !== "all"
-        ? roleFiltered.filter((log: any) =>
-            (log.action_name || '').toLowerCase() === actionFilter.toLowerCase()
-          )
+        ? roleFiltered.filter((log: any) => {
+            const name = (log.action_name || '').toLowerCase();
+            const filter = actionFilter.toLowerCase();
+            return name === filter || name.startsWith(filter + ' ');
+          })
         : roleFiltered;
 
       return {
@@ -202,6 +257,9 @@ export function useAuditLogStats() {
         (l) => l.category === "settings" || l.category === "workspace"
       ).length;
 
+      // Feature/Page views (เชื่อมกับ Product Usage)
+      const featureViews = logs.filter((l) => l.category === "feature").length;
+
       return {
         total,
         totalLogins: authLogs.length,
@@ -210,6 +268,7 @@ export function useAuditLogStats() {
         dataExports,
         securityActions,
         settingsChanges,
+        featureViews,
       };
     },
   });

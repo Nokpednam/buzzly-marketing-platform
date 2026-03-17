@@ -63,18 +63,23 @@ function CategoryBadge({ category }: { category: string | null }) {
   const map: Record<string, string> = {
     authentication: "border-emerald-500/30 text-emerald-400 bg-emerald-500/5",
     auth:           "border-emerald-500/30 text-emerald-400 bg-emerald-500/5",
+    feature:        "border-cyan-500/30 text-cyan-400 bg-cyan-500/5",
     data:           "border-blue-500/30 text-blue-400 bg-blue-500/5",
     report:         "border-blue-500/30 text-blue-400 bg-blue-500/5",
     export:         "border-blue-500/30 text-blue-400 bg-blue-500/5",
     import:         "border-blue-500/30 text-blue-400 bg-blue-500/5",
     security:       "border-rose-500/30 text-rose-400 bg-rose-500/5",
     subscription:   "border-rose-500/30 text-rose-400 bg-rose-500/5",
-    discount:       "border-rose-500/30 text-rose-400 bg-rose-500/5",
     settings:       "border-blue-500/30 text-blue-400 bg-blue-500/5",
     workspace:      "border-blue-500/30 text-blue-400 bg-blue-500/5",
     api_key:        "border-blue-500/30 text-blue-400 bg-blue-500/5",
     campaign:       "border-pink-500/30 text-pink-400 bg-pink-500/5",
     integration:    "border-amber-500/30 text-amber-400 bg-amber-500/5",
+    discount:       "border-orange-500/30 text-orange-400 bg-orange-500/5",
+    reward:         "border-emerald-500/30 text-emerald-400 bg-emerald-500/5",
+    redemption:     "border-violet-500/30 text-violet-400 bg-violet-500/5",
+    activity_code:  "border-teal-500/30 text-teal-400 bg-teal-500/5",
+    tier:           "border-slate-500/30 text-slate-400 bg-slate-500/5",
   };
   const cls = map[category?.toLowerCase() ?? ""] ?? "border-slate-700 text-slate-400 bg-slate-800/30";
   const label = category ? category.toUpperCase() : "OTHER";
@@ -304,6 +309,14 @@ export function AuditLogModal({ log, onClose }: AuditLogModalProps) {
                       </span>
                     )}
                   </p>
+                  {log.category === "feature" &&
+                    typeof log.metadata === "object" &&
+                    log.metadata !== null &&
+                    "page_url" in log.metadata && (
+                      <p className="text-xs text-cyan-400/90 mt-2 font-mono">
+                        Path: {(log.metadata as Record<string, unknown>).page_url as string}
+                      </p>
+                    )}
                 </div>
               </div>
 

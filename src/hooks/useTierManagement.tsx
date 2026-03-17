@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tansta
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { auditTier } from "@/lib/auditLogger";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -249,6 +250,7 @@ export function useSuspiciousActivities(page = 0) {
                 .eq("id", activityId);
 
             if (error) throw error;
+            if (user) auditTier.activityResolved(user.id, activityId);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["suspicious-activities"] });
@@ -262,11 +264,14 @@ export function useSuspiciousActivities(page = 0) {
 
     const suspendCustomer = useMutation({
         mutationFn: async (userId: string) => {
+            const { data: cust } = await supabase.from("customer").select("email").eq("id", userId).single();
             const { error } = await supabase
                 .from("customer")
                 .update({ status: "suspended" } as any)
                 .eq("id", userId);
             if (error) throw error;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) auditTier.customerSuspended(user.id, userId, (cust as any)?.email);
         },
         onSuccess: () => {
             toast.success("User account suspended");

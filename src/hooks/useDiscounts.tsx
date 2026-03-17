@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { auditDiscount } from "@/lib/auditLogger";
 
 export interface Discount {
     id: string;
@@ -85,6 +86,7 @@ export function useDiscounts() {
                 .single();
 
             if (error) throw error;
+            if (user) auditDiscount.supportCreated(user.id, input.code.toUpperCase(), data?.id);
             return data;
         },
         onSuccess: () => {
@@ -103,6 +105,8 @@ export function useDiscounts() {
                 .update({ ...updates, updated_at: new Date().toISOString() })
                 .eq("id", id);
             if (error) throw error;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) auditDiscount.supportUpdated(user.id, id, updates.code);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["discounts"] });
@@ -115,8 +119,11 @@ export function useDiscounts() {
 
     const deleteDiscount = useMutation({
         mutationFn: async (id: string) => {
+            const { data: existing } = await (supabase as any).from("discounts").select("code").eq("id", id).single();
             const { error } = await (supabase as any).from("discounts").delete().eq("id", id);
             if (error) throw error;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) auditDiscount.supportDeleted(user.id, id, existing?.code);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["discounts"] });
@@ -129,11 +136,14 @@ export function useDiscounts() {
 
     const toggleActive = useMutation({
         mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+            const { data: existing } = await (supabase as any).from("discounts").select("code").eq("id", id).single();
             const { error } = await (supabase as any)
                 .from("discounts")
                 .update({ is_active, updated_at: new Date().toISOString() })
                 .eq("id", id);
             if (error) throw error;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) auditDiscount.supportToggled(user.id, id, is_active, existing?.code);
         },
         onSuccess: (_, { is_active }) => {
             queryClient.invalidateQueries({ queryKey: ["discounts"] });
@@ -146,11 +156,14 @@ export function useDiscounts() {
 
     const publishDiscount = useMutation({
         mutationFn: async (id: string) => {
+            const { data: existing } = await (supabase as any).from("discounts").select("code").eq("id", id).single();
             const { error } = await (supabase as any)
                 .from("discounts")
                 .update({ published_at: new Date().toISOString(), updated_at: new Date().toISOString() })
                 .eq("id", id);
             if (error) throw error;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) auditDiscount.supportPublished(user.id, id, existing?.code);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["discounts"] });

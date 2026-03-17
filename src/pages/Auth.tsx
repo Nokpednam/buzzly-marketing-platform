@@ -64,7 +64,7 @@ export default function Auth() {
       }
 
       const roleName = (employeeData.role_employees as any)?.role_name;
-      if (roleName === "owner") { navigate("/owner/product-usage"); return; }
+      if (roleName === "owner") { navigate("/owner/dashboard"); return; }
       if (["admin", "support", "dev"].includes(roleName)) { navigate("/dev/monitor"); return; }
     }
 
@@ -141,7 +141,7 @@ export default function Auth() {
 
         if (isAdmin) {
           if (userRole === "owner") {
-            navigate("/owner/product-usage");
+            navigate("/owner/dashboard");
           } else if (userRole === "support") {
             navigate("/support/workspaces");
           } else {

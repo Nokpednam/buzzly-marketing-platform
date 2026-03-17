@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { auditActivityCode } from "@/lib/auditLogger";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -71,6 +72,8 @@ export function useCreateActivityCode() {
         .single();
 
       if (error) throw error;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) auditActivityCode.created(user.id, input.name, input.action_code);
       return data as unknown as ActivityCode;
     },
     onSuccess: () => {
@@ -98,6 +101,8 @@ export function useUpdateActivityCode() {
         .single();
 
       if (error) throw error;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) auditActivityCode.updated(user.id, id, updates.name);
       return data as unknown as ActivityCode;
     },
     onSuccess: () => {
@@ -117,12 +122,15 @@ export function useToggleActivityCode() {
 
   return useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+      const { data: existing } = await supabase.from("loyalty_activity_codes" as any).select("name").eq("id", id).single();
       const { error } = await supabase
         .from("loyalty_activity_codes" as any)
         .update({ is_active })
         .eq("id", id);
 
       if (error) throw error;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) auditActivityCode.toggled(user.id, id, is_active, existing?.name);
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
@@ -141,12 +149,15 @@ export function useDeleteActivityCode() {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      const { data: existing } = await supabase.from("loyalty_activity_codes" as any).select("name").eq("id", id).single();
       const { error } = await supabase
         .from("loyalty_activity_codes" as any)
         .delete()
         .eq("id", id);
 
       if (error) throw error;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) auditActivityCode.deleted(user.id, id, existing?.name);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });

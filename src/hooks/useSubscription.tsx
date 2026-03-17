@@ -276,11 +276,15 @@ export function useSubscription() {
         } else if (discountResult && !discountResult.error) {
           const d = discountResult as {
             id?: string;
+            code?: string;
             discount_type: "percent" | "fixed";
             discount_value: number;
             min_order_value: number;
             max_discount_amount: number | null;
           };
+          const { auditDiscount } = await import("@/lib/auditLogger");
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) auditDiscount.customerUsed(user.id, d.code || discountCode, d.id);
           let rawDiscount = 0;
           if (d.discount_type === "percent") {
             rawDiscount = (chargeAmount * d.discount_value) / 100;

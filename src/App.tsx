@@ -51,6 +51,7 @@ import RedemptionRequests from "./pages/support/RedemptionRequests";
 import DiscountManagement from "./pages/support/DiscountManagement";
 import ActivityCodes from "./pages/support/ActivityCodes";
 import TeamManagement from "./pages/TeamManagement";
+import OwnerDashboard from "./pages/owner/OwnerDashboard";
 import ProductUsage from "./pages/owner/ProductUsage";
 import BusinessPerformance from "./pages/owner/BusinessPerformance";
 import UserFeedback from "./pages/owner/UserFeedback";
@@ -212,7 +213,8 @@ const App = () => {
 
                   {/* Owner Employee Routes */}
                   <Route element={<EmployeeProtectedRoute allowedRoles={["owner"]}><OwnerLayout /></EmployeeProtectedRoute>}>
-                    <Route path="/owner" element={<Navigate to="/owner/product-usage" replace />} />
+                    <Route path="/owner" element={<Navigate to="/owner/dashboard" replace />} />
+                    <Route path="/owner/dashboard" element={<OwnerDashboard />} />
                     <Route path="/owner/product-usage" element={<ProductUsage />} />
                     <Route path="/owner/business-performance" element={<BusinessPerformance />} />
                     <Route path="/owner/user-feedback" element={<UserFeedback />} />

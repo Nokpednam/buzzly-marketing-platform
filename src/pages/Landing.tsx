@@ -106,7 +106,7 @@ export default function Landing() {
       const roleName = roleEmployee?.role_name;
 
       if (roleName === "owner") {
-        navigate("/owner/product-usage", { replace: true });
+        navigate("/owner/dashboard", { replace: true });
         return;
       }
 
@@ -126,7 +126,7 @@ export default function Landing() {
       const hasAdminRole = rolesData.some((r) => r.role === "admin");
 
       if (hasOwnerRole) {
-        navigate("/owner/product-usage", { replace: true });
+        navigate("/owner/dashboard", { replace: true });
         return;
       }
 

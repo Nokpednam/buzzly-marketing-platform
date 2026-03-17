@@ -76,7 +76,7 @@ export default function EmployeeLogin() {
                     title: "Signed in successfully",
                     description: `Welcome ${role}!`,
                 });
-                if (isOwner) navigate("/owner/product-usage");
+                if (isOwner) navigate("/owner/dashboard");
                 else if (isSupport) navigate("/support/workspaces");
                 else navigate("/dev/monitor");
                 return;
@@ -127,7 +127,7 @@ export default function EmployeeLogin() {
 
             // Redirect based on role
             if (roleName === "owner") {
-                navigate("/owner/product-usage");
+                navigate("/owner/dashboard");
             } else if (roleName === "support") {
                 navigate("/support/workspaces");
             } else if (roleName === "dev") {

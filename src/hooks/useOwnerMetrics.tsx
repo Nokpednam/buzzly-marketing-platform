@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, subMonths, subDays, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
+import { format, subMonths, subDays, subWeeks, subYears, startOfMonth, endOfMonth, startOfWeek, endOfWeek, startOfYear, endOfYear, isWithinInterval, parseISO } from "date-fns";
 
 export interface TimeRangeKPIs {
   currentMrr: number;
@@ -532,6 +532,295 @@ export function useAARRRMetrics() {
   });
 }
 
+// ─── AARRR Time Series (month / week / year) ──────────────────────────────
+export type AARRRGranularity = "month" | "week" | "year";
+
+export interface OwnerAARRRTimeSeriesRow {
+  periodKey: string;
+  periodLabel: string;
+  acquisition: number;
+  activation: number;
+  retention: number;
+  revenue: number;
+  referral: number;
+}
+
+interface AARRRPeriodConfig {
+  periodsBack: number;
+  getPeriod: (i: number) => { start: Date; end: Date; key: string; label: string };
+}
+
+function getAARRRPeriodConfig(granularity: AARRRGranularity, periodsBack: number): AARRRPeriodConfig {
+  const now = new Date();
+  if (granularity === "month") {
+    return {
+      periodsBack,
+      getPeriod: (i) => {
+        const d = subMonths(now, periodsBack - 1 - i);
+        return {
+          start: startOfMonth(d),
+          end: endOfMonth(d),
+          key: format(d, "yyyy-MM"),
+          label: format(d, "MMM yy"),
+        };
+      },
+    };
+  }
+  if (granularity === "week") {
+    return {
+      periodsBack,
+      getPeriod: (i) => {
+        const d = subWeeks(now, periodsBack - 1 - i);
+        const start = startOfWeek(d, { weekStartsOn: 1 });
+        const end = endOfWeek(d, { weekStartsOn: 1 });
+        return {
+          start,
+          end,
+          key: format(start, "yyyy-'W'I"),
+          label: `${format(start, "MMM d")} – ${format(end, "MMM d, yy")}`,
+        };
+      },
+    };
+  }
+  // year
+  return {
+    periodsBack,
+    getPeriod: (i) => {
+      const d = subYears(now, periodsBack - 1 - i);
+      return {
+        start: startOfYear(d),
+        end: endOfYear(d),
+        key: format(d, "yyyy"),
+        label: format(d, "yyyy"),
+      };
+    },
+  };
+}
+
+export function useOwnerAARRRTimeSeriesData(granularity: AARRRGranularity, periodsBack: number) {
+  return useQuery({
+    queryKey: ["owner-aarrr-timeseries", granularity, periodsBack],
+    queryFn: async (): Promise<OwnerAARRRTimeSeriesRow[]> => {
+      const config = getAARRRPeriodConfig(granularity, periodsBack);
+      const result: OwnerAARRRTimeSeriesRow[] = [];
+
+      for (let i = 0; i < config.periodsBack; i++) {
+        const { start, end, key, label } = config.getPeriod(i);
+
+        const { count: acquisition } = await supabase
+          .from("customer")
+          .select("*", { count: "exact", head: true })
+          .gte("created_at", start.toISOString())
+          .lte("created_at", end.toISOString());
+
+        const { count: activation } = await supabase
+          .from("subscriptions")
+          .select("*", { count: "exact", head: true })
+          .gte("created_at", start.toISOString())
+          .lte("created_at", end.toISOString());
+
+        const { data: subsRetention } = await supabase
+          .from("subscriptions")
+          .select("user_id")
+          .eq("status", "active")
+          .gte("created_at", start.toISOString())
+          .lte("created_at", end.toISOString());
+
+        const retention = new Set(subsRetention?.map((s) => s.user_id).filter(Boolean) ?? []).size;
+
+        const { data: paidInPeriod } = await supabase
+          .from("payment_transactions")
+          .select("user_id")
+          .eq("status", "completed")
+          .gte("created_at", start.toISOString())
+          .lte("created_at", end.toISOString());
+
+        const revenueUsers = new Set(paidInPeriod?.map((t) => t.user_id).filter(Boolean) ?? []).size;
+        const referral = Math.round(revenueUsers * 0.13);
+
+        result.push({
+          periodKey: key,
+          periodLabel: label,
+          acquisition: acquisition ?? 0,
+          activation: activation ?? 0,
+          retention,
+          revenue: revenueUsers,
+          referral,
+        });
+      }
+
+      return result;
+    },
+  });
+}
+
+/** @deprecated Use useOwnerAARRRTimeSeriesData("month", n) instead */
+export function useOwnerAARRRMonthlyData(monthsBack: number = 6) {
+  return useOwnerAARRRTimeSeriesData("month", monthsBack);
+}
+
+// ─── Feature Usage & Friction Points (for Product Usage page) ─────────────
+export interface FeatureUsageItem {
+  feature: string;
+  featureKey: string;
+  count: number;
+  percentage: number;
+  uniqueUsers: number;
+}
+
+export interface FrictionPointItem {
+  feature: string;
+  action: string;
+  count: number;
+  percentage: number;
+  description?: string;
+}
+
+export function useFeatureUsageMetrics(days: number = 30) {
+  return useQuery({
+    queryKey: ["owner-feature-usage", days],
+    queryFn: async (): Promise<{
+      featureUsage: FeatureUsageItem[];
+      frictionPoints: FrictionPointItem[];
+    }> => {
+      const since = subDays(new Date(), days);
+
+      const { data: logs, error } = await supabase
+        .from("audit_logs_enhanced")
+        .select("id, user_id, category, description, status, metadata, action_type_id, action_type:action_type_id(action_name)")
+        .gte("created_at", since.toISOString());
+
+      if (error) throw error;
+
+      const allLogs = logs || [];
+
+      // ── Map page_url (pathname) → Feature name — ครอบคลุมทุกฟีเจอร์ที่ Customer กดได้ ─
+      const pathToFeature = (path: string | null | undefined): string | null => {
+        if (!path || typeof path !== "string") return null;
+        const p = path.replace(/\/$/, "").toLowerCase();
+        if (p === "/dashboard") return "Dashboard";
+        if (p === "/personas" || p === "/prospects") return "Personas";
+        if (p === "/campaigns") return "Campaigns";
+        if (/^\/campaigns\/[^/]+/.test(p)) return "Campaign Detail";
+        if (p === "/social/planner") return "Social Planner";
+        if (p === "/social/analytics") return "Social Analytics";
+        if (p === "/social/inbox") return "Social Inbox";
+        if (p === "/social/integrations") return "Social Integrations";
+        if (p === "/social") return "Social";
+        if (p === "/customer-journey") return "Customer Journey";
+        if (p === "/aarrr-funnel") return "AARRR Funnel";
+        if (p === "/api-keys") return "API Keys";
+        if (p === "/analytics") return "Analytics";
+        if (p === "/reports") return "Reports";
+        if (p === "/settings") return "Settings";
+        if (p === "/team") return "Team Management";
+        if (p === "/auth" || p === "/signup") return "Auth";
+        if (p.startsWith("/social/")) return "Social";
+        if (p === "/support/workspaces") return "Support: Workspaces";
+        if (p === "/support/tier-management") return "Support: Tier Management";
+        if (p === "/support/rewards-management") return "Support: Rewards";
+        if (p === "/support/redemption-requests") return "Support: Redemption Requests";
+        if (p === "/support/discount-management") return "Support: Discount Management";
+        if (p === "/support/activity-codes") return "Support: Activity Codes";
+        if (p.startsWith("/support/")) return "Support";
+        return null;
+      };
+
+      // Fallback: category → display name (for legacy audit events)
+      const categoryToFeature: Record<string, string> = {
+        authentication: "Auth",
+        auth: "Auth",
+        login: "Auth",
+        feature: "Feature View",
+        campaign: "Campaigns",
+        data: "Reports",
+        report: "Reports",
+        export: "Reports",
+        import: "Data Import",
+        security: "Security",
+        subscription: "Subscription",
+        discount: "Discounts",
+        settings: "Settings",
+        workspace: "Workspace",
+        api_key: "API Keys",
+        integration: "Platform Connections",
+      };
+
+      const getFeatureFromLog = (l: any): string => {
+        const pageUrl = (l.metadata as any)?.page_url;
+        const fromPath = pathToFeature(pageUrl);
+        if (fromPath) return fromPath;
+        const c = (l.category || "").toLowerCase();
+        return categoryToFeature[c] || c || "Other";
+      };
+
+      // 1. Feature Usage (successful actions) — group by feature (prioritize page_url)
+      const usageMap = new Map<string, { count: number; users: Set<string> }>();
+      const successLogs = allLogs.filter(
+        (l: any) =>
+          !l.status ||
+          l.status === "success" ||
+          l.status === "completed" ||
+          (typeof l.status === "string" && !["failed", "error"].includes(l.status.toLowerCase()))
+      );
+
+      successLogs.forEach((l: any) => {
+        const featureKey = getFeatureFromLog(l);
+        const existing = usageMap.get(featureKey) || { count: 0, users: new Set<string>() };
+        existing.count++;
+        if (l.user_id) existing.users.add(l.user_id);
+        usageMap.set(featureKey, existing);
+      });
+
+      const usageTotal = successLogs.length || 1;
+      const featureUsage: FeatureUsageItem[] = Array.from(usageMap.entries())
+        .map(([key, { count, users }]) => ({
+          feature: key,
+          featureKey: key,
+          count,
+          percentage: Math.round((count / usageTotal) * 100),
+          uniqueUsers: users.size,
+        }))
+        .sort((a, b) => b.count - a.count);
+
+      // 2. Friction Points (failed actions) — where users get stuck
+      const frictionMap = new Map<string, { count: number; descriptions: string[] }>();
+      const failedLogs = allLogs.filter(
+        (l: any) =>
+          l.status &&
+          ["failed", "error"].includes((l.status as string).toLowerCase())
+      );
+
+      failedLogs.forEach((l: any) => {
+        const actionName = (l.action_type as any)?.action_name || (l.metadata as any)?.action_name || "Unknown";
+        const featureKey = getFeatureFromLog(l);
+        const key = `${featureKey}::${actionName}`;
+        const existing = frictionMap.get(key) || { count: 0, descriptions: [] };
+        existing.count++;
+        if (l.description && !existing.descriptions.includes(l.description)) {
+          existing.descriptions.push(l.description.slice(0, 80));
+        }
+        frictionMap.set(key, existing);
+      });
+
+      const frictionTotal = failedLogs.length || 1;
+      const frictionPoints: FrictionPointItem[] = Array.from(frictionMap.entries())
+        .map(([key, { count, descriptions }]) => {
+          const [feature, action] = key.split("::");
+          return {
+            feature,
+            action,
+            count,
+            percentage: Math.round((count / frictionTotal) * 100),
+            description: descriptions[0],
+          };
+        })
+        .sort((a, b) => b.count - a.count);
+
+      return { featureUsage, frictionPoints };
+    },
+  });
+}
 
 export function useUserSegments() {
   return useQuery({

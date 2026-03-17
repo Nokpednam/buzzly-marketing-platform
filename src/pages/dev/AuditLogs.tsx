@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Link } from "react-router-dom";
 import {
   Search,
-  Filter,
   Download,
   RefreshCw,
   LogIn,
@@ -22,6 +22,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
+  LayoutDashboard,
+  BarChart3,
 } from "lucide-react";
 import { useAuditLogs, useAuditLogStats } from "@/hooks/useAuditLogs";
 import { format } from "date-fns";
@@ -89,6 +91,42 @@ const getCategoryBadge = (category: string | null) => {
       return (
         <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-tight border-amber-500/30 text-amber-400 bg-amber-500/5">
           Integration
+        </Badge>
+      );
+    case "feature":
+      return (
+        <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-tight border-cyan-500/30 text-cyan-400 bg-cyan-500/5">
+          Feature
+        </Badge>
+      );
+    case "discount":
+      return (
+        <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-tight border-orange-500/30 text-orange-400 bg-orange-500/5">
+          Discount
+        </Badge>
+      );
+    case "reward":
+      return (
+        <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-tight border-emerald-500/30 text-emerald-400 bg-emerald-500/5">
+          Reward
+        </Badge>
+      );
+    case "redemption":
+      return (
+        <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-tight border-violet-500/30 text-violet-400 bg-violet-500/5">
+          Redemption
+        </Badge>
+      );
+    case "activity_code":
+      return (
+        <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-tight border-teal-500/30 text-teal-400 bg-teal-500/5">
+          Activity
+        </Badge>
+      );
+    case "tier":
+      return (
+        <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-tight border-slate-500/30 text-slate-400 bg-slate-500/5">
+          Tier
         </Badge>
       );
     default:
@@ -166,7 +204,21 @@ export default function AuditLogs() {
       </div>
 
       {/* Activity Stats */}
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-6">
+        <Card className="bg-slate-900/50 border-slate-800 shadow-lg">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Feature Views</p>
+                <p className="text-2xl font-bold text-cyan-400 leading-tight">{stats?.featureViews ?? 0}</p>
+              </div>
+              <LayoutDashboard className="h-5 w-5 text-cyan-500/50" />
+            </div>
+            <Link to="/owner/product-usage" className="text-[10px] text-cyan-400/80 hover:text-cyan-400 mt-2 inline-flex items-center gap-1">
+              <BarChart3 className="h-3 w-3" /> ดู Product Usage
+            </Link>
+          </CardContent>
+        </Card>
         <Card className="bg-slate-900/50 border-slate-800 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -262,6 +314,12 @@ export default function AuditLogs() {
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-slate-800 text-slate-300">
                   <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="feature">Feature (เข้าหน้า)</SelectItem>
+                  <SelectItem value="discount">Discount</SelectItem>
+                  <SelectItem value="reward">Reward</SelectItem>
+                  <SelectItem value="redemption">Redemption</SelectItem>
+                  <SelectItem value="activity_code">Activity Code</SelectItem>
+                  <SelectItem value="tier">Tier</SelectItem>
                   <SelectItem value="authentication">Auth</SelectItem>
                   <SelectItem value="data">Data</SelectItem>
                   <SelectItem value="security">Security</SelectItem>
@@ -301,9 +359,10 @@ export default function AuditLogs() {
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-slate-800 text-slate-300">
                   <SelectItem value="all">All Actions</SelectItem>
+                  <SelectItem value="เข้าหน้า">เข้าหน้า (Page View)</SelectItem>
                   <SelectItem value="Login">Login</SelectItem>
                   <SelectItem value="Logout">Logout</SelectItem>
-                  <SelectItem value="login_failed">Login Failed</SelectItem>
+                  <SelectItem value="login failed">Login Failed</SelectItem>
                   <SelectItem value="Export">Export</SelectItem>
                   <SelectItem value="api_key_created">API Key</SelectItem>
                   <SelectItem value="settings_changed">Settings</SelectItem>

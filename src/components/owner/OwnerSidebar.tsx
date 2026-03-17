@@ -14,6 +14,7 @@ import {
   User,
   Settings,
   Tag,
+  LayoutDashboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useEffect, useState } from "react";
 
 const ownerNavItems = [
+  {
+    title: "Dashboard",
+    icon: LayoutDashboard,
+    href: "/owner/dashboard",
+    description: "Overview & Key Metrics",
+  },
   {
     title: "Business Performance",
     icon: TrendingUp,
