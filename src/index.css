@@ -155,6 +155,22 @@
   .font-mono-numeric {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
   }
+
+  /* Dark Mode Autofill Overrides — Scoped to Dev Section (.dev-autofill-fix) */
+  .dev-autofill-fix input:-webkit-autofill,
+  .dev-autofill-fix input:-webkit-autofill:hover,
+  .dev-autofill-fix input:-webkit-autofill:focus,
+  .dev-autofill-fix textarea:-webkit-autofill,
+  .dev-autofill-fix textarea:-webkit-autofill:hover,
+  .dev-autofill-fix textarea:-webkit-autofill:focus,
+  .dev-autofill-fix select:-webkit-autofill,
+  .dev-autofill-fix select:-webkit-autofill:hover,
+  .dev-autofill-fix select:-webkit-autofill:focus {
+    -webkit-text-fill-color: #f8fafc !important; /* slate-50 */
+    -webkit-box-shadow: 0 0 0px 1000px transparent inset !important;
+    transition: background-color 999999s ease-in-out 0s !important;
+    color-scheme: dark !important;
+  }
 }
 
 /* ─── Keyframe Animations ───────────────────────────────────────────────── */

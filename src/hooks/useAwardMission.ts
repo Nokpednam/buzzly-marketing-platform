@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 export interface MissionResult {
   success: boolean;
@@ -17,6 +18,8 @@ export interface MissionResult {
  *   if (result?.success) { ... show toast ... }
  */
 export function useAwardMission() {
+  const queryClient = useQueryClient();
+
   const awardMission = useCallback(
     async (actionType: string): Promise<MissionResult | null> => {
       try {
@@ -34,6 +37,8 @@ export function useAwardMission() {
 
         if (data && (data as any).success) {
           window.dispatchEvent(new CustomEvent('loyalty-refetch'));
+          queryClient.invalidateQueries({ queryKey: ['loyalty-missions'] });
+          queryClient.invalidateQueries({ queryKey: ['loyalty-tier'] });
         }
 
         return data as unknown as MissionResult;
@@ -42,7 +47,7 @@ export function useAwardMission() {
         return null;
       }
     },
-    []
+    [queryClient]
   );
 
   return { awardMission };

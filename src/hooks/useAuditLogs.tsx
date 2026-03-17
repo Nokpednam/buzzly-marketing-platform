@@ -219,56 +219,60 @@ export function useAuditLogStats() {
   return useQuery({
     queryKey: ["audit-log-stats"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("audit_logs_enhanced")
-        .select("category, status, created_at, action_type_id, metadata")
-        .order("created_at", { ascending: false })
-        .limit(1000);
-
-      if (error) throw error;
-
-      const logs = data || [];
-      const total = logs.length;
-
-      // Auth logs: category='authentication' OR any login/logout related
-      const authLogs = logs.filter((l) =>
-        l.category === "authentication" ||
-        l.category === "auth"
-      );
-      const successfulLogins = authLogs.filter(
-        (l) => l.status === "success" || l.status === "completed"
-      ).length;
-      const failedLogins = authLogs.filter(
-        (l) => l.status === "failed" || l.status === "error"
-      ).length;
-
-      // Data exports: category='data' or 'report'
-      const dataExports = logs.filter(
-        (l) => l.category === "data" || l.category === "report"
-      ).length;
-
-      // Security actions: category='security' or 'subscription' or 'discount'
-      const securityActions = logs.filter(
-        (l) => l.category === "security" || l.category === "subscription"
-      ).length;
-
-      // Settings changes: category='settings' or 'workspace'
-      const settingsChanges = logs.filter(
-        (l) => l.category === "settings" || l.category === "workspace"
-      ).length;
-
-      // Feature/Page views (เชื่อมกับ Product Usage)
-      const featureViews = logs.filter((l) => l.category === "feature").length;
+      // Fetch accurate counts for each category
+      const [
+        { count: totalLogins },
+        { count: failedLogins },
+        { count: dataExports },
+        { count: securityActions },
+        { count: settingsChanges },
+        { count: featureViews }
+      ] = await Promise.all([
+        // Total Logins
+        supabase
+          .from("audit_logs_enhanced")
+          .select("*", { count: 'exact', head: true })
+          .in("category", ["authentication", "auth"]),
+        
+        // Failed Logins
+        supabase
+          .from("audit_logs_enhanced")
+          .select("*", { count: 'exact', head: true })
+          .in("category", ["authentication", "auth"])
+          .in("status", ["failed", "error"]),
+          
+        // Data Exports
+        supabase
+          .from("audit_logs_enhanced")
+          .select("*", { count: 'exact', head: true })
+          .in("category", ["data", "report", "export", "import"]),
+          
+        // Security Actions
+        supabase
+          .from("audit_logs_enhanced")
+          .select("*", { count: 'exact', head: true })
+          .in("category", ["security", "subscription", "discount"]),
+          
+        // Settings Changes
+        supabase
+          .from("audit_logs_enhanced")
+          .select("*", { count: 'exact', head: true })
+          .in("category", ["settings", "workspace", "api_key"]),
+          
+        // Feature Views
+        supabase
+          .from("audit_logs_enhanced")
+          .select("*", { count: 'exact', head: true })
+          .eq("category", "feature")
+      ]);
 
       return {
-        total,
-        totalLogins: authLogs.length,
-        successfulLogins,
-        failedLogins,
-        dataExports,
-        securityActions,
-        settingsChanges,
-        featureViews,
+        totalLogins: totalLogins || 0,
+        failedLogins: failedLogins || 0,
+        dataExports: dataExports || 0,
+        securityActions: securityActions || 0,
+        settingsChanges: settingsChanges || 0,
+        featureViews: featureViews || 0,
       };
     },
   });

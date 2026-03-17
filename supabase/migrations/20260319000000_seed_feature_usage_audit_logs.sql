@@ -12,7 +12,7 @@ DECLARE
   i int;
   j int;
   v_paths text[] := ARRAY['/dashboard','/personas','/campaigns','/campaigns/demo-campaign-1','/social/planner','/social/analytics','/social/inbox','/social/integrations','/customer-journey','/aarrr-funnel','/api-keys','/analytics','/reports','/settings','/team','/support/discount-management','/support/tier-management','/support/rewards-management','/support/redemption-requests','/support/activity-codes','/support/workspaces'];
-  v_counts int[] := ARRAY[380,140,220,190,180,150,95,110,120,105,75,200,170,135,90,85,70,95,60,55,80];
+  v_counts int[] := ARRAY[8,4,6,5,5,4,2,3,4,3,2,6,5,4,3,2,2,3,2,1,2];
 BEGIN
   SELECT ARRAY(SELECT id FROM auth.users LIMIT 50) INTO v_user_ids;
   IF v_user_ids IS NULL OR array_length(v_user_ids, 1) IS NULL THEN

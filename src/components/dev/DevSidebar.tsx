@@ -173,6 +173,7 @@ export function DevSidebar() {
                             onMarkAllAsRead={markAllAsRead}
                             accentColor="bg-blue-500"
                             badgeColor="bg-cyan-500"
+                            theme="dark"
                         />
                     </div>
                 </div>

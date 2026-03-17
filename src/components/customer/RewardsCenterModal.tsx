@@ -14,9 +14,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { Gift, Star, Loader2, PackageOpen, Ticket, Copy } from "lucide-react";
+import { Gift, Star, Loader2, PackageOpen, Copy } from "lucide-react";
 import { type RewardItem } from "@/hooks/useRewardsManagement";
-import { MyRedeemedCouponsDialog } from "@/components/customer/MyRedeemedCouponsDialog";
 import { toast } from "sonner";
 
 interface RewardsCenterModalProps {
@@ -40,10 +39,11 @@ export function RewardsCenterModal({ open, onOpenChange }: RewardsCenterModalPro
         try {
             const result = await redeemReward.mutateAsync(selectedReward);
 
-            // Refresh the coupons list so the customer's new code appears immediately
+            // Refresh all coupon lists so status is globally in sync
             queryClient.invalidateQueries({ queryKey: ["user-redeemed-coupons"] });
+            queryClient.invalidateQueries({ queryKey: ["customer_coupons"] });
             queryClient.invalidateQueries({ queryKey: ["loyalty-points"] });
-            queryClient.invalidateQueries({ queryKey: ["customer-notifications"] });
+            queryClient.invalidateQueries({ queryKey: ["customer_notifications"] });
 
             // Show a rich toast with the generated coupon code
             const couponCode = (result as any)?.coupon_code;
@@ -112,17 +112,6 @@ export function RewardsCenterModal({ open, onOpenChange }: RewardsCenterModalPro
                                 </p>
                             </div>
                             <div className="flex items-center gap-3 flex-wrap">
-                                {/* My Coupons button */}
-                                <MyRedeemedCouponsDialog>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="shrink-0 bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white gap-2 h-9"
-                                    >
-                                        <Ticket className="h-3.5 w-3.5" />
-                                        My Coupons
-                                    </Button>
-                                </MyRedeemedCouponsDialog>
                                 {/* Balance */}
                                 <div className="shrink-0 bg-white/10 backdrop-blur-sm rounded-2xl px-6 py-3 border border-white/20 flex items-center gap-4">
                                     <div>
