@@ -552,10 +552,12 @@ export function useManualTierOverride() {
             return data;
         },
         onSuccess: async () => {
-            // Force immediate refetch so Tier Change History shows the new entry
-            await queryClient.refetchQueries({ queryKey: ["loyalty-tier-history-all"] });
-            queryClient.invalidateQueries({ queryKey: ["customer-search"] });
-            queryClient.invalidateQueries({ queryKey: ["all-customers-dropdown"] });
+            // Force immediate refetch so Tier Change History and customer list show updated tier
+            await Promise.all([
+                queryClient.refetchQueries({ queryKey: ["loyalty-tier-history-all"] }),
+                queryClient.refetchQueries({ queryKey: ["customer-search"] }),
+                queryClient.refetchQueries({ queryKey: ["all-customers-dropdown"] }),
+            ]);
             queryClient.invalidateQueries({ queryKey: ["all_customers"] });
             queryClient.invalidateQueries({ queryKey: ["tier-history"] });
             queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history"] });

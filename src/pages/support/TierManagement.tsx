@@ -281,13 +281,15 @@ export default function TierManagement() {
       setAdjustDialogOpen(false);
       // Switch to History tab so user sees the new entry immediately
       setActiveTab("history");
-      // Force immediate refetch so Tier Change History shows the new entry
-      await queryClient.refetchQueries({ queryKey: ["loyalty-tier-history-all"] });
+      // Force immediate refetch so Tier Change History and customer list show updated tier
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["loyalty-tier-history-all"] }),
+        queryClient.refetchQueries({ queryKey: ["customer-search"] }),
+        queryClient.refetchQueries({ queryKey: ["all-customers-dropdown"] }),
+      ]);
       queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-manual"] });
       queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history"] });
       queryClient.invalidateQueries({ queryKey: ["points-transactions-admin"] });
-      queryClient.invalidateQueries({ queryKey: ["all-customers-dropdown"] });
-      queryClient.invalidateQueries({ queryKey: ["customer-search"] });
       toast({ title: "Tier updated", description: `Changed to ${tierName}`, variant: "default" });
     } catch (err) {
       const msg = (err as Error).message;
@@ -736,7 +738,24 @@ export default function TierManagement() {
                     grouped.set(key, h);
                   }
                 }
-                const actualChanges = Array.from(grouped.values()).sort(
+                let actualChanges = Array.from(grouped.values());
+                // When Support Adjust Tier: hide conflicting System entries (same customer, same time window)
+                // e.g. System Gold→Silver + Support Silver→Gold → show only Support
+                const supportKeys = new Set(
+                  actualChanges
+                    .filter((h) => h.change_type === "manual")
+                    .map((h) => {
+                      const ts = new Date(h.changed_at).getTime();
+                      return `${h.profile_customer_id}|${Math.floor(ts / 10000)}`;
+                    })
+                );
+                actualChanges = actualChanges.filter((h) => {
+                  if (h.change_type === "manual") return true;
+                  const ts = new Date(h.changed_at).getTime();
+                  const slotKey = `${h.profile_customer_id}|${Math.floor(ts / 10000)}`;
+                  return !supportKeys.has(slotKey);
+                });
+                actualChanges.sort(
                   (a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime()
                 );
                 if (actualChanges.length === 0) {

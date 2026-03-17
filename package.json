@@ -23,7 +23,9 @@
     "test:support": "vitest run src/pages/admin/__tests__/AdminSupport.test.tsx",
     "test:logger": "vitest run src/services/__tests__/errorLogger.test.ts",
     "test:tier": "vitest run src/pages/admin/__tests__/TierManagement.test.tsx",
-    "test:loyalty": "vitest run src/hooks/__tests__/useLoyaltyTier.test.tsx"
+    "test:loyalty": "vitest run src/hooks/__tests__/useLoyaltyTier.test.tsx",
+    "db:push": "supabase db push",
+    "db:migrate": "supabase migration up"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
