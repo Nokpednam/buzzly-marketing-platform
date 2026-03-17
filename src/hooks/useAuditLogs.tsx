@@ -16,9 +16,9 @@ export interface AuditLog {
   user_role?: string | null;
 }
 
-export function useAuditLogs(category?: string, page: number = 1, pageSize: number = 8, searchQuery: string = "", roleFilter: string = "all", statusFilter: string = "all") {
+export function useAuditLogs(category?: string, page: number = 1, pageSize: number = 8, searchQuery: string = "", roleFilter: string = "all", statusFilter: string = "all", actionFilter: string = "all") {
   return useQuery({
-    queryKey: ["audit-logs", category, page, pageSize, searchQuery, roleFilter, statusFilter],
+    queryKey: ["audit-logs", category, page, pageSize, searchQuery, roleFilter, statusFilter, actionFilter],
     placeholderData: keepPreviousData,
     queryFn: async () => {
       const from = (page - 1) * pageSize;
@@ -138,11 +138,18 @@ export function useAuditLogs(category?: string, page: number = 1, pageSize: numb
       });
 
       // Apply role filter client-side after enrichment
-      const filteredLogs = roleFilter && roleFilter !== "all"
+      const roleFiltered = roleFilter && roleFilter !== "all"
         ? enrichedLogs.filter((log: any) =>
             (log.user_role || '').toLowerCase().includes(roleFilter.toLowerCase())
           )
         : enrichedLogs;
+
+      // Apply action filter client-side
+      const filteredLogs = actionFilter && actionFilter !== "all"
+        ? roleFiltered.filter((log: any) =>
+            (log.action_name || '').toLowerCase() === actionFilter.toLowerCase()
+          )
+        : roleFiltered;
 
       return {
         logs: filteredLogs as AuditLog[],
