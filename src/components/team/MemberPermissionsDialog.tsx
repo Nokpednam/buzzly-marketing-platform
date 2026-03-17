@@ -122,10 +122,10 @@ export function MemberPermissionsDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
-            จัดการสิทธิ์สมาชิก
+            Manage member permissions
           </DialogTitle>
           <DialogDescription>
-            ตั้งค่าบทบาทและสิทธิ์การเข้าถึงสำหรับสมาชิก
+            Set role and access permissions for this member
           </DialogDescription>
         </DialogHeader>
 
@@ -146,7 +146,7 @@ export function MemberPermissionsDialog({
 
           {/* Role Selection */}
           <div className="space-y-2">
-            <Label>บทบาท (Role)</Label>
+            <Label>Role</Label>
             <Select
               value={role}
               onValueChange={(v) => handleRoleChange(v as TeamRole)}
@@ -168,8 +168,8 @@ export function MemberPermissionsDialog({
             {(member.role === "owner" || isCurrentUser) && (
               <p className="text-xs text-muted-foreground">
                 {member.role === "owner"
-                  ? "ไม่สามารถเปลี่ยน Role ของ Owner ได้"
-                  : "ไม่สามารถเปลี่ยน Role ของตัวเองได้"}
+                  ? "Owner role cannot be changed"
+                  : "You cannot change your own role"}
               </p>
             )}
           </div>
@@ -180,9 +180,9 @@ export function MemberPermissionsDialog({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <Label>สิทธิ์เฉพาะบุคคล</Label>
+                <Label>Custom permissions</Label>
                 <p className="text-xs text-muted-foreground">
-                  ปรับสิทธิ์แยกจาก Role เริ่มต้น
+                  Override default role permissions
                 </p>
               </div>
               <Switch
@@ -194,7 +194,7 @@ export function MemberPermissionsDialog({
 
             <div className="space-y-2 rounded-lg border p-3">
               <div className="mb-2 flex items-center justify-between text-xs font-medium text-muted-foreground">
-                <span>สิทธิ์</span>
+                <span>Permission</span>
                 <span>{useCustom ? "Custom" : `Default (${roleLabels[role].label})`}</span>
               </div>
               {(Object.entries(permissionLabels) as [keyof TeamPermissions, string][]).map(
@@ -215,11 +215,11 @@ export function MemberPermissionsDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            ยกเลิก
+            Cancel
           </Button>
           {canEdit && member.role !== "owner" && !isCurrentUser && (
             <Button onClick={handleSave} disabled={loading}>
-              {loading ? "กำลังบันทึก..." : "บันทึก"}
+              {loading ? "Saving..." : "Save"}
             </Button>
           )}
         </DialogFooter>

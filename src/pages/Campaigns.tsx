@@ -66,6 +66,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useCampaigns, CampaignWithInsights, calculateCampaignProgress } from "@/hooks/useCampaigns";
+import { useTeamPermissions } from "@/hooks/useTeamPermissions";
 import { supabase } from "@/integrations/supabase/client";
 import { AdAllocator } from "@/components/campaigns/AdAllocator";
 
@@ -114,6 +115,7 @@ function Sparkline({ impressions, clicks, conversions }: { impressions: number; 
 
 export default function Campaigns() {
   const navigate = useNavigate();
+  const { canAccess } = useTeamPermissions();
   const {
     campaigns: dbCampaigns,
     isLoading,
@@ -355,12 +357,14 @@ export default function Campaigns() {
             Monitor and scale your growth initiatives across all platforms.
           </p>
         </div>
-        <Button
-          onClick={openCreateDialog}
-          className="rounded-xl px-6 shadow-lg shadow-primary/20 bg-primary h-11 transition-all hover:scale-[1.02]"
-        >
-          <Plus className="h-5 w-5 mr-2" /> New Campaign
-        </Button>
+        {canAccess("edit_campaigns") && (
+          <Button
+            onClick={openCreateDialog}
+            className="rounded-xl px-6 shadow-lg shadow-primary/20 bg-primary h-11 transition-all hover:scale-[1.02]"
+          >
+            <Plus className="h-5 w-5 mr-2" /> New Campaign
+          </Button>
+        )}
       </div>
 
       {/* 2. STATS ROW */}
@@ -549,7 +553,7 @@ export default function Campaigns() {
                         clicks={campaign.clicks}
                         conversions={campaign.conversions}
                       />
-                      {campaign.status !== "completed" && (
+                      {campaign.status !== "completed" && canAccess("edit_campaigns") && (
                         <Button
                           variant="secondary"
                           size="icon"
@@ -577,25 +581,33 @@ export default function Campaigns() {
                           >
                             <Eye className="h-4 w-4 mr-2" /> View Insights
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => openEditDialog(campaign)}
-                            className="rounded-lg"
-                          >
-                            <Edit className="h-4 w-4 mr-2" /> Edit Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleDuplicate(campaign)}
-                            className="rounded-lg"
-                          >
-                            <Copy className="h-4 w-4 mr-2" /> Duplicate
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={() => handleDelete(campaign.id)}
-                            className="text-destructive rounded-lg"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" /> Delete
-                          </DropdownMenuItem>
+                          {canAccess("edit_campaigns") && (
+                            <>
+                              <DropdownMenuItem
+                                onClick={() => openEditDialog(campaign)}
+                                className="rounded-lg"
+                              >
+                                <Edit className="h-4 w-4 mr-2" /> Edit Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDuplicate(campaign)}
+                                className="rounded-lg"
+                              >
+                                <Copy className="h-4 w-4 mr-2" /> Duplicate
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          {canAccess("delete_campaigns") && (
+                            <>
+                              {canAccess("edit_campaigns") && <DropdownMenuSeparator />}
+                              <DropdownMenuItem
+                                onClick={() => handleDelete(campaign.id)}
+                                className="text-destructive rounded-lg"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> Delete
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
