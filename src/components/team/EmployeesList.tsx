@@ -201,29 +201,29 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
 
     switch (status) {
       case "active":
-        return <Badge className="bg-success text-success-foreground">ใช้งาน</Badge>;
+        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ใช้งาน</Badge>;
       case "inactive":
         if (!isSignedUp) {
-          return <Badge variant="outline" className="text-muted-foreground">ยังไม่สมัคร</Badge>;
+          return <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-xs font-medium border-slate-700 text-slate-500 bg-slate-800/20">ยังไม่สมัคร</Badge>;
         }
-        return <Badge variant="outline" className="text-warning">รอเปิดใช้งาน</Badge>;
+        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">รอเปิดใช้งาน</Badge>;
       case "suspended":
-        return <Badge variant="destructive">ระงับ</Badge>;
+        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">ระงับ</Badge>;
       default:
-        return <Badge variant="secondary">ไม่ระบุ</Badge>;
+        return <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-xs font-medium border-slate-700 text-slate-500">ไม่ระบุ</Badge>;
     }
   };
 
   const getApprovalBadge = (status: string | null) => {
     switch (status) {
       case "approved":
-        return <Badge className="bg-green-500 hover:bg-green-600 text-white">อนุมัติแล้ว</Badge>;
+        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">อนุมัติแล้ว</Badge>;
       case "pending":
-        return <Badge variant="outline" className="border-orange-500 text-orange-600 hover:bg-orange-50">รออนุมัติ</Badge>;
+        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">รออนุมัติ</Badge>;
       case "rejected":
-        return <Badge className="bg-red-500 hover:bg-red-600 text-white">ปฏิเสธ</Badge>;
+        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">ปฏิเสธ</Badge>;
       default:
-        return <Badge variant="secondary">-</Badge>;
+        return <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-xs font-medium border-slate-700 text-slate-500">-</Badge>;
     }
   };
 
@@ -245,8 +245,8 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
     <div className="space-y-4">
       {/* Header */}
       {canManage && (
-        <div className="flex justify-end p-4 border-b">
-          <Button onClick={() => setAddDialogOpen(true)} className="gap-2">
+        <div className="flex justify-end p-4 bg-slate-900/40 border border-slate-800 rounded-lg">
+          <Button onClick={() => setAddDialogOpen(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4">
             <Plus className="h-4 w-4" />
             เพิ่มพนักงาน
           </Button>
@@ -254,17 +254,17 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>พนักงาน</TableHead>
-              <TableHead>บทบาท</TableHead>
-              <TableHead>ตำแหน่ง/ความถนัด</TableHead>
-              <TableHead>สถานะ</TableHead>
-              <TableHead>สถานะการอนุมัติ</TableHead>
-              <TableHead>เข้าใช้งานล่าสุด</TableHead>
-              {canManage && <TableHead className="w-[50px]"></TableHead>}
+            <TableRow className="bg-slate-900/20 border-b border-slate-800 hover:bg-slate-900/20">
+              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">พนักงาน</TableHead>
+              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">บทบาท</TableHead>
+              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">ตำแหน่ง/ความถนัด</TableHead>
+              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">สถานะ</TableHead>
+              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">สถานะการอนุมัติ</TableHead>
+              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">เข้าใช้งานล่าสุด</TableHead>
+              {canManage && <TableHead className="w-[80px] text-right pr-6 py-4"></TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -276,51 +276,51 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
               </TableRow>
             ) : (
               employees.map((employee) => (
-                <TableRow key={employee.id}>
-                  <TableCell>
+                <TableRow key={employee.id} className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors group">
+                  <TableCell className="py-4">
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9">
+                      <Avatar className="h-9 w-9 border border-slate-800">
                         <AvatarImage src={employee.profile?.profile_img || undefined} />
-                        <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                        <AvatarFallback className="bg-slate-800 text-slate-300 text-sm">
                           {getInitials(employee.profile?.first_name, employee.profile?.last_name)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium">
+                        <p className="font-bold text-white text-sm">
                           {employee.profile?.first_name || ""} {employee.profile?.last_name || ""}
                           {!employee.profile?.first_name && !employee.profile?.last_name && employee.email}
                         </p>
                         {(employee.profile?.first_name || employee.profile?.last_name) && (
-                          <p className="text-sm text-muted-foreground">{employee.email}</p>
+                          <p className="text-xs text-slate-500 font-medium">{employee.email}</p>
                         )}
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <TableCell className="py-4">
+                    <div className="flex items-center gap-2 text-slate-300 font-medium">
+                      <Building2 className="h-4 w-4 text-slate-500" />
                       {employee.role?.role_name || "ไม่ระบุ"}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Briefcase className="h-4 w-4 text-muted-foreground" />
+                  <TableCell className="py-4">
+                    <div className="flex items-center gap-2 text-slate-300 font-medium">
+                      <Briefcase className="h-4 w-4 text-slate-500" />
                       {employee.profile?.aptitude || "ไม่ระบุ"}
                     </div>
                   </TableCell>
-                  <TableCell>{getStatusBadge(employee)}</TableCell>
-                  <TableCell>{getApprovalBadge(employee.approval_status)}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
+                  <TableCell className="py-4">{getStatusBadge(employee)}</TableCell>
+                  <TableCell className="py-4">{getApprovalBadge(employee.approval_status)}</TableCell>
+                  <TableCell className="py-4">
                     {employee.profile?.last_active ? (
-                      <div className="flex flex-col">
-                        <span className="flex items-center gap-1 font-medium text-foreground">
-                          <Clock className="h-3 w-3" />
+                      <div className="flex flex-col gap-0.5">
+                        <span className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+                          <Clock className="h-3 w-3 text-slate-500" />
                           {formatDistanceToNow(new Date(employee.profile.last_active), { 
                             addSuffix: true,
                             locale: th 
                           })}
                         </span>
-                        <span className="text-[10px]">
+                        <span className="text-[10px] text-slate-500 font-medium pl-4.5">
                           {new Date(employee.profile.last_active).toLocaleString("th-TH", {
                             day: "numeric",
                             month: "short",
@@ -331,93 +331,93 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                         </span>
                       </div>
                     ) : (
-                      "-"
+                      <span className="text-slate-600 italic text-xs">-</span>
                     )}
                   </TableCell>
                   {canManage && (
-                    <TableCell>
+                    <TableCell className="text-right pr-6 py-4">
                       {employee.role?.role_name?.toLowerCase() !== "owner" && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-800 transition-all opacity-0 group-hover:opacity-100">
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => openEditDialog(employee)}>
-                              <Pencil className="h-4 w-4 mr-2" />
+                          <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-slate-300 shadow-2xl">
+                            <DropdownMenuItem onClick={() => openEditDialog(employee)} className="hover:bg-slate-800 focus:bg-slate-800 focus:text-white cursor-pointer transition-colors px-3 py-2">
+                              <Pencil className="h-4 w-4 mr-3 text-blue-400" />
                               แก้ไขข้อมูล
                             </DropdownMenuItem>
 
                             {/* Approval Actions - Only for pending employees */}
                             {employee.approval_status === "pending" && (
                               <>
-                                <DropdownMenuSeparator />
+                                <DropdownMenuSeparator className="bg-slate-800" />
                                 <DropdownMenuItem
-                                  className="text-success"
+                                  className="text-emerald-400 hover:bg-emerald-500/10 focus:bg-emerald-500/10 focus:text-emerald-400 cursor-pointer transition-colors px-3 py-2"
                                   onClick={() => handleApprove(employee.id)}
                                   disabled={approveEmployee.isPending}
                                 >
                                   {approveEmployee.isPending ? (
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    <Loader2 className="h-4 w-4 mr-3 animate-spin" />
                                   ) : (
-                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    <CheckCircle className="h-4 w-4 mr-3" />
                                   )}
                                   อนุมัติพนักงาน
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
-                                  className="text-destructive"
+                                  className="text-rose-400 hover:bg-rose-500/10 focus:bg-rose-500/10 focus:text-rose-400 cursor-pointer transition-colors px-3 py-2"
                                   onClick={() => handleReject(employee.id)}
                                   disabled={rejectEmployee.isPending}
                                 >
                                   {rejectEmployee.isPending ? (
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    <Loader2 className="h-4 w-4 mr-3 animate-spin" />
                                   ) : (
-                                    <XCircle className="h-4 w-4 mr-2" />
+                                    <XCircle className="h-4 w-4 mr-3" />
                                   )}
                                   ปฏิเสธพนักงาน
                                 </DropdownMenuItem>
                               </>
                             )}
 
-                            <DropdownMenuSeparator />
+                            <DropdownMenuSeparator className="bg-slate-800" />
                             {employee.status === "active" ? (
                               <DropdownMenuItem
-                                className="text-warning"
+                                className="text-amber-400 hover:bg-amber-500/10 focus:bg-amber-500/10 focus:text-amber-400 cursor-pointer transition-colors px-3 py-2"
                                 onClick={() => handleSuspend(employee.id)}
                                 disabled={suspendEmployee.isPending}
                               >
                                 {suspendEmployee.isPending ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  <Loader2 className="h-4 w-4 mr-3 animate-spin" />
                                 ) : (
-                                  <UserX className="h-4 w-4 mr-2" />
+                                  <UserX className="h-4 w-4 mr-3" />
                                 )}
                                 ระงับการใช้งาน
                               </DropdownMenuItem>
                             ) : (
                               <DropdownMenuItem
-                                className="text-success"
+                                className="text-emerald-400 hover:bg-emerald-500/10 focus:bg-emerald-500/10 focus:text-emerald-400 cursor-pointer transition-colors px-3 py-2"
                                 onClick={() => handleReactivate(employee.id)}
                                 disabled={reactivateEmployee.isPending}
                               >
                                 {reactivateEmployee.isPending ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  <Loader2 className="h-4 w-4 mr-3 animate-spin" />
                                 ) : (
-                                  <UserCheck className="h-4 w-4 mr-2" />
+                                  <UserCheck className="h-4 w-4 mr-3" />
                                 )}
                                 เปิดใช้งานอีกครั้ง
                               </DropdownMenuItem>
                             )}
-                            <DropdownMenuSeparator />
+                            <DropdownMenuSeparator className="bg-slate-800" />
                             <DropdownMenuItem
-                              className="text-destructive"
+                              className="text-rose-400 hover:bg-rose-500/10 focus:bg-rose-500/10 focus:text-rose-400 cursor-pointer transition-colors px-3 py-2"
                               onClick={() => handleRemove(employee.id)}
                               disabled={deleteEmployee.isPending}
                             >
                               {deleteEmployee.isPending ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                <Loader2 className="h-4 w-4 mr-3 animate-spin" />
                               ) : (
-                                <Trash2 className="h-4 w-4 mr-2" />
+                                <Trash2 className="h-4 w-4 mr-3" />
                               )}
                               ลบพนักงาน
                             </DropdownMenuItem>
@@ -435,17 +435,17 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
 
       {/* Add Employee Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-slate-900 border-slate-800 text-slate-200 shadow-2xl rounded-xl sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>เพิ่มพนักงานใหม่</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-2xl font-bold text-white tracking-tight">เพิ่มพนักงานใหม่</DialogTitle>
+            <DialogDescription className="text-slate-400 font-medium">
               กรอกข้อมูลพนักงานที่ต้องการเพิ่มเข้าระบบ
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-6 py-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">ชื่อ</Label>
+                <Label htmlFor="firstName" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">ชื่อ</Label>
                 <Input
                   id="firstName"
                   value={formData.first_name || ""}
@@ -453,10 +453,11 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                     setFormData({ ...formData, first_name: e.target.value })
                   }
                   placeholder="ชื่อจริง"
+                  className="bg-black/20 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-slate-800 h-10"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">นามสกุล</Label>
+                <Label htmlFor="lastName" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">นามสกุล</Label>
                 <Input
                   id="lastName"
                   value={formData.last_name || ""}
@@ -464,11 +465,12 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                     setFormData({ ...formData, last_name: e.target.value })
                   }
                   placeholder="นามสกุล"
+                  className="bg-black/20 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-slate-800 h-10"
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">อีเมล (ใช้สำหรับเชื่อมต่อบัญชีตอนสมัคร)</Label>
+              <Label htmlFor="email" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">อีเมล (ใช้สำหรับเชื่อมต่อบัญชีตอนสมัคร)</Label>
               <Input
                 id="email"
                 type="email"
@@ -477,24 +479,25 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                   setFormData({ ...formData, email: e.target.value })
                 }
                 placeholder="employee@buzzly.co"
+                className="bg-black/20 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-slate-800 h-10"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="role">บทบาท</Label>
+              <Label htmlFor="role" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">บทบาท</Label>
               <Select
                 value={formData.role_employees_id || ""}
                 onValueChange={(value) =>
                   setFormData({ ...formData, role_employees_id: value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-black/20 border-slate-800 text-slate-300 h-10">
                   <SelectValue placeholder="เลือกบทบาท" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-slate-900 border-slate-800 text-slate-300">
                   {roles
                     .filter((role) => role.role_name?.toLowerCase() !== "owner")
                     .map((role) => (
-                      <SelectItem key={role.id} value={role.id}>
+                      <SelectItem key={role.id} value={role.id} className="hover:bg-slate-800 focus:bg-slate-800 transition-colors">
                         {role.role_name}
                       </SelectItem>
                     ))}
@@ -502,7 +505,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="aptitude">ความถนัด/ตำแหน่ง</Label>
+              <Label htmlFor="aptitude" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">ความถนัด/ตำแหน่ง</Label>
               <Input
                 id="aptitude"
                 value={formData.aptitude || ""}
@@ -510,14 +513,15 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                   setFormData({ ...formData, aptitude: e.target.value })
                 }
                 placeholder="เช่น Marketing, Sales, Developer"
+                className="bg-black/20 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-slate-800 h-10"
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
+          <DialogFooter className="bg-slate-900/50 p-6 -m-6 border-t border-slate-800 mt-6 rounded-b-xl">
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)} className="bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800">
               ยกเลิก
             </Button>
-            <Button onClick={handleAddEmployee} disabled={createEmployee.isPending}>
+            <Button onClick={handleAddEmployee} disabled={createEmployee.isPending} className="bg-blue-600 hover:bg-blue-700 text-white">
               {createEmployee.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
@@ -529,38 +533,40 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
 
       {/* Edit Employee Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-slate-900 border-slate-800 text-slate-200 shadow-2xl rounded-xl sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>แก้ไขข้อมูลพนักงาน</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-2xl font-bold text-white tracking-tight">แก้ไขข้อมูลพนักงาน</DialogTitle>
+            <DialogDescription className="text-slate-400 font-medium">
               แก้ไขข้อมูลของ {selectedEmployee?.profile?.first_name} {selectedEmployee?.profile?.last_name}
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-6 py-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-firstName">ชื่อ</Label>
+                <Label htmlFor="edit-firstName" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">ชื่อ</Label>
                 <Input
                   id="edit-firstName"
                   value={formData.first_name || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, first_name: e.target.value })
                   }
+                  className="bg-black/20 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-slate-800 h-10"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-lastName">นามสกุล</Label>
+                <Label htmlFor="edit-lastName" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">นามสกุล</Label>
                 <Input
                   id="edit-lastName"
                   value={formData.last_name || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, last_name: e.target.value })
                   }
+                  className="bg-black/20 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-slate-800 h-10"
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-email">อีเมล (ใช้สำหรับเชื่อมต่อบัญชีตอนสมัคร)</Label>
+              <Label htmlFor="edit-email" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">อีเมล (ใช้สำหรับเชื่อมต่อบัญชีตอนสมัคร)</Label>
               <Input
                 id="edit-email"
                 type="email"
@@ -569,24 +575,25 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                   setFormData({ ...formData, email: e.target.value })
                 }
                 placeholder="employee@example.com"
+                className="bg-black/20 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-slate-800 h-10"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-role">บทบาท</Label>
+              <Label htmlFor="edit-role" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">บทบาท</Label>
               <Select
                 value={formData.role_employees_id || ""}
                 onValueChange={(value) =>
                   setFormData({ ...formData, role_employees_id: value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-black/20 border-slate-800 text-slate-300 h-10">
                   <SelectValue placeholder="เลือกบทบาท" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-slate-900 border-slate-800 text-slate-300">
                   {roles
                     .filter((role) => role.role_name?.toLowerCase() !== "owner")
                     .map((role) => (
-                      <SelectItem key={role.id} value={role.id}>
+                      <SelectItem key={role.id} value={role.id} className="hover:bg-slate-800 focus:bg-slate-800 transition-colors">
                         {role.role_name}
                       </SelectItem>
                     ))}
@@ -594,21 +601,22 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-aptitude">ความถนัด/ตำแหน่ง</Label>
+              <Label htmlFor="edit-aptitude" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">ความถนัด/ตำแหน่ง</Label>
               <Input
                 id="edit-aptitude"
                 value={formData.aptitude || ""}
                 onChange={(e) =>
                   setFormData({ ...formData, aptitude: e.target.value })
                 }
+                className="bg-black/20 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-slate-800 h-10"
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+          <DialogFooter className="bg-slate-900/50 p-6 -m-6 border-t border-slate-800 mt-6 rounded-b-xl">
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)} className="bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800">
               ยกเลิก
             </Button>
-            <Button onClick={handleEditEmployee} disabled={updateEmployee.isPending}>
+            <Button onClick={handleEditEmployee} disabled={updateEmployee.isPending} className="bg-blue-600 hover:bg-blue-700 text-white">
               {updateEmployee.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
