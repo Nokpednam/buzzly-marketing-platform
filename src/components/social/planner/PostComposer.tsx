@@ -20,7 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { PlatformPublishSelector } from "@/components/social/planner/PlatformPublishSelector";
 import { PersonaSelector } from "@/components/persona/PersonaSelector";
 import { useWorkspace } from "@/hooks/useWorkspace";
@@ -162,7 +161,7 @@ export function PostComposer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg gap-0 overflow-hidden p-0 sm:max-h-[90vh]">
+      <DialogContent className="max-w-lg gap-0 overflow-hidden p-0 sm:max-h-[90vh] rounded-2xl">
         <DialogHeader className="px-6 pb-4 pt-6">
           <DialogTitle>{titleMap[mode]}</DialogTitle>
           {isCreate && (
@@ -170,7 +169,7 @@ export function PostComposer({
           )}
         </DialogHeader>
 
-        <ScrollArea className="max-h-[calc(90vh-9rem)] px-6">
+        <div className="max-h-[calc(90vh-12rem)] overflow-y-auto overflow-x-hidden px-6">
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <Label>Platforms</Label>
@@ -431,26 +430,28 @@ export function PostComposer({
               </div>
           )}
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter className="border-t bg-background px-6 py-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {isPreview ? "Close" : "Cancel"}
-          </Button>
-          {isPreview ? (
-            <Button onClick={onRequestEdit}>Edit</Button>
-          ) : (
-            <Button onClick={handleSubmit} disabled={!isValid || isPending}>
-              {isPending
-                ? isCreate
-                  ? "Creating..."
-                  : "Saving..."
-                : isCreate
-                  ? "Create Post"
-                  : "Save"}
+        <div className="border-t px-6 py-4 rounded-b-2xl">
+          <DialogFooter className="flex flex-row justify-end gap-3 sm:gap-4">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              {isPreview ? "Close" : "Cancel"}
             </Button>
-          )}
-        </DialogFooter>
+            {isPreview ? (
+              <Button onClick={onRequestEdit}>Edit</Button>
+            ) : (
+              <Button onClick={handleSubmit} disabled={!isValid || isPending}>
+                {isPending
+                  ? isCreate
+                    ? "Creating..."
+                    : "Saving..."
+                  : isCreate
+                    ? "Create Post"
+                    : "Save"}
+              </Button>
+            )}
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
