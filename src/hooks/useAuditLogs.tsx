@@ -20,6 +20,7 @@ export function useAuditLogs(category?: string, page: number = 1, pageSize: numb
   return useQuery({
     queryKey: ["audit-logs", category, page, pageSize, searchQuery, roleFilter, statusFilter, actionFilter],
     placeholderData: keepPreviousData,
+    refetchInterval: 10000,
     queryFn: async () => {
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
@@ -220,6 +221,7 @@ export function useAuditLogs(category?: string, page: number = 1, pageSize: numb
 export function useAuditLogStats() {
   return useQuery({
     queryKey: ["audit-log-stats"],
+    refetchInterval: 10000,
     queryFn: async () => {
       // Fetch accurate counts for each category
       const [
