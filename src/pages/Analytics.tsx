@@ -10,10 +10,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Download,
   Calendar,
   TrendingUp,
-  TrendingDown,
   AlertCircle,
   BarChart3,
   Activity,
@@ -23,7 +21,6 @@ import {
   PieChart as PieChartIcon,
   Target,
 } from "lucide-react";
-import { toast } from "sonner";
 import {
   AreaChart,
   Area,
@@ -53,10 +50,76 @@ const CHART_COLORS = [
   "hsl(var(--chart-5))",
 ];
 
+function getMonday(d: Date): Date {
+  const copy = new Date(d);
+  const day = copy.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  copy.setDate(copy.getDate() + diff);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function getWeekOptions(): { value: string; label: string }[] {
+  const options: { value: string; label: string }[] = [];
+  const now = new Date();
+  let monday = getMonday(now);
+  for (let i = 0; i < 16; i++) {
+    const d = new Date(monday);
+    d.setDate(d.getDate() - 7 * i);
+    const ymd = d.toISOString().split("T")[0]!;
+    const end = new Date(d);
+    end.setDate(end.getDate() + 6);
+    options.push({
+      value: ymd,
+      label: `${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+    });
+  }
+  return options;
+}
+
+function getMonthOptions(): { value: string; label: string }[] {
+  const options: { value: string; label: string }[] = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    options.push({
+      value,
+      label: d.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+    });
+  }
+  return options;
+}
+
+function getYearOptions(): { value: string; label: string }[] {
+  const options: { value: string; label: string }[] = [];
+  const y = new Date().getFullYear();
+  for (let i = 0; i < 5; i++) {
+    const v = String(y - i);
+    options.push({ value: v, label: v });
+  }
+  return options;
+}
+
+const WEEK_OPTS = getWeekOptions();
+const MONTH_OPTS = getMonthOptions();
+const YEAR_OPTS = getYearOptions();
+
 function AnalyticsContent() {
   const navigate = useNavigate();
   const { connectedPlatforms } = usePlatformConnections();
-  const [dateRange, setDateRange] = useState("30d");
+  const now = new Date();
+  const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const defaultWeek = getMonday(now).toISOString().split("T")[0]!;
+  const defaultYear = String(now.getFullYear());
+
+  const [dateMode, setDateMode] = useState<"7d" | "30d" | "year">("30d");
+  const [weekValue, setWeekValue] = useState(defaultWeek);
+  const [monthValue, setMonthValue] = useState(defaultMonth);
+  const [yearValue, setYearValue] = useState(defaultYear);
+
+  const dateRange =
+    dateMode === "7d" ? `week:${weekValue}` : dateMode === "30d" ? `month:${monthValue}` : `year:${yearValue}`;
 
   const { data: metrics, isLoading } = useDashboardMetrics(dateRange);
 
@@ -67,55 +130,106 @@ function AnalyticsContent() {
   const hasData = metrics && (metrics.totalImpressions > 0 || metrics.totalClicks > 0);
 
   if (!isLoading && !hasData) {
-    return <NoDataState setDateRange={setDateRange} dateRange={dateRange} />;
+    return (
+      <NoDataState
+        dateMode={dateMode}
+        setDateMode={setDateMode}
+        weekValue={weekValue}
+        setWeekValue={setWeekValue}
+        monthValue={monthValue}
+        setMonthValue={setMonthValue}
+        yearValue={yearValue}
+        setYearValue={setYearValue}
+      />
+    );
   }
 
   const metricsCards = metrics ? [
-    { label: "Total Impressions", value: formatNumber(metrics.totalImpressions), icon: Activity, color: "text-blue-500" },
-    { label: "CTR Rate", value: `${metrics.avgCtr.toFixed(2)}%`, icon: MousePointer2, color: "text-emerald-500" },
-    { label: "Avg CPC", value: `฿${metrics.avgCpc.toFixed(2)}`, icon: Zap, color: "text-amber-500" },
-    { label: "Net ROAS", value: `${metrics.avgRoas.toFixed(1)}x`, icon: TrendingUp, color: "text-indigo-500" },
-    { label: "Conversions", value: metrics.totalConversions.toLocaleString(), icon: Target, color: "text-rose-500" },
-    { label: "Total Spend", value: `฿${metrics.totalSpend.toFixed(2)}`, icon: DollarSign, color: "text-slate-500" },
+    { label: "Total Impressions", value: formatNumber(metrics.totalImpressions), unit: "impressions", icon: Activity, color: "text-blue-500" },
+    { label: "CTR Rate", value: `${safeNum(metrics.avgCtr, 0).toFixed(2)}%`, unit: null, icon: MousePointer2, color: "text-emerald-500" },
+    { label: "Avg CPC", value: safeNum(metrics.avgCpc, 0).toFixed(2), unit: "฿", icon: Zap, color: "text-amber-500" },
+    { label: "Net ROAS", value: `${safeNum(metrics.avgRoas, 0).toFixed(1)}x`, unit: null, icon: TrendingUp, color: "text-indigo-500" },
+    { label: "Conversions", value: safeNum(metrics.totalConversions, 0).toLocaleString(), unit: "count", icon: Target, color: "text-rose-500" },
+    { label: "Total Spend", value: safeNum(metrics.totalSpend, 0).toFixed(2), unit: "฿", icon: DollarSign, color: "text-slate-500" },
   ] : [];
 
-  const pieData = metrics?.trendData.reduce((acc, item, index) => {
-    const weekLabel = `Week ${Math.floor(index / 7) + 1}`;
-    const existing = acc.find(i => i.name === weekLabel);
-    if (existing) existing.value += item.impressions;
-    else acc.push({ name: weekLabel, value: item.impressions });
-    return acc;
-  }, [] as any[]).map((item, i) => ({ ...item, color: CHART_COLORS[i % CHART_COLORS.length] })) || [];
+  const pieData = metrics
+    ? computeMarketShareData(metrics.trendData, dateMode)
+    : [];
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 p-4 md:p-8 animate-in fade-in duration-500">
 
       {/* 1. HEADER & GLOBAL FILTERS */}
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between border-b pb-8">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest">
-            <BarChart3 className="h-4 w-4" /> Global Intelligence
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full bg-sky-100 dark:bg-sky-900/50 px-3 py-1 text-xs font-semibold text-sky-700 dark:text-sky-300 uppercase tracking-wider">
+            <BarChart3 className="h-3.5 w-3.5" />
+            Global Intelligence
           </div>
-          <h1 className="text-4xl font-black tracking-tighter uppercase italic">Analytics Hub</h1>
-          <p className="text-muted-foreground">Cross-platform performance audit and predictive growth metrics.</p>
+          <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight">
+            Analytics Hub
+          </h1>
+          <p className="text-slate-500 max-w-xl">
+            Cross-platform performance audit and predictive growth metrics.
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="bg-muted/50 p-1 rounded-xl flex items-center gap-1 border">
-            <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger className="w-[140px] bg-background border-none shadow-none h-9 rounded-lg">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="bg-muted/50 p-1 rounded-xl flex items-center gap-2 border">
+            <Select value={dateMode} onValueChange={(v) => setDateMode(v as "7d" | "30d" | "year")}>
+              <SelectTrigger className="w-[120px] bg-background border-none shadow-none h-9 rounded-lg">
                 <Calendar className="mr-2 h-3.5 w-3.5 opacity-50" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="7d">Last 7 Days</SelectItem>
-                <SelectItem value="30d">Last 30 Days</SelectItem>
-                <SelectItem value="90d">Last 90 Days</SelectItem>
+                <SelectItem value="7d">7 Days</SelectItem>
+                <SelectItem value="30d">30 Days</SelectItem>
+                <SelectItem value="year">Year</SelectItem>
               </SelectContent>
             </Select>
+            {dateMode === "7d" && (
+              <Select value={weekValue} onValueChange={setWeekValue}>
+                <SelectTrigger className="w-[200px] bg-background border-none shadow-none h-9 rounded-lg">
+                  <SelectValue placeholder="Select week" />
+                </SelectTrigger>
+                <SelectContent>
+                  {WEEK_OPTS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {dateMode === "30d" && (
+              <Select value={monthValue} onValueChange={setMonthValue}>
+                <SelectTrigger className="w-[160px] bg-background border-none shadow-none h-9 rounded-lg">
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTH_OPTS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {dateMode === "year" && (
+              <Select value={yearValue} onValueChange={setYearValue}>
+                <SelectTrigger className="w-[100px] bg-background border-none shadow-none h-9 rounded-lg">
+                  <SelectValue placeholder="Select year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {YEAR_OPTS.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
-          <Button variant="outline" className="rounded-xl h-11 px-6 border-primary/20 hover:bg-primary/5 text-primary" onClick={() => toast.info("Export — พร้อมใช้งานเร็วๆ นี้")}>
-            <Download className="h-4 w-4 mr-2" /> Export Hub
-          </Button>
         </div>
       </div>
 
@@ -132,7 +246,11 @@ function AnalyticsContent() {
                     <metric.icon className="h-4 w-4" />
                   </div>
                   <p className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest opacity-70">{metric.label}</p>
-                  <p className="mt-1 text-xl font-black tracking-tight">{metric.value}</p>
+                  <p className="mt-1 text-xl font-black tracking-tight">
+                    {metric.unit === "฿" && <span className="text-sm font-medium text-muted-foreground mr-0.5">{metric.unit}</span>}
+                    {metric.value}
+                    {(metric.unit === "impressions" || metric.unit === "count") && <span className="text-xs font-medium text-muted-foreground ml-1">{metric.unit}</span>}
+                  </p>
                 </CardContent>
               </Card>
             ))}
@@ -146,12 +264,19 @@ function AnalyticsContent() {
                 <CardTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" /> Traffic Trajectory
                 </CardTitle>
-                <CardDescription>Correlating Impression volume with active click acquisition.</CardDescription>
+                <CardDescription>Impressions and Clicks by day</CardDescription>
               </CardHeader>
               <CardContent className="p-8">
                 <div className="h-[320px] w-full bg-background rounded-2xl p-4 border shadow-inner">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={metrics?.trendData}>
+                    <AreaChart
+                      data={(metrics?.trendData ?? []).map((d) => ({
+                        ...d,
+                        impressions: Number.isFinite(d.impressions) ? d.impressions : 0,
+                        clicks: Number.isFinite(d.clicks) ? d.clicks : 0,
+                        spend: Number.isFinite(d.spend) ? d.spend : 0,
+                      }))}
+                    >
                       <defs>
                         <linearGradient id="colorImp" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
@@ -166,10 +291,33 @@ function AnalyticsContent() {
                         tick={{ fontSize: 10, fontWeight: 700 }}
                         tickFormatter={(val) => new Date(val).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                      <Area type="monotone" dataKey="impressions" stroke="hsl(var(--primary))" strokeWidth={3} fill="url(#colorImp)" />
-                      <Area type="monotone" dataKey="clicks" stroke="hsl(var(--chart-2))" strokeWidth={3} fill="transparent" strokeDasharray="5 5" />
+                      <YAxis
+                        yAxisId="impressions"
+                        orientation="left"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 10 }}
+                        tickFormatter={(v) => formatNumber(v)}
+                      />
+                      <YAxis
+                        yAxisId="clicks"
+                        orientation="right"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 10 }}
+                        tickFormatter={(v) => formatNumber(v)}
+                        domain={[0, 5000]}
+                      />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                        formatter={(value: number, name: string) => [
+                          Number.isFinite(value) ? value.toLocaleString() : "0",
+                          name === "impressions" ? "Impressions" : "Clicks",
+                        ]}
+                      />
+                      <Legend />
+                      <Area yAxisId="impressions" type="monotone" dataKey="impressions" name="Impressions" stroke="hsl(var(--primary))" strokeWidth={3} fill="url(#colorImp)" />
+                      <Area yAxisId="clicks" type="monotone" dataKey="clicks" name="Clicks" stroke="hsl(var(--chart-2))" strokeWidth={2.5} fill="transparent" strokeDasharray="6 4" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -182,7 +330,11 @@ function AnalyticsContent() {
                 <CardTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
                   <PieChartIcon className="h-5 w-5 text-indigo-500" /> Market Share
                 </CardTitle>
-                <CardDescription>Volume split by weekly cycle.</CardDescription>
+                <CardDescription>
+                  {dateMode === "year"
+                    ? "Impressions share by month"
+                    : "Impressions share by week"}
+                </CardDescription>
               </CardHeader>
               <CardContent className="p-8">
                 <div className="h-[250px]">
@@ -199,7 +351,10 @@ function AnalyticsContent() {
                           <Cell key={`cell-${index}`} fill={entry.color} stroke="none" />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
+                      <Tooltip
+                        contentStyle={{ borderRadius: '12px', border: 'none' }}
+                        formatter={(value: number) => [Number.isFinite(value) ? value.toLocaleString() : "0", "Impressions"]}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -218,15 +373,28 @@ function AnalyticsContent() {
           {/* 4. SPEND VELOCITY BAR CHART */}
           <Card className="border-none shadow-none bg-muted/10 rounded-[2rem] overflow-hidden">
             <CardHeader className="p-8 pb-0">
-              <CardTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-emerald-500" /> Spend Velocity
-              </CardTitle>
-              <CardDescription>Monitoring daily allocation efficiency for the last 14 days.</CardDescription>
+                <CardTitle className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-emerald-500" /> Spend Velocity
+                </CardTitle>
+              <CardDescription>
+                {dateMode === "year"
+                  ? "Daily spend (฿) — last 30 days"
+                  : dateMode === "30d"
+                    ? "Daily spend (฿) for the selected month"
+                    : "Daily spend (฿) for the selected week"}
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-8">
               <div className="h-[280px] bg-background rounded-2xl p-4 border shadow-inner">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={metrics?.trendData.slice(-14)}>
+                  <BarChart
+                    data={(metrics?.trendData ?? [])
+                      .slice(dateMode === "year" ? -30 : undefined)
+                      .map((d) => ({
+                        ...d,
+                        spend: Number.isFinite(d.spend) ? d.spend : 0,
+                      }))}
+                  >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
                     <XAxis
                       dataKey="date"
@@ -235,9 +403,13 @@ function AnalyticsContent() {
                       tick={{ fontSize: 10, fontWeight: 700 }}
                       tickFormatter={(val) => new Date(val).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
                     />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                    <Tooltip cursor={{ fill: 'hsl(var(--muted)/0.4)' }} contentStyle={{ borderRadius: '12px', border: 'none' }} />
-                    <Bar dataKey="spend" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} barSize={30} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} tickFormatter={(v) => `฿${Number.isFinite(Number(v)) ? Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }) : "0"}`} />
+                    <Tooltip
+                      cursor={{ fill: 'hsl(var(--muted)/0.4)' }}
+                      contentStyle={{ borderRadius: '12px', border: 'none' }}
+                      formatter={(value: number) => [`฿${Number.isFinite(value) ? Number(value).toFixed(2) : "0.00"}`, "Spend"]}
+                    />
+                    <Bar dataKey="spend" name="Spend" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} barSize={30} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -251,10 +423,56 @@ function AnalyticsContent() {
 
 // --- INTERNAL HELPERS ---
 
+function computeMarketShareData(
+  trendData: { date: string; impressions: number; clicks: number; spend: number }[],
+  dateMode: "7d" | "30d" | "year"
+): { name: string; value: number; color: string }[] {
+  if (!trendData || trendData.length === 0) return [];
+
+  if (dateMode === "year") {
+    const byMonth = trendData.reduce((acc, item) => {
+      const date = new Date(item.date);
+      const key = date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+      const existing = acc.find((i) => i.name === key);
+      if (existing) existing.value += item.impressions;
+      else acc.push({ name: key, value: item.impressions });
+      return acc;
+    }, [] as { name: string; value: number }[]);
+    return byMonth.map((item, i) => ({ ...item, color: CHART_COLORS[i % CHART_COLORS.length] }));
+  }
+
+  if (dateMode === "30d") {
+    const byWeek = trendData.reduce((acc, item) => {
+      const day = parseInt(item.date.split("-")[2] ?? "1", 10);
+      const weekNum = Math.floor((day - 1) / 7) + 1;
+      const weekLabel = `Week ${weekNum}`;
+      const existing = acc.find((i) => i.name === weekLabel);
+      if (existing) existing.value += item.impressions;
+      else acc.push({ name: weekLabel, value: item.impressions });
+      return acc;
+    }, [] as { name: string; value: number }[]);
+    byWeek.sort((a, b) => {
+      const na = parseInt(a.name.replace("Week ", ""), 10);
+      const nb = parseInt(b.name.replace("Week ", ""), 10);
+      return na - nb;
+    });
+    return byWeek.map((item, i) => ({ ...item, color: CHART_COLORS[i % CHART_COLORS.length] }));
+  }
+
+  const total = trendData.reduce((s, i) => s + i.impressions, 0);
+  return total > 0 ? [{ name: "Week 1", value: total, color: CHART_COLORS[0] }] : [];
+}
+
 function formatNumber(num: number) {
-  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
-  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
-  return num.toLocaleString();
+  const n = Number(num);
+  if (!Number.isFinite(n)) return "0";
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return n.toLocaleString();
+}
+
+function safeNum(val: number, fallback: number): number {
+  return Number.isFinite(val) ? val : fallback;
 }
 
 function EmptyPlatformState({ navigate }: { navigate: any }) {
@@ -268,12 +486,79 @@ function EmptyPlatformState({ navigate }: { navigate: any }) {
   );
 }
 
-function NoDataState({ setDateRange, dateRange }: any) {
+interface NoDataStateProps {
+  dateMode: "7d" | "30d" | "year";
+  setDateMode: (v: "7d" | "30d" | "year") => void;
+  weekValue: string;
+  setWeekValue: (v: string) => void;
+  monthValue: string;
+  setMonthValue: (v: string) => void;
+  yearValue: string;
+  setYearValue: (v: string) => void;
+}
+
+function NoDataState({
+  dateMode,
+  setDateMode,
+  weekValue,
+  setWeekValue,
+  monthValue,
+  setMonthValue,
+  yearValue,
+  setYearValue,
+}: NoDataStateProps) {
   return (
     <div className="space-y-8 p-4 md:p-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-black tracking-tight uppercase">Analytics Hub</h1>
-        <Select value={dateRange} onValueChange={setDateRange}><SelectTrigger className="w-40"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="7d">7 Days</SelectItem></SelectContent></Select>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Analytics Hub</h1>
+        <div className="bg-muted/50 p-1 rounded-xl flex items-center gap-2 border">
+          <Select value={dateMode} onValueChange={(v) => setDateMode(v as "7d" | "30d" | "year")}>
+            <SelectTrigger className="w-[120px] bg-background border-none shadow-none h-9 rounded-lg">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7d">7 Days</SelectItem>
+              <SelectItem value="30d">30 Days</SelectItem>
+              <SelectItem value="year">Year</SelectItem>
+            </SelectContent>
+          </Select>
+          {dateMode === "7d" && (
+            <Select value={weekValue} onValueChange={setWeekValue}>
+              <SelectTrigger className="w-[200px] bg-background border-none shadow-none h-9 rounded-lg">
+                <SelectValue placeholder="Select week" />
+              </SelectTrigger>
+              <SelectContent>
+                {WEEK_OPTS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {dateMode === "30d" && (
+            <Select value={monthValue} onValueChange={setMonthValue}>
+              <SelectTrigger className="w-[160px] bg-background border-none shadow-none h-9 rounded-lg">
+                <SelectValue placeholder="Select month" />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTH_OPTS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {dateMode === "year" && (
+            <Select value={yearValue} onValueChange={setYearValue}>
+              <SelectTrigger className="w-[100px] bg-background border-none shadow-none h-9 rounded-lg">
+                <SelectValue placeholder="Select year" />
+              </SelectTrigger>
+              <SelectContent>
+                {YEAR_OPTS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
       <Card className="border-dashed bg-muted/10 rounded-[3rem] py-20 flex flex-col items-center text-center">
         <AlertCircle className="h-12 w-12 text-muted-foreground opacity-20 mb-4" />
