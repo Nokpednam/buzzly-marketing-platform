@@ -34,6 +34,7 @@ export const ChangePasswordDialog = ({ open, onOpenChange }: ChangePasswordDialo
   const form = useForm<ChangePasswordFormData>({
     resolver: zodResolver(changePasswordSchema),
     defaultValues: {
+      currentPassword: "",
       newPassword: "",
       confirmPassword: "",
     },
@@ -41,6 +42,31 @@ export const ChangePasswordDialog = ({ open, onOpenChange }: ChangePasswordDialo
 
   const onSubmit = async (values: ChangePasswordFormData) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) {
+        toast({
+          variant: "destructive",
+          title: "Failed to update password",
+          description: "User session not found. Please sign in again.",
+        });
+        return;
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: values.currentPassword,
+      });
+
+      if (signInError) {
+        toast({
+          variant: "destructive",
+          title: "Current password incorrect",
+          description: "The current password you entered is wrong. Please try again.",
+        });
+        form.setError("currentPassword", { message: "Current password is incorrect" });
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({ password: values.newPassword });
 
       if (error) {
@@ -82,11 +108,24 @@ export const ChangePasswordDialog = ({ open, onOpenChange }: ChangePasswordDialo
         <DialogHeader>
           <DialogTitle>Change password</DialogTitle>
           <DialogDescription>
-            Enter your new password. It must be at least 8 characters with uppercase, lowercase, and a number.
+            Enter your current password first, then your new password. It must be at least 8 characters with uppercase, lowercase, and a number.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="currentPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Current password</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="••••••••" autoComplete="current-password" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="newPassword"

@@ -139,19 +139,19 @@ export const defaultRolePermissions: Record<TeamRole, TeamPermissions> = {
   },
 };
 
-// Permission labels in Thai
+// Permission labels
 export const permissionLabels: Record<keyof TeamPermissions, string> = {
-  view_dashboard: "ดู Dashboard",
-  view_campaigns: "ดู Campaigns",
-  edit_campaigns: "แก้ไข Campaigns",
-  delete_campaigns: "ลบ Campaigns",
-  view_prospects: "ดู Customer Personas",
-  edit_prospects: "แก้ไข Customer Personas",
-  delete_prospects: "ลบ Customer Personas",
-  view_analytics: "ดู Analytics",
-  export_data: "Export ข้อมูล",
-  manage_team: "จัดการทีม",
-  manage_settings: "จัดการการตั้งค่า",
+  view_dashboard: "View Dashboard",
+  view_campaigns: "View Campaigns",
+  edit_campaigns: "Edit Campaigns",
+  delete_campaigns: "Delete Campaigns",
+  view_prospects: "View Customer Personas",
+  edit_prospects: "Edit Customer Personas",
+  delete_prospects: "Delete Customer Personas",
+  view_analytics: "View Analytics",
+  export_data: "Export data",
+  manage_team: "Manage team",
+  manage_settings: "Manage settings",
 };
 
 export function useTeamManagement() {
@@ -162,6 +162,7 @@ export function useTeamManagement() {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<TeamRole | null>(null);
+  const [currentUserPermissions, setCurrentUserPermissions] = useState<TeamPermissions | null>(null);
   const [receivedInvitations, setReceivedInvitations] = useState<TeamInvitation[]>([]);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const { toast } = useToast();
@@ -191,22 +192,31 @@ export function useTeamManagement() {
         // Do NOT auto-create. The useOnboardingGuard hook handles this state.
         setTeam(null);
         setCurrentUserRole(null);
+        setCurrentUserPermissions(null);
       } else {
         setTeam(teamData);
 
-        // Get current user's role
+        // Get current user's role and custom_permissions
         const { data: memberData } = await supabase
           .from("workspace_members")
-          .select("role")
+          .select("role, custom_permissions")
           .eq("team_id", teamData.id)
           .eq("user_id", user.id)
           .maybeSingle();
 
-        if (memberData) {
-          setCurrentUserRole(memberData.role as TeamRole);
-        } else if (teamData.owner_id === user.id) {
-          setCurrentUserRole("owner");
-        }
+        const role: TeamRole = memberData
+          ? (memberData.role as TeamRole)
+          : teamData.owner_id === user.id
+            ? "owner"
+            : "viewer";
+        setCurrentUserRole(role);
+
+        // Compute effective permissions: custom_permissions override role defaults
+        const customPerms = memberData?.custom_permissions as TeamPermissions | null;
+        const effectivePerms: TeamPermissions = customPerms
+          ? { ...defaultRolePermissions[role], ...customPerms }
+          : defaultRolePermissions[role];
+        setCurrentUserPermissions(effectivePerms);
       }
     } catch (error) {
       console.error("Error fetching team data:", error);
@@ -741,7 +751,15 @@ export function useTeamManagement() {
     }
   };
 
-  const canManageTeam = currentUserRole === "owner" || currentUserRole === "admin";
+  const canManageTeam =
+    currentUserPermissions?.manage_team ?? (currentUserRole === "owner" || currentUserRole === "admin");
+
+  const canAccess = useCallback(
+    (permission: keyof TeamPermissions): boolean => {
+      return currentUserPermissions?.[permission] ?? false;
+    },
+    [currentUserPermissions]
+  );
 
   return {
     team,
@@ -751,7 +769,9 @@ export function useTeamManagement() {
     loading,
     currentUserId,
     currentUserRole,
+    currentUserPermissions,
     canManageTeam,
+    canAccess,
     sendInvitation,
     cancelInvitation,
     updateMemberRole,

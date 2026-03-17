@@ -36,13 +36,13 @@ import {
   Settings,
 } from "lucide-react";
 import { format } from "date-fns";
-import { th } from "date-fns/locale";
 import {
   TeamMember,
   TeamRole,
   TeamPermissions,
 } from "@/hooks/useTeamManagement";
 import { MemberPermissionsDialog } from "./MemberPermissionsDialog";
+import { cn } from "@/lib/utils";
 
 interface TeamMembersListProps {
   members: TeamMember[];
@@ -56,16 +56,16 @@ interface TeamMembersListProps {
 }
 
 const roleStyles: Record<TeamRole, { label: string; className: string }> = {
-  owner: { label: "Owner", className: "bg-primary text-primary-foreground" },
-  admin: { label: "Admin", className: "bg-info text-info-foreground" },
-  editor: { label: "Editor", className: "bg-warning text-warning-foreground" },
-  viewer: { label: "Viewer", className: "bg-muted text-muted-foreground" },
+  owner: { label: "Owner", className: "bg-sky-50 text-sky-700 border border-sky-200 font-medium" },
+  admin: { label: "Admin", className: "bg-violet-50 text-violet-700 border border-violet-200" },
+  editor: { label: "Editor", className: "bg-amber-50 text-amber-700 border border-amber-200" },
+  viewer: { label: "Viewer", className: "bg-gray-50 text-gray-600 border border-gray-200" },
 };
 
-const statusStyles: Record<string, { label: string; className: string }> = {
-  active: { label: "Active", className: "bg-success/10 text-success border-success/20" },
-  suspended: { label: "Suspended", className: "bg-destructive/10 text-destructive border-destructive/20" },
-  removed: { label: "Removed", className: "bg-muted text-muted-foreground" },
+const statusStyles: Record<string, { label: string; dotClass: string; textClass: string }> = {
+  active: { label: "Active", dotClass: "bg-emerald-500", textClass: "text-muted-foreground" },
+  suspended: { label: "Suspended", dotClass: "bg-amber-500", textClass: "text-muted-foreground" },
+  removed: { label: "Removed", dotClass: "bg-gray-300", textClass: "text-muted-foreground" },
 };
 
 export function TeamMembersList({
@@ -117,11 +117,11 @@ export function TeamMembersList({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>สมาชิก</TableHead>
-            <TableHead>บทบาท</TableHead>
-            <TableHead>สถานะ</TableHead>
-            <TableHead>สิทธิ์</TableHead>
-            <TableHead>เข้าร่วมเมื่อ</TableHead>
+            <TableHead>Member</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Permissions</TableHead>
+            <TableHead>Joined</TableHead>
             {canManage && <TableHead className="w-[50px]"></TableHead>}
           </TableRow>
         </TableHeader>
@@ -134,8 +134,8 @@ export function TeamMembersList({
               <TableRow key={member.id}>
                 <TableCell>
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="text-xs">
+                    <Avatar className="h-7 w-7 shrink-0">
+                      <AvatarFallback className="text-[10px] bg-sky-50 text-sky-600">
                         {getInitials(member.profile?.full_name, member.profile?.email)}
                       </AvatarFallback>
                     </Avatar>
@@ -143,7 +143,7 @@ export function TeamMembersList({
                       <p className="font-medium">
                         {member.profile?.full_name || "Unknown"}
                         {isCurrentUser && (
-                          <span className="ml-2 text-xs text-muted-foreground">(คุณ)</span>
+                          <span className="ml-2 text-xs text-muted-foreground">(you)</span>
                         )}
                       </p>
                       <p className="text-sm text-muted-foreground">
@@ -153,14 +153,19 @@ export function TeamMembersList({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge className={roleStyles[member.role].className}>
+                  <Badge variant="outline" className={cn("font-normal", roleStyles[member.role].className)}>
                     {roleStyles[member.role].label}
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className={statusStyles[member.status].className}>
-                    {statusStyles[member.status].label}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full shrink-0 ${statusStyles[member.status]?.dotClass ?? "bg-gray-300"}`}
+                    />
+                    <span className={`text-sm ${statusStyles[member.status]?.textClass ?? "text-muted-foreground"}`}>
+                      {statusStyles[member.status]?.label ?? member.status}
+                    </span>
+                  </div>
                 </TableCell>
                 <TableCell>
                   {member.custom_permissions ? (
@@ -173,7 +178,7 @@ export function TeamMembersList({
                   )}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {format(new Date(member.joined_at), "d MMM yyyy", { locale: th })}
+                  {format(new Date(member.joined_at), "d MMM yyyy")}
                 </TableCell>
                 {canManage && (
                   <TableCell>
@@ -191,7 +196,7 @@ export function TeamMembersList({
                           }}
                         >
                           <Shield className="mr-2 h-4 w-4" />
-                          จัดการสิทธิ์
+                          Manage permissions
                         </DropdownMenuItem>
                         {!isOwner && !isCurrentUser && (
                           <>
@@ -202,7 +207,7 @@ export function TeamMembersList({
                                 className="text-warning"
                               >
                                 <UserX className="mr-2 h-4 w-4" />
-                                ระงับการเข้าถึง
+                                Suspend access
                               </DropdownMenuItem>
                             ) : member.status === "suspended" ? (
                               <DropdownMenuItem
@@ -210,7 +215,7 @@ export function TeamMembersList({
                                 className="text-success"
                               >
                                 <UserCheck className="mr-2 h-4 w-4" />
-                                เปิดใช้งานใหม่
+                                Reactivate
                               </DropdownMenuItem>
                             ) : null}
                             <DropdownMenuItem
@@ -218,7 +223,7 @@ export function TeamMembersList({
                               className="text-destructive"
                             >
                               <UserMinus className="mr-2 h-4 w-4" />
-                              ลบออกจากทีม
+                              Remove from team
                             </DropdownMenuItem>
                           </>
                         )}
@@ -232,7 +237,7 @@ export function TeamMembersList({
           {members.length === 0 && (
             <TableRow>
               <TableCell colSpan={canManage ? 6 : 5} className="text-center py-8 text-muted-foreground">
-                ยังไม่มีสมาชิกในทีม
+                No members in team yet
               </TableCell>
             </TableRow>
           )}
@@ -253,21 +258,21 @@ export function TeamMembersList({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirmAction?.type === "suspend" && "ระงับการเข้าถึงสมาชิก?"}
-              {confirmAction?.type === "reactivate" && "เปิดใช้งานสมาชิกใหม่?"}
-              {confirmAction?.type === "remove" && "ลบสมาชิกออกจากทีม?"}
+              {confirmAction?.type === "suspend" && "Suspend member access?"}
+              {confirmAction?.type === "reactivate" && "Reactivate member?"}
+              {confirmAction?.type === "remove" && "Remove member from team?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirmAction?.type === "suspend" &&
-                `${confirmAction.member.profile?.full_name || confirmAction.member.profile?.email} จะไม่สามารถเข้าถึงทีมได้จนกว่าจะเปิดใช้งานใหม่`}
+                `${confirmAction.member.profile?.full_name || confirmAction.member.profile?.email} will not be able to access the team until reactivated`}
               {confirmAction?.type === "reactivate" &&
-                `${confirmAction.member.profile?.full_name || confirmAction.member.profile?.email} จะสามารถเข้าถึงทีมได้อีกครั้ง`}
+                `${confirmAction.member.profile?.full_name || confirmAction.member.profile?.email} will be able to access the team again`}
               {confirmAction?.type === "remove" &&
-                `${confirmAction.member.profile?.full_name || confirmAction.member.profile?.email} จะถูกลบออกจากทีมอย่างถาวร`}
+                `${confirmAction.member.profile?.full_name || confirmAction.member.profile?.email} will be permanently removed from the team`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleAction}
               className={
@@ -278,7 +283,7 @@ export function TeamMembersList({
                   : ""
               }
             >
-              ยืนยัน
+              Confirm
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
