@@ -164,6 +164,9 @@ export default function TierManagement() {
   const { data: pointsTransactions = [], isLoading: txLoading, isError: txError, error: txErrorDetail } = usePointsTransactions(transactionsPage);
   const { data: suspiciousActivities = [], isLoading: alertsLoading, unresolvedCount, resolveActivity, suspendCustomer } = useSuspiciousActivities(activitiesPage);
   const { query: searchQuery, setQuery: setSearchQuery, data: searchResults = [], isFetching: searchLoading, isError: searchError, error: searchErrorDetail } = useCustomerSearch();
+  const { data: adjustSearchResults = [], isFetching: adjustSearchLoading } = useCustomerSearch(
+    adjustDialogOpen && godCustomerSearch ? godCustomerSearch : ""
+  );
   const manualOverride = useManualTierOverride();
   const { data: allCustomers = [], isLoading: allCustomersLoading } = useAllCustomers();
   const { data: tierRules = [], isLoading: tierRulesLoading } = useLoyaltyTiers();
@@ -213,15 +216,19 @@ export default function TierManagement() {
     }
   };
 
-  const filteredCustomers = allCustomers.filter((c: any) => {
+  const filteredCustomers = allCustomers.filter((c: { full_name?: string; id: string; email?: string }) => {
     if (!godCustomerSearch.trim()) return true;
     const q = godCustomerSearch.toLowerCase();
     return (
       c.full_name?.toLowerCase().includes(q) ||
-      c.id.toLowerCase().includes(q)
+      c.id.toLowerCase().includes(q) ||
+      (c.email && c.email.toLowerCase().includes(q))
     );
   });
-  const godSelectedCustomer = allCustomers.find((c: any) => c.id === godCustomerId) ?? null;
+  const adjustDropdownCustomers = godCustomerSearch.trim().length >= 1
+    ? adjustSearchResults
+    : filteredCustomers;
+  const godSelectedCustomer = [...adjustSearchResults, ...allCustomers].find((c: { id: string }) => c.id === godCustomerId) ?? null;
 
   const handleGodOverride = async () => {
     if (!godCustomerId || !godTier || !godReason.trim()) return;
@@ -280,23 +287,23 @@ export default function TierManagement() {
               </div>
               <div className="relative">
                 <Input
-                  placeholder={allCustomersLoading ? "Loading customers..." : "Search by name or customer ID..."}
+                  placeholder={allCustomersLoading ? "Loading customers..." : "Search by name, email, or customer ID..."}
                   value={godCustomerSearch}
                   onChange={(e) => { setGodCustomerSearch(e.target.value); setGodDropdownOpen(true); }}
                   onFocus={() => setGodDropdownOpen(true)}
                   disabled={allCustomersLoading}
                   className="rounded-xl border-slate-200 h-11"
                 />
-                {allCustomersLoading && (
+                {(allCustomersLoading || (godCustomerSearch.trim().length >= 1 && adjustSearchLoading)) && (
                   <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
                 )}
               </div>
-              {godDropdownOpen && (godCustomerSearch.length > 0 || filteredCustomers.length > 0) && (
+              {godDropdownOpen && (godCustomerSearch.length > 0 || adjustDropdownCustomers.length > 0) && (
                 <div className="absolute top-full left-0 w-full mt-1.5 border border-slate-200 rounded-xl max-h-52 overflow-y-auto bg-white shadow-lg z-50">
-                  {filteredCustomers.length === 0 ? (
+                  {adjustDropdownCustomers.length === 0 ? (
                     <p className="text-sm text-slate-500 text-center py-4">No customers found</p>
                   ) : (
-                    filteredCustomers.map((c: { id: string; full_name?: string; loyalty_tier?: string }) => (
+                    adjustDropdownCustomers.map((c: { id: string; full_name?: string; loyalty_tier?: string; email?: string }) => (
                       <button
                         key={c.id}
                         type="button"
@@ -382,6 +389,7 @@ export default function TierManagement() {
             </div>
             <div className="pt-2">
               <Button
+                type="button"
                 className="w-full font-semibold rounded-xl h-12 bg-slate-800 hover:bg-slate-900 text-white shadow-sm"
                 disabled={!godCustomerId || !godTier || !godReason.trim() || manualOverride.isPending}
                 onClick={handleGodOverride}

@@ -335,14 +335,24 @@ export function useSuspiciousActivities(page = 0) {
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-export function useCustomerSearch() {
+/**
+ * Customer search for Tier Management. Supports search by name, email, or user ID.
+ * Uses RPC search_customers_for_support which joins profile_customers + customer
+ * so email search works (profile_customers has no email column).
+ *
+ * @param overrideQuery - When provided (e.g. from Adjust Tier dialog), use this
+ *   instead of internal query state. Enables shared search logic for both main
+ *   search and Adjust Tier dropdown.
+ */
+export function useCustomerSearch(overrideQuery?: string) {
     const [query, setQuery] = useState("");
+    const effectiveQuery = overrideQuery !== undefined ? overrideQuery : query;
     const [debouncedQuery, setDebouncedQuery] = useState("");
 
     useEffect(() => {
-        const t = setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS);
+        const t = setTimeout(() => setDebouncedQuery(effectiveQuery), SEARCH_DEBOUNCE_MS);
         return () => clearTimeout(t);
-    }, [query]);
+    }, [effectiveQuery]);
 
     const searchResult = useQuery({
         queryKey: ["customer-search", debouncedQuery],
@@ -350,51 +360,12 @@ export function useCustomerSearch() {
             const q = debouncedQuery.trim().replace(/,/g, " "); // commas break .or()
             if (!q || q.length < 1) return [];
 
-            // Escape ilike wildcards: % _ \ (so user "50%" searches literal 50%)
-            const escaped = q.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
-            const pattern = `%${escaped}%`;
-
-            // Primary: direct query (works with employees_can_read_all_profile_customers RLS)
-            const { data: directData, error: directError } = await supabase
-                .from("profile_customers")
-                .select(`
-                    id,
-                    user_id,
-                    first_name,
-                    last_name,
-                    created_at,
-                    loyalty_points(point_balance, loyalty_tiers(name))
-                `)
-                .or(`first_name.ilike.${pattern},last_name.ilike.${pattern},user_id.ilike.${pattern}`)
-                .limit(15)
-                .order("first_name", { ascending: true });
-
-            if (!directError && directData && directData.length > 0) {
-                return (directData as any[]).map((c: any) => {
-                    const lp = c.loyalty_points?.[0] ?? c.loyalty_points;
-                    const tierName = lp?.loyalty_tiers?.name ?? null;
-                    const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ").trim() || null;
-                    return {
-                        id: c.user_id,
-                        full_name: fullName,
-                        email: `${c.user_id?.slice(0, 8) ?? "?"}@...`,
-                        created_at: c.created_at ?? "",
-                        loyalty_tier: tierName,
-                        loyalty_points_balance: lp?.point_balance ?? 0,
-                        total_spend: 0,
-                    } as CustomerSearchResult;
-                });
-            }
-
-            // Fallback: RPC (if direct query fails due to RLS or empty)
+            // RPC searches first_name, last_name, email (from customer), user_id
             const { data: rpcData, error: rpcError } = await (supabase as any).rpc("search_customers_for_support", {
                 p_query: q,
             });
 
-            if (rpcError) {
-                if (directError) throw directError;
-                throw rpcError;
-            }
+            if (rpcError) throw rpcError;
 
             const rows = (rpcData ?? []) as Array<{
                 id: string;
@@ -429,6 +400,7 @@ export function useCustomerSearch() {
  * "employees_can_read_all_profile_customers").
  * Returns up to 200 customers ordered by first name; the dropdown is
  * filtered client-side by the user's search input.
+ * Joins customer table for real email (required for search-by-email in dropdown).
  */
 export function useAllCustomers() {
     return useQuery({
@@ -451,19 +423,39 @@ export function useAllCustomers() {
                 .limit(200);
 
             if (error) {
-                console.error("[useAllCustomers] Error:", error);
                 throw error;
             }
 
-            const results: CustomerSearchResult[] = ((data ?? []) as any[]).map((c: any) => {
+            const pcRows = (data ?? []) as any[];
+            const userIds = pcRows.map((c: any) => c.user_id).filter(Boolean);
+            let emailMap: Record<string, string> = {};
+
+            if (userIds.length > 0) {
+                const { data: custData } = await supabase
+                    .from("customer")
+                    .select("id, email")
+                    .in("id", userIds);
+                if (custData) {
+                    emailMap = (custData as Array<{ id: string; email: string | null }>).reduce(
+                        (acc, row) => {
+                            if (row.email) acc[row.id] = row.email;
+                            return acc;
+                        },
+                        {} as Record<string, string>
+                    );
+                }
+            }
+
+            const results: CustomerSearchResult[] = pcRows.map((c: any) => {
                 const lp = c.loyalty_points?.[0] || c.loyalty_points;
                 const tierName = lp?.loyalty_tiers?.name || null;
                 const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ") || null;
+                const email = emailMap[c.user_id] ?? `${c.user_id?.slice(0, 8) ?? "?"}@...`;
 
                 return {
                     id: c.user_id, // user_id (auth UUID) — required by manual_override_customer_tier RPC
                     full_name: fullName,
-                    email: `${c.user_id.slice(0, 8)}@...`, // email not stored in profile_customers
+                    email,
                     created_at: c.created_at,
                     loyalty_tier: tierName,
                     loyalty_points_balance: lp?.point_balance ?? 0,
