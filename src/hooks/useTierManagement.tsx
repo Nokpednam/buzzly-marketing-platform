@@ -108,20 +108,35 @@ export function useLoyaltyTierHistory(page = 0) {
 
 // ─── Loyalty Tier History (All: Auto + Manual, for unified table with Origin) ───
 
+/** Fetch more rows for history so we have enough after filtering out "no change" entries */
+const TIER_HISTORY_PAGE_SIZE = 50;
+
 export function useLoyaltyTierHistoryAll(page = 0) {
     return useQuery({
         queryKey: ["loyalty-tier-history-all", page],
         queryFn: async () => {
-            const from = page * ADMIN_PAGE_SIZE;
-            const to = from + ADMIN_PAGE_SIZE;
+            const from = page * TIER_HISTORY_PAGE_SIZE;
+            const to = from + TIER_HISTORY_PAGE_SIZE - 1;
 
+            // Try with customer join first; fallback to simple select if FK not in schema cache
             const { data, error } = await (supabase as any)
                 .from("loyalty_tier_history")
                 .select('*, customer:profile_customers!loyalty_tier_history_profile_customer_id_fkey(first_name, last_name, user_id)')
                 .order("changed_at", { ascending: false })
                 .range(from, to);
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === "PGRST200" || error.message?.includes("Could not find a relationship")) {
+                    const { data: fallback, error: fallbackError } = await (supabase as any)
+                        .from("loyalty_tier_history")
+                        .select("*")
+                        .order("changed_at", { ascending: false })
+                        .range(from, to);
+                    if (fallbackError) throw fallbackError;
+                    return (fallback as unknown as LoyaltyTierHistoryEntry[]) ?? [];
+                }
+                throw error;
+            }
             return (data as unknown as LoyaltyTierHistoryEntry[]) ?? [];
         },
         placeholderData: keepPreviousData,
@@ -518,13 +533,13 @@ export function useManualTierOverride() {
             if (rpcError) throw rpcError;
             return data;
         },
-        onSuccess: () => {
-            // ⚡ REAL-TIME CACHE INVALIDATION
+        onSuccess: async () => {
+            // Force immediate refetch so Tier Change History shows the new entry
+            await queryClient.refetchQueries({ queryKey: ["loyalty-tier-history-all"] });
             queryClient.invalidateQueries({ queryKey: ["customer-search"] });
             queryClient.invalidateQueries({ queryKey: ["all-customers-dropdown"] });
             queryClient.invalidateQueries({ queryKey: ["tier-history"] });
             queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history"] });
-            queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-all"] });
             queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-manual"] });
             queryClient.invalidateQueries({ queryKey: ["points-transactions-admin"] });
             toast.success("Tier updated successfully");

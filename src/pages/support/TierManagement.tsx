@@ -188,6 +188,7 @@ export default function TierManagement() {
   const [godReason, setGodReason] = useState("");
   const [godDropdownOpen, setGodDropdownOpen] = useState(false);
 
+  const [activeTab, setActiveTab] = useState("rules");
   const [historyPage, setHistoryPage] = useState(0);
   const [loyaltyHistoryPage, setLoyaltyHistoryPage] = useState(0);
   const [transactionsPage, setTransactionsPage] = useState(0);
@@ -278,9 +279,11 @@ export default function TierManagement() {
       setGodTier("");
       setGodReason("");
       setAdjustDialogOpen(false);
-      // Invalidate all tier-related caches so Tier History refreshes immediately
+      // Switch to History tab so user sees the new entry immediately
+      setActiveTab("history");
+      // Force immediate refetch so Tier Change History shows the new entry
+      await queryClient.refetchQueries({ queryKey: ["loyalty-tier-history-all"] });
       queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-manual"] });
-      queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-all"] });
       queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history"] });
       queryClient.invalidateQueries({ queryKey: ["points-transactions-admin"] });
       queryClient.invalidateQueries({ queryKey: ["all-customers-dropdown"] });
@@ -475,7 +478,7 @@ export default function TierManagement() {
 
       {/* Main content: single white card with search + tabs in same row */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <Tabs defaultValue="rules">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 px-6 py-4 border-b border-slate-100">
             <div className="flex-1 relative min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
