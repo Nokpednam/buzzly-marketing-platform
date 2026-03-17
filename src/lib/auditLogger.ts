@@ -9,7 +9,13 @@ export type AuditCategory =
     | "settings"
     | "data"
     | "campaign"
-    | "integration";
+    | "integration"
+    | "discount"
+    | "reward"
+    | "redemption"
+    | "activity_code"
+    | "tier"
+    | "feature";
 
 /**
  * Audit Event Status
@@ -115,6 +121,21 @@ export async function logAuditEvent(params: AuditEventParams): Promise<void> {
         console.error('[Audit Log Exception]', error);
         // Silently fail - logging is non-critical
     }
+}
+
+/**
+ * Log page/feature view — for Product Usage analytics (ทุกฟีเจอร์ที่ผู้ใช้กด/เข้าถึงได้)
+ * Call on route change for Customer pages.
+ */
+export async function logPageView(pathname: string): Promise<void> {
+    if (!pathname || pathname === "/") return;
+    await logAuditEvent({
+        actionName: "Page View",
+        category: "feature",
+        description: `Viewed ${pathname}`,
+        status: "success",
+        metadata: { page_url: pathname },
+    });
 }
 
 /**
@@ -283,6 +304,226 @@ export const auditData = {
             description: `Imported ${recordCount} ${dataType} records`,
             status: 'success',
             metadata: { dataType, recordCount },
+        }),
+};
+
+/**
+ * Log discount actions (Support + Customer)
+ */
+export const auditDiscount = {
+    supportCreated: (userId: string, code: string, discountId?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Discount Created",
+            category: "discount",
+            description: `Support สร้าง Discount code: ${code}`,
+            status: "success",
+            metadata: { code, discount_id: discountId },
+        }),
+
+    supportUpdated: (userId: string, discountId: string, code?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Discount Updated",
+            category: "discount",
+            description: `Support แก้ไข Discount`,
+            status: "success",
+            metadata: { discount_id: discountId, code },
+        }),
+
+    supportDeleted: (userId: string, discountId: string, code?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Discount Deleted",
+            category: "discount",
+            description: `Support ลบ Discount`,
+            status: "success",
+            metadata: { discount_id: discountId, code },
+        }),
+
+    supportPublished: (userId: string, discountId: string, code?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Discount Published",
+            category: "discount",
+            description: `Support เผยแพร่ Discount: ${code || discountId}`,
+            status: "success",
+            metadata: { discount_id: discountId, code },
+        }),
+
+    supportToggled: (userId: string, discountId: string, isActive: boolean, code?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: isActive ? "Discount Activated" : "Discount Deactivated",
+            category: "discount",
+            description: `Support ${isActive ? "เปิด" : "ปิด"} Discount: ${code || discountId}`,
+            status: "success",
+            metadata: { discount_id: discountId, code, is_active: isActive },
+        }),
+
+    customerCollected: (userId: string, discountId: string, code?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Customer Collected Discount",
+            category: "discount",
+            description: `Customer เก็บ Discount: ${code || discountId}`,
+            status: "success",
+            metadata: { discount_id: discountId, code },
+        }),
+
+    customerUsed: (userId: string, code: string, discountId?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Customer Used Discount",
+            category: "discount",
+            description: `Customer ใช้ Discount: ${code}`,
+            status: "success",
+            metadata: { code, discount_id: discountId },
+        }),
+};
+
+/**
+ * Log reward/redemption actions
+ */
+export const auditReward = {
+    supportCreated: (userId: string, name: string, rewardId?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Reward Item Created",
+            category: "reward",
+            description: `Support สร้างของรางวัล: ${name}`,
+            status: "success",
+            metadata: { reward_id: rewardId, name },
+        }),
+
+    supportUpdated: (userId: string, rewardId: string, name?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Reward Item Updated",
+            category: "reward",
+            description: `Support แก้ไขของรางวัล`,
+            status: "success",
+            metadata: { reward_id: rewardId, name },
+        }),
+
+    supportDeleted: (userId: string, rewardId: string, name?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Reward Item Deleted",
+            category: "reward",
+            description: `Support ลบของรางวัล`,
+            status: "success",
+            metadata: { reward_id: rewardId, name },
+        }),
+
+    supportToggled: (userId: string, rewardId: string, isActive: boolean, name?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: isActive ? "Reward Enabled" : "Reward Disabled",
+            category: "reward",
+            description: `Support ${isActive ? "เปิด" : "ปิด"} ของรางวัล: ${name || rewardId}`,
+            status: "success",
+            metadata: { reward_id: rewardId, name, is_active: isActive },
+        }),
+
+    customerRedeemed: (userId: string, rewardId: string, rewardName?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Customer Redeemed Reward",
+            category: "reward",
+            description: `Customer แลกของรางวัล: ${rewardName || rewardId}`,
+            status: "success",
+            metadata: { reward_id: rewardId, name: rewardName },
+        }),
+
+    supportFulfilled: (userId: string, redemptionId: string, customerEmail?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Redemption Fulfilled",
+            category: "redemption",
+            description: `Support ยืนยันการแลกของรางวัล`,
+            status: "success",
+            metadata: { redemption_id: redemptionId, customer_email: customerEmail },
+        }),
+
+    supportRejected: (userId: string, redemptionId: string, customerEmail?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Redemption Rejected",
+            category: "redemption",
+            description: `Support ปฏิเสธการแลกของรางวัล`,
+            status: "success",
+            metadata: { redemption_id: redemptionId, customer_email: customerEmail },
+        }),
+};
+
+/**
+ * Log activity code actions (Support)
+ */
+export const auditActivityCode = {
+    created: (userId: string, name: string, actionCode?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Activity Code Created",
+            category: "activity_code",
+            description: `Support สร้าง Activity code: ${name}`,
+            status: "success",
+            metadata: { name, action_code: actionCode },
+        }),
+
+    updated: (userId: string, activityCodeId: string, name?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Activity Code Updated",
+            category: "activity_code",
+            description: `Support แก้ไข Activity code`,
+            status: "success",
+            metadata: { activity_code_id: activityCodeId, name },
+        }),
+
+    toggled: (userId: string, activityCodeId: string, isActive: boolean, name?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: isActive ? "Activity Code Enabled" : "Activity Code Disabled",
+            category: "activity_code",
+            description: `Support ${isActive ? "เปิด" : "ปิด"} Activity code: ${name || activityCodeId}`,
+            status: "success",
+            metadata: { activity_code_id: activityCodeId, name, is_active: isActive },
+        }),
+
+    deleted: (userId: string, activityCodeId: string, name?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Activity Code Deleted",
+            category: "activity_code",
+            description: `Support ลบ Activity code`,
+            status: "success",
+            metadata: { activity_code_id: activityCodeId, name },
+        }),
+};
+
+/**
+ * Log tier management actions (Support)
+ */
+export const auditTier = {
+    activityResolved: (userId: string, activityId: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Suspicious Activity Resolved",
+            category: "tier",
+            description: `Support แก้ไข suspicious activity`,
+            status: "success",
+            metadata: { activity_id: activityId },
+        }),
+
+    customerSuspended: (userId: string, targetUserId: string, targetEmail?: string) =>
+        logAuditEvent({
+            userId,
+            actionName: "Customer Suspended",
+            category: "tier",
+            description: `Support แก้ไข Customer: ${targetEmail || targetUserId}`,
+            status: "success",
+            metadata: { target_user_id: targetUserId, target_email: targetEmail },
         }),
 };
 

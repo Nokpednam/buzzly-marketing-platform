@@ -48,17 +48,17 @@ import {
 import { useWorkspaceMembers, WorkspaceMemberRole, WorkspaceMemberStatus } from "@/hooks/useWorkspaceMembers";
 
 const roleLabels: Record<WorkspaceMemberRole, string> = {
-  owner: "เจ้าของ",
-  admin: "ผู้ดูแล",
-  editor: "สมาชิก",
-  viewer: "ผู้ดู",
+  owner: "Owner",
+  admin: "Admin",
+  editor: "Member",
+  viewer: "Viewer",
 };
 
 const roleColors: Record<WorkspaceMemberRole, string> = {
-  owner: "bg-primary text-primary-foreground",
-  admin: "bg-info text-info-foreground",
-  editor: "bg-warning text-warning-foreground",
-  viewer: "bg-muted text-muted-foreground",
+  owner: "bg-sky-50 text-sky-700 border border-sky-200 font-medium",
+  admin: "bg-violet-50 text-violet-700 border border-violet-200",
+  editor: "bg-amber-50 text-amber-700 border border-amber-200",
+  viewer: "bg-gray-50 text-gray-600 border border-gray-200",
 };
 
 interface WorkspaceMembersListProps {
@@ -109,11 +109,11 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
   const getStatusBadge = (status: WorkspaceMemberStatus) => {
     switch (status) {
       case "active":
-        return <Badge className="bg-success text-success-foreground">เข้าร่วมแล้ว</Badge>;
+        return <Badge className="bg-success text-success-foreground">Joined</Badge>;
       case "pending":
-        return <Badge variant="outline" className="border-warning text-warning">รอตอบรับ</Badge>;
+        return <Badge variant="outline" className="border-warning text-warning">Pending</Badge>;
       case "suspended":
-        return <Badge variant="destructive">ระงับ</Badge>;
+        return <Badge variant="destructive">Suspended</Badge>;
     }
   };
 
@@ -139,11 +139,11 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
         <div className="flex justify-between items-center p-4 border-b">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Store className="h-4 w-4" />
-            <span className="text-sm">ร้านขายของ ABC</span>
+            <span className="text-sm">Store ABC</span>
           </div>
           <Button onClick={() => setInviteDialogOpen(true)} className="gap-2">
             <UserPlus className="h-4 w-4" />
-            เชิญสมาชิกร้านค้า
+            Invite store member
           </Button>
         </div>
       )}
@@ -153,11 +153,11 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>สมาชิก</TableHead>
-              <TableHead>บทบาท</TableHead>
-              <TableHead>สถานะ</TableHead>
-              <TableHead>เชิญโดย</TableHead>
-              <TableHead>วันที่เชิญ/เข้าร่วม</TableHead>
+            <TableHead>Member</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Invited by</TableHead>
+            <TableHead>Invited / Joined</TableHead>
               {canManage && <TableHead className="w-[50px]"></TableHead>}
             </TableRow>
           </TableHeader>
@@ -165,7 +165,7 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
             {members.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  ยังไม่มีสมาชิกในร้านค้า
+                  No store members yet
                 </TableCell>
               </TableRow>
             ) : (
@@ -189,7 +189,7 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge className={roleColors[member.role]}>
+                    <Badge variant="outline" className={roleColors[member.role]}>
                       {roleLabels[member.role]}
                     </Badge>
                   </TableCell>
@@ -205,8 +205,8 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
                         <div className="flex items-center gap-1 text-muted-foreground">
                           <Clock className="h-3 w-3" />
                           <span>
-                            เชิญเมื่อ{" "}
-                            {new Date(member.invitedAt).toLocaleDateString("th-TH", {
+                            Invited{" "}
+                            {new Date(member.invitedAt).toLocaleDateString("en-US", {
                               day: "numeric",
                               month: "short",
                             })}
@@ -215,14 +215,14 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
                       ) : member.joinedAt ? (
                         <div className="flex items-center gap-1 text-muted-foreground">
                           <span>
-                            {new Date(member.invitedAt).toLocaleDateString("th-TH", {
+                            {new Date(member.invitedAt).toLocaleDateString("en-US", {
                               day: "numeric",
                               month: "short",
                             })}
                           </span>
                           <ArrowRight className="h-3 w-3" />
                           <span>
-                            {new Date(member.joinedAt).toLocaleDateString("th-TH", {
+                            {new Date(member.joinedAt).toLocaleDateString("en-US", {
                               day: "numeric",
                               month: "short",
                             })}
@@ -248,7 +248,7 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
                               onClick={() => handleCancelInvite(member.id)}
                             >
                               <Trash2 className="h-4 w-4 mr-2" />
-                              ยกเลิกคำเชิญ
+                              Cancel invitation
                             </DropdownMenuItem>
                           ) : (
                             <>
@@ -258,7 +258,7 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
                                   onClick={() => handleSuspend(member.id)}
                                 >
                                   <UserX className="h-4 w-4 mr-2" />
-                                  ระงับการเข้าถึง
+                                  Suspend access
                                 </DropdownMenuItem>
                               ) : (
                                 <DropdownMenuItem
@@ -266,7 +266,7 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
                                   onClick={() => handleReactivate(member.id)}
                                 >
                                   <UserCheck className="h-4 w-4 mr-2" />
-                                  เปิดใช้งานอีกครั้ง
+                                  Reactivate
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuSeparator />
@@ -275,7 +275,7 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
                                 onClick={() => handleRemove(member.id)}
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
-                                นำออกจากร้านค้า
+                                Remove from store
                               </DropdownMenuItem>
                             </>
                           )}
@@ -297,14 +297,14 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
       <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>เชิญสมาชิกเข้าร่วมร้านค้า</DialogTitle>
+            <DialogTitle>Invite member to store</DialogTitle>
             <DialogDescription>
-              ส่งคำเชิญไปยังอีเมลเพื่อเข้าร่วมดูแลร้านค้าของคุณ
+              Send an invitation via email to join and manage your store
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="invite-email">อีเมล</Label>
+              <Label htmlFor="invite-email">Email</Label>
               <Input
                 id="invite-email"
                 type="email"
@@ -316,7 +316,7 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="invite-role">บทบาท</Label>
+              <Label htmlFor="invite-role">Role</Label>
               <Select
                 value={formData.role}
                 onValueChange={(value: WorkspaceMemberRole) =>
@@ -324,25 +324,25 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="เลือกบทบาท" />
+                  <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">
                     <div className="flex flex-col">
-                      <span>ผู้ดูแล (Admin)</span>
-                      <span className="text-xs text-muted-foreground">จัดการร้านค้าและสมาชิกได้</span>
+                      <span>Admin</span>
+                      <span className="text-xs text-muted-foreground">Manage store and members</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="editor">
                     <div className="flex flex-col">
-                      <span>สมาชิก (Member)</span>
-                      <span className="text-xs text-muted-foreground">ทำงานและแก้ไขข้อมูลได้</span>
+                      <span>Member</span>
+                      <span className="text-xs text-muted-foreground">Work and edit data</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="viewer">
                     <div className="flex flex-col">
-                      <span>ผู้ดู (Viewer)</span>
-                      <span className="text-xs text-muted-foreground">ดูข้อมูลได้อย่างเดียว</span>
+                      <span>Viewer</span>
+                      <span className="text-xs text-muted-foreground">View-only access</span>
                     </div>
                   </SelectItem>
                 </SelectContent>
@@ -351,13 +351,13 @@ export function WorkspaceMembersList({ canManage }: WorkspaceMembersListProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
-              ยกเลิก
+              Cancel
             </Button>
             <Button onClick={handleInvite} disabled={!formData.email || inviteMember.isPending}>
               {inviteMember.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
-              ส่งคำเชิญ
+              Send invitation
             </Button>
           </DialogFooter>
         </DialogContent>

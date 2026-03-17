@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -143,9 +143,33 @@
     font-family: 'Inter', system-ui, sans-serif;
   }
 
+  /* Thai text: IBM Plex Sans Thai for cleaner rendering */
+  .font-thai,
+  [lang="th"] {
+    font-family: 'IBM Plex Sans Thai', 'Inter', system-ui, sans-serif;
+    letter-spacing: -0.01em;
+    line-height: 1.5;
+  }
+
   /* Geist Mono alternative: JetBrains Mono for numerical data */
   .font-mono-numeric {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  /* Dark Mode Autofill Overrides — Scoped to Dev Section (.dev-autofill-fix) */
+  .dev-autofill-fix input:-webkit-autofill,
+  .dev-autofill-fix input:-webkit-autofill:hover,
+  .dev-autofill-fix input:-webkit-autofill:focus,
+  .dev-autofill-fix textarea:-webkit-autofill,
+  .dev-autofill-fix textarea:-webkit-autofill:hover,
+  .dev-autofill-fix textarea:-webkit-autofill:focus,
+  .dev-autofill-fix select:-webkit-autofill,
+  .dev-autofill-fix select:-webkit-autofill:hover,
+  .dev-autofill-fix select:-webkit-autofill:focus {
+    -webkit-text-fill-color: #f8fafc !important; /* slate-50 */
+    -webkit-box-shadow: 0 0 0px 1000px transparent inset !important;
+    transition: background-color 999999s ease-in-out 0s !important;
+    color-scheme: dark !important;
   }
 }
 

@@ -111,7 +111,7 @@ describe('TierManagement', () => {
     it('renders the header correctly', () => {
         renderWithProviders(<TierManagement />);
         expect(screen.getByText('Tier Management')).toBeInTheDocument();
-        expect(screen.getByPlaceholderText(/ค้นหาด้วยชื่อ/i)).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(/Search by name/i)).toBeInTheDocument();
     });
 
     it.skip('selects a customer and shows details', async () => {
@@ -136,10 +136,10 @@ describe('TierManagement', () => {
         fireEvent.click(overrideBtn);
 
         expect(screen.getByText('Manual Tier Override')).toBeInTheDocument();
-        expect(screen.getByText('บันทึกการเปลี่ยนแปลง')).toBeInTheDocument();
+        expect(screen.getByText('Save Changes')).toBeInTheDocument();
 
         // Close dialog
-        const cancelBtn = screen.getByText('ยกเลิก');
+        const cancelBtn = screen.getByText('Cancel');
         fireEvent.click(cancelBtn);
 
         await waitFor(() => {
@@ -152,13 +152,13 @@ describe('TierManagement', () => {
         renderWithProviders(<TierManagement />);
 
         // Default tab: History
-        expect(screen.getByText('ประวัติการเปลี่ยน Tier')).toBeInTheDocument();
+        expect(screen.getByText('Tier Change History')).toBeInTheDocument();
 
         // Switch to Suspicious Activities
         const alertsTab = screen.getByRole('tab', { name: /Suspicious Activities/i });
         await user.click(alertsTab);
 
-        expect(screen.getByText('กิจกรรมที่น่าสงสัยและต้องตรวจสอบ')).toBeInTheDocument();
+        expect(screen.getByText('Suspicious activities requiring review')).toBeInTheDocument();
         expect(screen.getByText('คุณศราวุธ มีพิรุธ')).toBeInTheDocument(); // Mock data in alerts tab
     });
 
@@ -171,13 +171,13 @@ describe('TierManagement', () => {
         await user.click(alertsTab);
 
         // Click Inspect
-        const inspectBtn = screen.getByRole('button', { name: /แก้ไขแล้ว/i });
+        const inspectBtn = screen.getByRole('button', { name: /Resolved/i });
         await user.click(inspectBtn);
 
         expect(mockResolveActivity).toHaveBeenCalledWith({ activityId: 'sus1' });
 
         // Click Suspend
-        const suspendBtn = screen.getByRole('button', { name: /ระงับ/i });
+        const suspendBtn = screen.getByRole('button', { name: /Suspend/i });
         await user.click(suspendBtn);
 
         expect(mockSuspendCustomer).toHaveBeenCalledWith('u1');

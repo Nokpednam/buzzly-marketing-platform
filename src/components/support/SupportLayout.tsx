@@ -1,7 +1,8 @@
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { logPageView } from "@/lib/auditLogger";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SupportSidebar } from "./SupportSidebar";
-import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,7 +10,16 @@ import { useEmployeeAuth } from "@/hooks/useEmployeeAuth";
 
 export function SupportLayout() {
     const navigate = useNavigate();
+    const { pathname } = useLocation();
+    const prevPathRef = useRef<string>("");
     const { toast } = useToast();
+
+    useEffect(() => {
+        if (pathname && pathname !== prevPathRef.current) {
+            prevPathRef.current = pathname;
+            logPageView(pathname);
+        }
+    }, [pathname]);
     const [isAuthorized, setIsAuthorized] = useState(false);
     const [isChecking, setIsChecking] = useState(true);
     useEmployeeAuth(); // Trigger last_active update logic

@@ -113,7 +113,50 @@ export function useEmployeeAuth() {
           loading: false,
         });
       } else {
-        // Not an employee
+        // Not linked yet? Check if there's an unlinked record for this email
+        const { data: unlinkedData, error: linkError } = await supabase
+          .from("employees")
+          .select("id, approval_status, status")
+          .eq("email", session.user.email)
+          .is("user_id", null)
+          .maybeSingle();
+
+        if (unlinkedData) {
+          console.log("Found unlinked employee record for", session.user.email, "- linking now...");
+          const { error: updateError } = await supabase
+            .from("employees")
+            .update({ 
+               user_id: session.user.id,
+               // Auto-activate if it was already approved
+               status: unlinkedData.approval_status === 'approved' ? 'active' : unlinkedData.status
+            })
+            .eq("id", unlinkedData.id);
+
+          if (!updateError) {
+            // Ensure profile exists
+            const { data: profileExists } = await supabase
+              .from("employees_profile")
+              .select("id")
+              .eq("employees_id", unlinkedData.id)
+              .maybeSingle();
+              
+            if (!profileExists) {
+               await supabase.from("employees_profile").insert({
+                 employees_id: unlinkedData.id,
+                 first_name: session.user.user_metadata?.first_name || '',
+                 last_name: session.user.user_metadata?.last_name || '',
+                 aptitude: session.user.user_metadata?.aptitude || ''
+               });
+            }
+
+            // Re-run check to get the full role details
+            return checkEmployeeAuth();
+          } else {
+            console.error("Failed to self-link employee:", updateError);
+          }
+        }
+
+        // Truly not an employee
         setState({
           user: session.user,
           session: session,

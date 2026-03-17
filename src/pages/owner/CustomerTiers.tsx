@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import { useCustomerTiers } from "@/hooks/useCustomerTiers";
 import { useDiscounts } from "@/hooks/useDiscounts";
 import { useToast } from "@/hooks/use-toast";
@@ -19,7 +20,7 @@ import {
 } from "recharts";
 import {
   Users, TrendingUp, TrendingDown, DollarSign,
-  Award, ArrowUpRight, ArrowDownRight, Clock, MapPin, Zap, AlertTriangle, Send, Tag, Copy
+  Award, ArrowUpRight, ArrowDownRight, Clock, MapPin, Zap, AlertTriangle, Send, Tag
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -58,6 +59,7 @@ export default function CustomerTiers() {
   // Promo Dispatch Modal State
   const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string, name: string } | null>(null);
+  const [promoContext, setPromoContext] = useState<"promo" | "re_engage">("promo");
   const [promoTab, setPromoTab] = useState<"select" | "create">("select");
   const [selectedCodeId, setSelectedCodeId] = useState<string>("");
   const [newPromoForm, setNewPromoForm] = useState({
@@ -69,18 +71,19 @@ export default function CustomerTiers() {
   const { draftDiscounts, ongoingDiscounts, createDiscount } = useDiscounts();
   const availableDiscounts = [...ongoingDiscounts, ...draftDiscounts];
 
-  const handleOpenPromoModal = (customerId: string, customerName: string) => {
+  const handleOpenPromoModal = (customerId: string, customerName: string, context: "promo" | "re_engage" = "promo") => {
     setSelectedCustomer({ id: customerId, name: customerName });
+    setPromoContext(context);
     setIsPromoModalOpen(true);
   };
 
   const handleCopyAndSend = async () => {
-    let finalCode = "";
+    let discountId = "";
 
     if (promoTab === "select") {
       const selected = availableDiscounts.find(d => d.id === selectedCodeId);
       if (!selected) return;
-      finalCode = selected.code;
+      discountId = selected.id;
     } else {
       if (!newPromoForm.code) return;
       try {
@@ -90,20 +93,38 @@ export default function CustomerTiers() {
           discount_value: newPromoForm.discount_value,
           description: `Created explicitly for ${selectedCustomer?.name}`,
         });
-        finalCode = created.code;
+        discountId = created.id;
       } catch (error) {
         return; // Error handled by mutation hook
       }
     }
 
-    navigator.clipboard.writeText(finalCode);
-    toast({
-      title: "Code Copied & Ready!",
-      description: `Discount code \u00AB${finalCode}\u00BB is copied and ready to be sent to ${selectedCustomer?.name}`,
-    });
-    setIsPromoModalOpen(false);
+    if (!selectedCustomer?.id || !discountId) return;
 
-    // reset form
+    try {
+      const { data, error } = await supabase.rpc("send_promo_to_customer", {
+        p_customer_id: selectedCustomer.id,
+        p_discount_id: discountId,
+        p_context: promoContext,
+      });
+
+      if (error) throw error;
+
+      const success = (data as { success?: boolean })?.success;
+      if (success) {
+        toast({
+          title: "ส่งสำเร็จ!",
+          description: `โค้ดส่วนลดถูกส่งไปยังช่องแจ้งเตือนของ ${selectedCustomer.name} แล้ว`,
+        });
+      } else {
+        toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถส่งได้", variant: "destructive" });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "ไม่สามารถส่งได้";
+      toast({ title: "เกิดข้อผิดพลาด", description: msg, variant: "destructive" });
+    }
+
+    setIsPromoModalOpen(false);
     setNewPromoForm({ code: "", discount_type: "percent", discount_value: 10 });
     setSelectedCodeId("");
   };
@@ -297,7 +318,7 @@ export default function CustomerTiers() {
                             <p className="text-sm font-bold text-emerald-600">ต้อง ฿{cust.spendNeeded.toLocaleString()}</p>
                           </div>
                           <button
-                            onClick={() => handleOpenPromoModal(cust.id, cust.name)}
+                            onClick={() => handleOpenPromoModal(cust.id, cust.name, "promo")}
                             className="h-8 px-3 rounded-md bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold uppercase tracking-wider flex items-center gap-1 transition-colors whitespace-nowrap">
                             <Send className="h-3 w-3" /> Send Promo
                           </button>
@@ -342,7 +363,7 @@ export default function CustomerTiers() {
                             {cust.daysInactive} days ago
                           </div>
                           <button
-                            onClick={() => handleOpenPromoModal(cust.id, cust.name)}
+                            onClick={() => handleOpenPromoModal(cust.id, cust.name, "re_engage")}
                             className="h-8 px-3 rounded-md bg-red-100 text-red-600 hover:bg-red-200 text-xs font-bold uppercase tracking-wider flex items-center gap-1 transition-colors whitespace-nowrap">
                             <Send className="h-3 w-3" /> Re-engage
                           </button>
@@ -628,8 +649,8 @@ export default function CustomerTiers() {
             >
               {createDiscount.isPending ? "Creating..." : (
                 <>
-                  <Copy className="h-4 w-4" />
-                  Copy & Send
+                  <Send className="h-4 w-4" />
+                  ส่งให้ลูกค้า
                 </>
               )}
             </Button>

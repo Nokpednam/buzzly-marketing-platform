@@ -172,14 +172,14 @@ export function useSubscription() {
   ): Promise<{ success: boolean; subscriptionId?: string; error?: string }> => {
     console.log("Creating subscription:", { planId, billingCycle, userId, discountCode });
     if (!userId) {
-      return { success: false, error: "กรุณาเข้าสู่ระบบก่อน" };
+      return { success: false, error: "Please sign in first" };
     }
 
     try {
       // 1. ตรวจสอบ Plan ใหม่
       const newPlan = plans.find((p) => p.id === planId);
       if (!newPlan) {
-        return { success: false, error: "ไม่พบแพ็กเกจที่เลือก" };
+        return { success: false, error: "Selected plan not found" };
       }
 
       // 2. ดึงข้อมูล Subscription ปัจจุบัน (ดึงทั้งหมดที่เป็น active เพื่อป้องกันเคสมีซ้ำ)
@@ -204,7 +204,7 @@ export function useSubscription() {
         if (currentPlan) {
           // กฎ: ห้าม Downgrade (เช็คแค่ตัวหลัก)
           if (newPlan.tier < currentPlan.tier) {
-            return { success: false, error: "ไม่สามารถเปลี่ยนไปแพ็กเกจที่ต่ำกว่าได้" };
+            return { success: false, error: "Cannot downgrade to a lower plan" };
           }
           isUpgrade = newPlan.tier > currentPlan.tier;
 
@@ -276,11 +276,15 @@ export function useSubscription() {
         } else if (discountResult && !discountResult.error) {
           const d = discountResult as {
             id?: string;
+            code?: string;
             discount_type: "percent" | "fixed";
             discount_value: number;
             min_order_value: number;
             max_discount_amount: number | null;
           };
+          const { auditDiscount } = await import("@/lib/auditLogger");
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) auditDiscount.customerUsed(user.id, d.code || discountCode, d.id);
           let rawDiscount = 0;
           if (d.discount_type === "percent") {
             rawDiscount = (chargeAmount * d.discount_value) / 100;
@@ -367,7 +371,7 @@ export function useSubscription() {
           due_date: now.toISOString(),
           paid_at: now.toISOString(),
           line_items: [{
-            description: `${newPlan.name} Plan - ${billingCycle === "yearly" ? "รายปี" : "รายเดือน"}`,
+            description: `${newPlan.name} Plan - ${billingCycle === "yearly" ? "Annually" : "Monthly"}`,
             quantity: 1,
             unit_price: chargeAmount + appliedDiscountAmount,
             total: chargeAmount + appliedDiscountAmount,
@@ -405,7 +409,7 @@ export function useSubscription() {
 
     } catch (error: any) {
       console.error("Error creating subscription:", error);
-      return { success: false, error: error.message || "เกิดข้อผิดพลาดในการสร้าง subscription" };
+      return { success: false, error: error.message || "An error occurred while creating subscription" };
     }
   };
 

@@ -14,6 +14,7 @@ import { SidebarStateProvider } from "@/hooks/useSidebarState";
 import { LoyaltyProvider } from "@/hooks/useLoyaltyTier";
 import { PlanProvider } from "@/contexts/PlanContext";
 import { PlanGate } from "@/components/layout/PlanGate";
+import { TeamPermissionsGuard } from "@/components/TeamPermissionsGuard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { logError } from "@/services/errorLogger";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,6 +51,7 @@ import RedemptionRequests from "./pages/support/RedemptionRequests";
 import DiscountManagement from "./pages/support/DiscountManagement";
 import ActivityCodes from "./pages/support/ActivityCodes";
 import TeamManagement from "./pages/TeamManagement";
+import OwnerDashboard from "./pages/owner/OwnerDashboard";
 import ProductUsage from "./pages/owner/ProductUsage";
 import BusinessPerformance from "./pages/owner/BusinessPerformance";
 import UserFeedback from "./pages/owner/UserFeedback";
@@ -138,16 +140,16 @@ const App = () => {
 
                   {/* Customer Routes */}
                   <Route element={<CustomerProtectedRoute><MainLayout /></CustomerProtectedRoute>}>
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/personas" element={<Prospects />} />
+                    <Route path="/dashboard" element={<TeamPermissionsGuard permission="view_dashboard"><Dashboard /></TeamPermissionsGuard>} />
+                    <Route path="/personas" element={<TeamPermissionsGuard permission="view_prospects"><Prospects /></TeamPermissionsGuard>} />
                     <Route path="/prospects" element={<Navigate to="/personas" replace />} />
-                    <Route path="/campaigns" element={<PlanGate feature="campaigns"><Campaigns /></PlanGate>} />
-                    <Route path="/campaigns/:id" element={<PlanGate feature="campaigns"><CampaignDetail /></PlanGate>} />
+                    <Route path="/campaigns" element={<TeamPermissionsGuard permission="view_campaigns"><PlanGate feature="campaigns"><Campaigns /></PlanGate></TeamPermissionsGuard>} />
+                    <Route path="/campaigns/:id" element={<TeamPermissionsGuard permission="view_campaigns"><PlanGate feature="campaigns"><CampaignDetail /></PlanGate></TeamPermissionsGuard>} />
                     {/* Legacy /social-analytics → redirect to /social/analytics */}
                     <Route path="/social-analytics" element={<Navigate to="/social/analytics" replace />} />
 
                     {/* Social nested routes */}
-                    <Route path="/social" element={<SocialLayout />}>
+                    <Route path="/social" element={<TeamPermissionsGuard permission="view_dashboard"><SocialLayout /></TeamPermissionsGuard>}>
                       <Route index element={<Navigate to="planner" replace />} />
                       <Route path="planner" element={<SocialPlanner />} />
                       <Route path="analytics" element={<SocialAnalyticsView />} />
@@ -155,14 +157,14 @@ const App = () => {
                       <Route path="integrations" element={<SocialIntegrations />} />
                     </Route>
 
-                    <Route path="/customer-journey" element={<CustomerJourney />} />
-                    <Route path="/aarrr-funnel" element={<AARRRFunnel />} />
-                    <Route path="/api-keys" element={<APIKeys />} />
+                    <Route path="/customer-journey" element={<TeamPermissionsGuard permission="view_analytics"><CustomerJourney /></TeamPermissionsGuard>} />
+                    <Route path="/aarrr-funnel" element={<TeamPermissionsGuard permission="view_analytics"><AARRRFunnel /></TeamPermissionsGuard>} />
+                    <Route path="/api-keys" element={<TeamPermissionsGuard permission="manage_settings"><APIKeys /></TeamPermissionsGuard>} />
 
-                    <Route path="/analytics" element={<Analytics />} />
-                    <Route path="/reports" element={<Reports />} />
-                    <Route path="/settings" element={<Settings />} />
-                    <Route path="/team" element={<TeamManagement />} />
+                    <Route path="/analytics" element={<TeamPermissionsGuard permission="view_analytics"><Analytics /></TeamPermissionsGuard>} />
+                    <Route path="/reports" element={<TeamPermissionsGuard permission="view_analytics"><Reports /></TeamPermissionsGuard>} />
+                    <Route path="/settings" element={<TeamPermissionsGuard permission="manage_settings"><Settings /></TeamPermissionsGuard>} />
+                    <Route path="/team" element={<TeamPermissionsGuard permission="manage_team"><TeamManagement /></TeamPermissionsGuard>} />
                   </Route>
 
                   {/* Legacy /admin/* routes → redirect to /dev/* */}
@@ -211,7 +213,8 @@ const App = () => {
 
                   {/* Owner Employee Routes */}
                   <Route element={<EmployeeProtectedRoute allowedRoles={["owner"]}><OwnerLayout /></EmployeeProtectedRoute>}>
-                    <Route path="/owner" element={<Navigate to="/owner/product-usage" replace />} />
+                    <Route path="/owner" element={<Navigate to="/owner/dashboard" replace />} />
+                    <Route path="/owner/dashboard" element={<OwnerDashboard />} />
                     <Route path="/owner/product-usage" element={<ProductUsage />} />
                     <Route path="/owner/business-performance" element={<BusinessPerformance />} />
                     <Route path="/owner/user-feedback" element={<UserFeedback />} />

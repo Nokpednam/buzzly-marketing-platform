@@ -115,10 +115,10 @@ export function useReports() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["reports"] });
-            toast.success("สร้างรายงานสำเร็จ");
+            toast.success("Report created successfully");
         },
         onError: (error: Error) => {
-            toast.error("ไม่สามารถสร้างรายงานได้", { description: error.message });
+            toast.error("Failed to create report", { description: error.message });
         },
     });
 
@@ -132,10 +132,10 @@ export function useReports() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["reports"] });
-            toast.success("ลบรายงานสำเร็จ");
+            toast.success("Report deleted successfully");
         },
         onError: (error: Error) => {
-            toast.error("ไม่สามารถลบรายงานได้", { description: error.message });
+            toast.error("Failed to delete report", { description: error.message });
         },
     });
 

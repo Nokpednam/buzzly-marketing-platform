@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { auditReward } from "@/lib/auditLogger";
 
 export interface RewardItem {
     id: string;
@@ -39,11 +40,14 @@ export function useRewardsManagement() {
 
     const toggleRewardStatus = useMutation({
         mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+            const { data: existing } = await supabase.from("reward_items").select("name").eq("id", id).single();
             const { error } = await supabase
                 .from("reward_items")
                 .update({ is_active })
                 .eq("id", id);
             if (error) throw error;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) auditReward.supportToggled(user.id, id, is_active, (existing as any)?.name);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["rewards-management"] });
@@ -63,8 +67,10 @@ export function useRewardsManagement() {
             image_url: string | null;
             is_active: boolean;
         }) => {
-            const { error } = await supabase.from("reward_items").insert(item);
+            const { data: created, error } = await supabase.from("reward_items").insert(item).select("id").single();
             if (error) throw error;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) auditReward.supportCreated(user.id, item.name, (created as any)?.id);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["rewards-management"] });
@@ -92,6 +98,8 @@ export function useRewardsManagement() {
                 .update(updates)
                 .eq("id", id);
             if (error) throw error;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) auditReward.supportUpdated(user.id, id, item.name);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["rewards-management"] });
@@ -104,8 +112,11 @@ export function useRewardsManagement() {
 
     const deleteRewardItem = useMutation({
         mutationFn: async (id: string) => {
+            const { data: existing } = await supabase.from("reward_items").select("name").eq("id", id).single();
             const { error } = await supabase.from("reward_items").delete().eq("id", id);
             if (error) throw error;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) auditReward.supportDeleted(user.id, id, (existing as any)?.name);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["rewards-management"] });

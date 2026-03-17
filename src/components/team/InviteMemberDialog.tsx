@@ -34,10 +34,10 @@ interface InviteMemberDialogProps {
 }
 
 const roleLabels: Record<TeamRole, { label: string; description: string }> = {
-  owner: { label: "Owner", description: "จัดการได้ทุกอย่าง รวมถึงลบทีม" },
-  admin: { label: "Admin", description: "จัดการทีมและสมาชิกได้" },
-  editor: { label: "Editor", description: "สร้างและแก้ไข Campaigns/Prospects" },
-  viewer: { label: "Viewer", description: "ดูข้อมูลได้อย่างเดียว" },
+  owner: { label: "Owner", description: "Full access, including deleting the team" },
+  admin: { label: "Admin", description: "Manage team and members" },
+  editor: { label: "Editor", description: "Create and edit Campaigns/Prospects" },
+  viewer: { label: "Viewer", description: "View-only access" },
 };
 
 export function InviteMemberDialog({ open, onOpenChange, onInvite }: InviteMemberDialogProps) {
@@ -95,16 +95,16 @@ export function InviteMemberDialog({ open, onOpenChange, onInvite }: InviteMembe
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5" />
-            เชิญสมาชิกใหม่
+            Invite new member
           </DialogTitle>
           <DialogDescription>
-            ส่งคำเชิญเข้าร่วมทีมผ่านอีเมล
+            Send an invitation to join the team via email
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">อีเมล</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
@@ -115,7 +115,7 @@ export function InviteMemberDialog({ open, onOpenChange, onInvite }: InviteMembe
           </div>
 
           <div className="space-y-2">
-            <Label>บทบาท (Role)</Label>
+            <Label>Role</Label>
             <Select value={role} onValueChange={(v) => handleRoleChange(v as TeamRole)}>
               <SelectTrigger>
                 <SelectValue />
@@ -140,7 +140,7 @@ export function InviteMemberDialog({ open, onOpenChange, onInvite }: InviteMembe
               <Button variant="ghost" className="w-full justify-between p-2">
                 <span className="flex items-center gap-2 text-sm">
                   <Settings2 className="h-4 w-4" />
-                  ตั้งค่าสิทธิ์เฉพาะบุคคล
+                  Set custom permissions
                 </span>
                 <ChevronDown className={`h-4 w-4 transition-transform ${isAdvancedOpen ? "rotate-180" : ""}`} />
               </Button>
@@ -148,9 +148,9 @@ export function InviteMemberDialog({ open, onOpenChange, onInvite }: InviteMembe
             <CollapsibleContent className="space-y-3 pt-2">
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div className="space-y-0.5">
-                  <Label>ใช้สิทธิ์เฉพาะบุคคล</Label>
+                  <Label>Use custom permissions</Label>
                   <p className="text-xs text-muted-foreground">
-                    แทนที่สิทธิ์เริ่มต้นของ Role
+                    Override default role permissions
                   </p>
                 </div>
                 <Switch
@@ -180,10 +180,10 @@ export function InviteMemberDialog({ open, onOpenChange, onInvite }: InviteMembe
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
-            ยกเลิก
+            Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={!email || loading}>
-            {loading ? "กำลังส่ง..." : "ส่งคำเชิญ"}
+            {loading ? "Sending..." : "Send invitation"}
           </Button>
         </DialogFooter>
       </DialogContent>

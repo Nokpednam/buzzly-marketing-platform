@@ -153,7 +153,7 @@ export default function ActivityCodes() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Loyalty Reward</h1>
           <p className="text-muted-foreground mt-1">
-            จัดการ Loyalty Rewards ที่ลูกค้าสามารถทำเพื่อรับ Points
+            Manage Loyalty Rewards that customers can complete to earn Points
           </p>
         </div>
         <Button onClick={openCreate} className="gap-2">
@@ -212,7 +212,7 @@ export default function ActivityCodes() {
         <CardHeader>
           <CardTitle>Loyalty Reward Missions</CardTitle>
           <CardDescription>
-            รายการ Activity Codes ที่ลูกค้าสามารถทำเพื่อรับ Points — ลูกค้าจะเห็นเฉพาะที่ Active เท่านั้น
+            Activity Codes that customers can complete to earn Points — customers only see active ones
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -225,15 +225,15 @@ export default function ActivityCodes() {
           ) : isError ? (
             <div className="text-center py-10 flex flex-col items-center gap-2 text-destructive">
               <AlertCircle className="h-8 w-8" />
-              <p className="font-medium">ไม่สามารถโหลด Loyalty Rewards ได้</p>
+              <p className="font-medium">Failed to load Loyalty Rewards</p>
               <p className="text-sm text-muted-foreground">{(error as Error)?.message}</p>
             </div>
           ) : codes.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <Tag className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p>ยังไม่มี Loyalty Rewards</p>
+              <p>No Loyalty Rewards yet</p>
               <Button variant="outline" onClick={openCreate} className="mt-4 gap-2">
-                <Plus className="h-4 w-4" /> สร้าง Mission แรก
+                <Plus className="h-4 w-4" /> Create First Mission
               </Button>
             </div>
           ) : (
@@ -281,8 +281,8 @@ export default function ActivityCodes() {
                           className="data-[state=checked]:bg-emerald-600"
                         />
                         <Badge
-                          variant={code.is_active ? "default" : "secondary"}
-                          className={code.is_active ? "bg-emerald-500 text-white" : ""}
+                          variant={code.is_active ? "default" : "destructive"}
+                          className={code.is_active ? "bg-emerald-500 text-white" : "bg-red-500 text-white hover:bg-red-600"}
                         >
                           {code.is_active ? "Active" : "Inactive"}
                         </Badge>
@@ -326,8 +326,8 @@ export default function ActivityCodes() {
             <DialogTitle>{editTarget ? "Edit Mission" : "Create Mission"}</DialogTitle>
             <DialogDescription>
               {editTarget
-                ? `แก้ไขรายละเอียดของ "${editTarget.action_code}"`
-                : "เพิ่ม Activity Code ใหม่ที่ลูกค้าสามารถทำเพื่อรับ Points"}
+                ? `Edit details of "${editTarget.action_code}"`
+                : "Add new Activity Code that customers can complete to earn Points"}
             </DialogDescription>
           </DialogHeader>
 
@@ -378,7 +378,7 @@ export default function ActivityCodes() {
                     <FormLabel>Description (optional)</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="อธิบายรายละเอียดของ Activity นี้..."
+                        placeholder="Describe this activity..."
                         rows={2}
                         {...field}
                       />
@@ -441,7 +441,7 @@ export default function ActivityCodes() {
                     <div>
                       <FormLabel className="cursor-pointer">Active</FormLabel>
                       <FormDescription className="text-xs">
-                        ลูกค้าจะเห็น Activity Code นี้เฉพาะเมื่อ Active
+                        Customers will only see this Activity Code when it is active
                       </FormDescription>
                     </div>
                   </FormItem>
@@ -455,10 +455,10 @@ export default function ActivityCodes() {
                   onClick={() => setFormOpen(false)}
                   disabled={isPending}
                 >
-                  ยกเลิก
+                  Cancel
                 </Button>
                 <Button type="submit" disabled={isPending}>
-                  {isPending ? "กำลังบันทึก..." : editTarget ? "บันทึก" : "สร้าง Mission"}
+                  {isPending ? "Saving..." : editTarget ? "Save" : "Create Mission"}
                 </Button>
               </DialogFooter>
             </form>
@@ -470,20 +470,20 @@ export default function ActivityCodes() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>ลบ Mission นี้?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this Mission?</AlertDialogTitle>
             <AlertDialogDescription>
-              คุณแน่ใจหรือไม่ว่าต้องการลบ{" "}
+              Are you sure you want to delete{" "}
               <strong className="font-mono">{deleteTarget?.action_code}</strong>?
-              การดำเนินการนี้ไม่สามารถย้อนกลับได้ และลูกค้าจะไม่เห็น Mission นี้อีกต่อไป
+              This action cannot be undone and customers will no longer see this Mission.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={handleDelete}
             >
-              ลบ
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

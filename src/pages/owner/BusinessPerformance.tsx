@@ -552,45 +552,139 @@ export default function BusinessPerformance() {
 
 
         <TabsContent value="cohort" className="space-y-6">
-          <Card className="glass-panel">
-            <CardHeader>
+          <Card className="glass-panel p-6">
+            <CardHeader className="px-0 pt-0">
               <CardTitle>Retention Cohorts</CardTitle>
-              <CardDescription>User stickiness over time</CardDescription>
+              <CardDescription>User stickiness over time — retention curves and heatmap</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-8">
               {cohortData && cohortData.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border/50 text-muted-foreground">
-                        <th className="p-4 text-left font-bold uppercase tracking-widest text-[10px]">Cohort</th>
-                        <th className="p-4 font-bold uppercase tracking-widest text-[10px]">Size</th>
-                        <th className="p-4 font-bold uppercase tracking-widest text-[10px]">M1</th>
-                        <th className="p-4 font-bold uppercase tracking-widest text-[10px]">M2</th>
-                        <th className="p-4 font-bold uppercase tracking-widest text-[10px]">M3</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {cohortData.slice(0, 6).map((row) => (
-                        <tr key={row.cohort} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                          <td className="p-4 font-bold">{row.cohort}</td>
-                          <td className="p-4 text-center font-mono text-xs">{row.cohortSize}</td>
-                          {(row.retentionData || [100, 85, 72]).slice(0, 3).map((val, i) => (
-                            <td key={i} className="p-4 text-center">
-                              <span className={cn(
-                                "px-2.5 py-1 rounded-lg text-[11px] font-bold shadow-sm",
-                                val > 80 ? "bg-emerald-500/20 text-emerald-600" :
-                                  val > 60 ? "bg-blue-500/20 text-blue-600" : "bg-red-500/20 text-red-600"
-                              )}>
-                                {val}%
-                              </span>
-                            </td>
+                <>
+                  {/* Line Chart: Retention curves per cohort */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Retention Curves</h3>
+                    <div className="h-[320px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={[
+                            { month: "M1", ...Object.fromEntries(cohortData.slice(0, 6).map((c, i) => [c.cohort, (c.retentionData || [])[0] ?? 0])) },
+                            { month: "M2", ...Object.fromEntries(cohortData.slice(0, 6).map((c, i) => [c.cohort, (c.retentionData || [])[1] ?? 0])) },
+                            { month: "M3", ...Object.fromEntries(cohortData.slice(0, 6).map((c, i) => [c.cohort, (c.retentionData || [])[2] ?? 0])) },
+                          ]}
+                          margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" vertical={false} />
+                          <XAxis dataKey="month" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} axisLine={false} tickLine={false} />
+                          <YAxis
+                            tickFormatter={(v) => `${v}%`}
+                            domain={[0, 100]}
+                            tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                            axisLine={false}
+                            tickLine={false}
+                            width={40}
+                          />
+                          <Tooltip
+                            formatter={(v: number) => [`${v}%`, "Retention"]}
+                            contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "10px", border: "1px solid hsl(var(--border))", boxShadow: "0 4px 20px rgba(0,0,0,0.12)" }}
+                            labelFormatter={(label) => `Month ${label}`}
+                          />
+                          <Legend wrapperStyle={{ paddingTop: 12, fontSize: 11 }} />
+                          {cohortData.slice(0, 6).map((c, i) => {
+                            const colors = ["hsl(var(--primary))", "hsl(142,76%,45%)", "hsl(217,91%,60%)", "hsl(280,67%,60%)", "hsl(24,95%,53%)", "hsl(173,80%,40%)"];
+                            return (
+                              <Line
+                                key={c.cohort}
+                                type="monotone"
+                                dataKey={c.cohort}
+                                name={`${c.cohort} (n=${c.cohortSize})`}
+                                stroke={colors[i % colors.length]}
+                                strokeWidth={2.5}
+                                dot={{ r: 4, strokeWidth: 2 }}
+                                activeDot={{ r: 6 }}
+                              />
+                            );
+                          })}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Heatmap: Retention % by cohort × month */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Retention Heatmap</h3>
+                    <div className="overflow-x-auto">
+                      <div className="inline-block min-w-full">
+                        <div className="grid gap-1" style={{ gridTemplateColumns: "120px 60px repeat(3, minmax(80px, 1fr))" }}>
+                          <div className="font-bold text-[10px] uppercase tracking-widest text-muted-foreground p-2">Cohort</div>
+                          <div className="font-bold text-[10px] uppercase tracking-widest text-muted-foreground p-2 text-center">Size</div>
+                          {["M1", "M2", "M3"].map((m) => (
+                            <div key={m} className="font-bold text-[10px] uppercase tracking-widest text-muted-foreground p-2 text-center">{m}</div>
                           ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          {cohortData.slice(0, 6).map((row) => (
+                            <React.Fragment key={row.cohort}>
+                              <div className="p-2 font-semibold text-sm flex items-center">{row.cohort}</div>
+                              <div className="p-2 text-center font-mono text-xs text-muted-foreground flex items-center justify-center">{row.cohortSize}</div>
+                              {(row.retentionData || [100, 85, 72]).slice(0, 3).map((val, i) => (
+                                <div
+                                  key={i}
+                                  className={cn(
+                                    "p-2 rounded-lg text-center text-xs font-bold flex items-center justify-center min-h-[36px]",
+                                    val >= 80 ? "bg-emerald-500/25 text-emerald-700 dark:text-emerald-400" :
+                                    val >= 60 ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" :
+                                    val >= 40 ? "bg-amber-500/20 text-amber-600 dark:text-amber-400" :
+                                    "bg-red-500/20 text-red-600 dark:text-red-400"
+                                  )}
+                                >
+                                  {val}%
+                                </div>
+                              ))}
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Compact table for detailed numbers */}
+                  <details className="group">
+                    <summary className="cursor-pointer text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors list-none flex items-center gap-2">
+                      <span className="group-open:rotate-90 transition-transform">▶</span>
+                      View detailed table
+                    </summary>
+                    <div className="overflow-x-auto mt-4 border border-border/50 rounded-lg">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border/50 text-muted-foreground bg-muted/30">
+                            <th className="p-3 text-left font-bold uppercase tracking-widest text-[10px]">Cohort</th>
+                            <th className="p-3 font-bold uppercase tracking-widest text-[10px]">Size</th>
+                            <th className="p-3 font-bold uppercase tracking-widest text-[10px]">M1</th>
+                            <th className="p-3 font-bold uppercase tracking-widest text-[10px]">M2</th>
+                            <th className="p-3 font-bold uppercase tracking-widest text-[10px]">M3</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cohortData.slice(0, 6).map((row) => (
+                            <tr key={row.cohort} className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
+                              <td className="p-3 font-bold">{row.cohort}</td>
+                              <td className="p-3 text-center font-mono text-xs">{row.cohortSize}</td>
+                              {(row.retentionData || [100, 85, 72]).slice(0, 3).map((val, i) => (
+                                <td key={i} className="p-3 text-center">
+                                  <span className={cn(
+                                    "px-2.5 py-1 rounded-lg text-[11px] font-bold",
+                                    val > 80 ? "bg-emerald-500/20 text-emerald-600" :
+                                    val > 60 ? "bg-blue-500/20 text-blue-600" : "bg-red-500/20 text-red-600"
+                                  )}>
+                                    {val}%
+                                  </span>
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                </>
               ) : (
                 <div className="py-20 text-center text-muted-foreground">No cohort data available</div>
               )}

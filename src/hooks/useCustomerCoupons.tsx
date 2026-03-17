@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { auditDiscount } from "@/lib/auditLogger";
 
 export interface CustomerNotification {
     id: string;
@@ -120,6 +121,12 @@ export function useCustomerCoupons() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error("Not authenticated");
 
+            let code: string | undefined;
+            try {
+                const { data: d } = await (supabase as any).from("discounts").select("code").eq("id", discountId).single();
+                code = d?.code;
+            } catch { /* RLS may block; use discountId only */ }
+
             // Insert collection record directly.
             // The DB unique constraint on (customer_id, discount_id) prevents double-collect.
             // We skip the pre-flight SELECT because RLS might block customers from seeing
@@ -140,6 +147,8 @@ export function useCustomerCoupons() {
                 throw new Error("This discount is no longer available.");
             }
             if (insertErr) throw insertErr;
+
+            auditDiscount.customerCollected(user.id, discountId, code);
 
             // Mark notification as read (if it's not a virtual notification)
             if (notificationId && !notificationId.startsWith('virtual_')) {

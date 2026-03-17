@@ -27,42 +27,53 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { usePlanAccess } from "@/hooks/usePlanAccess";
+import { useTeamPermissions } from "@/hooks/useTeamPermissions";
+import type { TeamPermissions } from "@/hooks/useTeamManagement";
 import { Badge } from "@/components/ui/badge";
 import { SidebarBottomSection } from "@/components/sidebar/SidebarBottomSection";
 import { useSidebarState } from "@/hooks/useSidebarState";
 import { useWorkspaceInfo } from "@/hooks/useWorkspaceInfo";
 import { PlanSelectionDialog } from "@/components/PlanSelectionDialog";
 
-const navGroups = [
+const navGroups: Array<{
+  label: string;
+  items: Array<{
+    title: string;
+    url: string;
+    icon: React.ElementType;
+    requiresPlan: "pro" | "team" | null;
+    requiresPermission: keyof TeamPermissions;
+  }>;
+}> = [
   {
     label: "Main",
     items: [
-      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, requiresPlan: null },
-      { title: "Social", url: "/social", icon: Share2, requiresPlan: null },
-      { title: "Customer Personas", url: "/personas", icon: Users, requiresPlan: null },
-      { title: "Campaigns", url: "/campaigns", icon: Megaphone, requiresPlan: "pro" as const },
+      { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, requiresPlan: null, requiresPermission: "view_dashboard" },
+      { title: "Social", url: "/social", icon: Share2, requiresPlan: null, requiresPermission: "view_dashboard" },
+      { title: "Customer Personas", url: "/personas", icon: Users, requiresPlan: null, requiresPermission: "view_prospects" },
+      { title: "Campaigns", url: "/campaigns", icon: Megaphone, requiresPlan: "pro", requiresPermission: "view_campaigns" },
     ]
   },
   {
     label: "Intelligence",
     items: [
-      { title: "Customer Journey", url: "/customer-journey", icon: Route, requiresPlan: "pro" as const },
-      { title: "AARRR Funnel", url: "/aarrr-funnel", icon: TrendingUp, requiresPlan: "pro" as const },
-      { title: "Analytics", url: "/analytics", icon: BarChart3, requiresPlan: "pro" as const },
+      { title: "Customer Journey", url: "/customer-journey", icon: Route, requiresPlan: "pro", requiresPermission: "view_analytics" },
+      { title: "AARRR Funnel", url: "/aarrr-funnel", icon: TrendingUp, requiresPlan: "pro", requiresPermission: "view_analytics" },
+      { title: "Analytics", url: "/analytics", icon: BarChart3, requiresPlan: "pro", requiresPermission: "view_analytics" },
     ]
   },
   {
     label: "Organization",
     items: [
-      { title: "Team Management", url: "/team", icon: UsersRound, requiresPlan: "team" as const },
-      { title: "Reports", url: "/reports", icon: FileText, requiresPlan: "pro" as const },
+      { title: "Team Management", url: "/team", icon: UsersRound, requiresPlan: "team", requiresPermission: "manage_team" },
+      { title: "Reports", url: "/reports", icon: FileText, requiresPlan: "pro", requiresPermission: "view_analytics" },
     ]
   },
   {
     label: "System",
     items: [
-      { title: "API Keys", url: "/api-keys", icon: Key, requiresPlan: null },
-      { title: "Settings", url: "/settings", icon: Settings, requiresPlan: null },
+      { title: "API Keys", url: "/api-keys", icon: Key, requiresPlan: null, requiresPermission: "manage_settings" },
+      { title: "Settings", url: "/settings", icon: Settings, requiresPlan: null, requiresPermission: "manage_settings" },
     ]
   }
 ];
@@ -72,13 +83,22 @@ export function AppSidebar() {
   const location = useLocation();
   const { currentPlan } = usePlanAccess();
   const { data: workspaceInfo } = useWorkspaceInfo();
+  const { canAccess } = useTeamPermissions();
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
 
-  const isItemAccessible = (requiresPlan: "pro" | "team" | null) => {
+  const hasPlanAccess = (requiresPlan: "pro" | "team" | null) => {
     if (!requiresPlan) return true;
     if (requiresPlan === "pro") return currentPlan === "pro" || currentPlan === "team";
     if (requiresPlan === "team") return currentPlan === "team";
     return true;
+  };
+
+  const isItemAccessible = (requiresPlan: "pro" | "team" | null, requiresPermission: keyof TeamPermissions) => {
+    return canAccess(requiresPermission) && hasPlanAccess(requiresPlan);
+  };
+
+  const isPlanLockedOnly = (requiresPlan: "pro" | "team" | null, requiresPermission: keyof TeamPermissions) => {
+    return canAccess(requiresPermission) && !hasPlanAccess(requiresPlan);
   };
 
   return (
@@ -134,14 +154,15 @@ export function AppSidebar() {
               </h4>
             )}
             <div className="space-y-0.5">
-              {group.items.map((item) => {
-                const accessible = isItemAccessible(item.requiresPlan);
+              {group.items.filter((item) => canAccess(item.requiresPermission)).map((item) => {
+                const accessible = isItemAccessible(item.requiresPlan, item.requiresPermission);
+                const planLockedOnly = isPlanLockedOnly(item.requiresPlan, item.requiresPermission);
                 const isActive =
                   location.pathname === item.url ||
                   location.pathname.startsWith(item.url + "/");
 
-                if (!accessible) {
-                  // Locked item: render a button that opens the plan dialog directly
+                if (!accessible && planLockedOnly) {
+                  // Has permission but plan locked: render a button that opens the plan dialog
                   return (
                     <button
                       key={item.title}

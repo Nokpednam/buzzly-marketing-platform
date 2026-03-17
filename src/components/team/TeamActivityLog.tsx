@@ -13,7 +13,6 @@ import {
   Activity,
 } from "lucide-react";
 import { format } from "date-fns";
-import { th } from "date-fns/locale";
 import { TeamActivityLog as ActivityLogType } from "@/hooks/useTeamManagement";
 
 interface TeamActivityLogProps {
@@ -25,47 +24,47 @@ const actionConfig: Record<
   { label: string; icon: React.ElementType; color: string }
 > = {
   invitation_sent: {
-    label: "ส่งคำเชิญ",
+    label: "Invitation sent",
     icon: Mail,
     color: "text-info",
   },
   invitation_cancelled: {
-    label: "ยกเลิกคำเชิญ",
+    label: "Invitation cancelled",
     icon: MailX,
     color: "text-warning",
   },
   invitation_accepted: {
-    label: "ยอมรับคำเชิญ",
+    label: "Invitation accepted",
     icon: UserPlus,
     color: "text-success",
   },
   invitation_declined: {
-    label: "ปฏิเสธคำเชิญ",
+    label: "Invitation declined",
     icon: UserMinus,
     color: "text-muted-foreground",
   },
   member_role_changed: {
-    label: "เปลี่ยน Role",
+    label: "Role changed",
     icon: Shield,
     color: "text-primary",
   },
   member_permissions_updated: {
-    label: "อัพเดทสิทธิ์",
+    label: "Permissions updated",
     icon: Settings,
     color: "text-primary",
   },
   member_suspended: {
-    label: "ระงับสมาชิก",
+    label: "Member suspended",
     icon: UserX,
     color: "text-destructive",
   },
   member_reactivated: {
-    label: "เปิดใช้งานใหม่",
+    label: "Member reactivated",
     icon: UserCheck,
     color: "text-success",
   },
   member_removed: {
-    label: "ลบสมาชิก",
+    label: "Member removed",
     icon: UserMinus,
     color: "text-destructive",
   },
@@ -122,10 +121,10 @@ export function TeamActivityLog({ logs }: TeamActivityLogProps) {
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                      <span>โดย {log.actor?.full_name || log.actor?.email || "System"}</span>
+                      <span>by {log.actor?.full_name || log.actor?.email || "System"}</span>
                       <span>•</span>
                       <span>
-                        {format(new Date(log.created_at), "d MMM yyyy HH:mm", { locale: th })}
+                        {format(new Date(log.created_at), "d MMM yyyy HH:mm")}
                       </span>
                     </div>
                   </div>
@@ -136,7 +135,7 @@ export function TeamActivityLog({ logs }: TeamActivityLogProps) {
         })}
         {logs.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
-            ยังไม่มีประวัติกิจกรรม
+            No activity yet
           </div>
         )}
       </div>

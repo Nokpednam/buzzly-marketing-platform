@@ -87,7 +87,7 @@ export function EmployeeProtectedRoute({
   if (employeeRole && !allowedRoles.includes(employeeRole)) {
     // Owner goes to owner panel
     if (employeeRole === "owner") {
-      return <Navigate to="/owner/product-usage" replace />;
+      return <Navigate to="/owner/dashboard" replace />;
     }
     // Other roles: support goes to support panel, dev goes to dev panel
     if (employeeRole === "dev") {

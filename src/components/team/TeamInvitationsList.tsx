@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { X, Clock, CheckCircle, XCircle, AlertTriangle, Settings } from "lucide-react";
 import { format, isPast } from "date-fns";
-import { th } from "date-fns/locale";
 import { TeamInvitation, TeamRole, InvitationStatus } from "@/hooks/useTeamManagement";
 
 interface TeamInvitationsListProps {
@@ -20,30 +19,30 @@ interface TeamInvitationsListProps {
 }
 
 const roleStyles: Record<TeamRole, { label: string; className: string }> = {
-  owner: { label: "Owner", className: "bg-primary text-primary-foreground" },
-  admin: { label: "Admin", className: "bg-info text-info-foreground" },
-  editor: { label: "Editor", className: "bg-warning text-warning-foreground" },
-  viewer: { label: "Viewer", className: "bg-muted text-muted-foreground" },
+  owner: { label: "Owner", className: "bg-sky-50 text-sky-700 border border-sky-200 font-medium" },
+  admin: { label: "Admin", className: "bg-violet-50 text-violet-700 border border-violet-200" },
+  editor: { label: "Editor", className: "bg-amber-50 text-amber-700 border border-amber-200" },
+  viewer: { label: "Viewer", className: "bg-gray-50 text-gray-600 border border-gray-200" },
 };
 
 const statusConfig: Record<InvitationStatus, { label: string; icon: React.ReactNode; className: string }> = {
   pending: {
-    label: "รอการตอบรับ",
+    label: "Pending",
     icon: <Clock className="h-3 w-3" />,
     className: "bg-warning/10 text-warning border-warning/20",
   },
   accepted: {
-    label: "ยอมรับแล้ว",
+    label: "Accepted",
     icon: <CheckCircle className="h-3 w-3" />,
     className: "bg-success/10 text-success border-success/20",
   },
   declined: {
-    label: "ปฏิเสธ",
+    label: "Declined",
     icon: <XCircle className="h-3 w-3" />,
     className: "bg-destructive/10 text-destructive border-destructive/20",
   },
   expired: {
-    label: "หมดอายุ",
+    label: "Expired",
     icon: <AlertTriangle className="h-3 w-3" />,
     className: "bg-muted text-muted-foreground",
   },
@@ -65,12 +64,12 @@ export function TeamInvitationsList({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>อีเมล</TableHead>
-          <TableHead>บทบาท</TableHead>
-          <TableHead>สิทธิ์</TableHead>
-          <TableHead>สถานะ</TableHead>
-          <TableHead>เชิญโดย</TableHead>
-          <TableHead>หมดอายุ</TableHead>
+          <TableHead>Email</TableHead>
+          <TableHead>Role</TableHead>
+          <TableHead>Permissions</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Invited by</TableHead>
+          <TableHead>Expires</TableHead>
           {canManage && <TableHead className="w-[50px]"></TableHead>}
         </TableRow>
       </TableHeader>
@@ -85,7 +84,7 @@ export function TeamInvitationsList({
             <TableRow key={invitation.id} className={isExpired ? "opacity-60" : ""}>
               <TableCell className="font-medium">{invitation.email}</TableCell>
               <TableCell>
-                <Badge className={roleStyles[invitation.role].className}>
+                <Badge variant="outline" className={roleStyles[invitation.role].className}>
                   {roleStyles[invitation.role].label}
                 </Badge>
               </TableCell>
@@ -109,7 +108,7 @@ export function TeamInvitationsList({
                 {invitation.inviter?.full_name || invitation.inviter?.email || "Unknown"}
               </TableCell>
               <TableCell className="text-sm text-muted-foreground">
-                {format(new Date(invitation.expires_at), "d MMM yyyy HH:mm", { locale: th })}
+                {format(new Date(invitation.expires_at), "d MMM yyyy HH:mm")}
               </TableCell>
               {canManage && (
                 <TableCell>
@@ -131,7 +130,7 @@ export function TeamInvitationsList({
         {invitations.length === 0 && (
           <TableRow>
             <TableCell colSpan={canManage ? 7 : 6} className="text-center py-8 text-muted-foreground">
-              ยังไม่มีคำเชิญที่รอดำเนินการ
+              No pending invitations
             </TableCell>
           </TableRow>
         )}

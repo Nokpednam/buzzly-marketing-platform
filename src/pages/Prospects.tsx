@@ -55,7 +55,7 @@ const GENDER_COLORS: Record<string, string> = {
   Male: "#3B82F6",
   Female: "#EC4899",
   Other: "#F59E0B",
-  "ไม่ระบุ": "#94A3B8",
+  "Unspecified": "#94A3B8",
   male: "#3B82F6",
   female: "#EC4899",
   unknown: "#94A3B8",
@@ -324,7 +324,7 @@ export default function Prospects() {
                     ? "Select an ad above to view its audience breakdown."
                     : adAudienceMode === "campaign" && !selectedCampaignId
                       ? "Select a campaign above to view its audience breakdown."
-                      : "Connect a platform via Settings → Platform Connections to import ad audience data."}
+                      : "Connect a platform via API Keys to import ad audience data."}
                 </p>
               </CardContent>
             </Card>

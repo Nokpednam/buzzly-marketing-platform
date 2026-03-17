@@ -1,12 +1,23 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
+import { useEffect, useRef } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { Header } from "./Header";
 import { useSidebarState } from "@/hooks/useSidebarState";
+import { logPageView } from "@/lib/auditLogger";
 import { cn } from "@/lib/utils";
 import { USE_MOCK_DATA } from "@/lib/mock-api-data";
 
 export function MainLayout() {
   const { collapsed } = useSidebarState();
+  const { pathname } = useLocation();
+  const prevPathRef = useRef<string>("");
+
+  useEffect(() => {
+    if (pathname && pathname !== prevPathRef.current) {
+      prevPathRef.current = pathname;
+      logPageView(pathname);
+    }
+  }, [pathname]);
 
   return (
     <div className="min-h-screen bg-background font-sans">

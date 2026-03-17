@@ -32,8 +32,8 @@ export default function EmployeeSignUp() {
         if (step === 1) {
             if (!formData.email || !formData.password || !formData.confirmPassword) {
                 toast({
-                    title: "กรุณากรอกข้อมูลให้ครบ",
-                    description: "Email และ Password จำเป็นต้องกรอก",
+                    title: "Please fill in all required fields",
+                    description: "Email and Password are required",
                     variant: "destructive",
                 });
                 return;
@@ -41,8 +41,8 @@ export default function EmployeeSignUp() {
 
             if (formData.password.length < 8) {
                 toast({
-                    title: "รหัสผ่านไม่ถูกต้อง",
-                    description: "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร",
+                    title: "Invalid password",
+                    description: "Password must be at least 8 characters",
                     variant: "destructive",
                 });
                 return;
@@ -50,8 +50,8 @@ export default function EmployeeSignUp() {
 
             if (formData.password !== formData.confirmPassword) {
                 toast({
-                    title: "รหัสผ่านไม่ตรงกัน",
-                    description: "กรุณากรอกรหัสผ่านให้ตรงกัน",
+                    title: "Passwords do not match",
+                    description: "Please ensure passwords match",
                     variant: "destructive",
                 });
                 return;
@@ -67,8 +67,8 @@ export default function EmployeeSignUp() {
             if (existingCustomer) {
                 setLoading(false);
                 toast({
-                    title: "ไม่สามารถใช้เมลนี้ได้",
-                    description: "Email นี้เคยสมัครเป็นลูกค้าแล้ว กรุณาใช้ Email อื่นในการสมัครพนักงาน",
+                    title: "This email cannot be used",
+                    description: "This email is already registered as a customer. Please use a different email for employee signup",
                     variant: "destructive",
                 });
                 return;
@@ -87,8 +87,8 @@ export default function EmployeeSignUp() {
 
         if (!formData.firstName || !formData.lastName) {
             toast({
-                title: "กรุณากรอกข้อมูลให้ครบ",
-                description: "ชื่อและนามสกุลจำเป็นต้องกรอก",
+                title: "Please fill in all required fields",
+                description: "First name and last name are required",
                 variant: "destructive",
             });
             return;
@@ -118,8 +118,8 @@ export default function EmployeeSignUp() {
             if (authError) {
                 if (authError.message.includes("already registered") || authError.message.includes("User already registered")) {
                     toast({
-                        title: "อีเมลนี้เคยสมัครสมาชิกไปแล้ว",
-                        description: "มีบัญชีของคุณในระบบอยู่ก่อนแล้ว กรุณากลับไปที่หน้าเข้าสู่ระบบ",
+                        title: "This email is already registered",
+                        description: "Your account already exists. Please go to the login page",
                         variant: "default",
                     });
 
@@ -149,13 +149,13 @@ export default function EmployeeSignUp() {
 
                     if (employeeData?.approval_status === "approved") {
                         toast({
-                            title: "ลงทะเบียนสำเร็จและเชื่อมต่อบัญชีแล้ว!",
-                            description: "ยินดีต้อนรับ! บัญชีของคุณได้รับการยืนยันตัวตนพนักงานแล้ว สามารถเข้าใช้งานได้ทันที",
+                            title: "Registration complete and account linked!",
+                            description: "Welcome! Your employee account has been verified. You can sign in now.",
                         });
                     } else {
                         toast({
-                            title: "ลงทะเบียนสำเร็จ!",
-                            description: "บัญชีของคุณได้รับการตั้งค่าเรียบร้อยแล้ว กรุณารอการอนุมัติจากผู้บริหาร",
+                            title: "Registration successful!",
+                            description: "Your account has been set up. Please wait for admin approval.",
                         });
                     }
 
@@ -165,12 +165,12 @@ export default function EmployeeSignUp() {
                         navigate("/employee/login", { replace: true });
                     }, 2000);
                 } catch (employeeError: any) {
-                    throw new Error(employeeError.message || "เกิดข้อผิดพลาดหลังการสมัคร");
+                    throw new Error(employeeError.message || "An error occurred after signup");
                 }
             }
         } catch (error: any) {
             toast({
-                title: "ลงทะเบียนไม่สำเร็จ",
+                title: "Registration failed",
                 description: error.message,
                 variant: "destructive",
             });
@@ -188,9 +188,9 @@ export default function EmployeeSignUp() {
                     <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2">
                         <ShieldCheck className="h-6 w-6 text-primary" />
                     </div>
-                    <CardTitle className="text-2xl">สมัครเป็น Employee</CardTitle>
+                    <CardTitle className="text-2xl">Sign up as Employee</CardTitle>
                     <CardDescription>
-                        ขั้นตอนที่ {step} จาก 2 - {step === 1 ? "ข้อมูลบัญชี" : "ข้อมูลส่วนตัว"}
+                        Step {step} of 2 - {step === 1 ? "Account info" : "Personal info"}
                     </CardDescription>
                     <Progress value={progress} className="mt-4" />
                 </CardHeader>
@@ -231,10 +231,10 @@ export default function EmployeeSignUp() {
                                             minLength={8}
                                         />
                                     </div>
-                                    <p className="text-xs text-muted-foreground">อย่างน้อย 8 ตัวอักษร</p>
+                                    <p className="text-xs text-muted-foreground">At least 8 characters</p>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="confirmPassword">ยืนยัน Password</Label>
+                                    <Label htmlFor="confirmPassword">Confirm Password</Label>
                                     <div className="relative">
                                         <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                                         <Input
@@ -250,7 +250,7 @@ export default function EmployeeSignUp() {
                                     </div>
                                 </div>
                                 <Button type="button" onClick={handleNext} className="w-full">
-                                    ถัดไป
+                                    Next
                                     <ArrowRight className="ml-2 h-4 w-4" />
                                 </Button>
                             </div>
@@ -261,13 +261,13 @@ export default function EmployeeSignUp() {
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="space-y-2">
-                                        <Label htmlFor="firstName">ชื่อ</Label>
+                                        <Label htmlFor="firstName">First Name</Label>
                                         <div className="relative">
                                             <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                                             <Input
                                                 id="firstName"
                                                 type="text"
-                                                placeholder="สมชาย"
+                                                placeholder="John"
                                                 value={formData.firstName}
                                                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                                                 className="pl-9"
@@ -277,11 +277,11 @@ export default function EmployeeSignUp() {
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="lastName">นามสกุล</Label>
+                                        <Label htmlFor="lastName">Last Name</Label>
                                         <Input
                                             id="lastName"
                                             type="text"
-                                            placeholder="ใจดี"
+                                            placeholder="Doe"
                                             value={formData.lastName}
                                             onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                                             required
@@ -290,7 +290,7 @@ export default function EmployeeSignUp() {
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="aptitude">ความถนัด / ตำแหน่ง</Label>
+                                    <Label htmlFor="aptitude">Position / Skill</Label>
                                     <div className="relative">
                                         <Briefcase className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                                         <Input
@@ -305,7 +305,7 @@ export default function EmployeeSignUp() {
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="birthday">วันเกิด</Label>
+                                    <Label htmlFor="birthday">Birthday</Label>
                                     <div className="relative">
                                         <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                                         <Input
@@ -321,23 +321,23 @@ export default function EmployeeSignUp() {
 
                                 <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-sm">
                                     <p className="text-amber-800 dark:text-amber-200">
-                                        <strong>หมายเหตุ:</strong> บัญชีพนักงานจะต้องได้รับการอนุมัติก่อนเข้าใช้งาน (กรณีที่คุณได้รับเชิญจาก Admin แล้ว บัญชีจะเชื่อมต่อและอนุมัติให้อัตโนมัติหลังสมัคร)
+                                        <strong>Note:</strong> Employee accounts must be approved before access (if you were invited by Admin, your account will be linked and approved automatically after signup)
                                     </p>
                                 </div>
 
                                 <div className="flex gap-3">
                                     <Button type="button" variant="outline" onClick={handleBack} className="w-full">
                                         <ArrowLeft className="mr-2 h-4 w-4" />
-                                        กลับ
+                                        Back
                                     </Button>
                                     <Button type="submit" className="w-full" disabled={loading}>
                                         {loading ? (
                                             <>
                                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                กำลังสมัคร...
+                                                Signing up...
                                             </>
                                         ) : (
-                                            "สมัครสมาชิก"
+                                            "Sign up"
                                         )}
                                     </Button>
                                 </div>
@@ -347,15 +347,15 @@ export default function EmployeeSignUp() {
 
                     <div className="mt-6 space-y-3 text-center text-sm">
                         <p className="text-muted-foreground">
-                            มีบัญชีอยู่แล้ว?{" "}
+                            Already have an account?{" "}
                             <Link to="/employee/login" className="text-primary hover:underline font-medium">
-                                เข้าสู่ระบบ
+                                Sign in
                             </Link>
                         </p>
                         <p className="text-muted-foreground">
-                            ต้องการสมัครเป็นลูกค้า?{" "}
+                            Want to sign up as customer?{" "}
                             <Link to="/signup" className="text-primary hover:underline font-medium">
-                                สมัครเป็น Customer
+                                Sign up as Customer
                             </Link>
                         </p>
                         <Link
@@ -363,7 +363,7 @@ export default function EmployeeSignUp() {
                             className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
                         >
                             <ArrowLeft className="h-3 w-3" />
-                            กลับหน้าหลัก
+                            Back to home
                         </Link>
                     </div>
                 </CardContent>

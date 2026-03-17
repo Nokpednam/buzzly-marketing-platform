@@ -29,26 +29,10 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { NotificationPanel } from "@/components/shared/NotificationPanel";
 
 const devNavItems = [
-    {
-        title: "Monitor Dashboard",
-        icon: Activity,
-        href: "/dev/monitor",
-    },
-    {
-        title: "Audit Logs",
-        icon: ClipboardList,
-        href: "/dev/audit-logs",
-    },
-    {
-        title: "Employee Management",
-        icon: UserCog,
-        href: "/dev/employees",
-    },
-    {
-        title: "Support Tickets",
-        icon: HeadphonesIcon,
-        href: "/dev/support",
-    },
+    { title: "Monitor Dashboard", icon: Activity, href: "/dev/monitor" },
+    { title: "Audit Logs", icon: ClipboardList, href: "/dev/audit-logs" },
+    { title: "Employee Management", icon: UserCog, href: "/dev/employees" },
+    { title: "Support Tickets", icon: HeadphonesIcon, href: "/dev/support" },
 ];
 
 export function DevSidebar() {
@@ -61,9 +45,7 @@ export function DevSidebar() {
     useEffect(() => {
         const fetchUser = async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                setUserEmail(user.email || null);
-            }
+            if (user) setUserEmail(user.email || null);
         };
         fetchUser();
     }, []);
@@ -71,109 +53,118 @@ export function DevSidebar() {
     const handleLogout = async () => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                await auditAuth.logout(user.id, "Dev", user.email || "unknown");
-            }
+            if (user) await auditAuth.logout(user.id, "Dev", user.email || "unknown");
             await supabase.auth.signOut({ scope: 'local' });
-            toast({
-                title: "Signed Out",
-                description: "Dev session closed.",
-            });
+            toast({ title: "Signed Out", description: "Dev session closed." });
             window.location.href = "/";
-        } catch {
-            // Ignore errors
-        }
+        } catch { }
     };
 
     return (
         <Sidebar
             collapsible="none"
-            className="border-r border-slate-800 bg-[#0B0F1A] transition-all duration-300 select-none shadow-xl"
+            className="transition-all duration-300 select-none"
+            style={{
+                background: "#020617",
+                borderRight: "1px solid #1e293b",
+                boxShadow: "none",
+            }}
         >
-            <SidebarContent className="bg-[#0B0F1A]">
-                {/* Branding Area */}
-                <div className="flex items-center gap-3 px-8 py-10 shrink-0">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white shadow-xl">
-                        <ShieldCheck className="h-6 w-6" />
+            <SidebarContent style={{ background: "transparent" }}>
+                {/* Branding */}
+                <div className="flex items-center gap-3 px-7 py-8 shrink-0">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl shadow-md"
+                        style={{ background: "linear-gradient(135deg, #3b82f6, #06b6d4)" }}>
+                        <ShieldCheck className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                        <h2 className="font-bold text-xl tracking-tight text-white leading-none">Buzzly</h2>
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1 block">Dev Console</span>
+                        <h2 className="font-bold text-xl tracking-tight leading-none text-white">Buzzly</h2>
+                        <span className="text-[10px] font-bold uppercase tracking-widest mt-0.5 block text-slate-500"
+                        >Dev Console</span>
                     </div>
                 </div>
 
+                {/* Label */}
+                <div className="px-7 mb-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
+                        Navigation
+                    </span>
+                </div>
 
-                <SidebarGroup className="px-6 py-4">
+                <SidebarGroup className="px-4 py-1">
                     <SidebarGroupContent>
-                        <SidebarMenu className="space-y-2">
-                            {devNavItems.map((item, index) => (
-                                <SidebarMenuItem
-                                    key={item.href}
-                                    className={cn(
-                                        "animate-slide-in-left",
-                                        index === 0 && "stagger-1",
-                                        index === 1 && "stagger-2",
-                                        index === 2 && "stagger-3",
-                                        index === 3 && "stagger-4",
-                                    )}
-                                >
-                                    <NavLink
-                                        to={item.href}
-                                        className={({ isActive }) => cn(
-                                            "group flex items-center justify-between px-5 py-4 rounded-[1.25rem] transition-all duration-200 border border-transparent w-full outline-none active:scale-[0.97]",
-                                            isActive
-                                                ? "bg-blue-600/10 text-blue-400 shadow-[0_0_20px_rgba(37,99,235,0.1)] border-blue-500/20 w-full"
-                                                : "text-slate-400 hover:bg-white/5 hover:text-white hover:border-white/5"
-                                        )}
-                                    >
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <div className={cn(
-                                                "flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200",
-                                                location.pathname === item.href
-                                                    ? "bg-white/10 scale-105"
-                                                    : "bg-white/5 group-hover:bg-white/10 group-hover:shadow-sm group-hover:scale-105"
-                                            )}>
-                                                <item.icon className={cn(
-                                                    "h-4 w-4 transition-colors duration-200",
-                                                    location.pathname === item.href ? "text-blue-400" : "text-slate-400 group-hover:text-white"
-                                                )} />
+                        <SidebarMenu className="space-y-1">
+                            {devNavItems.map((item) => {
+                                const isActive = location.pathname === item.href;
+                                return (
+                                    <SidebarMenuItem key={item.href}>
+                                        <NavLink
+                                            to={item.href}
+                                            className={() => cn(
+                                                "group flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 w-full outline-none active:scale-[0.98]",
+                                                isActive
+                                                    ? "text-white shadow-lg"
+                                                    : "hover:bg-slate-900/50"
+                                            )}
+                                            style={() => isActive ? {
+                                                background: "linear-gradient(135deg, #0ea5e9, #2563eb)",
+                                                boxShadow: "0 4px 20px rgba(37,99,235,0.25)",
+                                            } : { color: "#94a3b8" }}
+                                        >
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className={cn(
+                                                    "flex h-8 w-8 items-center justify-center rounded-xl transition-all duration-200",
+                                                    isActive ? "bg-white/20" : "bg-slate-900 group-hover:bg-slate-800"
+                                                )}>
+                                                    <item.icon className={cn(
+                                                        "h-4 w-4 transition-colors",
+                                                        isActive ? "text-white" : "text-slate-400 group-hover:text-slate-200"
+                                                    )} />
+                                                </div>
+                                                <span className={cn(
+                                                    "font-semibold tracking-tight text-sm",
+                                                    isActive ? "text-white" : "text-slate-400 group-hover:text-slate-200"
+                                                )}>{item.title}</span>
                                             </div>
-                                            <span className="font-semibold tracking-tight text-sm">{item.title}</span>
-                                        </div>
-                                        <ChevronRight className={cn(
-                                            "h-4 w-4 transition-all duration-200",
-                                            location.pathname === item.href
-                                                ? "opacity-100 translate-x-0.5"
-                                                : "opacity-30 group-hover:opacity-80 group-hover:translate-x-0.5"
-                                        )} />
-                                    </NavLink>
-                                </SidebarMenuItem>
-                            ))}
+                                            <ChevronRight className={cn(
+                                                "h-4 w-4 transition-all duration-200",
+                                                isActive ? "text-white opacity-80 translate-x-0.5" : "text-slate-700 group-hover:text-slate-500 group-hover:translate-x-0.5"
+                                            )} />
+                                        </NavLink>
+                                    </SidebarMenuItem>
+                                );
+                            })}
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
 
-            <SidebarFooter className="sticky bottom-0 mt-auto p-5 bg-[#0B0F1A] border-t border-slate-800 shrink-0">
-                <div className="flex items-center justify-between px-2 py-3">
-                    {/* Avatar */}
-                    <Avatar className="h-10 w-10 border-2 border-blue-500 shadow-sm">
-                        <AvatarFallback className="bg-blue-500 text-white font-bold text-sm">
-                            {userEmail?.[0]?.toUpperCase() || "D"}
-                        </AvatarFallback>
-                    </Avatar>
+            <SidebarFooter className="sticky bottom-0 mt-auto px-4 py-4 shrink-0"
+                style={{ borderTop: "1px solid #1e293b", background: "#020617" }}>
+                <div className="flex items-center justify-between px-2 py-2">
+                    <div className="flex items-center gap-2.5">
+                        <Avatar className="h-9 w-9 border-2 shadow-sm border-slate-800">
+                            <AvatarFallback className="font-bold text-sm text-white"
+                                style={{ background: "linear-gradient(135deg, #0ea5e9, #2563eb)" }}>
+                                {userEmail?.[0]?.toUpperCase() || "D"}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="hidden sm:block">
+                            <p className="text-xs font-semibold text-slate-200 truncate max-w-[100px]">
+                                {userEmail?.split("@")[0] || "Developer"}
+                            </p>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Dev Console</p>
+                        </div>
+                    </div>
 
-                    <div className="flex items-center gap-2">
-                        {/* Logout Button */}
+                    <div className="flex items-center gap-1">
                         <button
-                            className="p-2 text-slate-500 hover:text-red-400 transition-all duration-150 rounded-lg hover:bg-red-500/10 active:scale-90"
+                            className="p-2 rounded-lg transition-all duration-150 active:scale-90 text-slate-500 hover:text-red-400 hover:bg-red-500/10"
                             onClick={handleLogout}
                             title="Logout"
                         >
                             <LogOut className="h-4 w-4" />
                         </button>
-
-                        {/* Live Notification Bell */}
                         <NotificationPanel
                             notifications={notifications}
                             unreadCount={unreadCount}
@@ -181,11 +172,12 @@ export function DevSidebar() {
                             onMarkAsRead={markAsRead}
                             onMarkAllAsRead={markAllAsRead}
                             accentColor="bg-blue-500"
-                            badgeColor="bg-blue-500"
+                            badgeColor="bg-cyan-500"
+                            theme="dark"
                         />
                     </div>
                 </div>
             </SidebarFooter>
-        </Sidebar >
+        </Sidebar>
     );
 }

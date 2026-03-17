@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tansta
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { auditTier } from "@/lib/auditLogger";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -274,11 +275,12 @@ export function useSuspiciousActivities(page = 0) {
                 .eq("id", activityId);
 
             if (error) throw error;
+            if (user) auditTier.activityResolved(user.id, activityId);
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["suspicious-activities"] });
             queryClient.invalidateQueries({ queryKey: ["unresolved-activities-count"] });
-            toast.success("ทำเครื่องหมายว่าแก้ไขแล้ว");
+            toast.success("Marked as resolved");
         },
         onError: (error: Error) => {
             toast.error("เกิดข้อผิดพลาด", { description: error.message });
@@ -287,17 +289,20 @@ export function useSuspiciousActivities(page = 0) {
 
     const suspendCustomer = useMutation({
         mutationFn: async (userId: string) => {
+            const { data: cust } = await supabase.from("customer").select("email").eq("id", userId).single();
             const { error } = await supabase
                 .from("customer")
                 .update({ status: "suspended" } as any)
                 .eq("id", userId);
             if (error) throw error;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) auditTier.customerSuspended(user.id, userId, (cust as any)?.email);
         },
         onSuccess: () => {
-            toast.success("ระงับบัญชีผู้ใช้แล้ว");
+            toast.success("User account suspended");
         },
         onError: (error: Error) => {
-            toast.error("ไม่สามารถระงับบัญชีได้", { description: error.message });
+            toast.error("Failed to suspend account", { description: error.message });
         },
     });
 
@@ -472,7 +477,7 @@ export function useManualTierOverride() {
             toast.success("อัปเดต Tier สำเร็จ");
         },
         onError: (error: Error) => {
-            toast.error("อัปเดตไม่สำเร็จ", { description: error.message });
+            toast.error("Update failed", { description: error.message });
         },
     });
 }
@@ -493,7 +498,7 @@ export function useManualPointAdjustment() {
             pointsToAdjust: number;
             reason: string;
         }) => {
-            if (pointsToAdjust === 0) throw new Error("คะแนนที่ปรับต้องไม่เป็น 0");
+            if (pointsToAdjust === 0) throw new Error("Points adjustment must not be 0");
 
             const { data: profile } = await supabase
                 .from("profile_customers")
@@ -540,10 +545,10 @@ export function useManualPointAdjustment() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["customer-search"] });
             queryClient.invalidateQueries({ queryKey: ["points-transactions-admin"] });
-            toast.success("อัปเดตคะแนนสะสมสำเร็จ");
+            toast.success("Points balance updated successfully");
         },
         onError: (error: Error) => {
-            toast.error("แก้ไขคะแนนไม่สำเร็จ", { description: error.message });
+            toast.error("Failed to update points", { description: error.message });
         },
     });
 }

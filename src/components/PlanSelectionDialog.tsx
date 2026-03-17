@@ -7,8 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, Users, Zap, Crown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePlanAccess, PlanType } from "@/hooks/usePlanAccess";
@@ -65,13 +64,14 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
   } = useSubscription();
   const { refetch: refetchLoyalty } = useLoyaltyTier();
 
-  // Reset state when dialog opens
+  // Reset state when dialog opens; pre-select current plan so users see their status
   useEffect(() => {
-    if (open) {
-      setSelectedPlan(null);
+    if (open && plans.length > 0) {
+      const current = plans.find((p) => p.slug === currentPlan);
+      setSelectedPlan(current ?? null);
       setShowPaymentDialog(false);
     }
-  }, [open]);
+  }, [open, plans, currentPlan]);
 
   const handleSelectPlan = (plan: SubscriptionPlan) => {
     setSelectedPlan(plan);
@@ -94,8 +94,8 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
     const success = await updatePlan("free");
     if (success) {
       toast({
-        title: "เลือก Free Plan สำเร็จ!",
-        description: "คุณสามารถเริ่มใช้งานได้ทันที",
+        title: "Free Plan selected!",
+        description: "You can start using it right away",
       });
       onOpenChange(false);
     }
@@ -127,16 +127,15 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
         await refetchSubscription();
 
         toast({
-          title: "ชำระเงินสำเร็จ! 🎉",
-          description: `คุณได้อัปเกรดเป็น ${selectedPlan.name} Plan เรียบร้อยแล้ว`,
+          title: "Payment successful! 🎉",
+          description: `You have been upgraded to ${selectedPlan.name} Plan`,
         });
 
         // Mission 3: award points for upgrading to a paid plan (one-time)
-        const { data: missionResult, error: missionError } = await supabase.rpc(
+        const { data: missionResult } = await supabase.rpc(
           'award_loyalty_points' as any,
           { p_action_type: 'upgrade_plan' }
         );
-        console.log('[Mission] upgrade_plan result:', missionResult, missionError);
         if (missionResult?.success) {
           toast({
             title: '🎉 Mission Complete!',
@@ -150,8 +149,8 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
         onOpenChange(false);
       } else {
         toast({
-          title: "เกิดข้อผิดพลาด",
-          description: result.error || "ไม่สามารถดำเนินการได้ กรุณาลองใหม่",
+          title: "Error",
+          description: result.error || "Unable to complete. Please try again",
           variant: "destructive",
         });
         // Reset to plan selection for retry
@@ -160,8 +159,8 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
       }
     } catch (error) {
       toast({
-        title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถดำเนินการได้ กรุณาลองใหม่",
+        title: "Error",
+        description: "Unable to complete. Please try again",
         variant: "destructive",
       });
     } finally {
@@ -170,7 +169,7 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
   };
 
   const formatPrice = (price: number) => {
-    if (price === 0) return "ฟรี";
+    if (price === 0) return "Free";
     return new Intl.NumberFormat("th-TH", {
       style: "currency",
       currency: "THB",
@@ -196,43 +195,34 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold text-center">
-              เลือก Plan ที่เหมาะกับคุณ
+              Choose the plan that suits you
             </DialogTitle>
             <p className="text-center text-muted-foreground">
-              อัปเกรดเพื่อปลดล็อคฟีเจอร์ทั้งหมดและเพิ่มประสิทธิภาพการตลาด
+              {currentPlan === "free"
+                ? "Upgrade to unlock all features and boost your marketing efficiency"
+                : "Manage your subscription or upgrade for more"}
             </p>
           </DialogHeader>
 
-          {/* Billing Cycle Toggle */}
-          <div className="flex items-center justify-center gap-4 py-4">
-            <Label
-              htmlFor="billing-toggle"
-              className={cn(
-                "cursor-pointer",
-                billingCycle === "monthly" ? "font-semibold" : "text-muted-foreground"
-              )}
+          {/* Billing Cycle Toggle - pill style */}
+          <div className="flex items-center justify-center py-4">
+            <Tabs
+              value={billingCycle}
+              onValueChange={(v) => setBillingCycle(v as BillingCycle)}
+              className="w-auto"
             >
-              รายเดือน
-            </Label>
-            <Switch
-              id="billing-toggle"
-              checked={billingCycle === "yearly"}
-              onCheckedChange={(checked) =>
-                setBillingCycle(checked ? "yearly" : "monthly")
-              }
-            />
-            <Label
-              htmlFor="billing-toggle"
-              className={cn(
-                "cursor-pointer flex items-center gap-2",
-                billingCycle === "yearly" ? "font-semibold" : "text-muted-foreground"
-              )}
-            >
-              รายปี
-              <Badge variant="secondary" className="bg-accent text-accent-foreground">
-                ประหยัดสูงสุด 17%
-              </Badge>
-            </Label>
+              <TabsList className="grid w-full grid-cols-2 gap-1 p-1 h-11 bg-muted/60">
+                <TabsTrigger value="monthly" className="text-sm">
+                  Monthly
+                </TabsTrigger>
+                <TabsTrigger value="yearly" className="text-sm gap-1.5">
+                  Annually
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                    Save 17%
+                  </Badge>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
@@ -250,20 +240,20 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
                   className={cn(
                     "relative rounded-xl border-2 p-5 cursor-pointer transition-all duration-200",
                     `bg-gradient-to-b ${colors.gradient}`,
-                    isCurrentPlan && "ring-2 ring-muted",
+                    isCurrentPlan && "ring-2 ring-primary/30",
                     isSelected
-                      ? "border-primary shadow-lg scale-[1.02]"
+                      ? "border-primary shadow-lg shadow-primary/10 scale-[1.02]"
                       : "border-transparent hover:border-border hover:shadow-md"
                   )}
                 >
                   {plan.is_popular && (
                     <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary">
-                      แนะนำ
+                      Recommended
                     </Badge>
                   )}
                   {isCurrentPlan && (
                     <Badge variant="secondary" className="absolute -top-2 right-2">
-                      Plan ปัจจุบัน
+                      Current Plan
                     </Badge>
                   )}
 
@@ -289,11 +279,11 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
                       {formatPrice(monthlyPrice)}
                     </span>
                     {monthlyPrice > 0 && (
-                      <span className="text-muted-foreground text-sm">/เดือน</span>
+                      <span className="text-muted-foreground text-sm">/month</span>
                     )}
                     {billingCycle === "yearly" && savings > 0 && (
                       <p className="text-xs text-accent-foreground mt-1">
-                        ประหยัด {savings}% เมื่อชำระรายปี
+                        Save {savings}% with annual billing
                       </p>
                     )}
                   </div>
@@ -323,10 +313,10 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
                     variant={isSelected ? "default" : "outline"}
                   >
                     {isSelected
-                      ? "เลือกแล้ว ✓"
+                      ? "Selected ✓"
                       : isCurrentPlan
-                        ? "Plan ปัจจุบัน"
-                        : "เลือก Plan นี้"}
+                        ? "Current Plan"
+                        : "Select this plan"}
                   </Button>
                 </div>
               );
@@ -334,36 +324,45 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
           </div>
 
           {/* Team Plan Extra Info */}
-          <div className="mt-4 p-4 rounded-lg bg-secondary border border-border">
+          <div className="mt-4 p-4 rounded-xl bg-violet-500/5 border border-violet-500/20">
             <div className="flex items-start gap-3">
-              <Users className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/20">
+                <Users className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+              </div>
               <div>
                 <p className="text-sm font-medium text-foreground">
-                  Team Plan: เชิญสมาชิกมาจัดการร้านค้าร่วมกัน
+                  Team Plan: Invite members to manage your store together
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  สามารถเชิญสมาชิกได้ไม่จำกัดจำนวน มาดูแลและจัดการ Marketing Dashboard ร่วมกัน
+                  Invite unlimited members to manage and handle the Marketing Dashboard together
                 </p>
               </div>
             </div>
           </div>
 
           {/* Proceed Button */}
-          <div className="flex justify-center mt-4">
+          <div className="flex flex-col items-center gap-2 mt-4">
+            {selectedPlan && isDowngrade() && (
+              <p className="text-xs text-muted-foreground text-center">
+                To downgrade, please contact support.
+              </p>
+            )}
             <Button
               size="lg"
-              className="px-8"
+              className="px-8 min-w-[200px]"
               disabled={!selectedPlan || (selectedPlan.slug === currentPlan) || isDowngrade()}
               onClick={handleProceedToPayment}
             >
               {selectedPlan ? (
-                selectedPlan.slug === "free" ? (
-                  "ยืนยันเลือก Free Plan"
+                selectedPlan.slug === currentPlan ? (
+                  "You're on this plan"
+                ) : selectedPlan.slug === "free" ? (
+                  "Confirm Free Plan"
                 ) : (
-                  `ดำเนินการชำระเงิน`
+                  "Proceed to payment"
                 )
               ) : (
-                "กรุณาเลือก Plan"
+                "Select a plan above"
               )}
             </Button>
           </div>
