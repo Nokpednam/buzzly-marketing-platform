@@ -54,7 +54,6 @@ import {
   useCustomerSearch,
   useManualTierOverride,
   useLoyaltyTierHistoryAll,
-  useLoyaltyTierHistoryManual,
   useAllCustomers,
   useLoyaltyTiers,
   useUpdateTierRetention,
@@ -194,7 +193,6 @@ export default function TierManagement() {
   const [transactionsPage, setTransactionsPage] = useState(0);
   const [activitiesPage, setActivitiesPage] = useState(0);
 
-  const { data: tierHistory = [], isLoading: historyLoading, isError: historyError } = useLoyaltyTierHistoryManual(historyPage);
   const { data: loyaltyTierHistoryAll = [], isLoading: loyaltyHistoryLoading, isError: loyaltyHistoryError, error: loyaltyHistoryErrorDetail, refetch: refetchLoyaltyHistory } = useLoyaltyTierHistoryAll(loyaltyHistoryPage);
   const { data: pointsTransactions = [], isLoading: txLoading, isError: txError, error: txErrorDetail } = usePointsTransactions(transactionsPage);
   const { data: suspiciousActivities = [], isLoading: alertsLoading, unresolvedCount, resolveActivity, suspendCustomer } = useSuspiciousActivities(activitiesPage);

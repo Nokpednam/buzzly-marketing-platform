@@ -106,38 +106,54 @@ export function useLoyaltyTierHistory(page = 0) {
     });
 }
 
-// ─── Loyalty Tier History (All: Auto + Manual, for unified table with Origin) ───
+// ─── Loyalty Tier History (All: Auto + Manual) — via RPC (bulletproof) ────────
 
-/** Fetch more rows for history so we have enough after filtering out "no change" entries */
+/** Fetch tier history via RPC — bypasses RLS/PostgREST, guaranteed to work */
 const TIER_HISTORY_PAGE_SIZE = 50;
 
 export function useLoyaltyTierHistoryAll(page = 0) {
     return useQuery({
         queryKey: ["loyalty-tier-history-all", page],
         queryFn: async () => {
-            const from = page * TIER_HISTORY_PAGE_SIZE;
-            const to = from + TIER_HISTORY_PAGE_SIZE - 1;
+            const limit = TIER_HISTORY_PAGE_SIZE;
+            const offset = page * TIER_HISTORY_PAGE_SIZE;
 
-            // Try with customer join first; fallback to simple select if FK not in schema cache
-            const { data, error } = await (supabase as any)
-                .from("loyalty_tier_history")
-                .select('*, customer:profile_customers!loyalty_tier_history_profile_customer_id_fkey(first_name, last_name, user_id)')
-                .order("changed_at", { ascending: false })
-                .range(from, to);
+            const { data, error } = await supabase.rpc("get_tier_history_for_support", {
+                p_limit: limit,
+                p_offset: offset,
+            });
 
-            if (error) {
-                if (error.code === "PGRST200" || error.message?.includes("Could not find a relationship")) {
-                    const { data: fallback, error: fallbackError } = await (supabase as any)
-                        .from("loyalty_tier_history")
-                        .select("*")
-                        .order("changed_at", { ascending: false })
-                        .range(from, to);
-                    if (fallbackError) throw fallbackError;
-                    return (fallback as unknown as LoyaltyTierHistoryEntry[]) ?? [];
-                }
-                throw error;
-            }
-            return (data as unknown as LoyaltyTierHistoryEntry[]) ?? [];
+            if (error) throw error;
+
+            const rows = (data ?? []) as Array<{
+                id: string;
+                profile_customer_id: string;
+                old_tier: string | null;
+                new_tier: string;
+                changed_at: string;
+                change_type: string;
+                change_reason: string | null;
+                changer_id: string | null;
+                customer_first_name: string | null;
+                customer_last_name: string | null;
+                customer_user_id: string | null;
+            }>;
+
+            return rows.map((r) => ({
+                id: r.id,
+                profile_customer_id: r.profile_customer_id,
+                old_tier: r.old_tier,
+                new_tier: r.new_tier,
+                changed_at: r.changed_at,
+                change_type: (r.change_type === "manual" ? "manual" : "auto") as "auto" | "manual",
+                change_reason: r.change_reason,
+                changer_id: r.changer_id,
+                customer: {
+                    first_name: r.customer_first_name,
+                    last_name: r.customer_last_name,
+                    user_id: r.customer_user_id,
+                },
+            })) as LoyaltyTierHistoryEntry[];
         },
         placeholderData: keepPreviousData,
     });
