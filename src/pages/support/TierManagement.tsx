@@ -356,10 +356,7 @@ export default function TierManagement() {
                         <Skeleton key={i} className="h-12 w-full" />
                       ))}
                     </div>
-                  ) : loyaltyHistoryError ? (
-                    <div className="text-center py-6 text-muted-foreground">
-                      <p className="text-sm">ยังไม่มีข้อมูล (ตาราง loyalty_tier_history อาจยังไม่ได้ apply migration)</p>
-                    </div>
+                  ) : loyaltyTierHistory.length === 0 ? (
                     <div className="relative flex flex-col items-center justify-center py-24 px-4 text-center overflow-hidden rounded-[16px] border border-dashed border-emerald-200 bg-emerald-50/30">
                       {/* Decorative Background Pattern */}
                       <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(#10b981 2px, transparent 2px)", backgroundSize: "24px 24px" }} />
@@ -634,7 +631,21 @@ export default function TierManagement() {
                       <p className="text-sm text-muted-foreground">{(txErrorDetail as Error)?.message ?? "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ"}</p>
                     </div>
                   ) : pointsTransactions.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">ยังไม่มีธุรกรรม Points</div>
+                    <div className="relative flex flex-col items-center justify-center py-24 px-4 text-center overflow-hidden rounded-[16px] border border-dashed border-blue-200 bg-blue-50/30">
+                      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(#3b82f6 2px, transparent 2px)", backgroundSize: "24px 24px" }} />
+                      
+                      <div className="relative z-10">
+                        <div className="h-24 w-24 rounded-full bg-blue-100/50 flex items-center justify-center mb-6 shadow-xl shadow-blue-500/10 relative group-hover:scale-105 transition-transform duration-500">
+                          <div className="absolute inset-0 rounded-full border-2 border-blue-300/30 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite]" />
+                          <ArrowUpDown className="h-10 w-10 text-blue-500 stroke-[1.5]" />
+                        </div>
+                      </div>
+                      
+                      <h3 className="text-xl font-bold text-slate-800 mb-2.5 relative z-10">ยังไม่มีประวัติธุรกรรม</h3>
+                      <p className="text-[15px] font-medium text-slate-500 max-w-[380px] leading-relaxed relative z-10">
+                        ลูกค้ายังไม่เคยได้รับหรือใช้คะแนน Points ข้อมูลธุรกรรมจะแสดงในส่วนนี้เมื่อมีการสะสมหรือแลกคะแนน
+                      </p>
+                    </div>
                   ) : (
                     <Table>
                       <TableHeader>
@@ -735,9 +746,20 @@ export default function TierManagement() {
                       ))}
                     </div>
                   ) : suspiciousActivities.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3 opacity-50" />
-                      ไม่มีกิจกรรมที่น่าสงสัย
+                    <div className="relative flex flex-col items-center justify-center py-24 px-4 text-center overflow-hidden rounded-[16px] border border-dashed border-emerald-200 bg-emerald-50/30 mt-4">
+                      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(#10b981 2px, transparent 2px)", backgroundSize: "24px 24px" }} />
+                      
+                      <div className="relative z-10">
+                        <div className="h-24 w-24 rounded-full bg-emerald-100/50 flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/10 relative group-hover:scale-105 transition-transform duration-500">
+                          <div className="absolute inset-0 rounded-full border-2 border-emerald-300/30 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite]" />
+                          <CheckCircle className="h-10 w-10 text-emerald-500 stroke-[1.5]" />
+                        </div>
+                      </div>
+                      
+                      <h3 className="text-xl font-bold text-slate-800 mb-2.5 relative z-10">ไม่มีกิจกรรมที่น่าสงสัย</h3>
+                      <p className="text-[15px] font-medium text-slate-500 max-w-[380px] leading-relaxed relative z-10">
+                        ระบบการตรวจจับไม่พบความผิดปกติหรือกิจกรรมที่ต้องตรวจสอบเพิ่มเติมในขณะนี้ สถานะบัญชีลูกค้าปลอดภัย
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-4">
