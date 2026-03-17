@@ -505,12 +505,13 @@ export function useManualTierOverride() {
             if (!tierData) throw new Error(`Tier "${newTierName}" not found`);
 
             // 2. Call the atomic RPC — employee guard enforced server-side
-            const { data, error: rpcError } = await (supabase as any).rpc(
+            const trimmedReason = reason?.trim() || null;
+            const { data, error: rpcError } = await supabase.rpc(
                 "manual_override_customer_tier",
                 {
-                    target_user_id:  userId,
-                    new_tier_id:     tierData.id,
-                    override_reason: reason.trim() || null,
+                    target_user_id: userId,
+                    new_tier_id: tierData.id,
+                    override_reason: trimmedReason,
                 }
             );
 
