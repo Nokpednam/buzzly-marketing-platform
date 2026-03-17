@@ -100,6 +100,19 @@ const defaultTierIcons: Record<string, string> = {
 const getTierIcon = (tierName: string, icons: Record<string, string>) =>
   icons[tierName] ?? (tierName.toLowerCase().includes("bronze") ? "🥉" : tierName.toLowerCase().includes("silver") ? "🥈" : tierName.toLowerCase().includes("gold") ? "🥇" : tierName.toLowerCase().includes("platinum") ? "💎" : "👤");
 
+/** Resolve badge class for any tier name */
+const getTierBadgeClass = (
+  tier: string,
+  colors: Record<string, { bg: string; text: string }>
+) => {
+  const base = tier.toLowerCase().includes("bronze") ? "Bronze" : tier.toLowerCase().includes("silver") ? "Silver" : tier.toLowerCase().includes("gold") ? "Gold" : tier.toLowerCase().includes("platinum") ? "Platinum" : tier;
+  return cn(
+    "rounded-full border-none font-medium",
+    colors[base]?.bg ?? colors[tier]?.bg ?? "bg-slate-100",
+    colors[base]?.text ?? colors[tier]?.text ?? "text-slate-600"
+  );
+};
+
 import { useQueryClient } from "@tanstack/react-query";
 import type { LoyaltyTierRule } from "@/hooks/useTierManagement";
 
@@ -253,6 +266,7 @@ export default function TierManagement() {
 
   const handleGodOverride = async () => {
     if (!godCustomerId || !godTier || !godReason.trim()) return;
+    const tierName = godTier;
     try {
       await manualOverride.mutateAsync({
         userId: godCustomerId,
@@ -264,12 +278,18 @@ export default function TierManagement() {
       setGodTier("");
       setGodReason("");
       setAdjustDialogOpen(false);
+      // Invalidate all tier-related caches so Tier History refreshes immediately
       queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-manual"] });
       queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-all"] });
-      queryClient.invalidateQueries({ queryKey: ["points-transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history"] });
+      queryClient.invalidateQueries({ queryKey: ["points-transactions-admin"] });
       queryClient.invalidateQueries({ queryKey: ["all-customers-dropdown"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-search"] });
+      toast({ title: "Tier updated", description: `Changed to ${tierName}`, variant: "default" });
     } catch (err) {
-      toast({ title: "Update Failed", description: (err as Error).message, variant: "destructive" });
+      const msg = (err as Error).message;
+      const friendlyMsg = msg?.includes("tier_unchanged") ? "Select a different tier to change" : msg;
+      toast({ title: "Update Failed", description: friendlyMsg, variant: "destructive" });
     }
   };
 
@@ -347,6 +367,7 @@ export default function TierManagement() {
                         onClick={() => {
                           setGodCustomerId(c.id);
                           setGodCustomerSearch(c.full_name ?? c.id.slice(0, 8));
+                          setGodTier(c.loyalty_tier ?? ""); // Pre-select current tier so user must change it
                           setGodDropdownOpen(false);
                         }}
                       >
@@ -371,20 +392,14 @@ export default function TierManagement() {
               )}
               {godSelectedCustomer && (
                 <div className="flex items-center gap-3 p-4 mt-3 rounded-xl bg-slate-50/80 border border-slate-100">
-                  <span className="text-2xl">{safeTierIcons[godSelectedCustomer.loyalty_tier ?? ""] ?? "👤"}</span>
+                  <span className="text-2xl">{getTierIcon(godSelectedCustomer.loyalty_tier ?? "", safeTierIcons)}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm leading-snug">{godSelectedCustomer.full_name ?? "Unspecified"}</p>
                     <p className="text-xs text-muted-foreground">
                       {(godSelectedCustomer.loyalty_points_balance ?? 0).toLocaleString()} pts
                     </p>
                   </div>
-                  <Badge
-                    className={cn(
-                      "rounded-full border-none shadow-none",
-                      (safeTierColors as Record<string, { bg: string; text: string }>)[godSelectedCustomer.loyalty_tier ?? ""]?.bg,
-                      (safeTierColors as Record<string, { bg: string; text: string }>)[godSelectedCustomer.loyalty_tier ?? ""]?.text
-                    )}
-                  >
+                  <Badge className={cn("shadow-none", getTierBadgeClass(godSelectedCustomer.loyalty_tier ?? "Bronze", safeTierColors))}>
                     {godSelectedCustomer.loyalty_tier ?? "Bronze"}
                   </Badge>
                 </div>
@@ -429,11 +444,20 @@ export default function TierManagement() {
                 rows={3}
               />
             </div>
-            <div className="pt-2">
+            <div className="pt-2 space-y-1">
+              {godTier === (godSelectedCustomer?.loyalty_tier ?? "") && godSelectedCustomer && (
+                <p className="text-xs text-amber-600">Select a different tier to change</p>
+              )}
               <Button
                 type="button"
                 className="w-full font-semibold rounded-xl h-12 bg-slate-800 hover:bg-slate-900 text-white shadow-sm"
-                disabled={!godCustomerId || !godTier || !godReason.trim() || manualOverride.isPending}
+                disabled={
+                  !godCustomerId ||
+                  !godTier ||
+                  !godReason.trim() ||
+                  manualOverride.isPending ||
+                  godTier === (godSelectedCustomer?.loyalty_tier ?? "")
+                }
                 onClick={handleGodOverride}
               >
                 {manualOverride.isPending ? (
@@ -658,14 +682,19 @@ export default function TierManagement() {
             {/* Tier Change History - unified table with Origin */}
             <div className="px-6 py-4 border-b border-slate-100">
               <h3 className="text-base font-semibold text-slate-800">Tier Change History</h3>
-              <p className="text-sm text-muted-foreground mt-0.5">Auto-logged when customer tier conditions change</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Only shows actual tier changes (Previous ≠ New Tier)</p>
             </div>
             <div className="px-6 pb-6">
               {loyaltyHistoryLoading ? (
                 <div className="space-y-2 py-8"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
-              ) : loyaltyTierHistoryAll.length === 0 ? (
-                <div className="py-16 text-center text-muted-foreground">No tier changes found</div>
-              ) : (
+              ) : (() => {
+                const actualChanges = loyaltyTierHistoryAll.filter(
+                  (h: LoyaltyTierHistoryEntry) => (h.old_tier ?? "") !== (h.new_tier ?? "")
+                );
+                if (actualChanges.length === 0) {
+                  return <div className="py-16 text-center text-muted-foreground">No tier changes found</div>;
+                }
+                return (
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-b border-slate-100">
@@ -677,7 +706,7 @@ export default function TierManagement() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {loyaltyTierHistoryAll.map((h: LoyaltyTierHistoryEntry) => {
+                    {actualChanges.map((h: LoyaltyTierHistoryEntry) => {
                       const dateToFormat = h.changed_at || (h as Record<string, unknown>).created_at as string | undefined;
                       const customer = (h as Record<string, unknown>).customer as { first_name?: string; last_name?: string } | undefined;
                       const customerName = customer ? `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() || "—" : h.profile_customer_id.slice(0, 8);
@@ -685,14 +714,7 @@ export default function TierManagement() {
                       const newPriority = getTierPriority(h.new_tier, tierRules);
                       const isRise = newPriority > oldPriority;
                       const isDrop = newPriority < oldPriority;
-                      const tierBadgeClass = (tier: string) => {
-                        const baseTier = tier.toLowerCase().includes("bronze") ? "Bronze" : tier.toLowerCase().includes("silver") ? "Silver" : tier.toLowerCase().includes("gold") ? "Gold" : tier.toLowerCase().includes("platinum") ? "Platinum" : tier;
-                        return cn(
-                          "rounded-full border-none font-medium",
-                          (safeTierColors as Record<string, { bg: string; text: string }>)[baseTier]?.bg ?? (safeTierColors as Record<string, { bg: string; text: string }>)[tier]?.bg ?? "bg-slate-100",
-                          (safeTierColors as Record<string, { bg: string; text: string }>)[baseTier]?.text ?? (safeTierColors as Record<string, { bg: string; text: string }>)[tier]?.text ?? "text-slate-600"
-                        );
-                      };
+                      const tierBadgeClass = (tier: string) => getTierBadgeClass(tier, safeTierColors);
                       return (
                         <TableRow key={h.id} className="border-b border-slate-50">
                           <TableCell className="text-sm whitespace-nowrap py-4">
@@ -726,7 +748,8 @@ export default function TierManagement() {
                     })}
                   </TableBody>
                 </Table>
-              )}
+                );
+              })()}
             </div>
 
           </TabsContent>
