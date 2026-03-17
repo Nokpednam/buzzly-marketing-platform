@@ -163,6 +163,9 @@ const SignUp = () => {
           salary_range: formData.salaryRange || null,
         } as any, { onConflict: 'user_id' });
 
+        // Ensure loyalty_points wallet exists (in case DB trigger failed)
+        await supabase.rpc('ensure_loyalty_wallet');
+
         await supabase.auth.signOut();
         // Sign out เพื่อบังคับให้ user ต้อง login ผ่านหน้า /auth
         toast.success("Sign up successful! Please sign in with your email and password");
