@@ -1,17 +1,17 @@
 -- ============================================================================
--- Migration: Nuclear Drop and Clean Rebuild of Loyalty Tier Trigger
--- Timestamp: 20260318990000
+-- Migration: Fix Duplicate Logs in Auto-Tier History
+-- Timestamp: 20260318991000
+--
+-- Problem:  trg_log_auto_tier_change fires too often because Postgres fires
+--           `FOR EACH ROW` on `UPDATE OF loyalty_tier_id` regardless of whether
+--           the value actually changed or not.
+--
+-- Fix:      Add a strict block inside the trigger checking:
+--           IF TG_OP = 'UPDATE' AND OLD.loyalty_tier_id IS NOT DISTINCT FROM NEW.loyalty_tier_id THEN
+--               RETURN NEW;
+--           END IF;
 -- ============================================================================
 
--- 1. NUCLEAR DROP: Ensure absolutely NO duplicate triggers remain.
-DROP TRIGGER IF EXISTS trg_log_auto_tier_change       ON public.loyalty_points;
-DROP TRIGGER IF EXISTS trg_log_tier_change            ON public.loyalty_points;
-DROP TRIGGER IF EXISTS log_tier_change_trigger        ON public.loyalty_points;
-DROP TRIGGER IF EXISTS trg_log_auto_tier_change_final ON public.loyalty_points;
-DROP TRIGGER IF EXISTS trg_log_tier_change_final      ON public.loyalty_points;
-DROP TRIGGER IF EXISTS loyalty_tier_history_trigger   ON public.loyalty_points;
-
--- 2. REBUILD THE FUNCTION STRICTLY
 CREATE OR REPLACE FUNCTION public.log_auto_tier_change()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -22,13 +22,12 @@ DECLARE
     v_old_tier_name TEXT;
     v_new_tier_name TEXT;
 BEGIN
-    -- Strict evaluation: ONLY log if it's an UPDATE where the tier ID actually changed.
-    -- (This IS NOT DISTINCT FROM strictly enforces that the two values are different).
-    IF (TG_OP = 'UPDATE' AND OLD.loyalty_tier_id IS NOT DISTINCT FROM NEW.loyalty_tier_id) THEN
+    -- 1. Strict skip on UPDATE if no actual tier change occurred
+    IF TG_OP = 'UPDATE' AND OLD.loyalty_tier_id IS NOT DISTINCT FROM NEW.loyalty_tier_id THEN
         RETURN NEW;
     END IF;
 
-    -- Resolve Old Tier Name (Updates only)
+    -- 2. Resolve Old Tier (Updates only)
     IF TG_OP = 'UPDATE' AND OLD.loyalty_tier_id IS NOT NULL THEN
         SELECT name INTO v_old_tier_name
         FROM public.loyalty_tiers
@@ -38,14 +37,14 @@ BEGIN
     -- Default to 'None' for new signups or missing historical tiers
     v_old_tier_name := COALESCE(v_old_tier_name, 'None');
 
-    -- Resolve New Tier Name
+    -- 3. Resolve New Tier
     IF NEW.loyalty_tier_id IS NOT NULL THEN
         SELECT name INTO v_new_tier_name
         FROM public.loyalty_tiers
         WHERE id = NEW.loyalty_tier_id;
     END IF;
 
-    -- Log the change into history
+    -- 4. Log the actual change
     IF v_new_tier_name IS NOT NULL THEN
         INSERT INTO public.loyalty_tier_history (
             profile_customer_id,
@@ -66,11 +65,14 @@ BEGIN
 END;
 $$;
 
--- 3. ATTACH THE V3 FINAL TRIGGER
-CREATE TRIGGER trg_log_auto_tier_change_v3
+-- Drop the trigger to safely recreate it
+DROP TRIGGER IF EXISTS trg_log_auto_tier_change ON public.loyalty_points;
+
+-- Recreate trigger tracking ONLY loyalty_tier_id columns
+CREATE TRIGGER trg_log_auto_tier_change
     AFTER INSERT OR UPDATE OF loyalty_tier_id ON public.loyalty_points
     FOR EACH ROW
     EXECUTE FUNCTION public.log_auto_tier_change();
 
--- Reload Schema Cache
+-- Reload PostgREST schema cache
 NOTIFY pgrst, 'reload schema';

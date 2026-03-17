@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,6 +48,7 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Award,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { tierColors, tierIcons } from "@/hooks/useLoyaltyTier";
@@ -83,12 +85,21 @@ const defaultTierIcons: Record<string, string> = {
   Bronze: "🥉", Silver: "🥈", Gold: "🥇", Platinum: "💎",
 };
 
+import { useQueryClient } from "@tanstack/react-query";
+
 export default function TierManagement() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(null);
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
   const [overrideTier, setOverrideTier] = useState("");
   const [overrideReason, setOverrideReason] = useState("");
+
+  const [godCustomerSearch, setGodCustomerSearch] = useState("");
+  const [godCustomerId, setGodCustomerId] = useState("");
+  const [godTier, setGodTier] = useState("");
+  const [godReason, setGodReason] = useState("");
+  const [godDropdownOpen, setGodDropdownOpen] = useState(false);
 
   const [historyPage, setHistoryPage] = useState(0);
   const [loyaltyHistoryPage, setLoyaltyHistoryPage] = useState(0);
@@ -101,6 +112,7 @@ export default function TierManagement() {
   const { data: suspiciousActivities = [], isLoading: alertsLoading, unresolvedCount, resolveActivity, suspendCustomer } = useSuspiciousActivities(activitiesPage);
   const { query: searchQuery, setQuery: setSearchQuery, data: searchResults = [], isFetching: searchLoading } = useCustomerSearch();
   const manualOverride = useManualTierOverride();
+  const { data: allCustomers = [], isLoading: allCustomersLoading } = useAllCustomers();
 
   const safeTierIcons = tierIcons || defaultTierIcons;
   const safeTierColors = tierColors || defaultTierColors;
@@ -136,7 +148,41 @@ export default function TierManagement() {
       setOverrideDialogOpen(false);
       setOverrideTier("");
       setOverrideReason("");
+      queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-manual"] });
+      queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history"] });
+      queryClient.invalidateQueries({ queryKey: ["points-transactions"] });
       toast({ title: "Update Success", description: `Tier updated for ${selectedCustomer.full_name}` });
+    } catch (err) {
+      toast({ title: "Update Failed", description: (err as Error).message, variant: "destructive" });
+    }
+  };
+
+  const filteredCustomers = allCustomers.filter((c: any) => {
+    if (!godCustomerSearch.trim()) return true;
+    const q = godCustomerSearch.toLowerCase();
+    return (
+      c.full_name?.toLowerCase().includes(q) ||
+      c.id.toLowerCase().includes(q)
+    );
+  });
+  const godSelectedCustomer = allCustomers.find((c: any) => c.id === godCustomerId) ?? null;
+
+  const handleGodOverride = async () => {
+    if (!godCustomerId || !godTier || !godReason.trim()) return;
+    try {
+      await manualOverride.mutateAsync({
+        userId: godCustomerId,
+        newTierName: godTier,
+        reason: godReason,
+      });
+      setGodCustomerId("");
+      setGodCustomerSearch("");
+      setGodTier("");
+      setGodReason("");
+      queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-manual"] });
+      queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history"] });
+      queryClient.invalidateQueries({ queryKey: ["points-transactions"] });
+      toast({ title: "Update Success", description: `Tier updated manually!` });
     } catch (err) {
       toast({ title: "Update Failed", description: (err as Error).message, variant: "destructive" });
     }
@@ -148,6 +194,144 @@ export default function TierManagement() {
         <h1 className="text-3xl font-bold text-foreground">Tier Management</h1>
         <p className="text-muted-foreground">จัดการและตรวจสอบ Loyalty Tier ของลูกค้า</p>
       </div>
+
+      {/* ⚡ GOD-MODE: Manual Tier Adjustment */}
+      <Card className="rounded-[20px] bg-white overflow-hidden shadow-sm border-slate-200 border-2 border-dashed border-indigo-200/60">
+        <CardHeader className="pb-3 border-b border-slate-50 bg-indigo-50/30">
+          <CardTitle className="flex items-center gap-2 text-indigo-700">
+            <Award className="h-5 w-5" />
+            ⚡ God-Mode: Manual Tier Adjustment
+          </CardTitle>
+          <CardDescription>
+            บังคับเปลี่ยน Tier ของผู้ใช้ใด ๆ ในระบบ — ถูกบันทึกใน loyalty_tier_history ด้วย change_type = 'manual'
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-4">
+          {/* Step 1: Customer picker */}
+          <div className="space-y-2 relative">
+            <Label>Step 1 — เลือกลูกค้า</Label>
+            <div className="relative">
+              <Input
+                placeholder={allCustomersLoading ? "กำลังโหลดรายชื่อลูกค้า..." : "ค้นหาชื่อหรือ ID ลูกค้า..."}
+                value={godCustomerSearch}
+                onChange={(e) => { setGodCustomerSearch(e.target.value); setGodDropdownOpen(true); }}
+                onFocus={() => setGodDropdownOpen(true)}
+                disabled={allCustomersLoading}
+                className="rounded-xl border-slate-200"
+              />
+              {allCustomersLoading && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
+
+            {/* Customer dropdown list */}
+            {godDropdownOpen && (godCustomerSearch.length > 0 || filteredCustomers.length > 0) && (
+              <div className="absolute top-[68px] left-0 w-full border rounded-xl max-h-48 overflow-y-auto bg-white shadow-xl z-50">
+                {filteredCustomers.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-3">ไม่พบลูกค้า</p>
+                ) : (
+                  filteredCustomers.map((c: any) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={cn(
+                        "w-full flex items-center justify-between px-3 py-2 text-left hover:bg-slate-50 transition-colors text-sm border-b last:border-0",
+                        godCustomerId === c.id && "bg-indigo-50/50 font-semibold"
+                      )}
+                      onClick={() => {
+                        setGodCustomerId(c.id);
+                        setGodCustomerSearch(c.full_name ?? c.id.slice(0, 8));
+                        setGodDropdownOpen(false);
+                      }}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span>{safeTierIcons[c.loyalty_tier ?? ""] ?? "👤"}</span>
+                        <span className="truncate">{c.full_name ?? "ไม่ระบุชื่อ"}</span>
+                      </span>
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "text-[10px] rounded-full border-none",
+                          (safeTierColors as any)[c.loyalty_tier ?? ""]?.bg,
+                          (safeTierColors as any)[c.loyalty_tier ?? ""]?.text
+                        )}
+                      >
+                        {c.loyalty_tier ?? "—"}
+                      </Badge>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Selected customer preview */}
+            {godSelectedCustomer && (
+              <div className="flex items-center gap-3 p-3 mt-3 rounded-xl bg-slate-50 border border-slate-100 shadow-sm">
+                <span className="text-2xl">{safeTierIcons[godSelectedCustomer.loyalty_tier ?? ""] ?? "👤"}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm">{godSelectedCustomer.full_name ?? "ไม่ระบุชื่อ"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {(godSelectedCustomer.loyalty_points_balance ?? 0).toLocaleString()} pts
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Tier ปัจจุบัน:</span>
+                  <Badge
+                    className={cn(
+                      "rounded-full border-none shadow-none",
+                      (safeTierColors as any)[godSelectedCustomer.loyalty_tier ?? ""]?.bg,
+                      (safeTierColors as any)[godSelectedCustomer.loyalty_tier ?? ""]?.text
+                    )}
+                  >
+                    {godSelectedCustomer.loyalty_tier ?? "ไม่มี"}
+                  </Badge>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Step 2 + 3 inline */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2 flex-1">
+              <Label>Step 2 — Tier ใหม่</Label>
+              <Select value={godTier} onValueChange={setGodTier}>
+                <SelectTrigger className="rounded-xl border-slate-200">
+                  <SelectValue placeholder="เลือก Tier ใหม่" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Bronze">🥉 Bronze</SelectItem>
+                  <SelectItem value="Silver">🥈 Silver</SelectItem>
+                  <SelectItem value="Gold">🥇 Gold</SelectItem>
+                  <SelectItem value="Platinum">💎 Platinum</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 flex-1">
+              <Label>Step 3 — เหตุผล (บังคับ)</Label>
+              <Input
+                placeholder="เหตุผลในการเปลี่ยน Tier..."
+                value={godReason}
+                onChange={(e) => setGodReason(e.target.value)}
+                className="rounded-xl border-slate-200"
+              />
+            </div>
+          </div>
+
+          {/* Action button */}
+          <Button
+            className="w-full font-bold rounded-xl mt-4 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+            disabled={!godCustomerId || !godTier || !godReason.trim() || manualOverride.isPending}
+            onClick={handleGodOverride}
+          >
+            {manualOverride.isPending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Award className="h-4 w-4 mr-2" />
+            )}
+            Force Update Tier
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card className="rounded-[20px] bg-white overflow-hidden shadow-md border-slate-200">
         <CardHeader className="border-b border-slate-100 bg-slate-50/50">
@@ -393,7 +577,9 @@ export default function TierManagement() {
                               <TableCell className="text-sm">
                                 {dateToFormat ? format(new Date(dateToFormat), "d MMM yyyy", { locale: safeLocale }) : "—"}
                               </TableCell>
-                              <TableCell className="font-medium">{h.customer?.full_name ?? "—"}</TableCell>
+                              <TableCell className="font-medium">
+                                {h.customer?.first_name ? `${h.customer.first_name} ${h.customer.last_name || ""}`.trim() : (h.customer?.full_name ?? h.customer?.email ?? "—")}
+                              </TableCell>
                               <TableCell>
                                 <Badge
                                   variant="secondary"
@@ -442,13 +628,58 @@ export default function TierManagement() {
         </TabsContent>
 
         <TabsContent value="transactions">
-          {/* ... (Keep transactions UI as it was) ... */}
-          <Card className="rounded-[20px] bg-white overflow-hidden shadow-md">
-            <CardHeader className="bg-slate-50/50 border-b">
-              <CardTitle>Transactions</CardTitle>
+          <Card className="rounded-[20px] bg-white overflow-hidden shadow-md border-indigo-100">
+            <CardHeader className="bg-indigo-50/30 border-b border-indigo-50">
+              <CardTitle className="flex items-center gap-3 text-lg font-bold text-indigo-900">
+                <ArrowUpDown className="h-5 w-5 text-indigo-500" />
+                Points Transactions
+              </CardTitle>
+              <CardDescription>ประวัติการได้รับ/ใช้คะแนนทั้งหมด</CardDescription>
             </CardHeader>
-            <CardContent className="py-10 text-center text-muted-foreground">
-              Select a customer to view point transactions
+            <CardContent className="min-h-[300px] p-0">
+              {txLoading ? (
+                <div className="space-y-2 py-4 px-6"><Skeleton className="h-12 w-full" /></div>
+              ) : txError ? (
+                <div className="py-20 text-center text-destructive">Error loading transactions</div>
+              ) : pointsTransactions.length === 0 ? (
+                <div className="py-20 m-6 text-center text-muted-foreground border-2 border-dashed rounded-xl border-indigo-100">No transactions found</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="pl-6 bg-slate-50/50">Date</TableHead>
+                      <TableHead className="bg-slate-50/50">Customer</TableHead>
+                      <TableHead className="bg-slate-50/50">Type</TableHead>
+                      <TableHead className="text-right bg-slate-50/50">Amount</TableHead>
+                      <TableHead className="text-right bg-slate-50/50">Balance After</TableHead>
+                      <TableHead className="pr-6 bg-slate-50/50">Description</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pointsTransactions.slice(0, ADMIN_PAGE_SIZE).map((tx: any) => {
+                      const customerName = tx.customer?.full_name ?? tx.customer?.email ?? tx.user_id.slice(0, 8);
+                      return (
+                        <TableRow key={tx.id}>
+                          <TableCell className="text-sm pl-6">
+                            {format(new Date(tx.created_at), "d MMM yyyy HH:mm", { locale: safeLocale })}
+                          </TableCell>
+                          <TableCell className="font-medium">{customerName}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="capitalize rounded-lg shadow-sm bg-white border-slate-200">
+                              {tx.transaction_type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className={cn("text-right font-medium", getTransactionTypeColor(tx.transaction_type))}>
+                            {(tx.points_amount ?? 0) > 0 ? "+" : ""}{(tx.points_amount ?? 0).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">{(tx.balance_after ?? 0).toLocaleString()}</TableCell>
+                          <TableCell className="max-w-[200px] truncate pr-6 text-slate-600">{tx.description ?? "—"}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

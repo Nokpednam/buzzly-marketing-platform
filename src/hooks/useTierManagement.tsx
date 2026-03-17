@@ -471,9 +471,13 @@ export function useManualTierOverride() {
             return data;
         },
         onSuccess: () => {
+            // ⚡ REAL-TIME CACHE INVALIDATION
             queryClient.invalidateQueries({ queryKey: ["customer-search"] });
+            queryClient.invalidateQueries({ queryKey: ["all_customers"] });
             queryClient.invalidateQueries({ queryKey: ["tier-history"] });
             queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history"] });
+            queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-manual"] });
+            queryClient.invalidateQueries({ queryKey: ["points-transactions"] });
             toast.success("อัปเดต Tier สำเร็จ");
         },
         onError: (error: Error) => {
