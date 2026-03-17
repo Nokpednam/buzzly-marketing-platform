@@ -58,6 +58,7 @@ import {
   useLoyaltyTiers,
   useUpdateTierRetention,
   useEvaluateInactivityDowngrades,
+  useSyncTierFromLifetimePoints,
   ADMIN_PAGE_SIZE,
   ALERTS_PAGE_SIZE,
   type CustomerSearchResult,
@@ -205,6 +206,7 @@ export default function TierManagement() {
   const { data: tierRules = [], isLoading: tierRulesLoading } = useLoyaltyTiers();
   const updateRetention = useUpdateTierRetention();
   const evaluateDowngrades = useEvaluateInactivityDowngrades();
+  const syncTierHistory = useSyncTierFromLifetimePoints();
 
   const safeTierIcons = tierIcons || defaultTierIcons;
   const safeTierColors = tierColors || defaultTierColors;
@@ -565,6 +567,15 @@ export default function TierManagement() {
                       {evaluateDowngrades.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
                       Evaluate inactivity downgrade (run now)
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => syncTierHistory.mutate()}
+                      disabled={syncTierHistory.isPending}
+                    >
+                      {syncTierHistory.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <History className="h-4 w-4 mr-2" />}
+                      Sync tier history (fix Bronze→Silver)
+                    </Button>
                   </div>
                   <Table>
                     <TableHeader>
@@ -681,9 +692,20 @@ export default function TierManagement() {
 
           <TabsContent value="history" className="m-0">
             {/* Tier Change History - unified table with Origin */}
-            <div className="px-6 py-4 border-b border-slate-100">
-              <h3 className="text-base font-semibold text-slate-800">Tier Change History</h3>
-              <p className="text-sm text-muted-foreground mt-0.5">Only shows actual tier changes (Previous ≠ New Tier)</p>
+            <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold text-slate-800">Tier Change History</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">Only shows actual tier changes (Previous ≠ New Tier)</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => syncTierHistory.mutate()}
+                disabled={syncTierHistory.isPending}
+              >
+                {syncTierHistory.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <History className="h-4 w-4 mr-2" />}
+                Sync tier history
+              </Button>
             </div>
             <div className="px-6 pb-6">
               {loyaltyHistoryLoading ? (
@@ -699,8 +721,23 @@ export default function TierManagement() {
                   </Button>
                 </div>
               ) : (() => {
-                const actualChanges = loyaltyTierHistoryAll.filter(
-                  (h: LoyaltyTierHistoryEntry) => (h.old_tier ?? "") !== (h.new_tier ?? "")
+                const displayOld = (t: string | null | undefined) =>
+                  (t === null || t === "" || t === "None") ? "—" : t;
+                const withActualChange = loyaltyTierHistoryAll.filter(
+                  (h: LoyaltyTierHistoryEntry) => displayOld(h.old_tier) !== (h.new_tier ?? "")
+                );
+                // Deduplicate: same customer+change can have both System and Support — show only one (prefer Support)
+                const grouped = new Map<string, LoyaltyTierHistoryEntry>();
+                for (const h of withActualChange) {
+                  const timeSlot = Math.floor(new Date(h.changed_at).getTime() / 5000);
+                  const key = `${h.profile_customer_id}|${h.old_tier ?? ""}|${h.new_tier}|${timeSlot}`;
+                  const existing = grouped.get(key);
+                  if (!existing || (h.change_type === "manual" && existing.change_type !== "manual")) {
+                    grouped.set(key, h);
+                  }
+                }
+                const actualChanges = Array.from(grouped.values()).sort(
+                  (a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime()
                 );
                 if (actualChanges.length === 0) {
                   return <div className="py-16 text-center text-muted-foreground">No tier changes found</div>;
@@ -721,7 +758,8 @@ export default function TierManagement() {
                       const dateToFormat = h.changed_at || (h as Record<string, unknown>).created_at as string | undefined;
                       const customer = (h as Record<string, unknown>).customer as { first_name?: string; last_name?: string } | undefined;
                       const customerName = customer ? `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() || "—" : h.profile_customer_id.slice(0, 8);
-                      const oldPriority = getTierPriority(h.old_tier ?? "None", tierRules);
+                      const displayOldTier = displayOld(h.old_tier);
+                      const oldPriority = getTierPriority(displayOldTier, tierRules);
                       const newPriority = getTierPriority(h.new_tier, tierRules);
                       const isRise = newPriority > oldPriority;
                       const isDrop = newPriority < oldPriority;
@@ -733,8 +771,8 @@ export default function TierManagement() {
                           </TableCell>
                           <TableCell className="font-medium py-4">{customerName}</TableCell>
                           <TableCell className="py-4">
-                            <Badge variant="secondary" className={tierBadgeClass(h.old_tier ?? "None")}>
-                              {h.old_tier ?? "None"}
+                            <Badge variant="secondary" className={tierBadgeClass(displayOldTier)}>
+                              {displayOldTier}
                             </Badge>
                           </TableCell>
                           <TableCell className="py-4">

@@ -635,6 +635,26 @@ export function useEvaluateInactivityDowngrades() {
     });
 }
 
+export function useSyncTierFromLifetimePoints() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async () => {
+            const { data, error } = await supabase.rpc("sync_tier_from_lifetime_points");
+            if (error) throw error;
+            return data as { updated_count: number; backfilled_count: number };
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-all"] });
+            queryClient.invalidateQueries({ queryKey: ["all-customers-dropdown"] });
+            const total = (data?.updated_count ?? 0) + (data?.backfilled_count ?? 0);
+            toast.success(`Sync complete: ${total} tier history updated`);
+        },
+        onError: (err: Error) => {
+            toast.error("Sync failed", { description: err.message });
+        },
+    });
+}
+
 // ─── Manual Point Adjustment ──────────────────────────────────────────────────
 
 export function useManualPointAdjustment() {
