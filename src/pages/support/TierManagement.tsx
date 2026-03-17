@@ -73,6 +73,19 @@ const TIER_PRIORITY: Record<string, number> = {
   Platinum: 4,
 };
 
+/** Resolve priority for any tier name (handles "Bronze New Tier" etc.) */
+const getTierPriority = (tierName: string, tierRules: { name: string; priority_level: number | null }[]) => {
+  const exact = TIER_PRIORITY[tierName];
+  if (exact != null) return exact;
+  const fromRules = tierRules.find((t) => t.name === tierName);
+  if (fromRules?.priority_level != null) return fromRules.priority_level;
+  if (tierName.toLowerCase().includes("bronze")) return 1;
+  if (tierName.toLowerCase().includes("silver")) return 2;
+  if (tierName.toLowerCase().includes("gold")) return 3;
+  if (tierName.toLowerCase().includes("platinum")) return 4;
+  return 0;
+};
+
 const defaultTierColors: Record<string, { bg: string; text: string; border: string }> = {
   Bronze: { bg: "bg-amber-700/20", text: "text-amber-700", border: "border-amber-700" },
   Silver: { bg: "bg-slate-400/20", text: "text-slate-500", border: "border-slate-400" },
@@ -82,6 +95,10 @@ const defaultTierColors: Record<string, { bg: string; text: string; border: stri
 const defaultTierIcons: Record<string, string> = {
   Bronze: "🥉", Silver: "🥈", Gold: "🥇", Platinum: "💎",
 };
+
+/** Resolve icon for any tier name (handles "Bronze New Tier" etc.) */
+const getTierIcon = (tierName: string, icons: Record<string, string>) =>
+  icons[tierName] ?? (tierName.toLowerCase().includes("bronze") ? "🥉" : tierName.toLowerCase().includes("silver") ? "🥈" : tierName.toLowerCase().includes("gold") ? "🥇" : tierName.toLowerCase().includes("platinum") ? "💎" : "👤");
 
 import { useQueryClient } from "@tanstack/react-query";
 import type { LoyaltyTierRule } from "@/hooks/useTierManagement";
@@ -109,8 +126,12 @@ const TierRuleRow = ({
   return (
     <TableRow className="border-b border-slate-50">
       <TableCell className="py-4">
-        <span className="mr-2">{safeTierIcons[tier.name] ?? "👤"}</span>
-        <Badge className={cn("rounded-full border-none", safeTierColors[tier.name]?.bg, safeTierColors[tier.name]?.text)}>
+                        <span className="mr-2">{getTierIcon(tier.name, safeTierIcons) ?? "👤"}</span>
+        <Badge className={cn(
+          "rounded-full border-none",
+          safeTierColors[tier.name]?.bg ?? (tier.name.toLowerCase().includes("bronze") ? safeTierColors.Bronze?.bg : tier.name.toLowerCase().includes("silver") ? safeTierColors.Silver?.bg : tier.name.toLowerCase().includes("gold") ? safeTierColors.Gold?.bg : tier.name.toLowerCase().includes("platinum") ? safeTierColors.Platinum?.bg : "bg-slate-100"),
+          safeTierColors[tier.name]?.text ?? (tier.name.toLowerCase().includes("bronze") ? safeTierColors.Bronze?.text : tier.name.toLowerCase().includes("silver") ? safeTierColors.Silver?.text : tier.name.toLowerCase().includes("gold") ? safeTierColors.Gold?.text : tier.name.toLowerCase().includes("platinum") ? safeTierColors.Platinum?.text : "text-slate-600")
+        )}>
           {tier.name}
         </Badge>
       </TableCell>
@@ -379,10 +400,19 @@ export default function TierManagement() {
                   <SelectValue placeholder="Select new tier" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Bronze">🥉 Bronze</SelectItem>
-                  <SelectItem value="Silver">🥈 Silver</SelectItem>
-                  <SelectItem value="Gold">🥇 Gold</SelectItem>
-                  <SelectItem value="Platinum">💎 Platinum</SelectItem>
+                  {tierRules.map((t) => (
+                    <SelectItem key={t.id} value={t.name}>
+                      {safeTierIcons[t.name] ?? "👤"} {t.name}
+                    </SelectItem>
+                  ))}
+                  {tierRules.length === 0 && (
+                    <>
+                      <SelectItem value="Bronze">🥉 Bronze</SelectItem>
+                      <SelectItem value="Silver">🥈 Silver</SelectItem>
+                      <SelectItem value="Gold">🥇 Gold</SelectItem>
+                      <SelectItem value="Platinum">💎 Platinum</SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -574,10 +604,19 @@ export default function TierManagement() {
                         <Select value={overrideTier} onValueChange={setOverrideTier}>
                           <SelectTrigger><SelectValue placeholder="Select new tier" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Bronze">🥉 Bronze</SelectItem>
-                            <SelectItem value="Silver">🥈 Silver</SelectItem>
-                            <SelectItem value="Gold">🥇 Gold</SelectItem>
-                            <SelectItem value="Platinum">💎 Platinum</SelectItem>
+                            {tierRules.map((t) => (
+                              <SelectItem key={t.id} value={t.name}>
+                                {safeTierIcons[t.name] ?? "👤"} {t.name}
+                              </SelectItem>
+                            ))}
+                            {tierRules.length === 0 && (
+                              <>
+                                <SelectItem value="Bronze">🥉 Bronze</SelectItem>
+                                <SelectItem value="Silver">🥈 Silver</SelectItem>
+                                <SelectItem value="Gold">🥇 Gold</SelectItem>
+                                <SelectItem value="Platinum">💎 Platinum</SelectItem>
+                              </>
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
@@ -642,15 +681,18 @@ export default function TierManagement() {
                       const dateToFormat = h.changed_at || (h as Record<string, unknown>).created_at as string | undefined;
                       const customer = (h as Record<string, unknown>).customer as { first_name?: string; last_name?: string } | undefined;
                       const customerName = customer ? `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() || "—" : h.profile_customer_id.slice(0, 8);
-                      const oldPriority = TIER_PRIORITY[h.old_tier ?? "Bronze"] ?? 0;
-                      const newPriority = TIER_PRIORITY[h.new_tier] ?? 0;
+                      const oldPriority = getTierPriority(h.old_tier ?? "None", tierRules);
+                      const newPriority = getTierPriority(h.new_tier, tierRules);
                       const isRise = newPriority > oldPriority;
                       const isDrop = newPriority < oldPriority;
-                      const tierBadgeClass = (tier: string) => cn(
-                        "rounded-full border-none font-medium",
-                        (safeTierColors as Record<string, { bg: string; text: string }>)[tier]?.bg ?? "bg-slate-100",
-                        (safeTierColors as Record<string, { bg: string; text: string }>)[tier]?.text ?? "text-slate-600"
-                      );
+                      const tierBadgeClass = (tier: string) => {
+                        const baseTier = tier.toLowerCase().includes("bronze") ? "Bronze" : tier.toLowerCase().includes("silver") ? "Silver" : tier.toLowerCase().includes("gold") ? "Gold" : tier.toLowerCase().includes("platinum") ? "Platinum" : tier;
+                        return cn(
+                          "rounded-full border-none font-medium",
+                          (safeTierColors as Record<string, { bg: string; text: string }>)[baseTier]?.bg ?? (safeTierColors as Record<string, { bg: string; text: string }>)[tier]?.bg ?? "bg-slate-100",
+                          (safeTierColors as Record<string, { bg: string; text: string }>)[baseTier]?.text ?? (safeTierColors as Record<string, { bg: string; text: string }>)[tier]?.text ?? "text-slate-600"
+                        );
+                      };
                       return (
                         <TableRow key={h.id} className="border-b border-slate-50">
                           <TableCell className="text-sm whitespace-nowrap py-4">
@@ -658,8 +700,8 @@ export default function TierManagement() {
                           </TableCell>
                           <TableCell className="font-medium py-4">{customerName}</TableCell>
                           <TableCell className="py-4">
-                            <Badge variant="secondary" className={tierBadgeClass(h.old_tier ?? "Bronze")}>
-                              {h.old_tier ?? "Bronze"}
+                            <Badge variant="secondary" className={tierBadgeClass(h.old_tier ?? "None")}>
+                              {h.old_tier ?? "None"}
                             </Badge>
                           </TableCell>
                           <TableCell className="py-4">
