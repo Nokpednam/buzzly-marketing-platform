@@ -652,7 +652,7 @@ export default function TierManagement() {
                               "rounded-full text-xs font-medium",
                               h.change_type === "manual" ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-slate-50 text-slate-600"
                             )}>
-                              {h.change_type === "manual" ? "Admin (Manual)" : "System (Auto)"}
+                              {h.change_type === "manual" ? "Support" : "System"}
                             </Badge>
                           </TableCell>
                         </TableRow>
