@@ -63,7 +63,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
             // Default error UI
             return (
-                <div className="min-h-screen flex items-center justify-center p-4">
+                <div className="min-h-screen flex items-center justify-center p-4 font-sans">
                     <Card className="max-w-lg w-full">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-destructive">

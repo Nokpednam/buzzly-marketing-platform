@@ -9,7 +9,7 @@ export function MainLayout() {
   const { collapsed } = useSidebarState();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background font-sans">
       {USE_MOCK_DATA && (
         <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 bg-amber-400 py-1 text-xs font-semibold text-amber-900">
           <span>⚠ MOCK MODE — data is simulated (VITE_USE_MOCK_DATA=true)</span>

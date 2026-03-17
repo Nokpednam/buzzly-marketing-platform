@@ -286,7 +286,7 @@ const SignUp = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50 relative overflow-hidden font-sans">
       {/* Visual Background Elements */}
       <div
         className="absolute inset-0 bg-cover bg-center opacity-10"

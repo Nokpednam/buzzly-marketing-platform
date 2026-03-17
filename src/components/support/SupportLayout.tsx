@@ -77,7 +77,7 @@ export function SupportLayout() {
     // Skeleton layout during auth check — matches the real layout shape
     if (isChecking && !isAuthorized) {
         return (
-            <div className="flex min-h-screen w-full">
+            <div className="flex min-h-screen w-full font-sans">
                 {/* Sidebar skeleton */}
                 <div className="w-64 shrink-0 border-r border-slate-100 bg-white flex flex-col">
                     <div className="flex items-center gap-3 px-8 py-10">
@@ -110,7 +110,7 @@ export function SupportLayout() {
 
     return (
         <SidebarProvider>
-            <div className="flex min-h-screen w-full animate-fade-in">
+            <div className="flex min-h-screen w-full animate-fade-in font-sans">
                 <SupportSidebar />
                 <main className="flex-1 overflow-y-auto bg-background px-8 pt-6 pb-10">
                     <Outlet />

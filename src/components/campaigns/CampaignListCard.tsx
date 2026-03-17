@@ -73,7 +73,7 @@ export const CampaignListCard: React.FC<CampaignListCardProps> = ({
         {/* Campaign Name + meta */}
         <div className="min-w-0 flex-1 flex items-center gap-2">
           <h3 className="text-sm font-semibold text-slate-900 truncate">{campaign.name}</h3>
-          <span className="text-[10px] font-mono text-slate-400 shrink-0">{campaign.progress}%</span>
+          <span className="text-[10px] tabular-nums text-slate-400 shrink-0">{campaign.progress}%</span>
           <p className="text-[10px] text-slate-400 flex items-center gap-1 shrink-0">
             <Clock className="size-4 text-slate-400" />
             {campaign.start_date
@@ -90,7 +90,7 @@ export const CampaignListCard: React.FC<CampaignListCardProps> = ({
         <div className={cn("flex items-center shrink-0", METRIC_COL_WIDTH)}>
           <div>
             <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400 font-bold">Impr.</p>
-            <p className="font-mono tracking-tighter text-sm font-bold text-slate-900">{formatNumber(campaign.impressions)}</p>
+            <p className="font-semibold tabular-nums text-sm text-slate-900">{formatNumber(campaign.impressions)}</p>
           </div>
         </div>
         <div className={cn("flex items-center shrink-0", METRIC_COL_WIDTH)}>
@@ -104,13 +104,13 @@ export const CampaignListCard: React.FC<CampaignListCardProps> = ({
         <div className={cn("flex items-center shrink-0", METRIC_COL_WIDTH)}>
           <div>
             <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400 font-bold">Conv.</p>
-            <p className="font-mono tracking-tighter text-sm font-bold text-slate-900">{formatNumber(campaign.conversions)}</p>
+            <p className="font-semibold tabular-nums text-sm text-slate-900">{formatNumber(campaign.conversions)}</p>
           </div>
         </div>
         <div className={cn("flex items-center shrink-0", METRIC_COL_WIDTH)}>
           <div>
             <p className="text-[10px] uppercase tracking-[0.1em] text-slate-400 font-bold">Cost/Conv</p>
-            <p className="font-mono tracking-tighter text-sm font-bold text-slate-900">
+            <p className="font-semibold tabular-nums text-sm text-slate-900">
               ฿{(campaign.spend / (campaign.conversions || 1)).toFixed(2)}
             </p>
           </div>

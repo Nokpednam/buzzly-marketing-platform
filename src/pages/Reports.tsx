@@ -596,7 +596,7 @@ function ReportDocument({ reportName, reportType, metrics, selectedCharts = [] }
         <div>
           <div className="bg-primary text-primary-foreground text-[10px] font-black px-2 py-1 rounded w-fit mb-4 tracking-widest">BUZZLY REPORT</div>
           <h2 className="text-3xl font-black uppercase tracking-tighter">{reportName}</h2>
-          <p className="text-muted-foreground font-serif italic">
+          <p className="text-muted-foreground font-sans italic">
             Generated on {format(new Date(), "d MMMM yyyy", { locale: th })}
           </p>
         </div>

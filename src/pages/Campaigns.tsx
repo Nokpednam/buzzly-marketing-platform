@@ -479,7 +479,7 @@ export default function Campaigns() {
                     <div className="bg-primary/10 text-primary p-1 rounded">
                       <DollarSign className="h-3 w-3" />
                     </div>
-                    <span className="text-sm font-bold font-mono">
+                    <span className="text-sm font-bold tabular-nums">
                       ฿{campaign.budget_amount?.toLocaleString() ?? "—"}
                     </span>
                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest ml-1">
@@ -514,16 +514,16 @@ export default function Campaigns() {
                     <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">CTR</div>
                     <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">CONV</div>
                     <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">COST/CONV</div>
-                    <div className="font-mono text-xl font-black tabular-nums text-foreground">
+                    <div className="text-xl font-semibold tabular-nums text-foreground">
                       {formatNumber(campaign.impressions)}
                     </div>
-                    <div className="font-mono text-xl font-black tabular-nums text-foreground">
+                    <div className="text-xl font-semibold tabular-nums text-foreground">
                       {((campaign.clicks / (campaign.impressions || 1)) * 100).toFixed(2)}%
                     </div>
-                    <div className="font-mono text-xl font-black tabular-nums text-primary">
+                    <div className="text-xl font-semibold tabular-nums text-primary">
                       {formatNumber(campaign.conversions)}
                     </div>
-                    <div className="font-mono text-xl font-black tabular-nums text-foreground">
+                    <div className="text-xl font-semibold tabular-nums text-foreground">
                       ฿{(campaign.spend / (campaign.conversions || 1)).toFixed(2)}
                     </div>
                   </div>
@@ -532,7 +532,7 @@ export default function Campaigns() {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter mb-1 text-muted-foreground">
                         <span>Campaign Delivery</span>
-                        <span className="font-mono">{campaign.progress}%</span>
+                        <span className="tabular-nums">{campaign.progress}%</span>
                       </div>
                       <Progress
                         value={campaign.progress}
@@ -895,7 +895,7 @@ function MetricCard({
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-70">
             {label}
           </p>
-          <p className="text-2xl font-black font-mono tabular-nums">{value}</p>
+          <p className="text-2xl font-semibold tabular-nums">{value}</p>
         </div>
       </CardContent>
     </Card>

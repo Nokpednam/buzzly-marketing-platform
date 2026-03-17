@@ -161,7 +161,7 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen w-full flex bg-slate-50">
+    <div className="min-h-screen w-full flex bg-slate-50 font-sans">
       {/* Left side - Brand Section */}
       <div
         className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 bg-cover bg-center relative"
