@@ -39,7 +39,7 @@ export function OnboardingBanner({ state }: OnboardingBannerProps) {
             active={!workspaceDone}
             locked={false}
             cta="Go to Settings"
-            onCta={() => navigate("/settings")}
+            onCta={() => navigate("/settings?tab=manage-workspace")}
           />
 
           <StepCard

@@ -35,8 +35,13 @@ async function fetchUserPermissions(): Promise<{
   }
 
   if (!teamId) {
+    // No workspace yet (onboarding): grant manage_settings + manage_team so user can access Settings and Team Management
     return {
-      permissions: defaultRolePermissions.viewer,
+      permissions: {
+        ...defaultRolePermissions.viewer,
+        manage_settings: true,
+        manage_team: true,
+      },
       role: "viewer" as TeamRole,
       teamId: null,
     };
