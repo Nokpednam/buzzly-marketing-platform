@@ -246,7 +246,7 @@ export default function TierManagement() {
       queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-manual"] });
       queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-all"] });
       queryClient.invalidateQueries({ queryKey: ["points-transactions"] });
-      toast({ title: "Update Success", description: `Tier updated manually!` });
+      queryClient.invalidateQueries({ queryKey: ["all-customers-dropdown"] });
     } catch (err) {
       toast({ title: "Update Failed", description: (err as Error).message, variant: "destructive" });
     }
@@ -260,7 +260,19 @@ export default function TierManagement() {
           <h1 className="text-3xl font-bold text-foreground">Tier Management</h1>
           <p className="text-muted-foreground leading-relaxed mt-1">Manage and monitor customer Loyalty Tiers</p>
         </div>
-        <Dialog open={adjustDialogOpen} onOpenChange={setAdjustDialogOpen}>
+        <Dialog
+          open={adjustDialogOpen}
+          onOpenChange={(open) => {
+            setAdjustDialogOpen(open);
+            if (!open) {
+              setGodCustomerId("");
+              setGodCustomerSearch("");
+              setGodTier("");
+              setGodReason("");
+              setGodDropdownOpen(false);
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Button
               variant="outline"
