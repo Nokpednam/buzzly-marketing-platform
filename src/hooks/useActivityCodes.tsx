@@ -29,7 +29,8 @@ export function useActivityCodes() {
       const { data, error } = await supabase
         .from("loyalty_activity_codes" as any)
         .select("*")
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
 
       if (error) throw error;
       return (data as unknown as ActivityCode[]) ?? [];
@@ -47,7 +48,8 @@ export function useActiveActivityCodes() {
         .from("loyalty_activity_codes" as any)
         .select("*")
         .eq("is_active", true)
-        .order("reward_points", { ascending: true });
+        .order("reward_points", { ascending: true })
+        .order("id", { ascending: true });
 
       if (error) throw error;
       return (data as unknown as ActivityCode[]) ?? [];

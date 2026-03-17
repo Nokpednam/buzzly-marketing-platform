@@ -281,8 +281,8 @@ export default function ActivityCodes() {
                           className="data-[state=checked]:bg-emerald-600"
                         />
                         <Badge
-                          variant={code.is_active ? "default" : "secondary"}
-                          className={code.is_active ? "bg-emerald-500 text-white" : ""}
+                          variant={code.is_active ? "default" : "destructive"}
+                          className={code.is_active ? "bg-emerald-500 text-white" : "bg-red-500 text-white hover:bg-red-600"}
                         >
                           {code.is_active ? "Active" : "Inactive"}
                         </Badge>

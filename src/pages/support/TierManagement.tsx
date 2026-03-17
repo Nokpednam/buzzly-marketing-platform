@@ -143,27 +143,42 @@ export default function TierManagement() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="min-h-full" style={{ background: "#f8fafc" }}>
+      <div className="px-6 py-6 space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Tier Management</h1>
-        <p className="text-muted-foreground">จัดการและตรวจสอบ Loyalty Tier ของลูกค้า</p>
+      <div className="flex items-center justify-between pb-2">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight" style={{ color: "#0f172a" }}>Tier Management</h1>
+          <p className="text-[15px] mt-1.5 font-medium text-slate-500">จัดการและตรวจสอบ Loyalty Tier ของลูกค้า</p>
+        </div>
+        <div className="h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform hover:scale-105" style={{ background: "linear-gradient(135deg, #3b82f6, #06b6d4)", boxShadow: "0 6px 16px rgba(59,130,246,0.35)" }}>
+          <Award className="h-6 w-6 text-white" />
+        </div>
       </div>
 
       {/* Customer Search */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" /> ค้นหาลูกค้า
+      <Card className="rounded-[20px] bg-white overflow-hidden transition-all duration-300" style={{ border: "1.5px solid #e2e8f0", boxShadow: "0 8px 30px rgba(0,0,0,0.04)" }}>
+        <CardHeader className="border-b border-slate-100 pb-4" style={{ background: "linear-gradient(to right, #f8fafc, #ffffff)" }}>
+          <CardTitle className="flex items-center gap-3 text-lg font-bold text-slate-800">
+            <div className="h-9 w-9 rounded-xl flex items-center justify-center bg-blue-50 text-blue-600 border border-blue-100 shadow-sm">
+              <Search className="h-4 w-4" />
+            </div>
+            ค้นหาลูกค้า
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-5">
           <div className="flex gap-4">
             <div className="flex-1 relative">
-              <Input
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "#94a3b8" }} />
+              <input
+                type="text"
                 placeholder="ค้นหาด้วยชื่อ, อีเมล หรือ ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-11 pl-11 pr-4 rounded-xl text-sm outline-none transition-all"
+                style={{ background: "#f8fafc", border: "1.5px solid #e2e8f0", color: "#0f172a" }}
+                onFocus={e => (e.target.style.borderColor = "#3b82f6")}
+                onBlur={e => (e.target.style.borderColor = "#e2e8f0")}
               />
               {searchLoading && (
                 <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
@@ -207,13 +222,18 @@ export default function TierManagement() {
 
       {/* Selected Customer Detail */}
       {selectedCustomer && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                {safeTierIcons[selectedCustomer.loyalty_tier ?? ""] ?? "👤"} {selectedCustomer.full_name ?? "ไม่ระบุชื่อ"}
-              </CardTitle>
-              <CardDescription>{selectedCustomer.email}</CardDescription>
+        <Card className="rounded-[20px] bg-white overflow-hidden transition-all duration-300" style={{ border: "1.5px solid #e2e8f0", boxShadow: "0 8px 30px rgba(0,0,0,0.04)" }}>
+          <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 pb-4" style={{ background: "linear-gradient(to right, #f8fafc, #ffffff)" }}>
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-2xl flex items-center justify-center text-2xl shadow-sm bg-white" style={{ border: "1px solid #e2e8f0" }}>
+                {safeTierIcons[selectedCustomer.loyalty_tier ?? ""] ?? "👤"}
+              </div>
+              <div>
+                <CardTitle className="text-xl font-bold tracking-tight text-slate-800">
+                  {selectedCustomer.full_name ?? "ไม่ระบุชื่อ"}
+                </CardTitle>
+                <CardDescription className="text-slate-500 font-medium mt-0.5">{selectedCustomer.email}</CardDescription>
+              </div>
             </div>
             <Dialog open={overrideDialogOpen} onOpenChange={setOverrideDialogOpen}>
               <DialogTrigger asChild>
@@ -272,46 +292,40 @@ export default function TierManagement() {
               </DialogContent>
             </Dialog>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-4 gap-4">
-              <div className="text-center p-4 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold">{(selectedCustomer.loyalty_points_balance ?? 0).toLocaleString()}</p>
-                <p className="text-sm text-muted-foreground">Points</p>
-              </div>
-              <div className="text-center p-4 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold">฿{(selectedCustomer.total_spend ?? 0).toLocaleString()}</p>
-                <p className="text-sm text-muted-foreground">Total Spend</p>
-              </div>
-              <div className="text-center p-4 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold">
-                  {selectedCustomer.created_at
-                    ? Math.floor((Date.now() - new Date(selectedCustomer.created_at).getTime()) / (1000 * 60 * 60 * 24 * 30))
-                    : 0} เดือน
-                </p>
-                <p className="text-sm text-muted-foreground">Member Duration</p>
-              </div>
-              <div className="text-center p-4 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold">{safeTierIcons[selectedCustomer.loyalty_tier ?? ""] ?? "—"}</p>
-                <p className="text-sm text-muted-foreground">{selectedCustomer.loyalty_tier ?? "ไม่มี"}</p>
-              </div>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-4 gap-5">
+              {[
+                { label: "Points", value: (selectedCustomer.loyalty_points_balance ?? 0).toLocaleString(), iconBorder: "#fef08a", color: "#eab308", bg: "#fefce8", border: "#fef08a" },
+                { label: "Total Spend", value: `฿ ${(selectedCustomer.total_spend ?? 0).toLocaleString()}`, iconBorder: "#bfdbfe", color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe" },
+                { label: "Member Duration", value: `${selectedCustomer.created_at ? Math.floor((Date.now() - new Date(selectedCustomer.created_at).getTime()) / (1000 * 60 * 60 * 24 * 30)) : 0} เดือน`, iconBorder: "#a7f3d0", color: "#10b981", bg: "#ecfdf5", border: "#a7f3d0" },
+                { label: "Current Tier", value: selectedCustomer.loyalty_tier ?? "ไม่มี", iconBorder: "#ddd6fe", color: "#8b5cf6", bg: "#f5f3ff", border: "#ddd6fe" },
+              ].map((stat, i) => (
+                <div key={i} className="rounded-[18px] p-5 flex flex-col items-center justify-center text-center transition-transform duration-300 hover:-translate-y-1" style={{ background: "#ffffff", border: `1.5px solid ${stat.border}`, boxShadow: "0 2px 14px rgba(0,0,0,0.03)" }}>
+                  <div className="h-10 w-10 text-xl font-bold rounded-[14px] flex items-center justify-center mb-3 shadow-sm" style={{ background: stat.bg, color: stat.color, border: `1px solid ${stat.iconBorder}` }}>
+                    {i === 0 ? "★" : i === 1 ? "฿" : i === 2 ? <Clock className="h-5 w-5" /> : safeTierIcons[selectedCustomer.loyalty_tier ?? ""] ?? "—"}
+                  </div>
+                  <p className="text-[22px] font-extrabold text-slate-800" style={{ fontVariantNumeric: "tabular-nums" }}>{stat.value}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mt-1">{stat.label}</p>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue="history" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="history" className="flex items-center gap-2">
+      <Tabs defaultValue="history" className="space-y-6 mt-2">
+        <TabsList className="bg-[#f1f5f9] p-1.5 rounded-2xl inline-flex h-auto border border-slate-200 shadow-inner">
+          <TabsTrigger value="history" className="flex items-center gap-2 rounded-xl py-2.5 px-5 font-semibold transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md">
             <History className="h-4 w-4" /> ประวัติการเปลี่ยน Tier
           </TabsTrigger>
-          <TabsTrigger value="transactions" className="flex items-center gap-2">
+          <TabsTrigger value="transactions" className="flex items-center gap-2 rounded-xl py-2.5 px-5 font-semibold transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md">
             <ArrowUpDown className="h-4 w-4" /> ธุรกรรม Points
           </TabsTrigger>
-          <TabsTrigger value="alerts" className="flex items-center gap-2">
+          <TabsTrigger value="alerts" className="flex items-center gap-2 rounded-xl py-2.5 px-5 font-semibold transition-all data-[state=active]:bg-white data-[state=active]:text-orange-600 data-[state=active]:shadow-md">
             <AlertTriangle className="h-4 w-4" /> Suspicious Activities
             {unresolvedCount > 0 && (
-              <Badge className="bg-destructive text-destructive-foreground text-[10px] h-4 px-1 ml-1">
+              <Badge className="bg-gradient-to-r from-red-500 to-orange-500 text-white border-0 text-[10px] h-5 px-1.5 ml-1.5 shadow-sm">
                 {unresolvedCount}
               </Badge>
             )}
@@ -321,10 +335,12 @@ export default function TierManagement() {
         {/* Tab 1: Tier History */}
         <TabsContent value="history">
           {/* Section 1: Auto-logged trigger history (loyalty_tier_history) */}
-          <Card className="mb-4">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-emerald-500" />
+          <Card className="mb-4 rounded-[20px] bg-white overflow-hidden transition-all duration-300 group" style={{ border: "1.5px solid #e2e8f0", boxShadow: "0 8px 30px rgba(0,0,0,0.06)" }}>
+            <CardHeader className="border-b border-emerald-100 pb-4" style={{ background: "linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%)" }}>
+              <CardTitle className="flex items-center gap-3 text-lg font-bold text-emerald-900">
+                <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-md group-hover:scale-110 transition-transform">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
                 ประวัติการเปลี่ยน Tier (Auto-Log)
               </CardTitle>
               <CardDescription>
@@ -344,8 +360,22 @@ export default function TierManagement() {
                     <div className="text-center py-6 text-muted-foreground">
                       <p className="text-sm">ยังไม่มีข้อมูล (ตาราง loyalty_tier_history อาจยังไม่ได้ apply migration)</p>
                     </div>
-                  ) : loyaltyTierHistory.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">ยังไม่มีการเปลี่ยน Tier ที่บันทึกโดย Trigger</div>
+                    <div className="relative flex flex-col items-center justify-center py-24 px-4 text-center overflow-hidden rounded-[16px] border border-dashed border-emerald-200 bg-emerald-50/30">
+                      {/* Decorative Background Pattern */}
+                      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(#10b981 2px, transparent 2px)", backgroundSize: "24px 24px" }} />
+                      
+                      <div className="relative z-10">
+                        <div className="h-24 w-24 rounded-full bg-emerald-100/50 flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/10 relative group-hover:scale-105 transition-transform duration-500">
+                          <div className="absolute inset-0 rounded-full border-2 border-emerald-300/30 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite]" />
+                          <TrendingUp className="h-10 w-10 text-emerald-500 stroke-[1.5]" />
+                        </div>
+                      </div>
+                      
+                      <h3 className="text-xl font-bold text-slate-800 mb-2.5 relative z-10">ไม่พบประวัติแบบอัตโนมัติ</h3>
+                      <p className="text-[15px] font-medium text-slate-500 max-w-[380px] leading-relaxed relative z-10">
+                        ยังไม่มีการบันทึกประวัติการเปลี่ยน Tier อัตโนมัติจากระบบ ข้อมูลจะเริ่มแสดงเมื่อมีกิจกรรมที่ทำให้เงื่อนไข Tier ของลูกค้ามีการเปลี่ยนแปลง
+                      </p>
+                    </div>
                   ) : (
                     <Table>
                       <TableHeader>
@@ -434,10 +464,12 @@ export default function TierManagement() {
           </Card>
 
           {/* Section 2: Legacy tier_history (manual overrides + complex) */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5 text-muted-foreground" />
+          <Card className="rounded-[20px] bg-white overflow-hidden transition-all duration-300 group" style={{ border: "1.5px solid #e2e8f0", boxShadow: "0 8px 30px rgba(0,0,0,0.06)" }}>
+            <CardHeader className="border-b border-indigo-100 pb-4" style={{ background: "linear-gradient(135deg, #eef2ff 0%, #ffffff 100%)" }}>
+              <CardTitle className="flex items-center gap-3 text-lg font-bold text-indigo-900">
+                <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-indigo-400 to-purple-500 text-white shadow-md group-hover:scale-110 transition-transform">
+                  <History className="h-5 w-5" />
+                </div>
                 Manual Overrides (Legacy)
               </CardTitle>
               <CardDescription>รายการเปลี่ยน Tier แบบ Manual โดย Admin</CardDescription>
@@ -458,7 +490,22 @@ export default function TierManagement() {
                       <p className="text-sm text-muted-foreground">{(historyErrorDetail as Error)?.message ?? "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ"}</p>
                     </div>
                   ) : tierHistory.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">ยังไม่มีประวัติการเปลี่ยน Tier แบบ Manual</div>
+                    <div className="relative flex flex-col items-center justify-center py-24 px-4 text-center overflow-hidden rounded-[16px] border border-dashed border-indigo-200 bg-indigo-50/30">
+                      {/* Decorative Background Pattern */}
+                      <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(#6366f1 2px, transparent 2px)", backgroundSize: "24px 24px" }} />
+                      
+                      <div className="relative z-10">
+                        <div className="h-24 w-24 rounded-full bg-indigo-100/50 flex items-center justify-center mb-6 shadow-xl shadow-indigo-500/10 relative group-hover:scale-105 transition-transform duration-500">
+                          <div className="absolute inset-0 rounded-full border-2 border-indigo-300/30 animate-[ping_3s_cubic-bezier(0,0,0.2,1)_infinite]" />
+                          <History className="h-10 w-10 text-indigo-500 stroke-[1.5]" />
+                        </div>
+                      </div>
+                      
+                      <h3 className="text-xl font-bold text-slate-800 mb-2.5 relative z-10">ไม่พบประวัติแบบแมนนวล</h3>
+                      <p className="text-[15px] font-medium text-slate-500 max-w-[380px] leading-relaxed relative z-10">
+                        ยังไม่มีประวัติที่ผู้ดูแลระบบแก้ไข Tier ให้กับลูกค้าแบบกำหนดเอง (Manual Override)
+                      </p>
+                    </div>
                   ) : (
                     <Table>
                       <TableHeader>
@@ -561,9 +608,14 @@ export default function TierManagement() {
 
         {/* Tab 2: Points Transactions */}
         <TabsContent value="transactions">
-          <Card>
-            <CardHeader>
-              <CardTitle>รายการธุรกรรม Points</CardTitle>
+          <Card className="rounded-[20px] bg-white overflow-hidden transition-all duration-300 group" style={{ border: "1.5px solid #e2e8f0", boxShadow: "0 8px 30px rgba(0,0,0,0.06)" }}>
+            <CardHeader className="border-b border-blue-100 pb-4" style={{ background: "linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)" }}>
+              <CardTitle className="flex items-center gap-3 text-lg font-bold text-blue-900">
+                <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-blue-400 to-cyan-500 text-white shadow-md group-hover:scale-110 transition-transform">
+                  <ArrowUpDown className="h-5 w-5" />
+                </div>
+                รายการธุรกรรม Points
+              </CardTitle>
               <CardDescription>ประวัติการได้รับ/ใช้คะแนนทั้งหมด</CardDescription>
             </CardHeader>
             <CardContent>
@@ -663,10 +715,12 @@ export default function TierManagement() {
 
         {/* Tab 3: Suspicious Activities */}
         <TabsContent value="alerts">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-orange-500" />
+          <Card className="rounded-[20px] bg-white overflow-hidden transition-all duration-300 group" style={{ border: "1.5px solid #e2e8f0", boxShadow: "0 8px 30px rgba(0,0,0,0.06)" }}>
+            <CardHeader className="border-b border-orange-100 pb-4" style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffffff 100%)" }}>
+              <CardTitle className="flex items-center gap-3 text-lg font-bold text-orange-900">
+                <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-orange-400 to-red-500 text-white shadow-md group-hover:scale-110 transition-transform">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
                 Suspicious Activities ({unresolvedCount} unresolved)
               </CardTitle>
               <CardDescription>กิจกรรมที่น่าสงสัยและต้องตรวจสอบ</CardDescription>
@@ -793,6 +847,7 @@ export default function TierManagement() {
           </Card>
         </TabsContent>
       </Tabs>
+      </div>
     </div>
   );
 }
