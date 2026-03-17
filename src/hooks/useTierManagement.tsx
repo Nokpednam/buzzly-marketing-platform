@@ -341,44 +341,34 @@ export function useCustomerSearch() {
         queryFn: async () => {
             if (!query || query.trim().length < 2) return [];
 
-            // Query profile_customers table directly since it now has employee RLS.
-            // This avoids complicated views that can cause schema cache misses (PGRST200).
-            const { data, error } = await supabase
-                .from("profile_customers")
-                .select(`
-                    id, 
-                    user_id,
-                    first_name, 
-                    last_name, 
-                    created_at,
-                    loyalty_points(
-                        point_balance,
-                        loyalty_tiers(name)
-                    )
-                `)
-                .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%`)
-                .limit(10);
+            // Use RPC for reliable search: name, email, user_id — avoids RLS/filter issues
+            const { data, error } = await (supabase as any).rpc("search_customers_for_support", {
+                p_query: query.trim(),
+            });
 
             if (error) {
                 console.error("customer search error", error);
                 throw error;
             }
 
-            const results: CustomerSearchResult[] = ((data ?? []) as any[]).map((c: any) => {
-                const lp = c.loyalty_points?.[0] || c.loyalty_points;
-                const tierName = lp?.loyalty_tiers?.name || null;
-                const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ") || null;
+            const rows = (data ?? []) as Array<{
+                id: string;
+                full_name: string | null;
+                email: string | null;
+                created_at: string | null;
+                loyalty_tier: string | null;
+                loyalty_points_balance: number;
+            }>;
 
-                return {
-                    id: c.user_id, // Important: id must be user_id (UUID from auth) for the override RPC
-                    full_name: fullName,
-                    email: c.email || `${c.user_id.slice(0, 8)}@...`, // email not in profile_customers, fallback visually
-                    created_at: c.created_at,
-                    loyalty_tier: tierName,
-                    loyalty_points_balance: lp?.point_balance ?? 0,
-                    total_spend: 0, // Fallback, total spend not easily accessible here without a join
-                };
-            });
+            const results: CustomerSearchResult[] = rows.map((r) => ({
+                id: r.id,
+                full_name: r.full_name,
+                email: r.email ?? `${r.id.slice(0, 8)}@...`,
+                created_at: r.created_at ?? "",
+                loyalty_tier: r.loyalty_tier,
+                loyalty_points_balance: r.loyalty_points_balance ?? 0,
+                total_spend: 0,
+            }));
 
             return results;
         },

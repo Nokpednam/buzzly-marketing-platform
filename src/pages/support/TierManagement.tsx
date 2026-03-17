@@ -322,7 +322,7 @@ export default function TierManagement() {
                             (safeTierColors as Record<string, { bg: string; text: string }>)[c.loyalty_tier ?? ""]?.text
                           )}
                         >
-                          {c.loyalty_tier ?? "—"}
+                          {c.loyalty_tier ?? "Bronze"}
                         </Badge>
                       </button>
                     ))
@@ -345,7 +345,7 @@ export default function TierManagement() {
                       (safeTierColors as Record<string, { bg: string; text: string }>)[godSelectedCustomer.loyalty_tier ?? ""]?.text
                     )}
                   >
-                    {godSelectedCustomer.loyalty_tier ?? "None"}
+                    {godSelectedCustomer.loyalty_tier ?? "Bronze"}
                   </Badge>
                 </div>
               )}
@@ -451,7 +451,7 @@ export default function TierManagement() {
                       </div>
                       <div className="text-right">
                         <Badge className={cn("rounded-full border-none", (safeTierColors as Record<string, { bg: string; text: string }>)[customer.loyalty_tier ?? ""]?.bg ?? "bg-muted", (safeTierColors as Record<string, { bg: string; text: string }>)[customer.loyalty_tier ?? ""]?.text)}>
-                          {customer.loyalty_tier ?? "—"}
+                          {customer.loyalty_tier ?? "Bronze"}
                         </Badge>
                         <p className="text-sm text-muted-foreground mt-1">
                           {(customer.loyalty_points_balance ?? 0).toLocaleString()} pts
@@ -539,9 +539,9 @@ export default function TierManagement() {
                       <div className="space-y-2">
                         <Label>Current Tier</Label>
                         <div className="flex items-center gap-2">
-                          <span className="text-xl">{safeTierIcons[selectedCustomer.loyalty_tier ?? ""] ?? "—"}</span>
-                          <Badge className={cn("rounded-full border-none", safeTierColors[selectedCustomer.loyalty_tier ?? ""]?.bg ?? "bg-muted", safeTierColors[selectedCustomer.loyalty_tier ?? ""]?.text)}>
-                            {selectedCustomer.loyalty_tier ?? "None"}
+                          <span className="text-xl">{safeTierIcons[selectedCustomer.loyalty_tier ?? "Bronze"] ?? "—"}</span>
+                          <Badge className={cn("rounded-full border-none", safeTierColors[selectedCustomer.loyalty_tier ?? "Bronze"]?.bg ?? "bg-muted", safeTierColors[selectedCustomer.loyalty_tier ?? "Bronze"]?.text)}>
+                            {selectedCustomer.loyalty_tier ?? "Bronze"}
                           </Badge>
                         </div>
                       </div>
@@ -580,7 +580,7 @@ export default function TierManagement() {
                   { label: "Points", value: (selectedCustomer.loyalty_points_balance ?? 0).toLocaleString() },
                   { label: "Total Spend", value: `฿ ${(selectedCustomer.total_spend ?? 0).toLocaleString()}` },
                   { label: "Member Duration", value: `${selectedCustomer.created_at ? Math.floor((Date.now() - new Date(selectedCustomer.created_at).getTime()) / (1000 * 60 * 60 * 24 * 30)) : 0} months` },
-                  { label: "Current Tier", value: selectedCustomer.loyalty_tier ?? "None" },
+                  { label: "Current Tier", value: selectedCustomer.loyalty_tier ?? "Bronze" },
                 ].map((stat, i) => (
                   <div key={i} className="rounded-lg p-3 bg-white border border-slate-100">
                     <p className="text-lg font-semibold text-slate-800 leading-snug">{stat.value}</p>
@@ -618,7 +618,7 @@ export default function TierManagement() {
                       const dateToFormat = h.changed_at || (h as Record<string, unknown>).created_at as string | undefined;
                       const customer = (h as Record<string, unknown>).customer as { first_name?: string; last_name?: string } | undefined;
                       const customerName = customer ? `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() || "—" : h.profile_customer_id.slice(0, 8);
-                      const oldPriority = TIER_PRIORITY[h.old_tier ?? ""] ?? 0;
+                      const oldPriority = TIER_PRIORITY[h.old_tier ?? "Bronze"] ?? 0;
                       const newPriority = TIER_PRIORITY[h.new_tier] ?? 0;
                       const isRise = newPriority > oldPriority;
                       const isDrop = newPriority < oldPriority;
@@ -634,8 +634,8 @@ export default function TierManagement() {
                           </TableCell>
                           <TableCell className="font-medium py-4">{customerName}</TableCell>
                           <TableCell className="py-4">
-                            <Badge variant="secondary" className={tierBadgeClass(h.old_tier ?? "")}>
-                              {h.old_tier ?? "None"}
+                            <Badge variant="secondary" className={tierBadgeClass(h.old_tier ?? "Bronze")}>
+                              {h.old_tier ?? "Bronze"}
                             </Badge>
                           </TableCell>
                           <TableCell className="py-4">
