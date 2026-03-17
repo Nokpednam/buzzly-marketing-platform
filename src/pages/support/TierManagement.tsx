@@ -54,11 +54,11 @@ import {
   useCustomerSearch,
   useManualTierOverride,
   useLoyaltyTierHistoryAll,
-  useLoyaltyTierHistoryManual,
   useAllCustomers,
   useLoyaltyTiers,
   useUpdateTierRetention,
   useEvaluateInactivityDowngrades,
+  useSyncTierFromLifetimePoints,
   ADMIN_PAGE_SIZE,
   ALERTS_PAGE_SIZE,
   type CustomerSearchResult,
@@ -73,6 +73,19 @@ const TIER_PRIORITY: Record<string, number> = {
   Platinum: 4,
 };
 
+/** Resolve priority for any tier name (handles "Bronze New Tier" etc.) */
+const getTierPriority = (tierName: string, tierRules: { name: string; priority_level: number | null }[]) => {
+  const exact = TIER_PRIORITY[tierName];
+  if (exact != null) return exact;
+  const fromRules = tierRules.find((t) => t.name === tierName);
+  if (fromRules?.priority_level != null) return fromRules.priority_level;
+  if (tierName.toLowerCase().includes("bronze")) return 1;
+  if (tierName.toLowerCase().includes("silver")) return 2;
+  if (tierName.toLowerCase().includes("gold")) return 3;
+  if (tierName.toLowerCase().includes("platinum")) return 4;
+  return 0;
+};
+
 const defaultTierColors: Record<string, { bg: string; text: string; border: string }> = {
   Bronze: { bg: "bg-amber-700/20", text: "text-amber-700", border: "border-amber-700" },
   Silver: { bg: "bg-slate-400/20", text: "text-slate-500", border: "border-slate-400" },
@@ -81,6 +94,23 @@ const defaultTierColors: Record<string, { bg: string; text: string; border: stri
 };
 const defaultTierIcons: Record<string, string> = {
   Bronze: "🥉", Silver: "🥈", Gold: "🥇", Platinum: "💎",
+};
+
+/** Resolve icon for any tier name (handles "Bronze New Tier" etc.) */
+const getTierIcon = (tierName: string, icons: Record<string, string>) =>
+  icons[tierName] ?? (tierName.toLowerCase().includes("bronze") ? "🥉" : tierName.toLowerCase().includes("silver") ? "🥈" : tierName.toLowerCase().includes("gold") ? "🥇" : tierName.toLowerCase().includes("platinum") ? "💎" : "👤");
+
+/** Resolve badge class for any tier name */
+const getTierBadgeClass = (
+  tier: string,
+  colors: Record<string, { bg: string; text: string }>
+) => {
+  const base = tier.toLowerCase().includes("bronze") ? "Bronze" : tier.toLowerCase().includes("silver") ? "Silver" : tier.toLowerCase().includes("gold") ? "Gold" : tier.toLowerCase().includes("platinum") ? "Platinum" : tier;
+  return cn(
+    "rounded-full border-none font-medium",
+    colors[base]?.bg ?? colors[tier]?.bg ?? "bg-slate-100",
+    colors[base]?.text ?? colors[tier]?.text ?? "text-slate-600"
+  );
 };
 
 import { useQueryClient } from "@tanstack/react-query";
@@ -109,8 +139,12 @@ const TierRuleRow = ({
   return (
     <TableRow className="border-b border-slate-50">
       <TableCell className="py-4">
-        <span className="mr-2">{safeTierIcons[tier.name] ?? "👤"}</span>
-        <Badge className={cn("rounded-full border-none", safeTierColors[tier.name]?.bg, safeTierColors[tier.name]?.text)}>
+                        <span className="mr-2">{getTierIcon(tier.name, safeTierIcons) ?? "👤"}</span>
+        <Badge className={cn(
+          "rounded-full border-none",
+          safeTierColors[tier.name]?.bg ?? (tier.name.toLowerCase().includes("bronze") ? safeTierColors.Bronze?.bg : tier.name.toLowerCase().includes("silver") ? safeTierColors.Silver?.bg : tier.name.toLowerCase().includes("gold") ? safeTierColors.Gold?.bg : tier.name.toLowerCase().includes("platinum") ? safeTierColors.Platinum?.bg : "bg-slate-100"),
+          safeTierColors[tier.name]?.text ?? (tier.name.toLowerCase().includes("bronze") ? safeTierColors.Bronze?.text : tier.name.toLowerCase().includes("silver") ? safeTierColors.Silver?.text : tier.name.toLowerCase().includes("gold") ? safeTierColors.Gold?.text : tier.name.toLowerCase().includes("platinum") ? safeTierColors.Platinum?.text : "text-slate-600")
+        )}>
           {tier.name}
         </Badge>
       </TableCell>
@@ -154,21 +188,25 @@ export default function TierManagement() {
   const [godReason, setGodReason] = useState("");
   const [godDropdownOpen, setGodDropdownOpen] = useState(false);
 
+  const [activeTab, setActiveTab] = useState("rules");
   const [historyPage, setHistoryPage] = useState(0);
   const [loyaltyHistoryPage, setLoyaltyHistoryPage] = useState(0);
   const [transactionsPage, setTransactionsPage] = useState(0);
   const [activitiesPage, setActivitiesPage] = useState(0);
 
-  const { data: tierHistory = [], isLoading: historyLoading, isError: historyError } = useLoyaltyTierHistoryManual(historyPage);
-  const { data: loyaltyTierHistoryAll = [], isLoading: loyaltyHistoryLoading, isError: loyaltyHistoryError } = useLoyaltyTierHistoryAll(loyaltyHistoryPage);
+  const { data: loyaltyTierHistoryAll = [], isLoading: loyaltyHistoryLoading, isError: loyaltyHistoryError, error: loyaltyHistoryErrorDetail, refetch: refetchLoyaltyHistory } = useLoyaltyTierHistoryAll(loyaltyHistoryPage);
   const { data: pointsTransactions = [], isLoading: txLoading, isError: txError, error: txErrorDetail } = usePointsTransactions(transactionsPage);
   const { data: suspiciousActivities = [], isLoading: alertsLoading, unresolvedCount, resolveActivity, suspendCustomer } = useSuspiciousActivities(activitiesPage);
   const { query: searchQuery, setQuery: setSearchQuery, data: searchResults = [], isFetching: searchLoading, isError: searchError, error: searchErrorDetail } = useCustomerSearch();
+  const { data: adjustSearchResults = [], isFetching: adjustSearchLoading } = useCustomerSearch(
+    adjustDialogOpen && godCustomerSearch ? godCustomerSearch : ""
+  );
   const manualOverride = useManualTierOverride();
   const { data: allCustomers = [], isLoading: allCustomersLoading } = useAllCustomers();
   const { data: tierRules = [], isLoading: tierRulesLoading } = useLoyaltyTiers();
   const updateRetention = useUpdateTierRetention();
   const evaluateDowngrades = useEvaluateInactivityDowngrades();
+  const syncTierHistory = useSyncTierFromLifetimePoints();
 
   const safeTierIcons = tierIcons || defaultTierIcons;
   const safeTierColors = tierColors || defaultTierColors;
@@ -213,18 +251,23 @@ export default function TierManagement() {
     }
   };
 
-  const filteredCustomers = allCustomers.filter((c: any) => {
+  const filteredCustomers = allCustomers.filter((c: { full_name?: string; id: string; email?: string }) => {
     if (!godCustomerSearch.trim()) return true;
     const q = godCustomerSearch.toLowerCase();
     return (
       c.full_name?.toLowerCase().includes(q) ||
-      c.id.toLowerCase().includes(q)
+      c.id.toLowerCase().includes(q) ||
+      (c.email && c.email.toLowerCase().includes(q))
     );
   });
-  const godSelectedCustomer = allCustomers.find((c: any) => c.id === godCustomerId) ?? null;
+  const adjustDropdownCustomers = godCustomerSearch.trim().length >= 1
+    ? adjustSearchResults
+    : filteredCustomers;
+  const godSelectedCustomer = [...adjustSearchResults, ...allCustomers].find((c: { id: string }) => c.id === godCustomerId) ?? null;
 
   const handleGodOverride = async () => {
     if (!godCustomerId || !godTier || !godReason.trim()) return;
+    const tierName = godTier;
     try {
       await manualOverride.mutateAsync({
         userId: godCustomerId,
@@ -236,12 +279,20 @@ export default function TierManagement() {
       setGodTier("");
       setGodReason("");
       setAdjustDialogOpen(false);
+      // Switch to History tab so user sees the new entry immediately
+      setActiveTab("history");
+      // Force immediate refetch so Tier Change History shows the new entry
+      await queryClient.refetchQueries({ queryKey: ["loyalty-tier-history-all"] });
       queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-manual"] });
-      queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-all"] });
-      queryClient.invalidateQueries({ queryKey: ["points-transactions"] });
-      toast({ title: "Update Success", description: `Tier updated manually!` });
+      queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history"] });
+      queryClient.invalidateQueries({ queryKey: ["points-transactions-admin"] });
+      queryClient.invalidateQueries({ queryKey: ["all-customers-dropdown"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-search"] });
+      toast({ title: "Tier updated", description: `Changed to ${tierName}`, variant: "default" });
     } catch (err) {
-      toast({ title: "Update Failed", description: (err as Error).message, variant: "destructive" });
+      const msg = (err as Error).message;
+      const friendlyMsg = msg?.includes("tier_unchanged") ? "Select a different tier to change" : msg;
+      toast({ title: "Update Failed", description: friendlyMsg, variant: "destructive" });
     }
   };
 
@@ -253,7 +304,19 @@ export default function TierManagement() {
           <h1 className="text-3xl font-bold text-foreground">Tier Management</h1>
           <p className="text-muted-foreground leading-relaxed mt-1">Manage and monitor customer Loyalty Tiers</p>
         </div>
-        <Dialog open={adjustDialogOpen} onOpenChange={setAdjustDialogOpen}>
+        <Dialog
+          open={adjustDialogOpen}
+          onOpenChange={(open) => {
+            setAdjustDialogOpen(open);
+            if (!open) {
+              setGodCustomerId("");
+              setGodCustomerSearch("");
+              setGodTier("");
+              setGodReason("");
+              setGodDropdownOpen(false);
+            }
+          }}
+        >
           <DialogTrigger asChild>
             <Button
               variant="outline"
@@ -280,23 +343,23 @@ export default function TierManagement() {
               </div>
               <div className="relative">
                 <Input
-                  placeholder={allCustomersLoading ? "Loading customers..." : "Search by name or customer ID..."}
+                  placeholder={allCustomersLoading ? "Loading customers..." : "Search by name, email, or customer ID..."}
                   value={godCustomerSearch}
                   onChange={(e) => { setGodCustomerSearch(e.target.value); setGodDropdownOpen(true); }}
                   onFocus={() => setGodDropdownOpen(true)}
                   disabled={allCustomersLoading}
                   className="rounded-xl border-slate-200 h-11"
                 />
-                {allCustomersLoading && (
+                {(allCustomersLoading || (godCustomerSearch.trim().length >= 1 && adjustSearchLoading)) && (
                   <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
                 )}
               </div>
-              {godDropdownOpen && (godCustomerSearch.length > 0 || filteredCustomers.length > 0) && (
+              {godDropdownOpen && (godCustomerSearch.length > 0 || adjustDropdownCustomers.length > 0) && (
                 <div className="absolute top-full left-0 w-full mt-1.5 border border-slate-200 rounded-xl max-h-52 overflow-y-auto bg-white shadow-lg z-50">
-                  {filteredCustomers.length === 0 ? (
+                  {adjustDropdownCustomers.length === 0 ? (
                     <p className="text-sm text-slate-500 text-center py-4">No customers found</p>
                   ) : (
-                    filteredCustomers.map((c: { id: string; full_name?: string; loyalty_tier?: string }) => (
+                    adjustDropdownCustomers.map((c: { id: string; full_name?: string; loyalty_tier?: string; email?: string }) => (
                       <button
                         key={c.id}
                         type="button"
@@ -307,6 +370,7 @@ export default function TierManagement() {
                         onClick={() => {
                           setGodCustomerId(c.id);
                           setGodCustomerSearch(c.full_name ?? c.id.slice(0, 8));
+                          setGodTier(c.loyalty_tier ?? ""); // Pre-select current tier so user must change it
                           setGodDropdownOpen(false);
                         }}
                       >
@@ -331,20 +395,14 @@ export default function TierManagement() {
               )}
               {godSelectedCustomer && (
                 <div className="flex items-center gap-3 p-4 mt-3 rounded-xl bg-slate-50/80 border border-slate-100">
-                  <span className="text-2xl">{safeTierIcons[godSelectedCustomer.loyalty_tier ?? ""] ?? "👤"}</span>
+                  <span className="text-2xl">{getTierIcon(godSelectedCustomer.loyalty_tier ?? "", safeTierIcons)}</span>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm leading-snug">{godSelectedCustomer.full_name ?? "Unspecified"}</p>
                     <p className="text-xs text-muted-foreground">
                       {(godSelectedCustomer.loyalty_points_balance ?? 0).toLocaleString()} pts
                     </p>
                   </div>
-                  <Badge
-                    className={cn(
-                      "rounded-full border-none shadow-none",
-                      (safeTierColors as Record<string, { bg: string; text: string }>)[godSelectedCustomer.loyalty_tier ?? ""]?.bg,
-                      (safeTierColors as Record<string, { bg: string; text: string }>)[godSelectedCustomer.loyalty_tier ?? ""]?.text
-                    )}
-                  >
+                  <Badge className={cn("shadow-none", getTierBadgeClass(godSelectedCustomer.loyalty_tier ?? "Bronze", safeTierColors))}>
                     {godSelectedCustomer.loyalty_tier ?? "Bronze"}
                   </Badge>
                 </div>
@@ -360,10 +418,19 @@ export default function TierManagement() {
                   <SelectValue placeholder="Select new tier" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Bronze">🥉 Bronze</SelectItem>
-                  <SelectItem value="Silver">🥈 Silver</SelectItem>
-                  <SelectItem value="Gold">🥇 Gold</SelectItem>
-                  <SelectItem value="Platinum">💎 Platinum</SelectItem>
+                  {tierRules.map((t) => (
+                    <SelectItem key={t.id} value={t.name}>
+                      {safeTierIcons[t.name] ?? "👤"} {t.name}
+                    </SelectItem>
+                  ))}
+                  {tierRules.length === 0 && (
+                    <>
+                      <SelectItem value="Bronze">🥉 Bronze</SelectItem>
+                      <SelectItem value="Silver">🥈 Silver</SelectItem>
+                      <SelectItem value="Gold">🥇 Gold</SelectItem>
+                      <SelectItem value="Platinum">💎 Platinum</SelectItem>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -380,10 +447,20 @@ export default function TierManagement() {
                 rows={3}
               />
             </div>
-            <div className="pt-2">
+            <div className="pt-2 space-y-1">
+              {godTier === (godSelectedCustomer?.loyalty_tier ?? "") && godSelectedCustomer && (
+                <p className="text-xs text-amber-600">Select a different tier to change</p>
+              )}
               <Button
+                type="button"
                 className="w-full font-semibold rounded-xl h-12 bg-slate-800 hover:bg-slate-900 text-white shadow-sm"
-                disabled={!godCustomerId || !godTier || !godReason.trim() || manualOverride.isPending}
+                disabled={
+                  !godCustomerId ||
+                  !godTier ||
+                  !godReason.trim() ||
+                  manualOverride.isPending ||
+                  godTier === (godSelectedCustomer?.loyalty_tier ?? "")
+                }
                 onClick={handleGodOverride}
               >
                 {manualOverride.isPending ? (
@@ -401,7 +478,7 @@ export default function TierManagement() {
 
       {/* Main content: single white card with search + tabs in same row */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <Tabs defaultValue="rules">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 px-6 py-4 border-b border-slate-100">
             <div className="flex-1 relative min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -490,6 +567,15 @@ export default function TierManagement() {
                       {evaluateDowngrades.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
                       Evaluate inactivity downgrade (run now)
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => syncTierHistory.mutate()}
+                      disabled={syncTierHistory.isPending}
+                    >
+                      {syncTierHistory.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <History className="h-4 w-4 mr-2" />}
+                      Sync tier history (fix Bronze→Silver)
+                    </Button>
                   </div>
                   <Table>
                     <TableHeader>
@@ -554,10 +640,19 @@ export default function TierManagement() {
                         <Select value={overrideTier} onValueChange={setOverrideTier}>
                           <SelectTrigger><SelectValue placeholder="Select new tier" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Bronze">🥉 Bronze</SelectItem>
-                            <SelectItem value="Silver">🥈 Silver</SelectItem>
-                            <SelectItem value="Gold">🥇 Gold</SelectItem>
-                            <SelectItem value="Platinum">💎 Platinum</SelectItem>
+                            {tierRules.map((t) => (
+                              <SelectItem key={t.id} value={t.name}>
+                                {safeTierIcons[t.name] ?? "👤"} {t.name}
+                              </SelectItem>
+                            ))}
+                            {tierRules.length === 0 && (
+                              <>
+                                <SelectItem value="Bronze">🥉 Bronze</SelectItem>
+                                <SelectItem value="Silver">🥈 Silver</SelectItem>
+                                <SelectItem value="Gold">🥇 Gold</SelectItem>
+                                <SelectItem value="Platinum">💎 Platinum</SelectItem>
+                              </>
+                            )}
                           </SelectContent>
                         </Select>
                       </div>
@@ -597,16 +692,57 @@ export default function TierManagement() {
 
           <TabsContent value="history" className="m-0">
             {/* Tier Change History - unified table with Origin */}
-            <div className="px-6 py-4 border-b border-slate-100">
-              <h3 className="text-base font-semibold text-slate-800">Tier Change History</h3>
-              <p className="text-sm text-muted-foreground mt-0.5">Auto-logged when customer tier conditions change</p>
+            <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold text-slate-800">Tier Change History</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">Only shows actual tier changes (Previous ≠ New Tier)</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => syncTierHistory.mutate()}
+                disabled={syncTierHistory.isPending}
+              >
+                {syncTierHistory.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <History className="h-4 w-4 mr-2" />}
+                Sync tier history
+              </Button>
             </div>
             <div className="px-6 pb-6">
               {loyaltyHistoryLoading ? (
                 <div className="space-y-2 py-8"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
-              ) : loyaltyTierHistoryAll.length === 0 ? (
-                <div className="py-16 text-center text-muted-foreground">No tier changes found</div>
-              ) : (
+              ) : loyaltyHistoryError ? (
+                <div className="py-16 text-center space-y-3">
+                  <p className="text-destructive font-medium">Failed to load tier history</p>
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                    {(loyaltyHistoryErrorDetail as Error)?.message ?? "Check RLS: ensure you are logged in as Support/Owner/Dev with status=active, approval_status=approved in employees table."}
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => refetchLoyaltyHistory()}>
+                    Retry
+                  </Button>
+                </div>
+              ) : (() => {
+                const displayOld = (t: string | null | undefined) =>
+                  (t === null || t === "" || t === "None") ? "—" : t;
+                const withActualChange = loyaltyTierHistoryAll.filter(
+                  (h: LoyaltyTierHistoryEntry) => displayOld(h.old_tier) !== (h.new_tier ?? "")
+                );
+                // Deduplicate: same customer+change can have both System and Support — show only one (prefer Support)
+                const grouped = new Map<string, LoyaltyTierHistoryEntry>();
+                for (const h of withActualChange) {
+                  const timeSlot = Math.floor(new Date(h.changed_at).getTime() / 5000);
+                  const key = `${h.profile_customer_id}|${h.old_tier ?? ""}|${h.new_tier}|${timeSlot}`;
+                  const existing = grouped.get(key);
+                  if (!existing || (h.change_type === "manual" && existing.change_type !== "manual")) {
+                    grouped.set(key, h);
+                  }
+                }
+                const actualChanges = Array.from(grouped.values()).sort(
+                  (a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime()
+                );
+                if (actualChanges.length === 0) {
+                  return <div className="py-16 text-center text-muted-foreground">No tier changes found</div>;
+                }
+                return (
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-b border-slate-100">
@@ -618,19 +754,16 @@ export default function TierManagement() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {loyaltyTierHistoryAll.map((h: LoyaltyTierHistoryEntry) => {
+                    {actualChanges.map((h: LoyaltyTierHistoryEntry) => {
                       const dateToFormat = h.changed_at || (h as Record<string, unknown>).created_at as string | undefined;
                       const customer = (h as Record<string, unknown>).customer as { first_name?: string; last_name?: string } | undefined;
                       const customerName = customer ? `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() || "—" : h.profile_customer_id.slice(0, 8);
-                      const oldPriority = TIER_PRIORITY[h.old_tier ?? "Bronze"] ?? 0;
-                      const newPriority = TIER_PRIORITY[h.new_tier] ?? 0;
+                      const displayOldTier = displayOld(h.old_tier);
+                      const oldPriority = getTierPriority(displayOldTier, tierRules);
+                      const newPriority = getTierPriority(h.new_tier, tierRules);
                       const isRise = newPriority > oldPriority;
                       const isDrop = newPriority < oldPriority;
-                      const tierBadgeClass = (tier: string) => cn(
-                        "rounded-full border-none font-medium",
-                        (safeTierColors as Record<string, { bg: string; text: string }>)[tier]?.bg ?? "bg-slate-100",
-                        (safeTierColors as Record<string, { bg: string; text: string }>)[tier]?.text ?? "text-slate-600"
-                      );
+                      const tierBadgeClass = (tier: string) => getTierBadgeClass(tier, safeTierColors);
                       return (
                         <TableRow key={h.id} className="border-b border-slate-50">
                           <TableCell className="text-sm whitespace-nowrap py-4">
@@ -638,8 +771,8 @@ export default function TierManagement() {
                           </TableCell>
                           <TableCell className="font-medium py-4">{customerName}</TableCell>
                           <TableCell className="py-4">
-                            <Badge variant="secondary" className={tierBadgeClass(h.old_tier ?? "Bronze")}>
-                              {h.old_tier ?? "Bronze"}
+                            <Badge variant="secondary" className={tierBadgeClass(displayOldTier)}>
+                              {displayOldTier}
                             </Badge>
                           </TableCell>
                           <TableCell className="py-4">
@@ -664,7 +797,8 @@ export default function TierManagement() {
                     })}
                   </TableBody>
                 </Table>
-              )}
+                );
+              })()}
             </div>
 
           </TabsContent>

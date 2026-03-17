@@ -106,23 +106,54 @@ export function useLoyaltyTierHistory(page = 0) {
     });
 }
 
-// ─── Loyalty Tier History (All: Auto + Manual, for unified table with Origin) ───
+// ─── Loyalty Tier History (All: Auto + Manual) — via RPC (bulletproof) ────────
+
+/** Fetch tier history via RPC — bypasses RLS/PostgREST, guaranteed to work */
+const TIER_HISTORY_PAGE_SIZE = 50;
 
 export function useLoyaltyTierHistoryAll(page = 0) {
     return useQuery({
         queryKey: ["loyalty-tier-history-all", page],
         queryFn: async () => {
-            const from = page * ADMIN_PAGE_SIZE;
-            const to = from + ADMIN_PAGE_SIZE;
+            const limit = TIER_HISTORY_PAGE_SIZE;
+            const offset = page * TIER_HISTORY_PAGE_SIZE;
 
-            const { data, error } = await (supabase as any)
-                .from("loyalty_tier_history")
-                .select('*, customer:profile_customers!loyalty_tier_history_profile_customer_id_fkey(first_name, last_name, user_id)')
-                .order("changed_at", { ascending: false })
-                .range(from, to);
+            const { data, error } = await supabase.rpc("get_tier_history_for_support", {
+                p_limit: limit,
+                p_offset: offset,
+            });
 
             if (error) throw error;
-            return (data as unknown as LoyaltyTierHistoryEntry[]) ?? [];
+
+            const rows = (data ?? []) as Array<{
+                id: string;
+                profile_customer_id: string;
+                old_tier: string | null;
+                new_tier: string;
+                changed_at: string;
+                change_type: string;
+                change_reason: string | null;
+                changer_id: string | null;
+                customer_first_name: string | null;
+                customer_last_name: string | null;
+                customer_user_id: string | null;
+            }>;
+
+            return rows.map((r) => ({
+                id: r.id,
+                profile_customer_id: r.profile_customer_id,
+                old_tier: r.old_tier,
+                new_tier: r.new_tier,
+                changed_at: r.changed_at,
+                change_type: (r.change_type === "manual" ? "manual" : "auto") as "auto" | "manual",
+                change_reason: r.change_reason,
+                changer_id: r.changer_id,
+                customer: {
+                    first_name: r.customer_first_name,
+                    last_name: r.customer_last_name,
+                    user_id: r.customer_user_id,
+                },
+            })) as LoyaltyTierHistoryEntry[];
         },
         placeholderData: keepPreviousData,
     });
@@ -144,7 +175,19 @@ export function useLoyaltyTierHistoryManual(page = 0) {
                 .order("changed_at", { ascending: false })
                 .range(from, to);
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === "PGRST200" || error.message?.includes("Could not find a relationship")) {
+                    const { data: fallback, error: fallbackError } = await (supabase as any)
+                        .from("loyalty_tier_history")
+                        .select("*")
+                        .eq("change_type", 'manual')
+                        .order("changed_at", { ascending: false })
+                        .range(from, to);
+                    if (fallbackError) throw fallbackError;
+                    return (fallback as unknown as LoyaltyTierHistoryEntry[]) ?? [];
+                }
+                throw error;
+            }
             return (data as unknown as LoyaltyTierHistoryEntry[]) ?? [];
         },
         placeholderData: keepPreviousData,
@@ -335,14 +378,24 @@ export function useSuspiciousActivities(page = 0) {
 
 const SEARCH_DEBOUNCE_MS = 300;
 
-export function useCustomerSearch() {
+/**
+ * Customer search for Tier Management. Supports search by name, email, or user ID.
+ * Uses RPC search_customers_for_support which joins profile_customers + customer
+ * so email search works (profile_customers has no email column).
+ *
+ * @param overrideQuery - When provided (e.g. from Adjust Tier dialog), use this
+ *   instead of internal query state. Enables shared search logic for both main
+ *   search and Adjust Tier dropdown.
+ */
+export function useCustomerSearch(overrideQuery?: string) {
     const [query, setQuery] = useState("");
+    const effectiveQuery = overrideQuery !== undefined ? overrideQuery : query;
     const [debouncedQuery, setDebouncedQuery] = useState("");
 
     useEffect(() => {
-        const t = setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS);
+        const t = setTimeout(() => setDebouncedQuery(effectiveQuery), SEARCH_DEBOUNCE_MS);
         return () => clearTimeout(t);
-    }, [query]);
+    }, [effectiveQuery]);
 
     const searchResult = useQuery({
         queryKey: ["customer-search", debouncedQuery],
@@ -350,51 +403,12 @@ export function useCustomerSearch() {
             const q = debouncedQuery.trim().replace(/,/g, " "); // commas break .or()
             if (!q || q.length < 1) return [];
 
-            // Escape ilike wildcards: % _ \ (so user "50%" searches literal 50%)
-            const escaped = q.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
-            const pattern = `%${escaped}%`;
-
-            // Primary: direct query (works with employees_can_read_all_profile_customers RLS)
-            const { data: directData, error: directError } = await supabase
-                .from("profile_customers")
-                .select(`
-                    id,
-                    user_id,
-                    first_name,
-                    last_name,
-                    created_at,
-                    loyalty_points(point_balance, loyalty_tiers(name))
-                `)
-                .or(`first_name.ilike.${pattern},last_name.ilike.${pattern},user_id.ilike.${pattern}`)
-                .limit(15)
-                .order("first_name", { ascending: true });
-
-            if (!directError && directData && directData.length > 0) {
-                return (directData as any[]).map((c: any) => {
-                    const lp = c.loyalty_points?.[0] ?? c.loyalty_points;
-                    const tierName = lp?.loyalty_tiers?.name ?? null;
-                    const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ").trim() || null;
-                    return {
-                        id: c.user_id,
-                        full_name: fullName,
-                        email: `${c.user_id?.slice(0, 8) ?? "?"}@...`,
-                        created_at: c.created_at ?? "",
-                        loyalty_tier: tierName,
-                        loyalty_points_balance: lp?.point_balance ?? 0,
-                        total_spend: 0,
-                    } as CustomerSearchResult;
-                });
-            }
-
-            // Fallback: RPC (if direct query fails due to RLS or empty)
+            // RPC searches first_name, last_name, email (from customer), user_id
             const { data: rpcData, error: rpcError } = await (supabase as any).rpc("search_customers_for_support", {
                 p_query: q,
             });
 
-            if (rpcError) {
-                if (directError) throw directError;
-                throw rpcError;
-            }
+            if (rpcError) throw rpcError;
 
             const rows = (rpcData ?? []) as Array<{
                 id: string;
@@ -429,6 +443,7 @@ export function useCustomerSearch() {
  * "employees_can_read_all_profile_customers").
  * Returns up to 200 customers ordered by first name; the dropdown is
  * filtered client-side by the user's search input.
+ * Joins customer table for real email (required for search-by-email in dropdown).
  */
 export function useAllCustomers() {
     return useQuery({
@@ -451,19 +466,39 @@ export function useAllCustomers() {
                 .limit(200);
 
             if (error) {
-                console.error("[useAllCustomers] Error:", error);
                 throw error;
             }
 
-            const results: CustomerSearchResult[] = ((data ?? []) as any[]).map((c: any) => {
+            const pcRows = (data ?? []) as any[];
+            const userIds = pcRows.map((c: any) => c.user_id).filter(Boolean);
+            let emailMap: Record<string, string> = {};
+
+            if (userIds.length > 0) {
+                const { data: custData } = await supabase
+                    .from("customer")
+                    .select("id, email")
+                    .in("id", userIds);
+                if (custData) {
+                    emailMap = (custData as Array<{ id: string; email: string | null }>).reduce(
+                        (acc, row) => {
+                            if (row.email) acc[row.id] = row.email;
+                            return acc;
+                        },
+                        {} as Record<string, string>
+                    );
+                }
+            }
+
+            const results: CustomerSearchResult[] = pcRows.map((c: any) => {
                 const lp = c.loyalty_points?.[0] || c.loyalty_points;
                 const tierName = lp?.loyalty_tiers?.name || null;
                 const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ") || null;
+                const email = emailMap[c.user_id] ?? `${c.user_id?.slice(0, 8) ?? "?"}@...`;
 
                 return {
                     id: c.user_id, // user_id (auth UUID) — required by manual_override_customer_tier RPC
                     full_name: fullName,
-                    email: `${c.user_id.slice(0, 8)}@...`, // email not stored in profile_customers
+                    email,
                     created_at: c.created_at,
                     loyalty_tier: tierName,
                     loyalty_points_balance: lp?.point_balance ?? 0,
@@ -502,36 +537,29 @@ export function useManualTierOverride() {
             newTierName: string;
             reason: string;
         }) => {
-            // 1. Resolve tier name → tier ID
-            const { data: tierData, error: tierError } = await supabase
-                .from("loyalty_tiers")
-                .select("id")
-                .eq("name", newTierName)
-                .maybeSingle();
-
-            if (tierError) throw tierError;
-            if (!tierData) throw new Error(`Tier "${newTierName}" not found`);
-
-            // 2. Call the atomic RPC — employee guard enforced server-side
-            const { data, error: rpcError } = await (supabase as any).rpc(
-                "manual_override_customer_tier",
+            // Call the atomic RPC — employee guard enforced server-side
+            const trimmedReason = reason?.trim() || null;
+            const { data, error: rpcError } = await supabase.rpc(
+                "admin_override_tier",
                 {
-                    target_user_id:  userId,
-                    new_tier_id:     tierData.id,
-                    override_reason: reason.trim() || null,
+                    p_user_id: userId,
+                    p_new_tier_name: newTierName,
+                    p_reason: trimmedReason,
                 }
             );
 
             if (rpcError) throw rpcError;
             return data;
         },
-        onSuccess: () => {
-            // ⚡ REAL-TIME CACHE INVALIDATION
+        onSuccess: async () => {
+            // Force immediate refetch so Tier Change History shows the new entry
+            await queryClient.refetchQueries({ queryKey: ["loyalty-tier-history-all"] });
             queryClient.invalidateQueries({ queryKey: ["customer-search"] });
             queryClient.invalidateQueries({ queryKey: ["all-customers-dropdown"] });
+            queryClient.invalidateQueries({ queryKey: ["all_customers"] });
             queryClient.invalidateQueries({ queryKey: ["tier-history"] });
             queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history"] });
-            queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-all"] });
+            queryClient.invalidateQueries({ queryKey: ["loyalty_tier_history"] });
             queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-manual"] });
             queryClient.invalidateQueries({ queryKey: ["points-transactions-admin"] });
             toast.success("Tier updated successfully");
@@ -603,6 +631,26 @@ export function useEvaluateInactivityDowngrades() {
         },
         onError: (err: Error) => {
             toast.error("Evaluation failed", { description: err.message });
+        },
+    });
+}
+
+export function useSyncTierFromLifetimePoints() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async () => {
+            const { data, error } = await supabase.rpc("sync_tier_from_lifetime_points");
+            if (error) throw error;
+            return data as { updated_count: number; backfilled_count: number };
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-all"] });
+            queryClient.invalidateQueries({ queryKey: ["all-customers-dropdown"] });
+            const total = (data?.updated_count ?? 0) + (data?.backfilled_count ?? 0);
+            toast.success(`Sync complete: ${total} tier history updated`);
+        },
+        onError: (err: Error) => {
+            toast.error("Sync failed", { description: err.message });
         },
     });
 }
