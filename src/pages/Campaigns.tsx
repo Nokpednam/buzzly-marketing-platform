@@ -357,7 +357,7 @@ export default function Campaigns() {
             Monitor and scale your growth initiatives across all platforms.
           </p>
         </div>
-        {canAccess("edit_campaigns") && (
+        {canAccess("view_campaigns") && (
           <Button
             onClick={openCreateDialog}
             className="rounded-xl px-6 shadow-lg shadow-primary/20 bg-primary h-11 transition-all hover:scale-[1.02]"
@@ -438,9 +438,17 @@ export default function Campaigns() {
                 <Target className="h-8 w-8 text-muted-foreground/30" />
               </div>
               <h3 className="text-xl font-bold">No Campaigns Found</h3>
-              <p className="text-muted-foreground max-w-xs">
+              <p className="text-muted-foreground max-w-xs mb-6">
                 Try adjusting your filters or create a new campaign to get started.
               </p>
+              {canAccess("view_campaigns") && (
+                <Button
+                  onClick={openCreateDialog}
+                  className="rounded-xl shadow-lg shadow-primary/20"
+                >
+                  <Plus className="h-4 w-4 mr-2" /> Create Campaign
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
