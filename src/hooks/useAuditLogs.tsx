@@ -177,10 +177,12 @@ export function useAuditLogs(category?: string, page: number = 1, pageSize: numb
         const metadata = log.metadata as any || {};
         const pageUrl = metadata?.page_url;
         const baseAction = log.action_type?.action_name || metadata.action_name || "Unknown";
-        const isPageView = log.category === "feature" && (baseAction === "Page View" || metadata.action_name === "Page View");
+        const isPageView = log.category === "feature" && (baseAction === "Page View" || metadata.action_name === "Page View" || String(baseAction).includes("เข้าหน้า"));
         const displayAction = isPageView && pageUrl
-          ? `เข้าหน้า ${getPageLabel(pageUrl)}`
-          : baseAction;
+          ? `Page View ${getPageLabel(pageUrl)}`
+          : isPageView && !pageUrl
+            ? "Page View"
+            : String(baseAction).replace(/เข้าหน้า\s*/g, "Page View ");
 
         return {
           ...log,

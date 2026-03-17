@@ -9,7 +9,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "react-router-dom";
 import {
   Search,
-  Download,
   RefreshCw,
   LogIn,
   LogOut,
@@ -67,7 +66,6 @@ const getCategoryBadge = (category: string | null) => {
       );
     case "security":
     case "subscription":
-    case "discount":
       return (
         <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-tight border-rose-500/30 text-rose-400 bg-rose-500/5">
           Security
@@ -188,18 +186,12 @@ export default function AuditLogs() {
   };
 
   return (
-    <div className="space-y-6 text-slate-200 pb-12">
+    <div className="w-full max-w-full space-y-6 text-slate-200 pb-12">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Audit Logs</h1>
           <p className="text-slate-400 font-medium">User activity and system event history</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-900 hover:text-white">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
         </div>
       </div>
 
@@ -311,7 +303,7 @@ export default function AuditLogs() {
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-slate-800 text-slate-300">
                   <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="feature">Feature (เข้าหน้า)</SelectItem>
+                  <SelectItem value="feature">Feature (Page View)</SelectItem>
                   <SelectItem value="discount">Discount</SelectItem>
                   <SelectItem value="reward">Reward</SelectItem>
                   <SelectItem value="redemption">Redemption</SelectItem>
@@ -356,7 +348,7 @@ export default function AuditLogs() {
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-slate-800 text-slate-300">
                   <SelectItem value="all">All Actions</SelectItem>
-                  <SelectItem value="เข้าหน้า">เข้าหน้า (Page View)</SelectItem>
+                  <SelectItem value="Page View">Page View</SelectItem>
                   <SelectItem value="Login">Login</SelectItem>
                   <SelectItem value="Logout">Logout</SelectItem>
                   <SelectItem value="login failed">Login Failed</SelectItem>

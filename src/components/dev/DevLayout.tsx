@@ -1,11 +1,40 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { DevSidebar } from "./DevSidebar";
+import { PanelRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEmployeeAuth } from "@/hooks/useEmployeeAuth";
+import { cn } from "@/lib/utils";
+
+function DevLayoutInner() {
+    const { state, toggleSidebar } = useSidebar();
+    const isCollapsed = state === "collapsed";
+
+    return (
+        <div className="dark flex h-screen w-full overflow-hidden animate-fade-in font-sans bg-[#0B0F1A] relative">
+            <DevSidebar />
+            <main className="flex-1 min-w-0 w-full overflow-y-auto overflow-x-hidden px-6 pt-6 pb-10">
+                {isCollapsed && (
+                    <button
+                        type="button"
+                        onClick={toggleSidebar}
+                        className="fixed left-4 top-6 z-50 flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-900/95 text-slate-400 shadow-lg backdrop-blur-sm transition-all hover:border-slate-600 hover:bg-slate-800 hover:text-white"
+                        title="Open sidebar"
+                        aria-label="Open sidebar"
+                    >
+                        <PanelRight className="h-5 w-5" />
+                    </button>
+                )}
+                <div className={cn("w-full min-w-0", isCollapsed && "pl-14")}>
+                    <Outlet />
+                </div>
+            </main>
+        </div>
+    );
+}
 
 export function DevLayout() {
     const navigate = useNavigate();
@@ -107,12 +136,7 @@ export function DevLayout() {
 
     return (
         <SidebarProvider>
-            <div className="dark flex min-h-screen w-full animate-fade-in font-sans bg-[#0B0F1A]">
-                <DevSidebar />
-                <main className="flex-1 overflow-y-auto px-8 pt-6 pb-10">
-                    <Outlet />
-                </main>
-            </div>
+            <DevLayoutInner />
         </SidebarProvider>
     );
 }
