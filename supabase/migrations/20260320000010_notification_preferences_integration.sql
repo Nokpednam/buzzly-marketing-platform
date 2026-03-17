@@ -261,7 +261,7 @@ BEGIN
     PERFORM cron.schedule(
       'weekly-digest-notifications',
       '0 9 * * 1',  -- Monday 9am
-      $$SELECT create_weekly_digest_notifications()$$
+      $cron$ SELECT create_weekly_digest_notifications(); $cron$
     );
     RAISE NOTICE 'pg_cron: weekly-digest-notifications scheduled.';
   ELSE
