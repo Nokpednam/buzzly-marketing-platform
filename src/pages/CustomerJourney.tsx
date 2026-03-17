@@ -239,6 +239,9 @@ function JourneyMap({
                 <p className="text-xs font-bold text-center text-slate-900 dark:text-white truncate">{stage.name}</p>
                 <p className="text-sm font-semibold text-center tabular-nums mt-0.5" style={{ color: stage.color }}>
                   {formatCompact(stage.value ?? 0)}
+                  {stage.isEstimated && (
+                    <span className="ml-1 text-[10px] font-normal text-slate-500 dark:text-slate-400">Est.</span>
+                  )}
                 </p>
                 <div className="mt-2 space-y-1">
                   <div className="flex justify-between text-[10px] text-slate-500">
@@ -311,7 +314,9 @@ function MarketingInsights({ selectedStage }: { selectedStage: JourneyStageWithD
 
         <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div className="rounded-xl bg-slate-50/80 dark:bg-slate-800/50 px-4 py-3">
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Volume</p>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              Volume{selectedStage.isEstimated && " (Est.)"}
+            </p>
             <p className="text-xl font-semibold tabular-nums text-slate-900 dark:text-white mt-1">
               {(selectedStage.value ?? 0).toLocaleString()}
             </p>
@@ -360,7 +365,7 @@ function CustomerJourneyContent() {
     selectedPeriod,
     platformIdFilter
   );
-  const { monthlyData, isLoading: monthlyLoading } = useCustomerJourneyMonthlyData(6, platformIdFilter);
+  const { monthlyData, usedFallback: monthlyUsedFallback, isLoading: monthlyLoading } = useCustomerJourneyMonthlyData(6, platformIdFilter);
 
   const journeyStages = useMemo(() => {
     const awarenessValue = rawStages[0]?.value ?? 1;
@@ -581,7 +586,12 @@ function CustomerJourneyContent() {
 
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 overflow-hidden">
             <div className="p-4 md:p-6 border-b border-slate-100 dark:border-slate-800">
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white">Monthly Comparison — Acquisition, Intent & Conversion</h3>
+              <h3 className="text-base font-semibold text-slate-900 dark:text-white">
+                Monthly Comparison — Acquisition, Intent & Conversion
+                {(monthlyUsedFallback?.acquisition || monthlyUsedFallback?.intent || monthlyUsedFallback?.conversion) && (
+                  <span className="ml-2 text-xs font-normal text-slate-500 dark:text-slate-400">(Est.)</span>
+                )}
+              </h3>
             </div>
             <div className="p-4 md:p-6">
               <div className="h-[260px] w-full">
@@ -605,9 +615,24 @@ function CustomerJourneyContent() {
                         formatter={(value: number) => value.toLocaleString()}
                       />
                       <Legend />
-                      <Bar dataKey="acquisition" name="Acquisition" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="intent" name="Intent" fill="#F59E0B" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="conversion" name="Conversion" fill="#EF4444" radius={[4, 4, 0, 0]} />
+                      <Bar
+                        dataKey="acquisition"
+                        name={monthlyUsedFallback?.acquisition ? "Acquisition (Est.)" : "Acquisition"}
+                        fill="#8B5CF6"
+                        radius={[4, 4, 0, 0]}
+                      />
+                      <Bar
+                        dataKey="intent"
+                        name={monthlyUsedFallback?.intent ? "Intent (Est.)" : "Intent"}
+                        fill="#F59E0B"
+                        radius={[4, 4, 0, 0]}
+                      />
+                      <Bar
+                        dataKey="conversion"
+                        name={monthlyUsedFallback?.conversion ? "Conversion (Est.)" : "Conversion"}
+                        fill="#EF4444"
+                        radius={[4, 4, 0, 0]}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (

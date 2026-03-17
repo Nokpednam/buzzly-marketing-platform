@@ -1,10 +1,5 @@
-import { useState, useMemo } from "react";
-import { toast } from "sonner";
-// --- เพิ่ม Import ตัวเช็คสิทธิ์ ---
+import { useMemo, useState } from "react";
 import { PlanRestrictedPage } from "@/components/PlanRestrictedPage";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -13,251 +8,267 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  UserPlus,
-  Zap,
-  RefreshCw,
-  Share2,
+  Search,
+  Users,
+  ClipboardCheck,
   DollarSign,
-  ArrowRight,
   TrendingUp,
-  ArrowUpDown,
-  SortAsc,
-  SortDesc,
   Info,
   Loader2,
 } from "lucide-react";
+import {
+  FunnelChart,
+  Funnel,
+  LabelList,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 import { useFunnelData } from "@/hooks/useFunnelData";
+import { cn } from "@/lib/utils";
 
-// Visual mapping for AARRR categories from DB (no prevValue — growth is always based on real data)
-const categoryVisuals: Record<string, any> = {
-  Acquisition: { letter: "A", icon: UserPlus, color: "text-blue-500", bg: "bg-blue-500/10", fill: "bg-blue-500", description: "New sign-ups" },
-  Activation: { letter: "A", icon: Zap, color: "text-green-500", bg: "bg-green-500/10", fill: "bg-green-500", description: "Completed onboarding" },
-  Retention: { letter: "R", icon: RefreshCw, color: "text-yellow-500", bg: "bg-yellow-500/10", fill: "bg-yellow-500", description: "Active for 30+ days" },
-  Referral: { letter: "R", icon: Share2, color: "text-purple-500", bg: "bg-purple-500/10", fill: "bg-purple-500", description: "Invited a friend" },
-  Revenue: { letter: "R", icon: DollarSign, color: "text-orange-500", bg: "bg-orange-500/10", fill: "bg-orange-500", description: "Paid subscribers" },
+interface StageVisual {
+  icon: typeof Search;
+  description: string;
+}
+
+const categoryVisuals: Record<string, StageVisual> = {
+  Acquisition: { icon: Search, description: "New sign-ups" },
+  Activation: { icon: Users, description: "Completed onboarding" },
+  Retention: { icon: ClipboardCheck, description: "Active for 30+ days" },
+  Referral: { icon: TrendingUp, description: "Invited a friend" },
+  Revenue: { icon: DollarSign, description: "Paid subscribers" },
 };
 
-// 1. แยกเนื้อหาหลักออกมาเป็น Component ย่อย
+// Funnel segment colors for Recharts (teal → blue → indigo → purple → slate)
+const FUNNEL_COLORS = [
+  "#0d9488", // teal
+  "#0284c7", // blue
+  "#4f46e5", // indigo
+  "#7c3aed", // purple
+  "#64748b", // slate
+];
+
+// Demo data when no real data
+const DEMO_FUNNEL_DATA = [
+  { name: "Acquisition", value: 10000, fill: FUNNEL_COLORS[0] },
+  { name: "Activation", value: 4200, fill: FUNNEL_COLORS[1] },
+  { name: "Retention", value: 2100, fill: FUNNEL_COLORS[2] },
+  { name: "Referral", value: 580, fill: FUNNEL_COLORS[3] },
+  { name: "Revenue", value: 320, fill: FUNNEL_COLORS[4] },
+];
+
+const PERIOD_OPTIONS = [
+  { value: "7d", label: "Last 7 days" },
+  { value: "30d", label: "Last 30 days" },
+  { value: "90d", label: "Last 90 days" },
+] as const;
+
 function AARRRDashboardContent() {
-  const [sortBy, setSortBy] = useState("flow");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const { aarrrCategories, isLoading } = useFunnelData();
+  const [period, setPeriod] = useState<"7d" | "30d" | "90d">("30d");
+  const { aarrrCategories, isLoading } = useFunnelData(period);
 
-  const realAarrrData = useMemo(() => {
-    return aarrrCategories.map(cat => {
-      const visuals = categoryVisuals[cat.name] || {
-        letter: cat.name.charAt(0).toUpperCase(),
+  const { chartData, processedStages, totalEntrants, isDemo } = useMemo(() => {
+    if (aarrrCategories.length === 0) {
+      return {
+        chartData: DEMO_FUNNEL_DATA,
+        processedStages: [],
+        totalEntrants: 10000,
+        isDemo: true,
+      };
+    }
+
+    const stages = aarrrCategories.map((cat, index) => {
+      const visuals = categoryVisuals[cat.name] ?? {
         icon: Info,
-        color: "text-slate-500", bg: "bg-slate-500/10", fill: "bg-slate-500",
-        description: cat.description || "",
+        description: cat.description ?? "",
       };
+      const nextStage = aarrrCategories[index + 1];
+      const value = cat.value ?? 0;
+      const nextValue = nextStage?.value ?? 0;
+      const conversionRate =
+        nextStage && value > 0 ? (nextValue / value) * 100 : 0;
+      const totalValue = aarrrCategories[0]?.value ?? 0;
+      const percentageOfTotal =
+        totalValue > 0 ? Math.round((value / totalValue) * 100) : 0;
 
       return {
-        id: cat.slug || cat.name.toLowerCase(),
+        id: cat.slug ?? cat.name.toLowerCase(),
         name: cat.name,
-        value: cat.value || 0,
-        ...visuals
-      };
-    });
-  }, [aarrrCategories]);
-
-  const processedStages = useMemo(() => {
-    if (realAarrrData.length === 0) return [];
-    return realAarrrData.map((stage, index) => {
-      const nextStage = realAarrrData[index + 1];
-      const conversionRate = nextStage && stage.value > 0 ? (nextStage.value / stage.value) * 100 : 0;
-      const growth = stage.prevValue != null && stage.prevValue > 0
-        ? ((stage.value - stage.prevValue) / stage.prevValue) * 100
-        : null;
-
-      return {
-        ...stage,
+        value,
         conversionRate,
-        growth,
-        percentageOfTotal: realAarrrData[0]?.value > 0 ? Math.round((stage.value / realAarrrData[0].value) * 100) : 0
+        percentageOfTotal,
+        ...visuals,
       };
     });
-  }, [realAarrrData]);
 
-  const sortedStages = useMemo(() => {
-    let result = [...processedStages];
-    if (sortBy === "flow") return result;
+    const total = stages[0]?.value ?? 0;
+    const useDemo = total === 0;
 
-    result.sort((a, b) => {
-      let comparison = 0;
-      if (sortBy === "value") comparison = a.value - b.value;
-      if (sortBy === "name") comparison = a.name.localeCompare(b.name);
-      if (sortBy === "conversion") comparison = a.conversionRate - b.conversionRate;
-      return sortOrder === "desc" ? comparison * -1 : comparison;
-    });
-    return result;
-  }, [processedStages, sortBy, sortOrder]);
+    const data = useDemo
+      ? DEMO_FUNNEL_DATA
+      : stages.map((s, i) => ({
+          name: s.name,
+          value: s.value,
+          fill: FUNNEL_COLORS[i % FUNNEL_COLORS.length],
+        }));
+
+    return {
+      chartData: data,
+      processedStages: stages,
+      totalEntrants: useDemo ? 10000 : total,
+      isDemo: useDemo,
+    };
+  }, [aarrrCategories]);
 
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        <p className="text-sm font-medium text-muted-foreground animate-pulse">Loading funnel data...</p>
+        <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+        <p className="text-sm font-medium text-muted-foreground animate-pulse">
+          Loading funnel data...
+        </p>
       </div>
     );
   }
 
-  const maxValue = processedStages.length > 0 ? processedStages[0].value : 0;
-  const totalEntrants = processedStages.length > 0 ? processedStages[0].value : 0;
-
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-8 bg-background text-foreground">
-      {/* Header & Global Controls */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b pb-6">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight uppercase">Pirate Metrics</h1>
-          <p className="text-muted-foreground italic">"AARRR" you tracking your growth?</p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-muted p-1 rounded-md">
-            <Button
-              variant={sortOrder === "asc" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={() => setSortOrder("asc")}
-            >
-              <SortAsc className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={sortOrder === "desc" ? "secondary" : "ghost"}
-              size="sm"
-              className="h-8 w-8 p-0"
-              onClick={() => setSortOrder("desc")}
-            >
-              <SortDesc className="h-4 w-4" />
-            </Button>
+    <div className="min-h-screen bg-background">
+      <div className="max-w-4xl mx-auto px-6 py-10">
+        {/* Header */}
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+              AARRR Funnel
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {totalEntrants.toLocaleString()} total entrants
+              {isDemo && (
+                <span className="ml-2 rounded bg-amber-500/20 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                  Demo data
+                </span>
+              )}
+            </p>
           </div>
-
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-[180px]">
-              <ArrowUpDown className="h-4 w-4 mr-2 opacity-50" />
-              <SelectValue placeholder="Sort cards by..." />
+          <Select value={period} onValueChange={(v) => setPeriod(v as typeof period)}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="flow">Stage Flow (Default)</SelectItem>
-              <SelectItem value="value">User Volume</SelectItem>
-              <SelectItem value="conversion">Conversion Rate</SelectItem>
-              <SelectItem value="name">Alphabetical</SelectItem>
+              {PERIOD_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-        {/* LEFT: STATIC FLOW */}
-        <div className="lg:col-span-7">
-          <div className="sticky top-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                User Journey <Info className="h-4 w-4 text-muted-foreground" />
-              </h2>
-              <Badge variant="outline">{totalEntrants.toLocaleString()} Total Entrants</Badge>
-            </div>
-
-            <div className="space-y-1">
-              {processedStages.map((stage, index) => {
-                const width = (stage.value / maxValue) * 100;
-                const nextStage = processedStages[index + 1];
-
-                return (
-                  <div key={stage.id}>
-                    <div className="group relative flex items-center h-14">
-                      <div className="w-24 shrink-0 text-xs font-bold text-muted-foreground uppercase">
-                        {stage.name}
+        {/* Recharts Funnel Chart */}
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <div className="h-[420px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <FunnelChart layout="centric" margin={{ top: 20, right: 40, left: 40, bottom: 20 }}>
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const p = payload[0].payload;
+                    const total = chartData[0]?.value ?? 1;
+                    const pct = Math.round(((p.value as number) / total) * 100);
+                    return (
+                      <div className="rounded-lg border border-border bg-background px-3 py-2 text-sm shadow-lg">
+                        <p className="font-semibold text-foreground">{p.name}</p>
+                        <p className="text-muted-foreground">
+                          {(p.value as number).toLocaleString()} ({pct}%)
+                        </p>
                       </div>
-                      <div className="flex-1">
-                        <div
-                          className={`h-10 rounded-r-full ${stage.fill} shadow-lg transition-all duration-700 relative flex items-center px-4`}
-                          style={{ width: `${Math.max(width, 10)}%` }}
-                        >
-                          <span className="text-white font-bold text-sm drop-shadow-md">
-                            {stage.value.toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    {nextStage && (
-                      <div className="ml-24 h-6 border-l-2 border-dashed border-muted-foreground/30 flex items-center">
-                        <div className="px-3 py-0.5 bg-muted rounded-full text-[10px] font-bold ml-4">
-                          {stage.conversionRate.toFixed(1)}% CONVERSION
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  }}
+                />
+                <Funnel dataKey="value" data={chartData} isAnimationActive>
+                  <LabelList
+                    position="center"
+                    dataKey="name"
+                    className="fill-background font-semibold"
+                    stroke="none"
+                  />
+                  <LabelList
+                    position="right"
+                    dataKey="value"
+                    formatter={(v: number) => v.toLocaleString()}
+                    className="fill-muted-foreground text-xs"
+                    stroke="none"
+                  />
+                </Funnel>
+              </FunnelChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        {/* RIGHT: INTERACTIVE CARDS */}
-        <div className="lg:col-span-5 space-y-4">
-          <h2 className="text-lg font-bold">Deep Dive</h2>
-          {sortedStages.map((stage) => (
-            <Card key={stage.id} className="group hover:shadow-md transition-all border-l-4" style={{ borderLeftColor: `var(--${stage.id})` }}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className={`p-2 rounded-lg ${stage.bg} ${stage.color}`}>
-                    <stage.icon className="h-5 w-5" />
-                  </div>
-                  <div className="text-right">
-                    {stage.growth !== null ? (
-                      <>
-                        <div className={`flex items-center text-xs font-bold ${stage.growth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {stage.growth >= 0 ? <TrendingUp className="h-3 w-3 mr-1" /> : null}
-                          {stage.growth.toFixed(1)}%
-                        </div>
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest">vs last month</p>
-                      </>
-                    ) : (
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-widest">No history</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-sm uppercase tracking-tight">{stage.name}</h3>
-                    <span className="text-xs font-medium text-muted-foreground">{stage.percentageOfTotal}% of total</span>
-                  </div>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-2xl font-black">{stage.value.toLocaleString()}</span>
-                    <span className="text-xs text-muted-foreground truncate">{stage.description}</span>
-                  </div>
-                </div>
-
-                <div className="mt-4 pt-3 border-t flex justify-between items-center">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-[10px] uppercase font-bold"
-                    onClick={() => toast.info("รายละเอียดเพิ่มเติม — พร้อมใช้งานเร็วๆ นี้")}
-                  >
-                    View Details <ArrowRight className="ml-2 h-3 w-3" />
-                  </Button>
-                  {stage.conversionRate > 0 && (
-                    <Badge variant="secondary" className="text-[10px]">
-                      {stage.conversionRate.toFixed(1)}% CV
-                    </Badge>
+        {/* Stage cards */}
+        {(processedStages.length > 0 || chartData.length > 0) && (
+          <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {(processedStages.length > 0 ? processedStages : chartData).map((stage, index) => {
+              const Icon = "icon" in stage ? stage.icon : categoryVisuals[stage.name ?? ""]?.icon ?? Info;
+              const value = "value" in stage ? stage.value : (stage as { value: number }).value;
+              const totalValue = chartData[0]?.value ?? 1;
+              const percentageOfTotal = Math.round((value / totalValue) * 100);
+              const prevValue = index > 0 ? (chartData[index - 1]?.value ?? value) : value;
+              const conversionRate = prevValue > 0 ? (value / prevValue) * 100 : 0;
+              return (
+                <div
+                  key={stage.name ?? index}
+                  className={cn(
+                    "rounded-lg border border-border bg-card p-4 shadow-sm transition-colors hover:bg-muted/30",
                   )}
+                >
+                  <div
+                    className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg"
+                    style={{ backgroundColor: `${FUNNEL_COLORS[index]}20` }}
+                  >
+                    <Icon
+                      className="h-4 w-4"
+                      style={{ color: FUNNEL_COLORS[index] }}
+                    />
+                  </div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    {stage.name}
+                  </p>
+                  <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
+                    {value.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {percentageOfTotal}% of total
+                    {index < chartData.length - 1 && (
+                      <> · {conversionRate.toFixed(1)}% CV</>
+                    )}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              );
+            })}
+          </div>
+        )}
+
+        {/* AARRR legend */}
+        <div className="mt-8 flex flex-wrap justify-center gap-2 text-xs font-bold tracking-widest text-muted-foreground">
+          {["Acquisition", "Activation", "Retention", "Referral", "Revenue"].map(
+            (label, i) => (
+              <span key={label} className="flex items-center gap-1">
+                <span
+                  className="inline-block h-2 w-2 rounded-full"
+                  style={{ backgroundColor: FUNNEL_COLORS[i] }}
+                />
+                {label}
+                {i < 4 && <span className="ml-1 text-muted-foreground/60">→</span>}
+              </span>
+            ),
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-// 2. ส่วนที่ Export พร้อมการเช็ค Subscription
 export default function InteractiveAARRR() {
   return (
     <PlanRestrictedPage requiredFeature="advancedAnalytics">

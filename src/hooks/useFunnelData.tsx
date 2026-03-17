@@ -60,7 +60,8 @@ export function useFunnelData(period?: string, platformId?: string) {
     },
   });
 
-  // ── Ad Insights Aggregation (only from active platforms) ───────────
+  // ── Ad Insights Aggregation via Backend RPC (estimation logic in DB) ─
+  // Falls back to direct query when RPC is not available.
   interface AdInsightsResult {
     totals: AdInsightsTotals;
     usedFallback: { leads: boolean; adds_to_cart: boolean; conversions: boolean };
@@ -68,37 +69,50 @@ export function useFunnelData(period?: string, platformId?: string) {
   const { data: adResult, isLoading: insightsLoading } = useQuery<AdInsightsResult>({
     queryKey: ["ad_insights_funnel_totals", period, platformId],
     queryFn: async () => {
-      // Join with ad_accounts to filter only active platform connections
+      const { data, error } = await supabase.rpc("get_customer_journey_funnel_totals", {
+        p_date_from: dateFrom ?? null,
+        p_platform_id: platformId ?? null,
+      });
+
+      if (!error && data && typeof data === "object" && "totals" in data) {
+        const result = data as {
+          totals: AdInsightsTotals;
+          used_fallback: { leads: boolean; adds_to_cart: boolean; conversions: boolean };
+        };
+        return {
+          totals: result.totals,
+          usedFallback: result.used_fallback,
+        };
+      }
+
+      // Fallback: RPC not available — use direct query
+      if (error && typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+        console.warn("[useFunnelData] RPC fallback:", error.message);
+      }
+
       let query = supabase
         .from("ad_insights")
         .select("impressions, clicks, leads, adds_to_cart, conversions, ad_accounts!inner(is_active, platform_id)")
         .eq("ad_accounts.is_active", true);
 
-      if (dateFrom) {
-        query = query.gte("date", dateFrom);
-      }
+      if (dateFrom) query = query.gte("date", dateFrom);
+      if (platformId) query = query.eq("ad_accounts.platform_id", platformId);
 
-      if (platformId) {
-        query = query.eq("ad_accounts.platform_id", platformId);
-      }
+      const { data: rows, error: queryError } = await query;
+      if (queryError) throw queryError;
 
-      const { data, error } = await query;
-      if (error) throw error;
-
-      const raw = ((data as any[]) || []).reduce(
-        (acc: AdInsightsTotals, row: any) => ({
-          impressions:  acc.impressions  + (row.impressions  ?? 0),
-          clicks:       acc.clicks       + (row.clicks       ?? 0),
-          leads:        acc.leads        + (row.leads        ?? 0),
+      const raw = ((rows as Record<string, number | null>[]) || []).reduce(
+        (acc: AdInsightsTotals, row: Record<string, number | null>) => ({
+          impressions: acc.impressions + (row.impressions ?? 0),
+          clicks: acc.clicks + (row.clicks ?? 0),
+          leads: acc.leads + (row.leads ?? 0),
           adds_to_cart: acc.adds_to_cart + (row.adds_to_cart ?? 0),
-          conversions:  acc.conversions  + (row.conversions  ?? 0),
+          conversions: acc.conversions + (row.conversions ?? 0),
         }),
         { impressions: 0, clicks: 0, leads: 0, adds_to_cart: 0, conversions: 0 }
       );
 
       const usedFallback = { leads: false, adds_to_cart: false, conversions: false };
-
-      // Fallback: many ad platforms don't report leads/adds_to_cart; use estimates
       if (raw.leads === 0 && raw.clicks > 0) {
         raw.leads = Math.round(raw.clicks * 0.05);
         usedFallback.leads = true;
