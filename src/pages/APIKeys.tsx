@@ -347,8 +347,8 @@ export default function APIKeys() {
 
   async function handleConnect(platformId: string) {
     if (!hasTeam) {
-      toast.error("กรุณาสร้าง Workspace ก่อน", {
-        description: "ไปที่ Settings > Manage Workspace เพื่อสร้าง Workspace ก่อนเชื่อมต่อ Platform",
+      toast.error("Please create a Workspace first", {
+        description: "Go to Settings > Manage Workspace to create a Workspace before connecting a Platform",
       });
       return;
     }

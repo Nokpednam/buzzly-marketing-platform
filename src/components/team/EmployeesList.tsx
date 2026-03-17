@@ -52,10 +52,10 @@ import {
   Clock
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { th } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
 import { useEmployees, Employee as EmployeeData, EmployeeInsert } from "@/hooks/useEmployees";
 
-const departments = ["การตลาด", "ขาย", "บัญชี", "IT", "HR", "ปฏิบัติการ"];
+const departments = ["Marketing", "Sales", "Accounting", "IT", "HR", "Operations"];
 
 interface EmployeesListProps {
   canManage: boolean;
@@ -100,19 +100,19 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
   const handleAddEmployee = async () => {
     // Bug #L1-4 Fix: Email validation
     if (!formData.email.trim()) {
-      toast.error("กรุณาใส่อีเมล");
+      toast.error("Please enter email");
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-      toast.error("รูปแบบอีเมลไม่ถูกต้อง");
+      toast.error("Invalid email format");
       return;
     }
 
     // Bug #L1-5 Fix: Name validation
     if (!formData.first_name?.trim() && !formData.last_name?.trim()) {
-      toast.error("กรุณาใส่ชื่อหรือนามสกุลอย่างน้อย 1 อย่าง");
+      toast.error("Please enter at least first or last name");
       return;
     }
 
@@ -142,7 +142,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
   const handleSuspend = async (id: string) => {
     // Bug #L1-2 Fix: Add confirmation
     const confirmed = window.confirm(
-      "คุณแน่ใจหรือไม่ที่จะระงับพนักงานนี้?\n\nพนักงานจะไม่สามารถเข้าใช้งานระบบได้ชั่วคราว"
+      "Are you sure you want to suspend this employee?\n\nThe employee will temporarily lose access to the system."
     );
 
     if (!confirmed) return;
@@ -156,7 +156,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
 
   const handleApprove = async (id: string) => {
     const confirmed = window.confirm(
-      "คุณแน่ใจหรือไม่ที่จะอนุมัติพนักงานนี้?"
+      "Are you sure you want to approve this employee?"
     );
     if (!confirmed) return;
 
@@ -165,7 +165,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
 
   const handleReject = async (id: string) => {
     const confirmed = window.confirm(
-      "คุณแน่ใจหรือไม่ที่จะปฏิเสธพนักงานนี้?\n\nพนักงานจะไม่สามารถเข้าใช้งานได้"
+      "Are you sure you want to reject this employee?\n\nThe employee will not be able to access the system."
     );
     if (!confirmed) return;
 
@@ -175,7 +175,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
   const handleRemove = async (id: string) => {
     // Bug #L1-1 Fix: Add confirmation
     const confirmed = window.confirm(
-      "คุณแน่ใจหรือไม่ที่จะลบพนักงานนี้?\n\nการลบจะลบข้อมูลทั้งหมดรวมถึงโปรไฟล์"
+      "Are you sure you want to delete this employee?\n\nDeletion will remove all data including profile."
     );
 
     if (!confirmed) return;
@@ -201,27 +201,27 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
 
     switch (status) {
       case "active":
-        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ใช้งาน</Badge>;
+        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Active</Badge>;
       case "inactive":
         if (!isSignedUp) {
-          return <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-xs font-medium border-slate-700 text-slate-500 bg-slate-800/20">ยังไม่สมัคร</Badge>;
+          return <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-xs font-medium border-slate-700 text-slate-500 bg-slate-800/20">Not signed up</Badge>;
         }
-        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">รอเปิดใช้งาน</Badge>;
+        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">Pending activation</Badge>;
       case "suspended":
-        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">ระงับ</Badge>;
+        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">Suspended</Badge>;
       default:
-        return <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-xs font-medium border-slate-700 text-slate-500">ไม่ระบุ</Badge>;
+        return <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-xs font-medium border-slate-700 text-slate-500">Unspecified</Badge>;
     }
   };
 
   const getApprovalBadge = (status: string | null) => {
     switch (status) {
       case "approved":
-        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">อนุมัติแล้ว</Badge>;
+        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Approved</Badge>;
       case "pending":
-        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">รออนุมัติ</Badge>;
+        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">Pending approval</Badge>;
       case "rejected":
-        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">ปฏิเสธ</Badge>;
+        return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">Rejected</Badge>;
       default:
         return <Badge variant="secondary" className="rounded-full px-2.5 py-0.5 text-xs font-medium border-slate-700 text-slate-500">-</Badge>;
     }
@@ -248,7 +248,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
         <div className="flex justify-end p-4 bg-slate-900/40 border border-slate-800 rounded-lg">
           <Button onClick={() => setAddDialogOpen(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4">
             <Plus className="h-4 w-4" />
-            เพิ่มพนักงาน
+            Add Employee
           </Button>
         </div>
       )}
@@ -258,12 +258,12 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
         <Table>
           <TableHeader>
             <TableRow className="bg-slate-900/20 border-b border-slate-800 hover:bg-slate-900/20">
-              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">พนักงาน</TableHead>
-              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">บทบาท</TableHead>
-              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">ตำแหน่ง/ความถนัด</TableHead>
-              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">สถานะ</TableHead>
-              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">สถานะการอนุมัติ</TableHead>
-              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">เข้าใช้งานล่าสุด</TableHead>
+              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">Employee</TableHead>
+              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">Role</TableHead>
+              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">Position/Skill</TableHead>
+              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">Status</TableHead>
+              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">Approval Status</TableHead>
+              <TableHead className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider py-4">Last Active</TableHead>
               {canManage && <TableHead className="w-[80px] text-right pr-6 py-4"></TableHead>}
             </TableRow>
           </TableHeader>
@@ -271,7 +271,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
             {employees.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  ยังไม่มีพนักงานในระบบ
+                  No employees in the system yet
                 </TableCell>
               </TableRow>
             ) : (
@@ -299,13 +299,13 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                   <TableCell className="py-4">
                     <div className="flex items-center gap-2 text-slate-300 font-medium">
                       <Building2 className="h-4 w-4 text-slate-500" />
-                      {employee.role?.role_name || "ไม่ระบุ"}
+                      {employee.role?.role_name || "Unspecified"}
                     </div>
                   </TableCell>
                   <TableCell className="py-4">
                     <div className="flex items-center gap-2 text-slate-300 font-medium">
                       <Briefcase className="h-4 w-4 text-slate-500" />
-                      {employee.profile?.aptitude || "ไม่ระบุ"}
+                      {employee.profile?.aptitude || "Unspecified"}
                     </div>
                   </TableCell>
                   <TableCell className="py-4">{getStatusBadge(employee)}</TableCell>
@@ -317,11 +317,11 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                           <Clock className="h-3 w-3 text-slate-500" />
                           {formatDistanceToNow(new Date(employee.profile.last_active), { 
                             addSuffix: true,
-                            locale: th 
+                            locale: enUS 
                           })}
                         </span>
                         <span className="text-[10px] text-slate-500 font-medium pl-4.5">
-                          {new Date(employee.profile.last_active).toLocaleString("th-TH", {
+                          {new Date(employee.profile.last_active).toLocaleString("en-US", {
                             day: "numeric",
                             month: "short",
                             year: "2-digit",
@@ -346,7 +346,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                           <DropdownMenuContent align="end" className="bg-slate-900 border-slate-800 text-slate-300 shadow-2xl">
                             <DropdownMenuItem onClick={() => openEditDialog(employee)} className="hover:bg-slate-800 focus:bg-slate-800 focus:text-white cursor-pointer transition-colors px-3 py-2">
                               <Pencil className="h-4 w-4 mr-3 text-blue-400" />
-                              แก้ไขข้อมูล
+                              Edit Details
                             </DropdownMenuItem>
 
                             {/* Approval Actions - Only for pending employees */}
@@ -363,7 +363,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                                   ) : (
                                     <CheckCircle className="h-4 w-4 mr-3" />
                                   )}
-                                  อนุมัติพนักงาน
+                                  Approve Employee
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   className="text-rose-400 hover:bg-rose-500/10 focus:bg-rose-500/10 focus:text-rose-400 cursor-pointer transition-colors px-3 py-2"
@@ -375,7 +375,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                                   ) : (
                                     <XCircle className="h-4 w-4 mr-3" />
                                   )}
-                                  ปฏิเสธพนักงาน
+                                  Reject Employee
                                 </DropdownMenuItem>
                               </>
                             )}
@@ -392,7 +392,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                                 ) : (
                                   <UserX className="h-4 w-4 mr-3" />
                                 )}
-                                ระงับการใช้งาน
+                                Suspend
                               </DropdownMenuItem>
                             ) : (
                               <DropdownMenuItem
@@ -405,7 +405,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                                 ) : (
                                   <UserCheck className="h-4 w-4 mr-3" />
                                 )}
-                                เปิดใช้งานอีกครั้ง
+                                Reactivate
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator className="bg-slate-800" />
@@ -419,7 +419,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                               ) : (
                                 <Trash2 className="h-4 w-4 mr-3" />
                               )}
-                              ลบพนักงาน
+                              Delete Employee
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -437,40 +437,40 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="bg-slate-900 border-slate-800 text-slate-200 shadow-2xl rounded-xl sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-white tracking-tight">เพิ่มพนักงานใหม่</DialogTitle>
+            <DialogTitle className="text-2xl font-bold text-white tracking-tight">Add New Employee</DialogTitle>
             <DialogDescription className="text-slate-400 font-medium">
-              กรอกข้อมูลพนักงานที่ต้องการเพิ่มเข้าระบบ
+              Enter employee details to add to the system
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">ชื่อ</Label>
+                <Label htmlFor="firstName" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">First Name</Label>
                 <Input
                   id="firstName"
                   value={formData.first_name || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, first_name: e.target.value })
                   }
-                  placeholder="ชื่อจริง"
+                  placeholder="First name"
                   className="bg-black/20 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-slate-800 h-10"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">นามสกุล</Label>
+                <Label htmlFor="lastName" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Last Name</Label>
                 <Input
                   id="lastName"
                   value={formData.last_name || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, last_name: e.target.value })
                   }
-                  placeholder="นามสกุล"
+                  placeholder="Last name"
                   className="bg-black/20 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-slate-800 h-10"
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">อีเมล (ใช้สำหรับเชื่อมต่อบัญชีตอนสมัคร)</Label>
+              <Label htmlFor="email" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Email (used to link account on signup)</Label>
               <Input
                 id="email"
                 type="email"
@@ -483,7 +483,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="role" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">บทบาท</Label>
+              <Label htmlFor="role" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Role</Label>
               <Select
                 value={formData.role_employees_id || ""}
                 onValueChange={(value) =>
@@ -491,7 +491,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                 }
               >
                 <SelectTrigger className="bg-black/20 border-slate-800 text-slate-300 h-10">
-                  <SelectValue placeholder="เลือกบทบาท" />
+                  <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-slate-800 text-slate-300">
                   {roles
@@ -505,27 +505,27 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="aptitude" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">ความถนัด/ตำแหน่ง</Label>
+              <Label htmlFor="aptitude" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Position/Skill</Label>
               <Input
                 id="aptitude"
                 value={formData.aptitude || ""}
                 onChange={(e) =>
                   setFormData({ ...formData, aptitude: e.target.value })
                 }
-                placeholder="เช่น Marketing, Sales, Developer"
+                placeholder="e.g. Marketing, Sales, Developer"
                 className="bg-black/20 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-slate-800 h-10"
               />
             </div>
           </div>
           <DialogFooter className="bg-slate-900/50 p-6 -m-6 border-t border-slate-800 mt-6 rounded-b-xl">
             <Button variant="outline" onClick={() => setAddDialogOpen(false)} className="bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800">
-              ยกเลิก
+              Cancel
             </Button>
             <Button onClick={handleAddEmployee} disabled={createEmployee.isPending} className="bg-blue-600 hover:bg-blue-700 text-white">
               {createEmployee.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
-              เพิ่มพนักงาน
+              Add Employee
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -535,15 +535,15 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="bg-slate-900 border-slate-800 text-slate-200 shadow-2xl rounded-xl sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-white tracking-tight">แก้ไขข้อมูลพนักงาน</DialogTitle>
+            <DialogTitle className="text-2xl font-bold text-white tracking-tight">Edit Employee</DialogTitle>
             <DialogDescription className="text-slate-400 font-medium">
-              แก้ไขข้อมูลของ {selectedEmployee?.profile?.first_name} {selectedEmployee?.profile?.last_name}
+              Edit details for {selectedEmployee?.profile?.first_name} {selectedEmployee?.profile?.last_name}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-firstName" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">ชื่อ</Label>
+                <Label htmlFor="edit-firstName" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">First Name</Label>
                 <Input
                   id="edit-firstName"
                   value={formData.first_name || ""}
@@ -554,7 +554,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-lastName" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">นามสกุล</Label>
+                <Label htmlFor="edit-lastName" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Last Name</Label>
                 <Input
                   id="edit-lastName"
                   value={formData.last_name || ""}
@@ -566,7 +566,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-email" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">อีเมล (ใช้สำหรับเชื่อมต่อบัญชีตอนสมัคร)</Label>
+              <Label htmlFor="edit-email" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Email (used to link account on signup)</Label>
               <Input
                 id="edit-email"
                 type="email"
@@ -579,7 +579,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-role" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">บทบาท</Label>
+              <Label htmlFor="edit-role" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Role</Label>
               <Select
                 value={formData.role_employees_id || ""}
                 onValueChange={(value) =>
@@ -587,7 +587,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
                 }
               >
                 <SelectTrigger className="bg-black/20 border-slate-800 text-slate-300 h-10">
-                  <SelectValue placeholder="เลือกบทบาท" />
+                  <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900 border-slate-800 text-slate-300">
                   {roles
@@ -601,7 +601,7 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-aptitude" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">ความถนัด/ตำแหน่ง</Label>
+              <Label htmlFor="edit-aptitude" className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Position/Skill</Label>
               <Input
                 id="edit-aptitude"
                 value={formData.aptitude || ""}
@@ -614,13 +614,13 @@ export function EmployeesList({ canManage }: EmployeesListProps) {
           </div>
           <DialogFooter className="bg-slate-900/50 p-6 -m-6 border-t border-slate-800 mt-6 rounded-b-xl">
             <Button variant="outline" onClick={() => setEditDialogOpen(false)} className="bg-slate-950 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800">
-              ยกเลิก
+              Cancel
             </Button>
             <Button onClick={handleEditEmployee} disabled={updateEmployee.isPending} className="bg-blue-600 hover:bg-blue-700 text-white">
               {updateEmployee.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
-              บันทึกการแก้ไข
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

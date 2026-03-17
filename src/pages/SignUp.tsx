@@ -32,12 +32,12 @@ interface Gender {
 }
 
 const SALARY_RANGES = [
-  "ต่ำกว่า 15,000 บาท",
-  "15,000 - 30,000 บาท",
-  "30,001 - 50,000 บาท",
-  "50,001 - 80,000 บาท",
-  "80,001 - 120,000 บาท",
-  "มากกว่า 120,000 บาท",
+  "Below 15,000 THB",
+  "15,000 - 30,000 THB",
+  "30,001 - 50,000 THB",
+  "50,001 - 80,000 THB",
+  "80,001 - 120,000 THB",
+  "Above 120,000 THB",
 ];
 
 const SignUp = () => {
@@ -85,15 +85,15 @@ const SignUp = () => {
   const validateStep = (step: number): boolean => {
     const newErrors: Record<string, string> = {};
     if (step === 1) {
-      if (!formData.email) newErrors.email = "กรุณากรอกอีเมล";
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "รูปแบบอีเมลไม่ถูกต้อง";
-      if (!formData.password) newErrors.password = "กรุณากรอกรหัสผ่าน";
-      else if (formData.password.length < 8) newErrors.password = "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร";
-      if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = "รหัสผ่านไม่ตรงกัน";
+      if (!formData.email) newErrors.email = "Please enter email";
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) newErrors.email = "Invalid email format";
+      if (!formData.password) newErrors.password = "Please enter password";
+      else if (formData.password.length < 8) newErrors.password = "Password must be at least 8 characters";
+      if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = "Passwords do not match";
     }
     if (step === 2) {
-      if (!formData.firstName.trim()) newErrors.firstName = "กรุณากรอกชื่อ";
-      if (!formData.lastName.trim()) newErrors.lastName = "กรุณากรอกนามสกุล";
+      if (!formData.firstName.trim()) newErrors.firstName = "Please enter first name";
+      if (!formData.lastName.trim()) newErrors.lastName = "Please enter last name";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -150,7 +150,7 @@ const SignUp = () => {
 
         await supabase.auth.signOut();
         // Sign out เพื่อบังคับให้ user ต้อง login ผ่านหน้า /auth
-        toast.success("สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบด้วย email และรหัสผ่านของคุณ");
+        toast.success("Sign up successful! Please sign in with your email and password");
         navigate("/auth");
       }
     } catch (error: any) {
@@ -160,11 +160,11 @@ const SignUp = () => {
       const errorMessage = error?.message || 
                           (typeof error === 'string' ? error : null) || 
                           JSON.stringify(error) || 
-                          "เกิดข้อผิดพลาดในการสมัครสมาชิก";
+                          "An error occurred during sign up";
 
       // Handle "User already registered" specifically
       if (errorMessage.includes("already registered") || errorMessage.includes("User already exists")) {
-        toast.info("บัญชีนี้มีอยู่ในระบบแล้ว กำลังพยายามเข้าสู่ระบบ...");
+        toast.info("This account already exists. Attempting to sign in...");
         // Try to sign in instead
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email: formData.email,
@@ -174,7 +174,7 @@ const SignUp = () => {
         if (signInError) {
           toast.error("บัญชีนี้มีอยู่แล้ว แต่รหัสผ่านไม่ถูกต้อง กรุณาเข้าสู่ระบบ");
         } else if (signInData.user) {
-          toast.success("เข้าสู่ระบบสำเร็จ!");
+          toast.success("Signed in successfully!");
           navigate("/dashboard");
           return;
         }

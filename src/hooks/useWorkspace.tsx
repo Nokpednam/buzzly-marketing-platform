@@ -205,8 +205,8 @@ export function useWorkspace() {
       window.dispatchEvent(new CustomEvent('workspace-created'));
 
       toast({
-        title: 'สร้าง Workspace สำเร็จ',
-        description: `Workspace "${name}" ถูกสร้างแล้ว`,
+        title: 'Workspace created successfully',
+        description: `Workspace "${name}" has been created`,
       });
 
       // Mission 1: award points for creating the first workspace (one-time)
@@ -224,7 +224,7 @@ export function useWorkspace() {
       return data;
     } catch (error: any) {
       toast({
-        title: 'เกิดข้อผิดพลาด',
+        title: 'An error occurred',
         description: error.message,
         variant: 'destructive',
       });
@@ -284,14 +284,14 @@ export function useWorkspace() {
       queryClient.invalidateQueries({ queryKey: ['workspace-info'] });
 
       toast({
-        title: 'บันทึกสำเร็จ',
-        description: 'การตั้งค่า Workspace ได้รับการอัปเดตแล้ว',
+        title: 'Saved successfully',
+        description: 'Workspace settings have been updated',
       });
 
       return true;
     } catch (error: any) {
       toast({
-        title: 'เกิดข้อผิดพลาด',
+        title: 'An error occurred',
         description: error.message,
         variant: 'destructive',
       });

@@ -6,7 +6,7 @@ export default function EmployeeManagement() {
             <div>
                 <h1 className="text-3xl font-bold text-white tracking-tight">Employee Management</h1>
                 <p className="text-slate-400 font-medium mt-2">
-                    จัดการพนักงาน Developer - อนุมัติ/ปฏิเสธผู้สมัครใหม่
+                    Manage Developer employees — approve/reject new applicants
                 </p>
             </div>
 

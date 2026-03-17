@@ -60,8 +60,8 @@ export default function EmployeeLogin() {
                 if (!roleData || roleData.length === 0) {
                     await auditAuth.loginFailed(email, "Not an employee");
                     toast({
-                        title: "ไม่มีสิทธิ์เข้าใช้งาน",
-                        description: "คุณไม่ใช่พนักงาน กรุณาใช้หน้า login สำหรับลูกค้า",
+                        title: "Access denied",
+                        description: "You are not an employee. Please use the customer login page",
                         variant: "destructive",
                     });
                     await supabase.auth.signOut();
@@ -73,8 +73,8 @@ export default function EmployeeLogin() {
                 const role = isOwner ? "Owner" : isSupport ? "Support" : "Dev";
                 await auditAuth.login(authData.user.id, role, email);
                 toast({
-                    title: "เข้าสู่ระบบสำเร็จ",
-                    description: `ยินดีต้อนรับ ${role}!`,
+                    title: "Signed in successfully",
+                    description: `Welcome ${role}!`,
                 });
                 if (isOwner) navigate("/owner/product-usage");
                 else if (isSupport) navigate("/support/workspaces");
@@ -87,8 +87,8 @@ export default function EmployeeLogin() {
                 await auditAuth.loginFailed(email, "Employee approval pending");
                 await supabase.auth.signOut();
                 toast({
-                    title: "รอการอนุมัติ",
-                    description: "บัญชีของคุณอยู่ระหว่างรอการอนุมัติ",
+                    title: "Pending approval",
+                    description: "Your account is awaiting approval",
                     variant: "destructive",
                 });
                 return;
@@ -98,8 +98,8 @@ export default function EmployeeLogin() {
                 await auditAuth.loginFailed(email, "Employee approval rejected");
                 await supabase.auth.signOut();
                 toast({
-                    title: "ถูกปฏิเสธ",
-                    description: "การสมัครของคุณถูกปฏิเสธ กรุณาติดต่อ Dev",
+                    title: "Rejected",
+                    description: "Your application was rejected. Please contact Dev",
                     variant: "destructive",
                 });
                 return;
@@ -109,8 +109,8 @@ export default function EmployeeLogin() {
                 await auditAuth.loginFailed(email, "Employee account not active");
                 await supabase.auth.signOut();
                 toast({
-                    title: "บัญชีถูกระงับ",
-                    description: "บัญชีของคุณถูกระงับ กรุณาติดต่อ Dev",
+                    title: "Account suspended",
+                    description: "Your account has been suspended. Please contact Dev",
                     variant: "destructive",
                 });
                 return;
@@ -121,8 +121,8 @@ export default function EmployeeLogin() {
             await auditAuth.login(authData.user.id, roleName, email);
 
             toast({
-                title: "เข้าสู่ระบบสำเร็จ",
-                description: `ยินดีต้อนรับ ${roleName}!`,
+                title: "Signed in successfully",
+                description: `Welcome ${roleName}!`,
             });
 
             // Redirect based on role
@@ -137,7 +137,7 @@ export default function EmployeeLogin() {
             }
         } catch (error: any) {
             toast({
-                title: "เข้าสู่ระบบไม่สำเร็จ",
+                title: "Sign in failed",
                 description: error.message,
                 variant: "destructive",
             });
@@ -154,7 +154,7 @@ export default function EmployeeLogin() {
                         <ShieldCheck className="h-6 w-6 text-primary" />
                     </div>
                     <CardTitle className="text-2xl">Employee Login</CardTitle>
-                    <CardDescription>เข้าสู่ระบบสำหรับพนักงาน Buzzly</CardDescription>
+                    <CardDescription>Sign in for Buzzly employees</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleLogin} className="space-y-4">
@@ -194,23 +194,23 @@ export default function EmployeeLogin() {
                             {loading ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    กำลังเข้าสู่ระบบ...
+                                    Signing in...
                                 </>
                             ) : (
-                                "เข้าสู่ระบบ"
+                                "Sign in"
                             )}
                         </Button>
                     </form>
 
                     <div className="mt-6 space-y-3 text-center text-sm">
                         <p className="text-muted-foreground">
-                            ยังไม่มีบัญชี?{" "}
+                            Don't have an account?{" "}
                             <Link to="/employee/signup" className="text-primary hover:underline font-medium">
-                                สมัครเป็น Employee
+                                Sign up as Employee
                             </Link>
                         </p>
                         <p className="text-muted-foreground">
-                            เป็นลูกค้า?{" "}
+                            Are you a customer?{" "}
                             <Link to="/auth" className="text-primary hover:underline font-medium">
                                 Customer Login
                             </Link>
@@ -220,7 +220,7 @@ export default function EmployeeLogin() {
                             className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
                         >
                             <ArrowLeft className="h-3 w-3" />
-                            กลับหน้าหลัก
+                            Back to home
                         </Link>
                     </div>
                 </CardContent>

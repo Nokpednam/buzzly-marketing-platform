@@ -131,7 +131,7 @@ export default function AuditLogs() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Audit Logs</h1>
-          <p className="text-slate-400 font-medium">ประวัติการใช้งานและกิจกรรมของผู้ใช้ในระบบ</p>
+          <p className="text-slate-400 font-medium">User activity and system event history</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" className="bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-900 hover:text-white">
@@ -207,7 +207,7 @@ export default function AuditLogs() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               <Input
-                placeholder="ค้นหาตามรายละเอียด, action หรือ IP..."
+                placeholder="Search by details, action, or IP..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 bg-black/20 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-slate-800"
@@ -261,7 +261,7 @@ export default function AuditLogs() {
         <CardHeader className="flex flex-row items-center justify-between border-b border-slate-800 bg-slate-900/20">
           <div>
             <CardTitle className="text-white text-lg font-bold">Activity Logs</CardTitle>
-            <CardDescription className="text-slate-400">รายการกิจกรรมทั้งหมด ({totalCount} รายการ)</CardDescription>
+            <CardDescription className="text-slate-400">All activities ({totalCount} items)</CardDescription>
           </div>
           <Button
             variant="outline"

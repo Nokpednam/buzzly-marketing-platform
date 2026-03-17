@@ -172,14 +172,14 @@ export function useSubscription() {
   ): Promise<{ success: boolean; subscriptionId?: string; error?: string }> => {
     console.log("Creating subscription:", { planId, billingCycle, userId, discountCode });
     if (!userId) {
-      return { success: false, error: "กรุณาเข้าสู่ระบบก่อน" };
+      return { success: false, error: "Please sign in first" };
     }
 
     try {
       // 1. ตรวจสอบ Plan ใหม่
       const newPlan = plans.find((p) => p.id === planId);
       if (!newPlan) {
-        return { success: false, error: "ไม่พบแพ็กเกจที่เลือก" };
+        return { success: false, error: "Selected plan not found" };
       }
 
       // 2. ดึงข้อมูล Subscription ปัจจุบัน (ดึงทั้งหมดที่เป็น active เพื่อป้องกันเคสมีซ้ำ)
@@ -204,7 +204,7 @@ export function useSubscription() {
         if (currentPlan) {
           // กฎ: ห้าม Downgrade (เช็คแค่ตัวหลัก)
           if (newPlan.tier < currentPlan.tier) {
-            return { success: false, error: "ไม่สามารถเปลี่ยนไปแพ็กเกจที่ต่ำกว่าได้" };
+            return { success: false, error: "Cannot downgrade to a lower plan" };
           }
           isUpgrade = newPlan.tier > currentPlan.tier;
 
@@ -405,7 +405,7 @@ export function useSubscription() {
 
     } catch (error: any) {
       console.error("Error creating subscription:", error);
-      return { success: false, error: error.message || "เกิดข้อผิดพลาดในการสร้าง subscription" };
+      return { success: false, error: error.message || "An error occurred while creating subscription" };
     }
   };
 

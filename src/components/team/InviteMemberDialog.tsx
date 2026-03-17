@@ -140,7 +140,7 @@ export function InviteMemberDialog({ open, onOpenChange, onInvite }: InviteMembe
               <Button variant="ghost" className="w-full justify-between p-2">
                 <span className="flex items-center gap-2 text-sm">
                   <Settings2 className="h-4 w-4" />
-                  ตั้งค่าสิทธิ์เฉพาะบุคคล
+                  Set custom permissions
                 </span>
                 <ChevronDown className={`h-4 w-4 transition-transform ${isAdvancedOpen ? "rotate-180" : ""}`} />
               </Button>

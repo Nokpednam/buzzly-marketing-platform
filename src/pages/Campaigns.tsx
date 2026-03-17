@@ -144,10 +144,10 @@ export default function Campaigns() {
         status: "draft",
         ad_account_id: campaign.ad_account_id,
       });
-      toast.success("คัดลอกแคมเปญสำเร็จ");
+      toast.success("Campaign duplicated successfully");
     } catch (err) {
       console.error("Duplicate failed:", err);
-      toast.error("ไม่สามารถคัดลอกแคมเปญได้");
+      toast.error("Failed to duplicate campaign");
     }
   };
   const [selectedAdAccount, setSelectedAdAccount] = useState<string>("");
@@ -285,9 +285,9 @@ export default function Campaigns() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.name.trim()) return toast.error("กรุณาใส่ชื่อ Campaign");
+    if (!formData.name.trim()) return toast.error("Please enter campaign name");
     const adAccountId = formData.adAccountId || selectedAdAccount;
-    if (!adAccountId) return toast.error("กรุณาเลือกบัญชีโฆษณา");
+    if (!adAccountId) return toast.error("Please select an ad account");
 
     try {
       const payload = {
@@ -631,18 +631,18 @@ export default function Campaigns() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>ยืนยันการลบ Campaign</AlertDialogTitle>
+            <AlertDialogTitle>Confirm Delete Campaign</AlertDialogTitle>
             <AlertDialogDescription>
-              คุณแน่ใจหรือไม่ที่จะลบ Campaign นี้? การกระทำนี้ไม่สามารถย้อนกลับได้
+              Are you sure you want to delete this campaign? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>ยกเลิก</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              ลบ
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

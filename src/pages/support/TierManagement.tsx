@@ -53,7 +53,7 @@ import {
 import { cn } from "@/lib/utils";
 import { tierColors, tierIcons } from "@/hooks/useLoyaltyTier";
 import { format } from "date-fns";
-import { th } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
 import {
   Pagination,
   PaginationContent,
@@ -109,7 +109,7 @@ export default function TierManagement() {
 
   const safeTierIcons = tierIcons || defaultTierIcons;
   const safeTierColors = tierColors || defaultTierColors;
-  const safeLocale = th || undefined;
+  const safeLocale = enUS || undefined;
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -149,7 +149,7 @@ export default function TierManagement() {
         <div className="flex items-center justify-between pb-2">
           <div>
             <h1 className="text-3xl font-black tracking-tight" style={{ color: "#0f172a" }}>Tier Management</h1>
-            <p className="text-[15px] mt-1.5 font-medium text-slate-500">จัดการและตรวจสอบ Loyalty Tier ของลูกค้า</p>
+            <p className="text-[15px] mt-1.5 font-medium text-slate-500">Manage and review customer Loyalty Tiers</p>
           </div>
           <div className="h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform hover:scale-105" style={{ background: "linear-gradient(135deg, #3b82f6, #06b6d4)", boxShadow: "0 6px 16px rgba(59,130,246,0.35)" }}>
             <Award className="h-6 w-6 text-white" />
@@ -163,7 +163,7 @@ export default function TierManagement() {
               <div className="h-9 w-9 rounded-xl flex items-center justify-center bg-blue-50 text-blue-600 border border-blue-100 shadow-sm">
                 <Search className="h-4 w-4" />
               </div>
-              ค้นหาลูกค้า
+              Search Customers
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-5">
@@ -172,7 +172,7 @@ export default function TierManagement() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: "#94a3b8" }} />
                 <input
                   type="text"
-                  placeholder="ค้นหาด้วยชื่อ, อีเมล หรือ ID..."
+                  placeholder="Search by name, email, or ID..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full h-11 pl-11 pr-4 rounded-xl text-sm outline-none transition-all"
@@ -189,7 +189,7 @@ export default function TierManagement() {
             {searchQuery.length >= 2 && (
               <div className="mt-4 space-y-2">
                 {searchResults.length === 0 && !searchLoading ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">ไม่พบลูกค้าที่ตรงกัน</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">No matching customers found</p>
                 ) : (
                   searchResults.map((customer) => (
                     <div
@@ -200,7 +200,7 @@ export default function TierManagement() {
                       <div className="flex items-center gap-4">
                         <div className="text-2xl">{safeTierIcons[customer.loyalty_tier ?? ""] ?? "👤"}</div>
                         <div>
-                          <p className="font-medium">{customer.full_name ?? "ไม่ระบุชื่อ"}</p>
+                          <p className="font-medium">{customer.full_name ?? "Unspecified"}</p>
                           <p className="text-sm text-muted-foreground">{customer.email}</p>
                         </div>
                       </div>
@@ -230,7 +230,7 @@ export default function TierManagement() {
                 </div>
                 <div>
                   <CardTitle className="text-xl font-bold tracking-tight text-slate-800">
-                    {selectedCustomer.full_name ?? "ไม่ระบุชื่อ"}
+                    {selectedCustomer.full_name ?? "Unspecified"}
                   </CardTitle>
                   <CardDescription className="text-slate-500 font-medium mt-0.5">{selectedCustomer.email}</CardDescription>
                 </div>
@@ -245,7 +245,7 @@ export default function TierManagement() {
                   <DialogHeader>
                     <DialogTitle>Manual Tier Override</DialogTitle>
                     <DialogDescription>
-                      เปลี่ยน Tier ของลูกค้า {selectedCustomer.full_name} ด้วยตนเอง
+                      Manually change tier for {selectedCustomer.full_name}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
@@ -254,14 +254,14 @@ export default function TierManagement() {
                       <div className="flex items-center gap-2">
                         <span className="text-xl">{safeTierIcons[selectedCustomer.loyalty_tier ?? ""] ?? "—"}</span>
                         <Badge className={safeTierColors[selectedCustomer.loyalty_tier ?? ""]?.bg ?? "bg-muted"}>
-                          {selectedCustomer.loyalty_tier ?? "ไม่มี"}
+                          {selectedCustomer.loyalty_tier ?? "None"}
                         </Badge>
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label>New Tier</Label>
                       <Select value={overrideTier} onValueChange={setOverrideTier}>
-                        <SelectTrigger><SelectValue placeholder="เลือก Tier ใหม่" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Select new tier" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Bronze">🥉 Bronze</SelectItem>
                           <SelectItem value="Silver">🥈 Silver</SelectItem>
@@ -271,22 +271,22 @@ export default function TierManagement() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>เหตุผลในการเปลี่ยน</Label>
+                      <Label>Reason for change</Label>
                       <Textarea
-                        placeholder="ระบุเหตุผลในการเปลี่ยน Tier..."
+                        placeholder="Specify reason for tier change..."
                         value={overrideReason}
                         onChange={(e) => setOverrideReason(e.target.value)}
                       />
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setOverrideDialogOpen(false)}>ยกเลิก</Button>
+                    <Button variant="outline" onClick={() => setOverrideDialogOpen(false)}>Cancel</Button>
                     <Button
                       onClick={handleManualOverride}
                       disabled={!overrideTier || !overrideReason.trim() || manualOverride.isPending}
                     >
                       {manualOverride.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                      บันทึกการเปลี่ยนแปลง
+                      Save Changes
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -297,7 +297,7 @@ export default function TierManagement() {
                 {[
                   { label: "Points", value: (selectedCustomer.loyalty_points_balance ?? 0).toLocaleString(), iconBorder: "#fef08a", color: "#eab308", bg: "#fefce8", border: "#fef08a" },
                   { label: "Total Spend", value: `฿ ${(selectedCustomer.total_spend ?? 0).toLocaleString()}`, iconBorder: "#bfdbfe", color: "#3b82f6", bg: "#eff6ff", border: "#bfdbfe" },
-                  { label: "Member Duration", value: `${selectedCustomer.created_at ? Math.floor((Date.now() - new Date(selectedCustomer.created_at).getTime()) / (1000 * 60 * 60 * 24 * 30)) : 0} เดือน`, iconBorder: "#a7f3d0", color: "#10b981", bg: "#ecfdf5", border: "#a7f3d0" },
+                  { label: "Member Duration", value: `${selectedCustomer.created_at ? Math.floor((Date.now() - new Date(selectedCustomer.created_at).getTime()) / (1000 * 60 * 60 * 24 * 30)) : 0} months`, iconBorder: "#a7f3d0", color: "#10b981", bg: "#ecfdf5", border: "#a7f3d0" },
                   { label: "Current Tier", value: selectedCustomer.loyalty_tier ?? "ไม่มี", iconBorder: "#ddd6fe", color: "#8b5cf6", bg: "#f5f3ff", border: "#ddd6fe" },
                 ].map((stat, i) => (
                   <div key={i} className="rounded-[18px] p-5 flex flex-col items-center justify-center text-center transition-transform duration-300 hover:-translate-y-1" style={{ background: "#ffffff", border: `1.5px solid ${stat.border}`, boxShadow: "0 2px 14px rgba(0,0,0,0.03)" }}>
@@ -317,10 +317,10 @@ export default function TierManagement() {
         <Tabs defaultValue="history" className="space-y-6 mt-2">
           <TabsList className="bg-[#f1f5f9] p-1.5 rounded-2xl inline-flex h-auto border border-slate-200 shadow-inner">
             <TabsTrigger value="history" className="flex items-center gap-2 rounded-xl py-2.5 px-5 font-semibold transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md">
-              <History className="h-4 w-4" /> ประวัติการเปลี่ยน Tier
+              <History className="h-4 w-4" /> Tier Change History
             </TabsTrigger>
             <TabsTrigger value="transactions" className="flex items-center gap-2 rounded-xl py-2.5 px-5 font-semibold transition-all data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-md">
-              <ArrowUpDown className="h-4 w-4" /> ธุรกรรม Points
+              <ArrowUpDown className="h-4 w-4" /> Points Transactions
             </TabsTrigger>
             <TabsTrigger value="alerts" className="flex items-center gap-2 rounded-xl py-2.5 px-5 font-semibold transition-all data-[state=active]:bg-white data-[state=active]:text-orange-600 data-[state=active]:shadow-md">
               <AlertTriangle className="h-4 w-4" /> Suspicious Activities
@@ -341,10 +341,10 @@ export default function TierManagement() {
                   <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-emerald-400 to-teal-500 text-white shadow-md group-hover:scale-110 transition-transform">
                     <TrendingUp className="h-5 w-5" />
                   </div>
-                  ประวัติการเปลี่ยน Tier (Auto-Log)
+                  Tier Change History (Auto-Log)
                 </CardTitle>
                 <CardDescription>
-                  บันทึกอัตโนมัติจาก Trigger เมื่อ Tier ของลูกค้าเปลี่ยนแปลง
+                  Auto-logged from trigger when customer tier changes
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -357,10 +357,6 @@ export default function TierManagement() {
                         ))}
                       </div>
                     ) : loyaltyTierHistory.length === 0 ? (
-                      <div className="text-center py-6 text-muted-foreground">
-                        <p className="text-sm">ยังไม่มีข้อมูล (ตาราง loyalty_tier_history)</p>
-                      </div>
-                    ) : (
                       <div className="relative flex flex-col items-center justify-center py-24 px-4 text-center overflow-hidden rounded-[16px] border border-dashed border-emerald-200 bg-emerald-50/30">
                         {/* Decorative Background Pattern */}
                         <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "radial-gradient(#10b981 2px, transparent 2px)", backgroundSize: "24px 24px" }} />
@@ -372,19 +368,19 @@ export default function TierManagement() {
                           </div>
                         </div>
 
-                        <h3 className="text-xl font-bold text-slate-800 mb-2.5 relative z-10">ไม่พบประวัติแบบอัตโนมัติ</h3>
+                        <h3 className="text-xl font-bold text-slate-800 mb-2.5 relative z-10">No auto-log history found</h3>
                         <p className="text-[15px] font-medium text-slate-500 max-w-[380px] leading-relaxed relative z-10">
-                          ยังไม่มีการบันทึกประวัติการเปลี่ยน Tier อัตโนมัติจากระบบ ข้อมูลจะเริ่มแสดงเมื่อมีกิจกรรมที่ทำให้เงื่อนไข Tier ของลูกค้ามีการเปลี่ยนแปลง
+                          No automatic tier change history has been recorded yet. Data will appear when activity causes customer tier conditions to change.
                         </p>
                       </div>
                     ) : (
-                    <Table>
+                      <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>วันที่</TableHead>
-                          <TableHead>ลูกค้า</TableHead>
-                          <TableHead>Tier เดิม</TableHead>
-                          <TableHead>Tier ใหม่</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Customer</TableHead>
+                          <TableHead>Previous Tier</TableHead>
+                          <TableHead>New Tier</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -443,7 +439,7 @@ export default function TierManagement() {
 
                   {!loyaltyHistoryLoading && !loyaltyHistoryError && loyaltyTierHistory.length > 0 && (
                     <div className="mt-4 flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">หน้า {loyaltyHistoryPage + 1}</p>
+                      <p className="text-sm text-muted-foreground">Page {loyaltyHistoryPage + 1}</p>
                       <Pagination className="mx-0 w-auto">
                         <PaginationContent>
                           <PaginationItem>
@@ -473,7 +469,7 @@ export default function TierManagement() {
                   </div>
                   Manual Overrides (Legacy)
                 </CardTitle>
-                <CardDescription>รายการเปลี่ยน Tier แบบ Manual โดย Admin</CardDescription>
+                <CardDescription>Manual tier changes by Admin</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="min-h-[300px] flex flex-col justify-between">
@@ -487,8 +483,8 @@ export default function TierManagement() {
                     ) : historyError ? (
                       <div className="text-center py-8 text-destructive flex flex-col items-center gap-2">
                         <AlertCircle className="h-8 w-8" />
-                        <p className="font-medium">ไม่สามารถโหลดประวัติการเปลี่ยน Tier ได้</p>
-                        <p className="text-sm text-muted-foreground">{(historyErrorDetail as Error)?.message ?? "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ"}</p>
+                        <p className="font-medium">Failed to load tier change history</p>
+                        <p className="text-sm text-muted-foreground">{(historyErrorDetail as Error)?.message ?? "An unknown error occurred"}</p>
                       </div>
                     ) : tierHistory.length === 0 ? (
                       <div className="relative flex flex-col items-center justify-center py-24 px-4 text-center overflow-hidden rounded-[16px] border border-dashed border-indigo-200 bg-indigo-50/30">
@@ -502,21 +498,21 @@ export default function TierManagement() {
                           </div>
                         </div>
 
-                        <h3 className="text-xl font-bold text-slate-800 mb-2.5 relative z-10">ไม่พบประวัติแบบแมนนวล</h3>
+                        <h3 className="text-xl font-bold text-slate-800 mb-2.5 relative z-10">No manual history found</h3>
                         <p className="text-[15px] font-medium text-slate-500 max-w-[380px] leading-relaxed relative z-10">
-                          ยังไม่มีประวัติที่ผู้ดูแลระบบแก้ไข Tier ให้กับลูกค้าแบบกำหนดเอง (Manual Override)
+                          No history of admin manual tier overrides for customers yet.
                         </p>
                       </div>
                     ) : (
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>วันที่</TableHead>
-                            <TableHead>ลูกค้า</TableHead>
-                            <TableHead>Tier เดิม</TableHead>
-                            <TableHead>Tier ใหม่</TableHead>
-                            <TableHead>เหตุผล</TableHead>
-                            <TableHead>โดย</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Customer</TableHead>
+                            <TableHead>Previous Tier</TableHead>
+                            <TableHead>New Tier</TableHead>
+                            <TableHead>Reason</TableHead>
+                            <TableHead>By</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -585,7 +581,7 @@ export default function TierManagement() {
 
                   {!historyLoading && !historyError && tierHistory.length > 0 && (
                     <div className="mt-4 flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">หน้า {historyPage + 1}</p>
+                      <p className="text-sm text-muted-foreground">Page {historyPage + 1}</p>
                       <Pagination className="mx-0 w-auto">
                         <PaginationContent>
                           <PaginationItem>
@@ -615,9 +611,9 @@ export default function TierManagement() {
                   <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-gradient-to-br from-blue-400 to-cyan-500 text-white shadow-md group-hover:scale-110 transition-transform">
                     <ArrowUpDown className="h-5 w-5" />
                   </div>
-                  รายการธุรกรรม Points
+                  Points Transactions
                 </CardTitle>
-                <CardDescription>ประวัติการได้รับ/ใช้คะแนนทั้งหมด</CardDescription>
+                <CardDescription>Full history of earned and spent points</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="min-h-[500px] flex flex-col justify-between">
@@ -631,8 +627,8 @@ export default function TierManagement() {
                     ) : txError ? (
                       <div className="text-center py-8 text-destructive flex flex-col items-center gap-2">
                         <AlertCircle className="h-8 w-8" />
-                        <p className="font-medium">ไม่สามารถโหลดธุรกรรม Points ได้</p>
-                        <p className="text-sm text-muted-foreground">{(txErrorDetail as Error)?.message ?? "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ"}</p>
+                        <p className="font-medium">Failed to load points transactions</p>
+                        <p className="text-sm text-muted-foreground">{(txErrorDetail as Error)?.message ?? "An unknown error occurred"}</p>
                       </div>
                     ) : pointsTransactions.length === 0 ? (
                       <div className="relative flex flex-col items-center justify-center py-24 px-4 text-center overflow-hidden rounded-[16px] border border-dashed border-blue-200 bg-blue-50/30">
@@ -645,21 +641,21 @@ export default function TierManagement() {
                           </div>
                         </div>
 
-                        <h3 className="text-xl font-bold text-slate-800 mb-2.5 relative z-10">ยังไม่มีประวัติธุรกรรม</h3>
+                        <h3 className="text-xl font-bold text-slate-800 mb-2.5 relative z-10">No transaction history yet</h3>
                         <p className="text-[15px] font-medium text-slate-500 max-w-[380px] leading-relaxed relative z-10">
-                          ลูกค้ายังไม่เคยได้รับหรือใช้คะแนน Points ข้อมูลธุรกรรมจะแสดงในส่วนนี้เมื่อมีการสะสมหรือแลกคะแนน
+                          Customers have not earned or spent points yet. Transaction data will appear here when points are accumulated or redeemed.
                         </p>
                       </div>
                     ) : (
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>วันเวลา</TableHead>
-                            <TableHead>ลูกค้า</TableHead>
-                            <TableHead>ประเภท</TableHead>
-                            <TableHead className="text-right">จำนวน</TableHead>
-                            <TableHead className="text-right">ยอดคงเหลือ</TableHead>
-                            <TableHead>รายละเอียด</TableHead>
+                            <TableHead>Date & Time</TableHead>
+                            <TableHead>Customer</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                            <TableHead className="text-right">Balance</TableHead>
+                            <TableHead>Details</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -691,7 +687,7 @@ export default function TierManagement() {
                   {!txLoading && !txError && pointsTransactions.length > 0 && (
                     <div className="mt-4 flex items-center justify-between">
                       <p className="text-sm text-muted-foreground">
-                        หน้า {transactionsPage + 1}
+                        Page {transactionsPage + 1}
                       </p>
                       <Pagination className="mx-0 w-auto">
                         <PaginationContent>
@@ -738,7 +734,7 @@ export default function TierManagement() {
                   </div>
                   Suspicious Activities ({unresolvedCount} unresolved)
                 </CardTitle>
-                <CardDescription>กิจกรรมที่น่าสงสัยและต้องตรวจสอบ</CardDescription>
+                <CardDescription>Suspicious activities requiring review</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="min-h-[450px] flex flex-col justify-between">
@@ -760,9 +756,9 @@ export default function TierManagement() {
                           </div>
                         </div>
 
-                        <h3 className="text-xl font-bold text-slate-800 mb-2.5 relative z-10">ไม่มีกิจกรรมที่น่าสงสัย</h3>
+                        <h3 className="text-xl font-bold text-slate-800 mb-2.5 relative z-10">No suspicious activities</h3>
                         <p className="text-[15px] font-medium text-slate-500 max-w-[380px] leading-relaxed relative z-10">
-                          ระบบการตรวจจับไม่พบความผิดปกติหรือกิจกรรมที่ต้องตรวจสอบเพิ่มเติมในขณะนี้ สถานะบัญชีลูกค้าปลอดภัย
+                          Detection system found no anomalies or activities requiring further review at this time. Customer account status is safe.
                         </p>
                       </div>
                     ) : (
@@ -809,7 +805,7 @@ export default function TierManagement() {
                                       onClick={() => resolveActivity.mutate({ activityId: activity.id })}
                                       disabled={resolveActivity.isPending}
                                     >
-                                      <Eye className="h-4 w-4 mr-1" /> แก้ไขแล้ว
+                                      <Eye className="h-4 w-4 mr-1" /> Resolved
                                     </Button>
                                     <Button
                                       variant="destructive"
@@ -817,12 +813,12 @@ export default function TierManagement() {
                                       onClick={() => suspendCustomer.mutate(activity.user_id)}
                                       disabled={suspendCustomer.isPending}
                                     >
-                                      <XCircle className="h-4 w-4 mr-1" /> ระงับ
+                                      <XCircle className="h-4 w-4 mr-1" /> Suspend
                                     </Button>
                                   </>
                                 )}
                                 {activity.is_resolved && (
-                                  <Badge variant="outline" className="text-green-600 border-green-600">แก้ไขแล้ว</Badge>
+                                  <Badge variant="outline" className="text-green-600 border-green-600">Resolved</Badge>
                                 )}
                               </div>
                             </div>
@@ -836,7 +832,7 @@ export default function TierManagement() {
                   {!alertsLoading && suspiciousActivities.length > 0 && (
                     <div className="mt-4 flex items-center justify-between">
                       <p className="text-sm text-muted-foreground">
-                        หน้า {activitiesPage + 1}
+                        Page {activitiesPage + 1}
                       </p>
                       <Pagination className="mx-0 w-auto">
                         <PaginationContent>

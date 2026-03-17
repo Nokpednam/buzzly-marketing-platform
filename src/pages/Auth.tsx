@@ -53,13 +53,13 @@ export default function Auth() {
     if (employeeData) {
       if (employeeData.status !== 'active') {
         await supabase.auth.signOut();
-        toast({ title: "บัญชีถูกระงับ", description: "บัญชีของคุณถูกระงับการใช้งานชั่วคราว กรุณาติดต่อแอดมิน", variant: "destructive" });
+        toast({ title: "Account suspended", description: "Your account has been temporarily suspended. Please contact admin", variant: "destructive" });
         return;
       }
 
       if (employeeData.approval_status !== 'approved') {
         await supabase.auth.signOut();
-        toast({ title: "ไม่สามารถเข้าสู่ระบบได้", description: "บัญชีพนักงานของคุณยังไม่อนุมัติ หรือถูกปฏิเสธ", variant: "destructive" });
+        toast({ title: "Cannot sign in", description: "Your employee account is not yet approved or has been rejected", variant: "destructive" });
         return;
       }
 
@@ -110,14 +110,14 @@ export default function Auth() {
           if (employeeData.status !== 'active') {
             await auditAuth.loginFailed(email, "Employee account suspended");
             await supabase.auth.signOut();
-            toast({ title: "บัญชีถูกระงับ", description: "บัญชีของคุณถูกระงับการใช้งานชั่วคราว กรุณาติดต่อแอดมิน", variant: "destructive" });
+            toast({ title: "Account suspended", description: "Your account has been temporarily suspended. Please contact admin", variant: "destructive" });
             return;
           }
 
           if (employeeData.approval_status !== 'approved') {
             await auditAuth.loginFailed(email, `Employee account ${employeeData.approval_status}`);
             await supabase.auth.signOut();
-            toast({ title: "ไม่สามารถเข้าสู่ระบบได้", description: "บัญชีพนักงานของคุณยังไม่อนุมัติ หรือถูกปฏิเสธ", variant: "destructive" });
+            toast({ title: "Cannot sign in", description: "Your employee account is not yet approved or has been rejected", variant: "destructive" });
             return;
           }
 
