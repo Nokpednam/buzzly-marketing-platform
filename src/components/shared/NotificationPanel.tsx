@@ -27,37 +27,49 @@ import { useState } from "react";
 
 const typeConfig: Record<
     NotificationType | string,
-    { icon: React.ReactNode; color: string; bg: string }
+    { icon: React.ReactNode; darkIcon: React.ReactNode; color: string; bg: string; darkBg: string }
 > = {
     critical_error: {
         icon: <AlertCircle className="h-4 w-4 text-red-600" />,
+        darkIcon: <AlertCircle className="h-4 w-4 text-red-400" />,
         color: "text-red-600",
         bg: "bg-red-50 border-red-100",
+        darkBg: "bg-red-500/10 border-red-500/20",
     },
     error_log: {
         icon: <AlertCircle className="h-4 w-4 text-orange-500" />,
+        darkIcon: <AlertCircle className="h-4 w-4 text-orange-400" />,
         color: "text-orange-500",
         bg: "bg-orange-50 border-orange-100",
+        darkBg: "bg-orange-500/10 border-orange-500/20",
     },
     auth_failure: {
         icon: <ShieldAlert className="h-4 w-4 text-amber-600" />,
+        darkIcon: <ShieldAlert className="h-4 w-4 text-amber-500" />,
         color: "text-amber-600",
         bg: "bg-amber-50 border-amber-100",
+        darkBg: "bg-amber-500/10 border-amber-500/20",
     },
     redemption_request: {
         icon: <Gift className="h-4 w-4 text-blue-600" />,
+        darkIcon: <Gift className="h-4 w-4 text-blue-400" />,
         color: "text-blue-600",
         bg: "bg-blue-50 border-blue-100",
+        darkBg: "bg-blue-500/10 border-blue-500/20",
     },
     suspicious_activity: {
         icon: <Zap className="h-4 w-4 text-rose-600" />,
+        darkIcon: <Zap className="h-4 w-4 text-rose-400" />,
         color: "text-rose-600",
         bg: "bg-rose-50 border-rose-100",
+        darkBg: "bg-rose-500/10 border-rose-500/20",
     },
     discount_exhausted: {
         icon: <Ticket className="h-4 w-4 text-emerald-600" />,
+        darkIcon: <Ticket className="h-4 w-4 text-emerald-400" />,
         color: "text-emerald-600",
         bg: "bg-emerald-50 border-emerald-100",
+        darkBg: "bg-emerald-500/10 border-emerald-500/20",
     },
 };
 
@@ -71,9 +83,10 @@ interface NotificationItemProps {
     notification: Notification;
     onRead: (id: string) => void;
     accentColor: string;
+    theme?: "light" | "dark";
 }
 
-function NotificationItem({ notification, onRead, accentColor }: NotificationItemProps) {
+function NotificationItem({ notification, onRead, accentColor, theme = "light" }: NotificationItemProps) {
     const navigate = useNavigate();
     const config = getConfig(notification.type);
 
@@ -92,18 +105,20 @@ function NotificationItem({ notification, onRead, accentColor }: NotificationIte
             className={cn(
                 "w-full text-left p-3 rounded-xl border transition-all duration-150 group",
                 "hover:shadow-sm active:scale-[0.99]",
-                notification.is_read
-                    ? "bg-slate-50/60 border-slate-100 opacity-60"
-                    : config.bg
+                theme === "dark" 
+                    ? (notification.is_read ? "bg-slate-900/50 border-slate-800 opacity-60" : config.darkBg)
+                    : (notification.is_read ? "bg-slate-50/60 border-slate-100 opacity-60" : config.bg)
             )}
         >
             <div className="flex items-start gap-3">
                 {/* Icon */}
                 <div className={cn(
-                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-                    notification.is_read ? "bg-slate-100" : "bg-white shadow-sm"
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg relative overflow-hidden",
+                    theme === "dark" 
+                        ? (notification.is_read ? "bg-slate-800" : "bg-slate-800 border border-slate-700/50 shadow-sm")
+                        : (notification.is_read ? "bg-slate-100" : "bg-white shadow-sm")
                 )}>
-                    {config.icon}
+                    {theme === "dark" ? config.darkIcon : config.icon}
                 </div>
 
                 {/* Text */}
@@ -111,7 +126,9 @@ function NotificationItem({ notification, onRead, accentColor }: NotificationIte
                     <div className="flex items-center justify-between gap-2">
                         <p className={cn(
                             "text-sm font-semibold leading-snug truncate",
-                            notification.is_read ? "text-slate-500" : "text-slate-800"
+                            notification.is_read 
+                                ? (theme === "dark" ? "text-slate-500" : "text-slate-500") 
+                                : (theme === "dark" ? "text-slate-200" : "text-slate-800")
                         )}>
                             {notification.title}
                         </p>
@@ -120,11 +137,14 @@ function NotificationItem({ notification, onRead, accentColor }: NotificationIte
                         )}
                     </div>
                     {notification.body && (
-                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">
+                        <p className={cn(
+                            "text-xs mt-0.5 line-clamp-2 leading-relaxed",
+                            theme === "dark" ? "text-slate-400" : "text-slate-500"
+                        )}>
                             {notification.body}
                         </p>
                     )}
-                    <p className="text-[10px] text-slate-400 mt-1">
+                    <p className={cn("text-[10px] mt-1", theme === "dark" ? "text-slate-500" : "text-slate-400")}>
                         {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                     </p>
                 </div>
@@ -145,6 +165,7 @@ interface NotificationPanelProps {
     accentColor?: string;
     /** Badge bg class e.g. 'bg-emerald-500' */
     badgeColor?: string;
+    theme?: "light" | "dark";
 }
 
 export function NotificationPanel({
@@ -155,6 +176,7 @@ export function NotificationPanel({
     onMarkAllAsRead,
     accentColor = "bg-blue-500",
     badgeColor = "bg-blue-500",
+    theme = "light",
 }: NotificationPanelProps) {
     const [managerOpen, setManagerOpen] = useState(false);
 
@@ -191,14 +213,17 @@ export function NotificationPanel({
             <PopoverContent
                 side="top"
                 align="end"
-                className="w-80 p-0 rounded-2xl shadow-xl border border-slate-100 animate-scale-in"
+                className={cn(
+                    "w-80 p-0 rounded-2xl shadow-xl border animate-scale-in",
+                    theme === "dark" ? "bg-[#0B1120] border-slate-800" : "bg-white border-slate-100"
+                )}
                 sideOffset={12}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+                <div className={cn("flex items-center justify-between px-4 py-3 border-b", theme === "dark" ? "border-slate-800/80" : "border-slate-100")}>
                     <div className="flex items-center gap-2">
                         <Bell className="h-4 w-4 text-slate-500" />
-                        <span className="font-semibold text-sm text-slate-800">Notifications</span>
+                        <span className={cn("font-semibold text-sm", theme === "dark" ? "text-slate-200" : "text-slate-800")}>Notifications</span>
                         {unreadCount > 0 && (
                             <span className={cn(
                                 "flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-white",
@@ -212,7 +237,10 @@ export function NotificationPanel({
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 text-xs text-slate-500 hover:text-slate-800 px-2"
+                            className={cn(
+                                "h-7 text-xs px-2 uppercase tracking-wider font-bold", 
+                                theme === "dark" ? "text-slate-400 hover:text-slate-200 hover:bg-slate-800" : "text-slate-500 hover:text-slate-800"
+                            )}
                             onClick={onMarkAllAsRead}
                             disabled={isMarkingAll}
                         >
@@ -220,7 +248,7 @@ export function NotificationPanel({
                                 ? <Loader2 className="h-3 w-3 animate-spin" />
                                 : <CheckCheck className="h-3 w-3 mr-1" />
                             }
-                            Mark all read
+                            MARK ALL READ
                         </Button>
                     )}
                 </div>
@@ -234,29 +262,40 @@ export function NotificationPanel({
                         </div>
                     ) : (
                         <div className="p-2 space-y-1.5">
-                            {notifications.map((n) => (
+                            {[...notifications]
+                                .sort((a, b) => {
+                                    if (a.is_read === b.is_read) {
+                                        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                                    }
+                                    return a.is_read ? 1 : -1;
+                                })
+                                .map((n) => (
                                 <NotificationItem
                                     key={n.id}
                                     notification={n}
                                     onRead={onMarkAsRead}
                                     accentColor={accentColor}
+                                    theme={theme}
                                 />
                             ))}
                         </div>
                     )}
                 </ScrollArea>
 
-                <div className="px-4 py-2 border-t border-slate-100 flex flex-col gap-2">
+                <div className={cn("px-4 py-2 border-t flex flex-col gap-2", theme === "dark" ? "border-slate-800" : "border-slate-100")}>
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="w-full text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50/50"
+                        className={cn(
+                            "w-full text-xs font-bold uppercase tracking-wider",
+                            theme === "dark" ? "text-blue-400 hover:text-blue-300 hover:bg-blue-500/10" : "text-blue-600 hover:text-blue-700 hover:bg-blue-50/50"
+                        )}
                         onClick={() => setManagerOpen(true)}
                     >
-                        View all notifications
+                        VIEW ALL NOTIFICATIONS
                     </Button>
                     {notifications.length > 0 && (
-                        <p className="text-[10px] text-slate-400 text-center">
+                        <p className={cn("text-[10px] text-center", theme === "dark" ? "text-slate-500" : "text-slate-400")}>
                             Showing last {notifications.length} notifications
                         </p>
                     )}
@@ -268,6 +307,7 @@ export function NotificationPanel({
             open={managerOpen} 
             onOpenChange={setManagerOpen}
             role="dev"
+            theme={theme}
         />
         </>
     );
