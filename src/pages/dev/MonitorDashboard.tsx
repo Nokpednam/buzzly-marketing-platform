@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,11 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Activity, Server, Database, Cpu, HardDrive, Wifi, AlertTriangle, CheckCircle2, XCircle, RefreshCw, Clock, TrendingUp, TrendingDown, Zap, Globe, AlertCircle, Search, Play, Filter } from "lucide-react";
+import { Activity, Server, Database, Cpu, HardDrive, Wifi, AlertTriangle, CheckCircle2, XCircle, RefreshCw, Clock, TrendingUp, TrendingDown, Zap, Globe, AlertCircle, Search, Play, Filter, ShieldCheck } from "lucide-react";
 import { useServerHealth, useDataPipelines, useExternalAPIStatus, useErrorLogStats, usePerformanceMetrics } from "@/hooks/useAdminMonitor";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, subHours, startOfHour, format } from "date-fns";
 import { SparklineTrend } from "@/components/dev/SparklineTrend";
 import { Input } from "@/components/ui/input";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from "recharts";
 
 // Removed MOCK_PIPELINES as we are now using data from the database
 
@@ -101,8 +102,76 @@ export default function MonitorDashboard() {
   const totalPipelinePages = Math.ceil(filteredAndSortedPipelines.length / pipelinesPerPage);
 
   const { data: externalApis, isLoading: apisLoading, refetch: refetchApis } = useExternalAPIStatus();
-  const { data: errorStats, refetch: refetchErrors } = useErrorLogStats();
+  const { data: errorStatsData, refetch: refetchErrors } = useErrorLogStats();
   const { data: perfMetrics, refetch: refetchPerf } = usePerformanceMetrics();
+
+  const [selectedLevelFilter, setSelectedLevelFilter] = useState<string | null>(null);
+
+  const processedErrorStats = useMemo(() => {
+    const defaultStats = { total: 0, critical: 0, errors: 0, warnings: 0, info: 0, chartData: [], topIssues: [], recentLogs: [] };
+    if (!errorStatsData || errorStatsData.length === 0) return defaultStats;
+
+    const now = new Date();
+    const twentyFourHoursAgo = subHours(now, 24);
+
+    const recent24hLogs = errorStatsData.filter((log: any) => new Date(log.created_at) >= twentyFourHoursAgo);
+
+    const criticalLogs = recent24hLogs.filter((l: any) => l.level.toLowerCase() === 'critical');
+    const errorLogs = recent24hLogs.filter((l: any) => l.level.toLowerCase() === 'error');
+    const warningLogs = recent24hLogs.filter((l: any) => ['warning', 'warn'].includes(l.level.toLowerCase()));
+    const infoLogs = recent24hLogs.filter((l: any) => l.level.toLowerCase() === 'info');
+
+    const chartData = [];
+    for (let i = 23; i >= 0; i--) {
+      const hourStart = startOfHour(subHours(now, i));
+      const nextHourStart = startOfHour(subHours(now, i - 1));
+
+      const hourLogs = recent24hLogs.filter((l: any) => {
+        const d = new Date(l.created_at);
+        return d >= hourStart && d < (i === 0 ? now : nextHourStart);
+      });
+
+      chartData.push({
+        time: format(hourStart, "HH:mm"),
+        critical: hourLogs.filter((l: any) => l.level.toLowerCase() === 'critical').length,
+        error: hourLogs.filter((l: any) => l.level.toLowerCase() === 'error').length,
+        warning: hourLogs.filter((l: any) => ['warning', 'warn'].includes(l.level.toLowerCase())).length,
+        info: hourLogs.filter((l: any) => l.level.toLowerCase() === 'info').length,
+      });
+    }
+
+    const filteredLogs = selectedLevelFilter
+      ? recent24hLogs.filter((l: any) => {
+        if (selectedLevelFilter === 'warning') return ['warning', 'warn'].includes(l.level.toLowerCase());
+        return l.level.toLowerCase() === selectedLevelFilter;
+      })
+      : recent24hLogs;
+
+    // Use selected filter, or default to critical if not filtered (for recent logs showing)
+    const logsForRecent = selectedLevelFilter ? filteredLogs : criticalLogs;
+
+    const messageCounts: Record<string, number> = {};
+    filteredLogs.forEach((l: any) => {
+      messageCounts[l.message] = (messageCounts[l.message] || 0) + 1;
+    });
+    const topIssues = Object.entries(messageCounts)
+      .map(([message, count]) => ({ message, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    const recentLogs = logsForRecent.slice(0, 5);
+
+    return {
+      total: recent24hLogs.length,
+      critical: criticalLogs.length,
+      errors: errorLogs.length,
+      warnings: warningLogs.length,
+      info: infoLogs.length,
+      chartData,
+      topIssues,
+      recentLogs
+    };
+  }, [errorStatsData, selectedLevelFilter]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -181,8 +250,8 @@ export default function MonitorDashboard() {
                 <span className="text-[10px] text-slate-500 font-medium">(Last 1h Trend)</span>
               </div>
             </div>
-            <Progress 
-              value={perfMetrics?.avgCpuUsage || 0} 
+            <Progress
+              value={perfMetrics?.avgCpuUsage || 0}
               className="h-1.5 bg-slate-800"
               indicatorClassName={getBarColor(perfMetrics?.avgCpuUsage || 0)}
             />
@@ -202,8 +271,8 @@ export default function MonitorDashboard() {
                 <span className="text-[10px] text-slate-500 font-medium">(Last 1h Trend)</span>
               </div>
             </div>
-            <Progress 
-              value={perfMetrics?.avgMemoryUsage || 0} 
+            <Progress
+              value={perfMetrics?.avgMemoryUsage || 0}
               className="h-1.5 bg-slate-800"
               indicatorClassName={getBarColor(perfMetrics?.avgMemoryUsage || 0)}
             />
@@ -223,8 +292,8 @@ export default function MonitorDashboard() {
                 <span className="text-[10px] text-slate-500 font-medium">(Last 1h Trend)</span>
               </div>
             </div>
-            <Progress 
-              value={perfMetrics?.avgDiskUsage || 0} 
+            <Progress
+              value={perfMetrics?.avgDiskUsage || 0}
               className="h-1.5 bg-slate-800"
               indicatorClassName={getBarColor(perfMetrics?.avgDiskUsage || 0)}
             />
@@ -238,12 +307,12 @@ export default function MonitorDashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <div className="text-2xl font-bold text-red-500 tracking-tight">{errorStats?.errors || 0}</div>
-              <Badge className={errorStats?.errors === 0 ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"}>
-                {errorStats?.errors === 0 ? "Normal" : "Review"}
+              <div className="text-2xl font-bold text-red-500 tracking-tight">{processedErrorStats?.errors || 0}</div>
+              <Badge className={processedErrorStats?.errors === 0 ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"}>
+                {processedErrorStats?.errors === 0 ? "Normal" : "Review"}
               </Badge>
             </div>
-            <p className="text-xs text-slate-500 font-medium mt-1">{errorStats?.warnings || 0} warnings identified</p>
+            <p className="text-xs text-slate-500 font-medium mt-1">{processedErrorStats?.warnings || 0} warnings identified</p>
           </CardContent>
         </Card>
       </div>
@@ -453,7 +522,7 @@ export default function MonitorDashboard() {
                       </div>
                     </div>
                   ))}
-                  
+
                   {/* Pagination Footer */}
                   {totalPipelinePages > 1 && (
                     <div className="flex items-center justify-between px-4 py-3 bg-[#111827] border-t border-slate-800">
@@ -490,43 +559,155 @@ export default function MonitorDashboard() {
 
         {/* Errors Tab */}
         <TabsContent value="errors">
-          <Card className="bg-[#111827] border-slate-800 shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-white">System Error Analytics</CardTitle>
-              <CardDescription className="text-slate-400">Comprehensive overview of real-time system anomalies</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-5">
-                <div className="p-4 rounded-lg border border-slate-800 bg-[#1F2937]/20 text-center">
-                  <p className="text-3xl font-bold text-white">{errorStats?.total || 0}</p>
-                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Total Logs</p>
-                </div>
-                <div className="p-4 rounded-lg border border-red-900/50 bg-red-950/20 text-center">
-                  <p className="text-3xl font-bold text-red-400">{errorStats?.critical || 0}</p>
-                  <p className="text-xs text-red-500/70 font-bold uppercase tracking-widest mt-1">Critical</p>
-                </div>
-                <div className="p-4 rounded-lg border border-red-900/30 bg-red-950/10 text-center">
-                  <p className="text-3xl font-bold text-red-500">{errorStats?.errors || 0}</p>
-                  <p className="text-xs text-red-500/60 font-bold uppercase tracking-widest mt-1">Errors</p>
-                </div>
-                <div className="p-4 rounded-lg border border-yellow-900/30 bg-yellow-950/10 text-center">
-                  <p className="text-3xl font-bold text-yellow-500">{errorStats?.warnings || 0}</p>
-                  <p className="text-xs text-yellow-500/60 font-bold uppercase tracking-widest mt-1">Warnings</p>
-                </div>
-                <div className="p-4 rounded-lg border border-blue-900/30 bg-blue-950/10 text-center">
-                  <p className="text-3xl font-bold text-blue-400">{errorStats?.info || 0}</p>
-                  <p className="text-xs text-blue-500/60 font-bold uppercase tracking-widest mt-1">Info</p>
-                </div>
+          <Card className="bg-[#0B0F1A] border-slate-800 shadow-xl overflow-hidden">
+            <div className="p-4 border-b border-slate-800 flex items-center justify-between gap-4 bg-[#111827]">
+              <div>
+                <CardTitle className="text-white text-lg font-bold">System Error Analytics</CardTitle>
+                <CardDescription className="text-slate-400">Comprehensive overview of real-time system anomalies</CardDescription>
               </div>
-              <div className="mt-8 text-center">
+              <Button
+                variant="outline"
+                onClick={() => navigate("/dev/support")}
+                className="bg-transparent border-slate-700 text-slate-300 hover:text-white hidden sm:flex"
+                size="sm"
+              >
+                View All Detailed Logs
+              </Button>
+            </div>
+            <CardContent className="p-6 space-y-6 bg-[#0B0F1A]">
+
+              {/* Row 1: Interactive Summary Cards */}
+              <div className="grid gap-4 md:grid-cols-5">
+                {[
+                  { key: null, label: "Total Logs", value: processedErrorStats.total, color: "text-white", border: "border-slate-800 hover:border-slate-600", bg: "bg-[#1F2937]/20 hover:bg-[#1F2937]/40" },
+                  { key: "critical", label: "Critical", value: processedErrorStats.critical, color: "text-red-400", border: processedErrorStats.critical > 0 ? "border-red-900/50 hover:border-red-500/50" : "border-slate-800 hover:border-slate-600", bg: processedErrorStats.critical > 0 ? "bg-red-950/20 hover:bg-red-950/40" : "bg-[#1F2937]/20 hover:bg-[#1F2937]/40", activeBorder: "border-red-500 bg-red-950/40" },
+                  { key: "error", label: "Errors", value: processedErrorStats.errors, color: "text-red-500", border: processedErrorStats.errors > 0 ? "border-red-900/30 hover:border-red-500/30" : "border-slate-800 hover:border-slate-600", bg: processedErrorStats.errors > 0 ? "bg-red-950/10 hover:bg-red-950/30" : "bg-[#1F2937]/20 hover:bg-[#1F2937]/40", activeBorder: "border-red-400 bg-red-950/30" },
+                  { key: "warning", label: "Warnings", value: processedErrorStats.warnings, color: "text-yellow-500", border: processedErrorStats.warnings > 0 ? "border-yellow-900/30 hover:border-yellow-500/30" : "border-slate-800 hover:border-slate-600", bg: processedErrorStats.warnings > 0 ? "bg-yellow-950/10 hover:bg-yellow-950/30" : "bg-[#1F2937]/20 hover:bg-[#1F2937]/40", activeBorder: "border-yellow-400 bg-yellow-950/30" },
+                  { key: "info", label: "Info", value: processedErrorStats.info, color: "text-blue-400", border: processedErrorStats.info > 0 ? "border-blue-900/30 hover:border-blue-500/30" : "border-slate-800 hover:border-slate-600", bg: processedErrorStats.info > 0 ? "bg-blue-950/10 hover:bg-blue-950/30" : "bg-[#1F2937]/20 hover:bg-[#1F2937]/40", activeBorder: "border-blue-400 bg-blue-950/30" },
+                ].map((stat, i) => {
+                  const isActive = selectedLevelFilter === stat.key;
+                  const isZero = stat.value === 0;
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedLevelFilter(stat.key)}
+                      className={cn(
+                        "p-4 rounded-lg border text-center transition-all cursor-pointer flex flex-col justify-center items-center h-full",
+                        isActive ? (stat.activeBorder || "border-slate-500 bg-[#1F2937]/40") : stat.border,
+                        isActive ? "" : stat.bg,
+                        isZero && !isActive ? "opacity-60" : ""
+                      )}
+                    >
+                      <p className={cn("text-3xl font-bold", isZero && !isActive ? "text-slate-400" : stat.color)}>{stat.value}</p>
+                      <p className={cn("text-xs font-bold uppercase tracking-widest mt-1", isZero && !isActive ? "text-slate-500" : stat.color.replace('text-', 'text-').replace('400', '500/70').replace('500', '500/60'))}>{stat.label}</p>
+                    </button>
+                  );
+                })}
                 <Button
                   variant="outline"
                   onClick={() => navigate("/dev/support")}
-                  className="bg-slate-900 border-slate-700 text-slate-300 hover:text-white px-8"
+                  className="bg-transparent border-slate-700 text-slate-300 hover:text-white sm:hidden w-full mt-2"
                 >
-                  Access Detailed System Logs
+                  View All Detailed Logs
                 </Button>
               </div>
+
+              {/* Row 2: 24-Hour Trend Chart */}
+              <div className="bg-[#111827] border border-slate-800 rounded-lg p-6 relative h-[300px] flex flex-col">
+                <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4 flex-none">24-Hour Event Trend</h3>
+                <div className="flex-1 min-h-0 relative">
+                  {processedErrorStats.total === 0 ? (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-50 z-10">
+                      <p className="text-slate-500 font-medium bg-[#111827] px-4 rounded-full border border-slate-800 shadow-sm py-1">No data for this period</p>
+                    </div>
+                  ) : null}
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={processedErrorStats.chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                      <XAxis dataKey="time" stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
+                      <RechartsTooltip
+                        contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', borderRadius: '8px' }}
+                        itemStyle={{ fontSize: '12px' }}
+                        labelStyle={{ color: '#94a3b8', marginBottom: '4px' }}
+                      />
+                      <Bar dataKey="critical" stackId="a" fill="#ef4444" radius={[0, 0, 0, 0]} />
+                      <Bar dataKey="error" stackId="a" fill="#f97316" radius={[0, 0, 0, 0]} />
+                      <Bar dataKey="warning" stackId="a" fill="#eab308" radius={[0, 0, 0, 0]} />
+                      <Bar dataKey="info" stackId="a" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Row 3: Insights */}
+              <div className="grid lg:grid-cols-2 gap-6">
+
+                {/* Top Issues */}
+                <div className="bg-[#111827] border border-slate-800 rounded-lg overflow-hidden flex flex-col h-[350px]">
+                  <div className="p-4 border-b border-slate-800 bg-[#1F2937]/30 flex-none">
+                    <h3 className="text-sm font-semibold text-slate-300">Top Issues {selectedLevelFilter ? `(${selectedLevelFilter})` : ""}</h3>
+                  </div>
+                  <div className="p-0 flex-1 overflow-y-auto w-full no-scrollbar">
+                    {processedErrorStats.topIssues.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center p-8 text-center">
+                        <ShieldCheck className="h-12 w-12 text-green-500/50 mb-3" />
+                        <p className="text-green-400 font-medium">System Healthy</p>
+                        <p className="text-xs text-slate-500 mt-1">Great job! No issues detected.</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-800/50">
+                        {processedErrorStats.topIssues.map((issue, idx) => (
+                          <div key={idx} className="p-4 flex items-start gap-3 hover:bg-[#1F2937]/20 transition-colors">
+                            <div className="mt-0.5 bg-slate-800 text-slate-400 text-xs font-bold px-2 py-0.5 rounded-md min-w-[32px] text-center">
+                              {issue.count}
+                            </div>
+                            <p className="text-sm text-slate-300 font-mono break-all line-clamp-2">
+                              {issue.message}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Recent Logs */}
+                <div className="bg-[#111827] border border-slate-800 rounded-lg overflow-hidden flex flex-col h-[350px]">
+                  <div className="p-4 border-b border-slate-800 bg-[#1F2937]/30 flex-none">
+                    <h3 className="text-sm font-semibold text-slate-300">
+                      Recent {selectedLevelFilter ? selectedLevelFilter.charAt(0).toUpperCase() + selectedLevelFilter.slice(1) : "Critical"} Logs
+                    </h3>
+                  </div>
+                  <div className="p-0 flex-1 overflow-y-auto w-full no-scrollbar">
+                    {processedErrorStats.recentLogs.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center p-8 text-center">
+                        <ShieldCheck className="h-12 w-12 text-green-500/50 mb-3" />
+                        <p className="text-green-400 font-medium">System Healthy</p>
+                        <p className="text-xs text-slate-500 mt-1">Great job! No issues detected.</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-800/50">
+                        {processedErrorStats.recentLogs.map((log: any, idx: number) => (
+                          <div key={idx} className="p-4 hover:bg-[#1F2937]/20 transition-colors flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              {getStatusBadge(log.level)}
+                              <span className="text-[10px] sm:text-xs text-slate-500 font-medium">
+                                {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-300 font-mono break-all line-clamp-2">
+                              {log.message}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
             </CardContent>
           </Card>
         </TabsContent>

@@ -34,7 +34,7 @@ export interface ExternalAPIStatus {
 
 export function computeServerStatus(server: any): string {
   const cpu = parseFloat(server.cpu_usage_percent || '0');
-  
+
   let memUsagePct = 0;
   if (server.total_memory && Number(server.total_memory) > 0) {
     memUsagePct = (Number(server.used_memory || 0) / Number(server.total_memory)) * 100;
@@ -47,7 +47,7 @@ export function computeServerStatus(server: any): string {
 
   if (cpu > 90 || diskUsagePct > 95 || memUsagePct > 95) return 'critical';
   if (cpu > 80 || diskUsagePct > 85 || memUsagePct > 85) return 'warning';
-  
+
   return 'healthy';
 }
 
@@ -73,6 +73,7 @@ export function useServerHealth() {
 
   return useQuery({
     queryKey: ["admin-server-health"],
+    refetchInterval: 10000,
     queryFn: async (): Promise<ServerHealth[]> => {
       const { data, error } = await supabase
         .from("server")
@@ -80,12 +81,12 @@ export function useServerHealth() {
         .order("hostname");
 
       if (error) throw error;
-      
+
       // Fallback compute status if db trigger hasn't fired yet
       return (data || []).map((server: any) => ({
         ...server,
-        status: server.status === 'healthy' && computeServerStatus(server) !== 'healthy' 
-          ? computeServerStatus(server) 
+        status: server.status === 'healthy' && computeServerStatus(server) !== 'healthy'
+          ? computeServerStatus(server)
           : server.status
       }));
     },
@@ -114,6 +115,7 @@ export function useDataPipelines() {
 
   return useQuery({
     queryKey: ["admin-data-pipelines"],
+    refetchInterval: 10000,
     queryFn: async (): Promise<DataPipeline[]> => {
       const { data, error } = await supabase
         .from("data_pipeline")
@@ -127,8 +129,28 @@ export function useDataPipelines() {
 }
 
 export function useExternalAPIStatus() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-external-api-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "external_api_status" },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["admin-external-api-status"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: ["admin-external-api-status"],
+    refetchInterval: 10000,
     queryFn: async (): Promise<ExternalAPIStatus[]> => {
       const { data, error } = await supabase
         .from("external_api_status")
@@ -159,7 +181,7 @@ export function useErrorLogStats() {
       .channel("admin-error-logs-live")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "error_logs" },
+        { event: "*", schema: "public", table: "error_logs" },
         () => {
           queryClient.invalidateQueries({ queryKey: ["admin-error-log-stats"] });
         }
@@ -173,6 +195,7 @@ export function useErrorLogStats() {
 
   return useQuery({
     queryKey: ["admin-error-log-stats"],
+    refetchInterval: 10000,
     queryFn: async () => {
       // DEBUG: Verify User Identity and Permissions
       const { data: { user } } = await supabase.auth.getUser();
@@ -189,26 +212,16 @@ export function useErrorLogStats() {
         if (empErr) console.error("Debug - Employee Fetch Error:", empErr);
       }
 
-      // Fetch the last 500 error logs (no time restriction)
+      // Fetch the last 500 error logs to perform JS aggregation on the frontend
       const { data, error } = await supabase
         .from("error_logs")
-        .select("level, created_at")
+        .select("id, level, message, created_at")
         .order("created_at", { ascending: false })
         .limit(500);
 
       if (error) throw error;
 
-      const logs = data || [];
-
-      return {
-        total: logs.length,
-        critical: logs.filter((l) => l.level.toLowerCase() === "critical").length,
-        errors: logs.filter((l) => l.level.toLowerCase() === "error").length,
-        warnings: logs.filter((l) =>
-          ["warning", "warn"].includes(l.level.toLowerCase())
-        ).length,
-        info: logs.filter((l) => l.level.toLowerCase() === "info").length,
-      };
+      return data || [];
     },
   });
 }
@@ -235,6 +248,7 @@ export function usePerformanceMetrics() {
 
   return useQuery({
     queryKey: ["admin-performance-metrics"],
+    refetchInterval: 10000,
     queryFn: async () => {
       // Query from server table for performance data
       const { data: rawServers, error } = await supabase
@@ -246,8 +260,8 @@ export function usePerformanceMetrics() {
       // Apply computed status
       const servers = (rawServers || []).map((s: any) => ({
         ...s,
-        status: s.status === 'healthy' && computeServerStatus(s) !== 'healthy' 
-          ? computeServerStatus(s) 
+        status: s.status === 'healthy' && computeServerStatus(s) !== 'healthy'
+          ? computeServerStatus(s)
           : s.status
       }));
 
