@@ -6,7 +6,11 @@ import {
   Globe,
   Play,
   Code2,
+  Zap,
+  Crown,
+  Users,
 } from "lucide-react";
+import { PLANS } from "@/constants/plans";
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { cn } from "@/lib/utils";
@@ -53,6 +57,12 @@ function ProductCard({
       </div>
     </div>
   );
+}
+
+/* ─── Scroll helper ───────────────────────────────────────────────────── */
+function scrollToSection(id: string) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: "smooth" });
 }
 
 /* ─── Main Landing Component ──────────────────────────────────────────── */
@@ -163,10 +173,34 @@ export default function Landing() {
 
           {/* Nav Links */}
           <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className="text-sm font-semibold text-slate-700 hover:text-[#1A3FBF] transition-colors">Products</a>
-            <a href="#features" className="text-sm font-semibold text-slate-700 hover:text-[#1A3FBF] transition-colors">Solutions</a>
-            <a href="#about" className="text-sm font-semibold text-slate-700 hover:text-[#1A3FBF] transition-colors">About</a>
-            <a href="#pricing" className="text-sm font-semibold text-slate-700 hover:text-[#1A3FBF] transition-colors">Pricing</a>
+            <button
+              type="button"
+              onClick={() => scrollToSection("features")}
+              className="text-sm font-semibold text-slate-700 hover:text-[#1A3FBF] transition-colors"
+            >
+              Products
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("solutions")}
+              className="text-sm font-semibold text-slate-700 hover:text-[#1A3FBF] transition-colors"
+            >
+              Solutions
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("about")}
+              className="text-sm font-semibold text-slate-700 hover:text-[#1A3FBF] transition-colors"
+            >
+              About
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("pricing")}
+              className="text-sm font-semibold text-slate-700 hover:text-[#1A3FBF] transition-colors"
+            >
+              Pricing
+            </button>
           </div>
 
           {/* Right CTA */}
@@ -361,6 +395,135 @@ export default function Landing() {
             >
               View Docs <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Solutions Section ──────────────────────────────────────────── */}
+      <section
+        id="solutions"
+        className="relative py-20 overflow-hidden bg-white"
+      >
+        <div className="max-w-5xl mx-auto px-6 lg:px-8">
+          <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-4">
+            Solutions for every team
+          </h2>
+          <p className="text-slate-500 font-medium mb-12 max-w-2xl">
+            Whether you&apos;re a solo marketer, growing startup, or enterprise team, Buzzly scales with you.
+          </p>
+          <div className="grid sm:grid-cols-3 gap-6">
+            <div className="rounded-2xl p-6 border border-slate-100 bg-slate-50/50 hover:border-[#1A3FBF]/30 hover:bg-blue-50/30 transition-all">
+              <div className="w-12 h-12 rounded-xl bg-[#1A3FBF]/10 flex items-center justify-center mb-4">
+                <Zap className="h-6 w-6 text-[#1A3FBF]" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Solo & Freelancers</h3>
+              <p className="text-sm text-slate-500">
+                Launch campaigns, track analytics, and grow your brand without a team.
+              </p>
+            </div>
+            <div className="rounded-2xl p-6 border border-slate-100 bg-slate-50/50 hover:border-[#1A3FBF]/30 hover:bg-blue-50/30 transition-all">
+              <div className="w-12 h-12 rounded-xl bg-[#1A3FBF]/10 flex items-center justify-center mb-4">
+                <Crown className="h-6 w-6 text-[#1A3FBF]" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Businesses</h3>
+              <p className="text-sm text-slate-500">
+                Advanced analytics, AI insights, and unlimited platforms for serious growth.
+              </p>
+            </div>
+            <div className="rounded-2xl p-6 border border-slate-100 bg-slate-50/50 hover:border-[#1A3FBF]/30 hover:bg-blue-50/30 transition-all">
+              <div className="w-12 h-12 rounded-xl bg-[#1A3FBF]/10 flex items-center justify-center mb-4">
+                <Users className="h-6 w-6 text-[#1A3FBF]" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Teams</h3>
+              <p className="text-sm text-slate-500">
+                Collaborate with your team, share dashboards, and scale marketing together.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── About Section ──────────────────────────────────────────────── */}
+      <section
+        id="about"
+        className="relative py-20 overflow-hidden"
+        style={{
+          background: "linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%)",
+        }}
+      >
+        <div className="max-w-3xl mx-auto px-6 lg:px-8 text-center">
+          <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-4">
+            About Buzzly
+          </h2>
+          <p className="text-slate-500 font-medium leading-relaxed">
+            Buzzly is an AI-powered marketing platform that helps businesses create campaigns, analyze performance, and grow faster. We believe marketing should be effortless — so you can focus on what matters most: your customers and your vision.
+          </p>
+        </div>
+      </section>
+
+      {/* ─── Pricing Section ────────────────────────────────────────────── */}
+      <section
+        id="pricing"
+        className="relative py-20 overflow-hidden bg-white"
+      >
+        <div className="max-w-5xl mx-auto px-6 lg:px-8">
+          <h2 className="text-3xl font-black text-slate-900 tracking-tight mb-4">
+            Simple, transparent pricing
+          </h2>
+          <p className="text-slate-500 font-medium mb-12 max-w-2xl">
+            Start free. Upgrade when you&apos;re ready. No hidden fees.
+          </p>
+          <div className="grid sm:grid-cols-3 gap-6">
+            {(["free", "pro", "team"] as const).map((planId) => {
+              const plan = PLANS[planId];
+              const Icon = plan.icon;
+              return (
+                <div
+                  key={planId}
+                  className={cn(
+                    "rounded-2xl p-6 border transition-all",
+                    plan.popular
+                      ? "border-[#1A3FBF] shadow-[0_4px_20px_rgba(26,63,191,0.15)] bg-white"
+                      : "border-slate-100 bg-slate-50/50 hover:border-slate-200"
+                  )}
+                >
+                  {plan.popular && (
+                    <span className="inline-block text-xs font-bold text-[#1A3FBF] uppercase tracking-wider mb-3">
+                      Most popular
+                    </span>
+                  )}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", plan.bgGradient, plan.color)}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900">{plan.name}</h3>
+                  </div>
+                  <p className="text-sm text-slate-500 mb-4">
+                    {planId === "free" && "Get started for free. Perfect for individuals."}
+                    {planId === "pro" && "For professionals and growing businesses."}
+                    {planId === "team" && "For teams that collaborate and scale together."}
+                  </p>
+                  <div className="mb-6">
+                    <span className="text-2xl font-black text-slate-900">
+                      {plan.price.monthly === 0 ? "Free" : `฿${plan.price.monthly.toLocaleString()}`}
+                    </span>
+                    {plan.price.monthly > 0 && (
+                      <span className="text-slate-500 font-medium">/month</span>
+                    )}
+                  </div>
+                  <Button
+                    onClick={() => navigate("/signup")}
+                    variant={plan.popular ? "default" : "outline"}
+                    className={cn(
+                      "w-full rounded-full font-semibold",
+                      plan.popular && "bg-[#1A3FBF] hover:bg-[#1533A0]"
+                    )}
+                  >
+                    Get started
+                  </Button>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
