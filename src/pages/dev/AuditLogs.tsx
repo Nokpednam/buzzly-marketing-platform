@@ -52,26 +52,26 @@ const getActionBadge = (action: string | undefined, status: string | null) => {
   const actionLower = action?.toLowerCase();
 
   if (status === "failed" || actionLower?.includes("failed")) {
-    return <Badge className="bg-red-500/10 text-red-600">Failed</Badge>;
+    return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">Failed</Badge>;
   }
 
   switch (actionLower) {
     case "login":
-      return <Badge className="bg-green-500/10 text-green-600">Login</Badge>;
+      return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Login</Badge>;
     case "logout":
-      return <Badge variant="secondary">Logout</Badge>;
+      return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">Logout</Badge>;
     case "export":
-      return <Badge className="bg-blue-500/10 text-blue-600">Export</Badge>;
+      return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">Export</Badge>;
     case "api_key_created":
-      return <Badge className="bg-yellow-500/10 text-yellow-600">API Key Created</Badge>;
+      return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">API Key Created</Badge>;
     case "api_key_revoked":
-      return <Badge className="bg-orange-500/10 text-orange-600">API Key Revoked</Badge>;
+      return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20">API Key Revoked</Badge>;
     case "settings_changed":
-      return <Badge className="bg-purple-500/10 text-purple-600">Settings</Badge>;
+      return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">Settings</Badge>;
     case "user_role_changed":
-      return <Badge className="bg-orange-500/10 text-orange-600">Role Changed</Badge>;
+      return <Badge className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">Role Changed</Badge>;
     default:
-      return <Badge variant="outline">{action || "Unknown"}</Badge>;
+      return <Badge variant="outline" className="rounded-full px-2.5 py-0.5 text-xs font-medium border-slate-700 text-slate-400">{action || "Unknown"}</Badge>;
   }
 };
 
@@ -79,26 +79,26 @@ const getCategoryBadge = (category: string | null) => {
   switch (category) {
     case "authentication":
     case "auth":
-      return <Badge variant="outline" className="text-xs border-green-500/30 text-green-600">Auth</Badge>;
+      return <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-tight border-emerald-500/30 text-emerald-400 bg-emerald-500/5">Auth</Badge>;
     case "data":
     case "report":
     case "export":
     case "import":
-      return <Badge variant="outline" className="text-xs border-blue-500/30 text-blue-600">Data</Badge>;
+      return <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-tight border-blue-500/30 text-blue-400 bg-blue-500/5">Data</Badge>;
     case "security":
     case "subscription":
     case "discount":
-      return <Badge variant="outline" className="text-xs border-red-500/30 text-red-600">Security</Badge>;
+      return <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-tight border-rose-500/30 text-rose-400 bg-rose-500/5">Security</Badge>;
     case "settings":
     case "workspace":
     case "api_key":
-      return <Badge variant="outline" className="text-xs border-purple-500/30 text-purple-600">Settings</Badge>;
+      return <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-tight border-blue-500/30 text-blue-400 bg-blue-500/5">Settings</Badge>;
     case "campaign":
-      return <Badge variant="outline" className="text-xs border-pink-500/30 text-pink-600">Campaign</Badge>;
+      return <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-tight border-pink-500/30 text-pink-400 bg-pink-500/5">Campaign</Badge>;
     case "integration":
-      return <Badge variant="outline" className="text-xs border-orange-500/30 text-orange-600">Integration</Badge>;
+      return <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-tight border-amber-500/30 text-amber-400 bg-amber-500/5">Integration</Badge>;
     default:
-      return <Badge variant="outline" className="text-xs">{category || "Other"}</Badge>;
+      return <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-tight border-slate-700 text-slate-500">{category || "Other"}</Badge>;
   }
 };
 
@@ -126,15 +126,15 @@ export default function AuditLogs() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-slate-200 pb-12">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Audit Logs</h1>
-          <p className="text-muted-foreground">ประวัติการใช้งานและกิจกรรมของผู้ใช้ในระบบ</p>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Audit Logs</h1>
+          <p className="text-slate-400 font-medium">ประวัติการใช้งานและกิจกรรมของผู้ใช้ในระบบ</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
+          <Button variant="outline" className="bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-900 hover:text-white">
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -143,82 +143,84 @@ export default function AuditLogs() {
 
       {/* Activity Stats */}
       <div className="grid gap-4 md:grid-cols-5">
-        <Card>
+        <Card className="bg-slate-900/50 border-slate-800 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Logins</p>
-                <p className="text-2xl font-bold">{stats?.totalLogins || 0}</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Total Logins</p>
+                <p className="text-2xl font-bold text-white leading-tight">{stats?.totalLogins || 0}</p>
               </div>
-              <LogIn className="h-8 w-8 text-green-500/30" />
+              <LogIn className="h-5 w-5 text-slate-500" />
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-slate-900/50 border-slate-800 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Failed Logins</p>
-                <p className="text-2xl font-bold text-red-500">{stats?.failedLogins || 0}</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Failed Logins</p>
+                <p className="text-2xl font-bold text-rose-500 leading-tight">{stats?.failedLogins || 0}</p>
               </div>
-              <Shield className="h-8 w-8 text-red-500/30" />
+              <Shield className="h-5 w-5 text-rose-500/30" />
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-slate-900/50 border-slate-800 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Data Exports</p>
-                <p className="text-2xl font-bold">{stats?.dataExports || 0}</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Data Exports</p>
+                <p className="text-2xl font-bold text-white leading-tight">{stats?.dataExports || 0}</p>
               </div>
-              <FileDown className="h-8 w-8 text-blue-500/30" />
+              <FileDown className="h-5 w-5 text-blue-500/30" />
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-slate-900/50 border-slate-800 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Security Actions</p>
-                <p className="text-2xl font-bold">{stats?.securityActions || 0}</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Security Actions</p>
+                <p className="text-2xl font-bold text-white leading-tight">{stats?.securityActions || 0}</p>
               </div>
-              <Key className="h-8 w-8 text-yellow-500/30" />
+              <Key className="h-5 w-5 text-amber-500/30" />
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-slate-900/50 border-slate-800 shadow-lg">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Settings Changes</p>
-                <p className="text-2xl font-bold">{stats?.settingsChanges || 0}</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Settings Changes</p>
+                <p className="text-2xl font-bold text-white leading-tight">{stats?.settingsChanges || 0}</p>
               </div>
-              <Settings className="h-8 w-8 text-purple-500/30" />
+              <Settings className="h-5 w-5 text-blue-500/30" />
             </div>
           </CardContent>
         </Card>
       </div >
 
       {/* Filters */}
-      < Card >
+      <Card className="bg-slate-900/50 border-slate-800 shadow-lg">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               <Input
                 placeholder="ค้นหาตามรายละเอียด, action หรือ IP..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
+                className="pl-9 bg-black/20 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-slate-800"
               />
             </div>
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-full md:w-[180px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Category" />
+              <SelectTrigger className="w-full md:w-[180px] bg-black/20 border-slate-800 text-slate-300">
+                <div className="flex items-center">
+                  <Filter className="h-4 w-4 mr-2 text-slate-500" />
+                  <SelectValue placeholder="Category" />
+                </div>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-slate-900 border-slate-800 text-slate-300">
                 <SelectItem value="all">All Categories</SelectItem>
                 <SelectItem value="authentication">Authentication</SelectItem>
                 <SelectItem value="data">Data & Reports</SelectItem>
@@ -229,10 +231,10 @@ export default function AuditLogs() {
               </SelectContent>
             </Select>
             <Select value={selectedRole} onValueChange={setSelectedRole}>
-              <SelectTrigger className="w-full md:w-[150px]">
+              <SelectTrigger className="w-full md:w-[150px] bg-black/20 border-slate-800 text-slate-300">
                 <SelectValue placeholder="Role" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-slate-900 border-slate-800 text-slate-300">
                 <SelectItem value="all">All Roles</SelectItem>
                 <SelectItem value="owner">Owner</SelectItem>
                 <SelectItem value="dev">Dev</SelectItem>
@@ -241,10 +243,10 @@ export default function AuditLogs() {
               </SelectContent>
             </Select>
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-full md:w-[140px]">
+              <SelectTrigger className="w-full md:w-[140px] bg-black/20 border-slate-800 text-slate-300">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-slate-900 border-slate-800 text-slate-300">
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="success">Success</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
@@ -255,36 +257,42 @@ export default function AuditLogs() {
       </Card >
 
       {/* Logs Table */}
-      < Card >
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card className="bg-slate-900/50 border-slate-800 shadow-xl overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between border-b border-slate-800 bg-slate-900/20">
           <div>
-            <CardTitle>Activity Logs</CardTitle>
-            <CardDescription>รายการกิจกรรมทั้งหมด ({totalCount} รายการ)</CardDescription>
+            <CardTitle className="text-white text-lg font-bold">Activity Logs</CardTitle>
+            <CardDescription className="text-slate-400">รายการกิจกรรมทั้งหมด ({totalCount} รายการ)</CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isRefreshing || isFetching}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isRefreshing || isFetching}
+            className="bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-900"
+          >
             <RefreshCw className={`h-4 w-4 mr-2 ${(isRefreshing || isFetching) ? "animate-spin" : ""}`} />
             Refresh
           </Button>
         </CardHeader>
-        <CardContent className="relative">
+        <CardContent className="p-0 relative">
           {(!data && isLoading) ? (
-            <div className="text-center py-8 text-muted-foreground">Loading audit logs...</div>
+            <div className="text-center py-12 text-slate-500 animate-pulse font-medium">Loading audit logs...</div>
           ) : auditLogs.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">No audit logs found</div>
+            <div className="text-center py-12 text-slate-500 font-medium">No audit logs found</div>
           ) : (
-            <div className={cn("space-y-3 transition-opacity duration-200", isFetching && "opacity-50")}>
+            <div className={cn("divide-y divide-slate-800/50 transition-opacity duration-200", isFetching && "opacity-50")}>
               {auditLogs.map((log) => (
                 <div
                   key={log.id}
-                  className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between p-4 hover:bg-slate-800/20 transition-colors"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-900 border border-slate-800">
                       {getActionIcon(log.action_name)}
                     </div>
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                      <Avatar className="h-8 w-8 border border-slate-800">
+                        <AvatarFallback className="text-xs bg-slate-800 text-slate-300">
                           {log.user_email
                             ? log.user_email.slice(0, 2).toUpperCase()
                             : "?"}
@@ -292,16 +300,16 @@ export default function AuditLogs() {
                       </Avatar>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">{log.action_name || "Unknown Action"}</span>
+                          <span className="font-semibold text-white text-sm">{log.action_name || "Unknown Action"}</span>
                           {getCategoryBadge(log.category)}
                           {log.user_role && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="rounded-full px-2 py-0 text-[10px] font-bold uppercase tracking-tight border-slate-700 text-slate-500">
                               {log.user_role}
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground">{log.description || "No description"}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                        <p className="text-sm text-slate-400 mt-0.5 line-clamp-1">{log.description || "No description"}</p>
+                        <p className="text-[11px] text-slate-500 font-medium">
                           {log.user_email || "Unknown user"}
                         </p>
                       </div>
@@ -309,8 +317,8 @@ export default function AuditLogs() {
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right hidden md:block">
-                      <p className="text-sm font-mono text-muted-foreground">{log.ip_address || "N/A"}</p>
-                      <p className="text-xs text-muted-foreground flex items-center justify-end gap-1">
+                      <p className="text-xs font-mono text-slate-500">{log.ip_address || "N/A"}</p>
+                      <p className="text-[10px] text-slate-400 font-medium flex items-center justify-end gap-1 mt-0.5">
                         <Clock className="h-3 w-3" />
                         {log.created_at
                           ? formatDistanceToNow(new Date(log.created_at), { addSuffix: true })
@@ -325,9 +333,9 @@ export default function AuditLogs() {
           )}
 
           {auditLogs.length > 0 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t">
-              <p className="text-sm text-muted-foreground">
-                Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, totalCount)} of {totalCount} logs
+            <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-t border-slate-800">
+              <p className="text-xs text-slate-500 font-medium tracking-tight">
+                Showing <span className="text-slate-300">{(page - 1) * pageSize + 1}</span> to <span className="text-slate-300">{Math.min(page * pageSize, totalCount)}</span> of <span className="text-slate-300">{totalCount}</span> logs
               </p>
               <div className="flex items-center gap-2">
                 <Button
@@ -336,12 +344,13 @@ export default function AuditLogs() {
                   size="sm"
                   onClick={() => handlePageChange(page - 1)}
                   disabled={page <= 1 || isLoading}
+                  className="h-8 bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
                 >
                   <ChevronLeft className="h-4 w-4 mr-1" />
-                  Previous
+                  Prev
                 </Button>
-                <div className="text-sm font-medium px-2">
-                  Page {page} of {totalPages}
+                <div className="text-xs font-semibold text-slate-400 px-2 min-w-[80px] text-center">
+                  Page <span className="text-slate-200">{page}</span> of <span className="text-slate-200">{totalPages}</span>
                 </div>
                 <Button
                   type="button"
@@ -349,6 +358,7 @@ export default function AuditLogs() {
                   size="sm"
                   onClick={() => handlePageChange(page + 1)}
                   disabled={page >= totalPages || isLoading}
+                  className="h-8 bg-slate-950 border-slate-800 text-slate-400 hover:text-white"
                 >
                   Next
                   <ChevronRight className="h-4 w-4 ml-1" />

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { Activity, Server, Database, Cpu, HardDrive, Wifi, AlertTriangle, CheckCircle2, XCircle, RefreshCw, Clock, TrendingUp, TrendingDown, Zap, Globe, AlertCircle, Search, Play, Filter, ShieldCheck } from "lucide-react";
+import { Activity, Server, Database, Cpu, HardDrive, Wifi, AlertTriangle, CheckCircle2, XCircle, RefreshCw, Clock, TrendingUp, TrendingDown, Zap, Globe, AlertCircle, Search, Play, Filter, ShieldCheck, LayoutGrid, List, ChevronLeft, ChevronRight } from "lucide-react";
 import { useServerHealth, useDataPipelines, useExternalAPIStatus, useErrorLogStats, usePerformanceMetrics } from "@/hooks/useAdminMonitor";
 import { formatDistanceToNow, subHours, startOfHour, format } from "date-fns";
 import { SparklineTrend } from "@/components/dev/SparklineTrend";
@@ -106,6 +106,54 @@ export default function MonitorDashboard() {
   const { data: perfMetrics, refetch: refetchPerf } = usePerformanceMetrics();
 
   const [selectedLevelFilter, setSelectedLevelFilter] = useState<string | null>(null);
+
+  // ── Service Health Dashboard State ──────────────────────────────────────────
+  const [apiSearch, setApiSearch] = useState('');
+  const [apiStatusFilter, setApiStatusFilter] = useState('All'); // All | Operational | Degraded | Down
+  const [apiCategoryFilter, setApiCategoryFilter] = useState('All'); // All | Social | Shopping | Cloud | Payment | Other
+  const [apiPage, setApiPage] = useState(1);
+  const API_PAGE_SIZE = 15;
+
+  const getSmartStatus = (code: number | null, latency: number | null) => {
+    if (!code || (code >= 400)) return { label: 'Down',        color: 'red',    badgeCls: 'bg-red-500/15 text-red-500 border-red-500/30' };
+    if (code >= 200 && code < 300 && latency && latency > 1000)
+      return { label: 'Degraded',    color: 'yellow', badgeCls: 'bg-yellow-500/15 text-yellow-500 border-yellow-500/30' };
+    return   { label: 'Operational', color: 'green',  badgeCls: 'bg-green-500/15 text-green-500 border-green-500/30' };
+  };
+
+  const getCategoryFromName = (name: string): string => {
+    const n = name.toLowerCase();
+    if (['facebook','instagram','linkedin','tiktok','line','twitter','x.com'].some(k => n.includes(k))) return 'Social';
+    if (['lazada','shopee','woocommerce','shopify'].some(k => n.includes(k))) return 'Shopping';
+    if (['google','aws','azure','gcp'].some(k => n.includes(k))) return 'Cloud';
+    if (['stripe','paypal','omise','2c2p'].some(k => n.includes(k))) return 'Payment';
+    return 'Other';
+  };
+
+  const apiCategories = ['All', ...Array.from(new Set((externalApis ?? []).map(a => getCategoryFromName(a.platform_name ?? ''))))];
+
+  const enrichedApis = (externalApis ?? []).map(api => {
+    const status   = getSmartStatus(api.last_status_code, api.latency_ms);
+    const category = getCategoryFromName(api.platform_name ?? '');
+    return { ...api, status, category };
+  });
+
+  const filteredApis = enrichedApis
+    .filter(a => a.platform_name?.toLowerCase().includes(apiSearch.toLowerCase()))
+    .filter(a => apiStatusFilter   === 'All' || a.status.label === apiStatusFilter)
+    .filter(a => apiCategoryFilter === 'All' || a.category     === apiCategoryFilter);
+
+  const totalApiPages = Math.ceil(filteredApis.length / API_PAGE_SIZE);
+  const pagedApis     = filteredApis.slice((apiPage - 1) * API_PAGE_SIZE, apiPage * API_PAGE_SIZE);
+
+  const STATUS_PILLS = ['All', 'Operational', 'Degraded', 'Down'] as const;
+  const STATUS_PILL_CLS: Record<string, string> = {
+    All:         'bg-blue-600   text-white', // Changed to blue to match Category All
+    Operational: 'bg-green-600/20 text-green-500',
+    Degraded:    'bg-yellow-600/20 text-yellow-500',
+    Down:        'bg-red-600/20    text-red-500',
+  };
+  // ─────────────────────────────────────────────────────────────────────────────
 
   const processedErrorStats = useMemo(() => {
     const defaultStats = { total: 0, critical: 0, errors: 0, warnings: 0, info: 0, chartData: [], topIssues: [], recentLogs: [] };
@@ -712,43 +760,132 @@ export default function MonitorDashboard() {
           </Card>
         </TabsContent>
 
-        {/* External APIs Tab */}
-        <TabsContent value="apis">
-          <Card className="bg-[#111827] border-slate-800 shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-white">External Service Health</CardTitle>
-              <CardDescription className="text-slate-400">Monitoring connectivity and latency for critical external platforms</CardDescription>
+        {/* ── External APIs Tab ─────────────────────────────────────────────────── */}
+        <TabsContent value="apis" className="space-y-3">
+          <Card className="bg-[#111827]/80 border-slate-800 shadow-xl overflow-hidden">
+
+            {/* Header */}
+            <CardHeader className="border-b border-slate-800 py-4 px-5">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base font-bold text-white flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-blue-400" />
+                    External Service Health
+                  </CardTitle>
+                </div>
+
+                {/* Control bar */}
+                <div className="flex flex-wrap items-center gap-4">
+                  {/* Search */}
+                  <div className="relative flex-1 min-w-[200px] max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                    <Input placeholder="Search platform..." value={apiSearch}
+                      onChange={e => { setApiSearch(e.target.value); setApiPage(1); }}
+                      className="pl-9 h-9 text-sm bg-black/40 border-slate-800 text-white placeholder-slate-600 focus-visible:ring-1 focus-visible:ring-slate-700 rounded-lg" />
+                  </div>
+
+                  {/* Status pills */}
+                  <div className="flex items-center gap-1 bg-black/20 p-1 rounded-full border border-slate-800">
+                    <span className="text-[10px] text-slate-500 uppercase tracking-widest pl-2 pr-1 font-medium">Status</span>
+                    {STATUS_PILLS.map(s => (
+                      <button key={s} onClick={() => { setApiStatusFilter(s); setApiPage(1); }}
+                        className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
+                          apiStatusFilter === s ? STATUS_PILL_CLS[s] : 'text-slate-400 hover:text-slate-200'
+                        }`}>{s}</button>
+                    ))}
+                  </div>
+
+                  {/* Category pills */}
+                  <div className="flex items-center gap-1 bg-black/20 p-1 rounded-full border border-slate-800">
+                    <span className="text-[10px] text-slate-500 uppercase tracking-widest pl-2 pr-1 font-medium">Category</span>
+                    {apiCategories.map(c => (
+                      <button key={c} onClick={() => { setApiCategoryFilter(c); setApiPage(1); }}
+                        className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all ${
+                          apiCategoryFilter === c ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                        }`}>{c}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
+
+            {/* Body */}
+            <CardContent className="p-0">
               {apisLoading ? (
-                <div className="text-center py-12 text-slate-500 font-medium">Probing external endpoints...</div>
-              ) : externalApis?.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 font-medium">No external service integrations found</div>
+                <div className="py-16 text-center text-slate-500 text-sm">Probing endpoints…</div>
+              ) : filteredApis.length === 0 ? (
+                <div className="py-16 text-center text-slate-500 text-sm">No services match the current filters</div>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {externalApis?.map((api) => {
-                    const isHealthy = api.last_status_code && api.last_status_code >= 200 && api.last_status_code < 300;
-                    return (
-                      <div key={api.id} className="p-4 rounded-lg border border-slate-800 bg-[#1F2937]/30 hover:bg-[#1F2937]/50 transition-all shadow-sm">
-                        <div className="flex items-center justify-between mb-4">
-                          <span className="font-bold text-slate-200 tracking-tight">{api.platform_name}</span>
-                          <Badge className={isHealthy ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-red-500/10 text-red-400 border-red-500/20"}>
-                            {isHealthy ? "OPERATIONAL" : "DEGRADED"}
-                          </Badge>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 text-xs font-bold uppercase tracking-widest">
-                          <div>
-                            <p className="text-slate-500 mb-1">Status Code</p>
-                            <p className="font-mono text-slate-200 text-sm">{api.last_status_code || "---"}</p>
-                          </div>
-                          <div>
-                            <p className="text-slate-500 mb-1">Latency</p>
-                            <p className="font-mono text-slate-200 text-sm">{api.latency_ms ? `${api.latency_ms}ms` : "N/A"}</p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+
+                /* ─ List/Table View ─ */
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead>
+                      <tr className="border-b border-slate-800 bg-[#0D1117]/50">
+                        <th className="px-5 py-4 font-semibold text-slate-400 tracking-wider">#</th>
+                        <th className="px-5 py-4 font-semibold text-slate-400 uppercase tracking-wider">Platform</th>
+                        <th className="px-5 py-4 font-semibold text-slate-400 uppercase tracking-wider">Category</th>
+                        <th className="px-5 py-4 font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+                        <th className="px-5 py-4 font-semibold text-slate-400 uppercase tracking-wider text-center">HTTP</th>
+                        <th className="px-5 py-4 font-semibold text-slate-400 uppercase tracking-wider text-center">Latency</th>
+                        <th className="px-5 py-4 font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap text-right">Last Check</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {pagedApis.map((api, idx) => (
+                        <tr key={api.id}
+                          className={`hover:bg-[#1F2937]/30 transition-colors ${ idx % 2 === 0 ? 'bg-transparent' : 'bg-[#0D1117]/20' }`}>
+                          <td className="px-5 py-4 text-slate-500 tabular-nums">{(apiPage - 1) * API_PAGE_SIZE + idx + 1}</td>
+                          <td className="px-5 py-4 font-semibold text-slate-200 whitespace-nowrap">{api.platform_name}</td>
+                          <td className="px-5 py-4">
+                            <span className="bg-slate-800/80 text-slate-400 text-[10px] px-2 py-1 rounded-sm uppercase tracking-wide font-medium">{api.category}</span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <Badge className={`text-[10px] font-bold px-2 py-0.5 shadow-none ${api.status.badgeCls}`}>
+                              {api.status.label.toUpperCase()}
+                            </Badge>
+                          </td>
+                          <td className={`px-5 py-4 font-mono text-center font-bold ${
+                            api.last_status_code && api.last_status_code < 300 ? 'text-green-500' :
+                            api.last_status_code && api.last_status_code < 500 ? 'text-yellow-500' : 'text-red-500'
+                          }`}>{api.last_status_code ?? '---'}</td>
+                          <td className={`px-5 py-4 font-mono text-center font-bold ${
+                            !api.latency_ms ? 'text-slate-500' :
+                            api.latency_ms < 500 ? 'text-green-500' :
+                            api.latency_ms < 1000 ? 'text-yellow-500' : 'text-red-500'
+                          }`}>{api.latency_ms ? `${api.latency_ms}ms` : '---'}</td>
+                          <td className="px-5 py-4 font-mono text-slate-500 text-right whitespace-nowrap">
+                            {format(new Date(), 'HH:mm:ss')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* ─ Pagination ─ */}
+              {totalApiPages > 1 && (
+                <div className="flex items-center justify-between p-5 border-t border-slate-800 bg-[#0D1117]/30">
+                  <span className="text-sm text-slate-500">
+                    Showing {(apiPage - 1) * API_PAGE_SIZE + 1}–{Math.min(apiPage * API_PAGE_SIZE, filteredApis.length)} of {filteredApis.length}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => setApiPage(p => Math.max(1, p - 1))} disabled={apiPage === 1}
+                      className="p-1.5 rounded-md border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    {Array.from({ length: totalApiPages }, (_, i) => i + 1).map(p => (
+                      <button key={p} onClick={() => setApiPage(p)}
+                        className={`w-8 h-8 rounded-md text-sm font-medium transition-colors ${
+                          p === apiPage ? 'bg-blue-600 text-white border border-blue-600' : 'border border-transparent text-slate-400 hover:bg-slate-800 hover:text-white'
+                        }`}>{p}</button>
+                    ))}
+                    <button onClick={() => setApiPage(p => Math.min(totalApiPages, p + 1))} disabled={apiPage === totalApiPages}
+                      className="p-1.5 rounded-md border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               )}
             </CardContent>
