@@ -163,7 +163,7 @@ export default function TierManagement() {
   const { data: loyaltyTierHistoryAll = [], isLoading: loyaltyHistoryLoading, isError: loyaltyHistoryError } = useLoyaltyTierHistoryAll(loyaltyHistoryPage);
   const { data: pointsTransactions = [], isLoading: txLoading, isError: txError, error: txErrorDetail } = usePointsTransactions(transactionsPage);
   const { data: suspiciousActivities = [], isLoading: alertsLoading, unresolvedCount, resolveActivity, suspendCustomer } = useSuspiciousActivities(activitiesPage);
-  const { query: searchQuery, setQuery: setSearchQuery, data: searchResults = [], isFetching: searchLoading } = useCustomerSearch();
+  const { query: searchQuery, setQuery: setSearchQuery, data: searchResults = [], isFetching: searchLoading, isError: searchError, error: searchErrorDetail } = useCustomerSearch();
   const manualOverride = useManualTierOverride();
   const { data: allCustomers = [], isLoading: allCustomersLoading } = useAllCustomers();
   const { data: tierRules = [], isLoading: tierRulesLoading } = useLoyaltyTiers();
@@ -432,7 +432,11 @@ export default function TierManagement() {
 
           {searchQuery.length >= 2 && (
             <div className="px-6 py-4 border-b border-slate-100">
-              {searchResults.length === 0 && !searchLoading ? (
+              {searchError ? (
+                <p className="text-sm text-destructive text-center py-4">
+                  Search failed: {(searchErrorDetail as Error)?.message ?? "Please try again"}
+                </p>
+              ) : searchResults.length === 0 && !searchLoading ? (
                 <p className="text-sm text-muted-foreground text-center py-4">No matching customers found</p>
               ) : (
                 <div className="space-y-2">
@@ -706,7 +710,12 @@ export default function TierManagement() {
                           </Badge>
                         </TableCell>
                         <TableCell className={cn("text-right font-medium py-4", getTransactionTypeColor(tx.transaction_type))}>
-                          {(tx.points_amount ?? 0) > 0 ? "+" : ""}{(tx.points_amount ?? 0).toLocaleString()}
+                          {(() => {
+                            const amt = tx.points_amount ?? 0;
+                            const isDebit = tx.transaction_type === "spend" || tx.transaction_type === "adjustment" || tx.transaction_type === "expire";
+                            const displayAmt = isDebit ? -Math.abs(amt) : Math.abs(amt);
+                            return (displayAmt >= 0 ? "+" : "") + displayAmt.toLocaleString();
+                          })()}
                         </TableCell>
                         <TableCell className="text-right font-semibold py-4">{(tx.balance_after ?? 0).toLocaleString()}</TableCell>
                         <TableCell className="max-w-[200px] truncate py-4 text-slate-600">{tx.description ?? "—"}</TableCell>

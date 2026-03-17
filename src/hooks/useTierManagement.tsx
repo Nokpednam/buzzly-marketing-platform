@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { auditTier } from "@/lib/auditLogger";
@@ -333,17 +333,25 @@ export function useSuspiciousActivities(page = 0) {
 
 // ─── Customer Search ──────────────────────────────────────────────────────────
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 export function useCustomerSearch() {
     const [query, setQuery] = useState("");
+    const [debouncedQuery, setDebouncedQuery] = useState("");
+
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS);
+        return () => clearTimeout(t);
+    }, [query]);
 
     const searchResult = useQuery({
-        queryKey: ["customer-search", query],
+        queryKey: ["customer-search", debouncedQuery],
         queryFn: async () => {
-            if (!query || query.trim().length < 2) return [];
+            if (!debouncedQuery || debouncedQuery.trim().length < 2) return [];
 
             // Use RPC for reliable search: name, email, user_id — avoids RLS/filter issues
             const { data, error } = await (supabase as any).rpc("search_customers_for_support", {
-                p_query: query.trim(),
+                p_query: debouncedQuery.trim(),
             });
 
             if (error) {
@@ -372,7 +380,7 @@ export function useCustomerSearch() {
 
             return results;
         },
-        enabled: query.trim().length >= 2,
+        enabled: debouncedQuery.trim().length >= 2,
     });
 
     return { query, setQuery, ...searchResult };
