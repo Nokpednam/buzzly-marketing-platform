@@ -113,32 +113,26 @@ export function DevSidebar() {
                                             <TooltipTrigger asChild>
                                         <NavLink
                                             to={item.href}
-                                            className="group/link flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 w-full outline-none active:scale-[0.98]"
+                                            className="group/link flex items-center justify-start gap-3 px-4 py-3 rounded-xl transition-all duration-200 w-full outline-none active:scale-[0.98]"
                                             style={() => isActive ? {
                                                 background: "linear-gradient(135deg, #0ea5e9, #2563eb)",
                                                 boxShadow: "0 4px 20px rgba(37,99,235,0.25)",
                                                 color: "white",
                                             } : { color: "#94a3b8" }}
                                         >
-                                            <div className="flex items-center gap-3 min-w-0">
-                                                <div className={cn(
-                                                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-all duration-200",
-                                                    isActive ? "bg-white/20" : "bg-slate-900 group-hover/link:bg-slate-800"
-                                                )}>
-                                                    <item.icon className={cn(
-                                                        "h-4 w-4 transition-colors",
-                                                        isActive ? "text-white" : "text-slate-400 group-hover/link:text-slate-200"
-                                                    )} />
-                                                </div>
-                                                <span className={cn(
-                                                    "font-semibold tracking-tight text-sm truncate",
+                                            <div className={cn(
+                                                "flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-all duration-200",
+                                                isActive ? "bg-white/20" : "bg-slate-900 group-hover/link:bg-slate-800"
+                                            )}>
+                                                <item.icon className={cn(
+                                                    "h-4 w-4 transition-colors",
                                                     isActive ? "text-white" : "text-slate-400 group-hover/link:text-slate-200"
-                                                )}>{item.title}</span>
+                                                )} />
                                             </div>
-                                            <ChevronRight className={cn(
-                                                "h-4 w-4 shrink-0 transition-all duration-200",
-                                                isActive ? "text-white opacity-80 translate-x-0.5" : "text-slate-700 group-hover/link:text-slate-500 group-hover/link:translate-x-0.5"
-                                            )} />
+                                            <span className={cn(
+                                                "font-semibold tracking-tight text-sm",
+                                                isActive ? "text-white" : "text-slate-400 group-hover/link:text-slate-200"
+                                            )}>{item.title}</span>
                                         </NavLink>
                                             </TooltipTrigger>
                                             <TooltipContent side="right" sideOffset={8} className="bg-slate-900 border-slate-700">
