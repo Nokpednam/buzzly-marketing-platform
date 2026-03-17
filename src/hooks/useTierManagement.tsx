@@ -495,9 +495,10 @@ export function useManualTierOverride() {
         onSuccess: () => {
             // ⚡ REAL-TIME CACHE INVALIDATION
             queryClient.invalidateQueries({ queryKey: ["customer-search"] });
-            queryClient.invalidateQueries({ queryKey: ["all_customers"] });
+            queryClient.invalidateQueries({ queryKey: ["all-customers-dropdown"] });
             queryClient.invalidateQueries({ queryKey: ["tier-history"] });
             queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history"] });
+            queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-all"] });
             queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-manual"] });
             queryClient.invalidateQueries({ queryKey: ["points-transactions"] });
             toast.success("Tier updated successfully");
