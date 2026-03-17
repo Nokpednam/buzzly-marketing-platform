@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -80,6 +80,7 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const realtimeChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   const fetchAllTiers = useCallback(async () => {
     try {
@@ -112,6 +113,7 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
         supabase
           .from("profile_customers")
           .select(`
+            id,
             created_at,
             loyalty_points (
               point_balance,
@@ -208,7 +210,7 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Initial load + re-fetch on auth change + global event listener
+  // Initial load + re-fetch on auth change + global event listener + realtime
   useEffect(() => {
     fetchAllTiers();
     fetchLoyaltyAndMissions();
@@ -218,15 +220,51 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
     });
 
     const handleGlobalRefetch = () => {
-      console.log("[LoyaltyProvider] Global refetch event received");
       fetchLoyaltyAndMissions();
     };
 
     window.addEventListener('loyalty-refetch', handleGlobalRefetch);
 
+    // Subscribe to loyalty_points changes so customer sees tier updates from Support immediately
+    const setupRealtime = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profile_customers")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!profile?.id) return;
+
+      realtimeChannelRef.current = supabase
+        .channel("loyalty-points-changes")
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "loyalty_points",
+            filter: `profile_customer_id=eq.${profile.id}`,
+          },
+          () => {
+            handleGlobalRefetch();
+          }
+        )
+        .subscribe();
+    };
+
+    setupRealtime();
+
     return () => {
       subscription.unsubscribe();
       window.removeEventListener('loyalty-refetch', handleGlobalRefetch);
+      const ch = realtimeChannelRef.current;
+      if (ch) {
+        supabase.removeChannel(ch);
+        realtimeChannelRef.current = null;
+      }
     };
   }, [fetchAllTiers, fetchLoyaltyAndMissions]);
 
