@@ -72,7 +72,7 @@ describe('OwnerSidebar', () => {
     it('renders navigation items correctly', async () => {
         render(
             <BrowserRouter>
-                <OwnerSidebar />
+                <OwnerSidebar collapsed={false} onToggle={() => {}} />
             </BrowserRouter>
         );
 
@@ -104,7 +104,7 @@ describe('OwnerSidebar', () => {
 
         render(
             <BrowserRouter>
-                <OwnerSidebar />
+                <OwnerSidebar collapsed={false} onToggle={() => {}} />
             </BrowserRouter>
         );
 
