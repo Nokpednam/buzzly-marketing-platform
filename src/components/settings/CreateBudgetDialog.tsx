@@ -86,7 +86,7 @@ export function CreateBudgetDialog({ open, onOpenChange }: CreateBudgetDialogPro
         <DialogHeader className="p-8 pb-0">
           <DialogTitle className="text-2xl font-black uppercase tracking-tight">Create New Budget</DialogTitle>
           <DialogDescription className="text-muted-foreground font-medium">
-            ตั้งค่างบประมาณสำหรับการตลาดเพื่อติดตามการใช้จ่ายแบบ Real-time
+            Set up marketing budgets to track spending in real time
           </DialogDescription>
         </DialogHeader>
         
@@ -96,7 +96,7 @@ export function CreateBudgetDialog({ open, onOpenChange }: CreateBudgetDialogPro
               <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Budget Name *</Label>
               <Input
                 id="name"
-                placeholder="เช่น งบการตลาดไตรมาสที่ 1"
+                placeholder="e.g. Q1 Marketing Budget"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="h-12 rounded-2xl bg-muted/30 border-none ring-1 ring-border shadow-none focus-visible:ring-primary focus-visible:ring-2 transition-all"
@@ -111,10 +111,10 @@ export function CreateBudgetDialog({ open, onOpenChange }: CreateBudgetDialogPro
                 onValueChange={(v) => setFormData({ ...formData, campaign_id: v })}
               >
                 <SelectTrigger className="h-12 rounded-2xl bg-muted/30 border-none ring-1 ring-border shadow-none">
-                  <SelectValue placeholder="เลือกแคมเปญที่เกี่ยวข้อง" />
+                  <SelectValue placeholder="Select related campaign" />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-none shadow-2xl p-2 max-h-[200px]">
-                  <SelectItem value="none" className="rounded-xl font-bold text-muted-foreground">None (ไม่ระบุ)</SelectItem>
+                  <SelectItem value="none" className="rounded-xl font-bold text-muted-foreground">None</SelectItem>
                   {campaigns.map((campaign) => (
                     <SelectItem key={campaign.id} value={campaign.id} className="rounded-xl">
                       {campaign.name}
@@ -132,7 +132,7 @@ export function CreateBudgetDialog({ open, onOpenChange }: CreateBudgetDialogPro
                   onValueChange={(v) => setFormData({ ...formData, budget_type: v as "daily" | "monthly" | "lifetime" })}
                 >
                   <SelectTrigger className="h-12 rounded-2xl bg-muted/30 border-none ring-1 ring-border shadow-none">
-                    <SelectValue placeholder="เลือกประเภท" />
+                    <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent className="rounded-2xl border-none shadow-2xl p-2">
                     <SelectItem value="daily" className="rounded-xl">Daily</SelectItem>
@@ -167,7 +167,7 @@ export function CreateBudgetDialog({ open, onOpenChange }: CreateBudgetDialogPro
                 onValueChange={(v) => setFormData({ ...formData, currency_id: v })}
               >
                 <SelectTrigger className="h-12 rounded-2xl bg-muted/30 border-none ring-1 ring-border shadow-none">
-                  <SelectValue placeholder="เลือกสกุลเงิน" />
+                  <SelectValue placeholder="Select currency" />
                 </SelectTrigger>
                 <SelectContent className="rounded-2xl border-none shadow-2xl p-2">
                   <SelectItem value="THB" className="rounded-xl">THB (฿)</SelectItem>
@@ -215,7 +215,7 @@ export function CreateBudgetDialog({ open, onOpenChange }: CreateBudgetDialogPro
                 className="py-2"
               />
               <p className="text-[9px] text-muted-foreground leading-relaxed italic">
-                * ระบบจะทำการแจ้งเตือนผู้ดูแลความปลอดภัยเมื่อการใช้จ่ายถึงระดับที่คุณกำหนดไว้
+                * You will be notified when spending reaches the threshold you set
               </p>
             </div>
           </div>

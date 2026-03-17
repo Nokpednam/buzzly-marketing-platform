@@ -367,7 +367,7 @@ export function useSubscription() {
           due_date: now.toISOString(),
           paid_at: now.toISOString(),
           line_items: [{
-            description: `${newPlan.name} Plan - ${billingCycle === "yearly" ? "รายปี" : "รายเดือน"}`,
+            description: `${newPlan.name} Plan - ${billingCycle === "yearly" ? "Annually" : "Monthly"}`,
             quantity: 1,
             unit_price: chargeAmount + appliedDiscountAmount,
             total: chargeAmount + appliedDiscountAmount,

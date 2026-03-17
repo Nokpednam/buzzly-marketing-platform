@@ -14,6 +14,67 @@ export interface DashboardMetrics {
   trendData: { date: string; impressions: number; clicks: number; spend: number }[];
 }
 
+function parseDateRange(dateRange: string): { start: string; end: string } {
+  const now = new Date();
+  const toYMD = (d: Date) => d.toISOString().split("T")[0]!;
+
+  if (dateRange.startsWith("week:")) {
+    const m = dateRange.match(/^week:(\d{4}-\d{2}-\d{2})$/);
+    if (m) {
+      const start = new Date(m[1]!);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      return { start: toYMD(start), end: toYMD(end) };
+    }
+  }
+  if (dateRange.startsWith("month:")) {
+    const m = dateRange.match(/^month:(\d{4}-\d{2})$/);
+    if (m) {
+      const [y, mo] = m[1]!.split("-").map(Number);
+      const start = new Date(y!, mo! - 1, 1);
+      const end = new Date(y!, mo!, 0);
+      return { start: toYMD(start), end: toYMD(end) };
+    }
+  }
+  if (dateRange.startsWith("year:")) {
+    const m = dateRange.match(/^year:(\d{4})$/);
+    if (m) {
+      const y = parseInt(m[1]!, 10);
+      return { start: `${y}-01-01`, end: `${y}-12-31` };
+    }
+  }
+  if (dateRange.startsWith("custom:")) {
+    const parts = dateRange.split(":");
+    if (parts.length === 3 && parts[1] && parts[2]) {
+      const start = parts[1];
+      const end = parts[2];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(start) && /^\d{4}-\d{2}-\d{2}$/.test(end)) {
+        return { start, end };
+      }
+    }
+  }
+
+  let startDate = new Date(now);
+  switch (dateRange) {
+    case "today":
+      startDate = new Date(now);
+      startDate.setHours(0, 0, 0, 0);
+      return { start: toYMD(startDate), end: toYMD(now) };
+    case "7d":
+      startDate.setDate(startDate.getDate() - 7);
+      return { start: toYMD(startDate), end: toYMD(now) };
+    case "30d":
+      startDate.setDate(startDate.getDate() - 30);
+      return { start: toYMD(startDate), end: toYMD(now) };
+    case "90d":
+      startDate.setDate(startDate.getDate() - 90);
+      return { start: toYMD(startDate), end: toYMD(now) };
+    default:
+      startDate.setDate(startDate.getDate() - 30);
+      return { start: toYMD(startDate), end: toYMD(now) };
+  }
+}
+
 export function useDashboardMetrics(dateRange: string = "7d", platformId: string = "all") {
   const { workspace } = useWorkspace();
   const workspaceId = workspace?.id;
@@ -22,24 +83,7 @@ export function useDashboardMetrics(dateRange: string = "7d", platformId: string
     queryKey: ["dashboard-metrics", dateRange, platformId, workspaceId],
     enabled: !!workspaceId,
     queryFn: async (): Promise<DashboardMetrics> => {
-      // Calculate date range
-      const now = new Date();
-      let startDate = new Date();
-
-      switch (dateRange) {
-        case "today":
-          startDate = new Date(now.setHours(0, 0, 0, 0));
-          break;
-        case "7d":
-          startDate.setDate(startDate.getDate() - 7);
-          break;
-        case "30d":
-          startDate.setDate(startDate.getDate() - 30);
-          break;
-        case "90d":
-          startDate.setDate(startDate.getDate() - 90);
-          break;
-      }
+      const { start, end } = parseDateRange(dateRange);
 
       const { data: adAccounts, error: adAccountsError } = await supabase
         .from("ad_accounts")
@@ -57,7 +101,8 @@ export function useDashboardMetrics(dateRange: string = "7d", platformId: string
           ad_accounts!inner(platform_id, team_id)
         `)
         .eq("ad_accounts.team_id", workspaceId!)
-        .gte("date", startDate.toISOString().split("T")[0])
+        .gte("date", start)
+        .lte("date", end)
         .order("date", { ascending: true });
 
       if (platformId !== "all") {
@@ -97,18 +142,22 @@ export function useDashboardMetrics(dateRange: string = "7d", platformId: string
 
       const trendData = Object.entries(trendMap).map(([date, data]) => ({
         date,
-        ...data,
+        impressions: Number.isFinite(data.impressions) ? data.impressions : 0,
+        clicks: Number.isFinite(data.clicks) ? data.clicks : 0,
+        spend: Number.isFinite(data.spend) ? data.spend : 0,
       }));
 
+      const safe = (n: number) => (Number.isFinite(n) ? n : 0);
+
       return {
-        totalImpressions,
-        totalClicks,
-        totalSpend,
-        totalConversions,
-        avgCtr,
-        avgCpc,
-        avgCpm,
-        avgRoas,
+        totalImpressions: safe(totalImpressions),
+        totalClicks: safe(totalClicks),
+        totalSpend: safe(totalSpend),
+        totalConversions: safe(totalConversions),
+        avgCtr: safe(avgCtr),
+        avgCpc: safe(avgCpc),
+        avgCpm: safe(avgCpm),
+        avgRoas: safe(avgRoas),
         trendData,
       };
     },

@@ -324,7 +324,7 @@ export default function Prospects() {
                     ? "Select an ad above to view its audience breakdown."
                     : adAudienceMode === "campaign" && !selectedCampaignId
                       ? "Select a campaign above to view its audience breakdown."
-                      : "Connect a platform via Settings → Platform Connections to import ad audience data."}
+                      : "Connect a platform via API Keys to import ad audience data."}
                 </p>
               </CardContent>
             </Card>

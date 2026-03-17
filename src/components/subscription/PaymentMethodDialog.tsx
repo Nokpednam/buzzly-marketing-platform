@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { logError } from "@/services/errorLogger";
 import { supabase } from "@/integrations/supabase/client";
 import {
   CreditCard,
@@ -41,8 +42,12 @@ interface PaymentMethodDialogProps {
 
 const paymentIcons: Record<string, React.ReactNode> = {
   credit_card: <CreditCard className="h-5 w-5" />,
+  credit: <CreditCard className="h-5 w-5" />,
+  card: <CreditCard className="h-5 w-5" />,
   promptpay: <QrCode className="h-5 w-5" />,
+  qr: <QrCode className="h-5 w-5" />,
   bank_transfer: <Building2 className="h-5 w-5" />,
+  bank: <Building2 className="h-5 w-5" />,
   mobile_banking: <Smartphone className="h-5 w-5" />,
 };
 
@@ -66,6 +71,13 @@ export function PaymentMethodDialog({
     amount?: number;
     maxAmount?: number | null;
   } | null>(null);
+
+  // Auto-select first payment method when only one is available
+  useEffect(() => {
+    if (open && paymentMethods.length === 1 && !selectedMethodId) {
+      setSelectedMethodId(paymentMethods[0].id);
+    }
+  }, [open, paymentMethods, selectedMethodId]);
 
   if (!selectedPlan) return null;
 
@@ -98,10 +110,9 @@ export function PaymentMethodDialog({
       // Use RPC function (SECURITY DEFINER) to bypass RLS on discounts table.
       // This ensures customers who collected a coupon can validate it even
       // though they are not workspace members.
-      const { data, error } = await (supabase as any).rpc(
-        "validate_collected_discount",
-        { p_code: discountCode.trim() }
-      );
+      const { data, error } = await supabase.rpc("validate_collected_discount", {
+        p_code: discountCode.trim(),
+      });
 
       if (error) throw error;
 
@@ -118,34 +129,34 @@ export function PaymentMethodDialog({
       if (result.error) {
         const errorMessages: Record<string, { title: string; description: string }> = {
           not_authenticated: {
-            title: "กรุณาเข้าสู่ระบบ",
-            description: "โปรดเข้าสู่ระบบก่อนใช้โค้ดส่วนลด",
+            title: "Please sign in",
+            description: "Please sign in before using the discount code",
           },
           invalid_code: {
-            title: "โค้ดส่วนลดไม่ถูกต้อง",
-            description: "กรุณาตรวจสอบและลองใหม่อีกครั้ง",
+            title: "Invalid discount code",
+            description: "Please check and try again",
           },
           not_collected: {
-            title: "คุณยังไม่ได้เก็บโค้ดนี้",
-            description: "ไปเก็บโค้ดได้จากหน้าการแจ้งเตือนก่อนนำมาใช้",
+            title: "You haven't collected this code",
+            description: "Collect the code from the notifications page first",
           },
           already_used: {
-            title: "โค้ดส่วนลดนี้ถูกใช้แล้ว",
-            description: "โค้ดนี้ถูกใช้ไปแล้วในการชำระเงินครั้งก่อน",
+            title: "This discount code has been used",
+            description: "This code was already used in a previous payment",
           },
           expired: {
-            title: "โค้ดส่วนลดหมดอายุแล้ว",
-            description: "โปรดลองใช้โค้ดอื่น",
+            title: "Discount code has expired",
+            description: "Please try another code",
           },
           exhausted: {
-            title: "โค้ดส่วนลดถูกใช้ครบตามจำนวนแล้ว",
-            description: "โปรดลองใช้โค้ดอื่น",
+            title: "Discount code usage limit reached",
+            description: "Please try another code",
           },
         };
 
         const msg = errorMessages[result.error] ?? {
-          title: "เกิดข้อผิดพลาด",
-          description: "ไม่สามารถตรวจสอบโค้ดส่วนลดได้",
+          title: "Error",
+          description: "Unable to validate discount code",
         };
         toast({ ...msg, variant: "destructive" });
         return;
@@ -154,8 +165,8 @@ export function PaymentMethodDialog({
       // Validate min order value on the frontend
       if (result.min_order_value && basePrice < result.min_order_value) {
         toast({
-          title: "ยอดสั่งซื้อไม่ถึงเกณฑ์",
-          description: `ต้องมียอดสั่งซื้อขั้นต่ำ ฿${result.min_order_value} ขึ้นไป`,
+          title: "Minimum order not met",
+          description: `Minimum order value is ฿${result.min_order_value}`,
           variant: "destructive",
         });
         return;
@@ -171,10 +182,10 @@ export function PaymentMethodDialog({
         setAppliedDiscount({ code: result.code!, amount: result.discount_value });
       }
     } catch (err) {
-      console.error("Discount error:", err);
+      logError("PaymentMethodDialog.handleApplyDiscount", err, { discountCode: discountCode.trim() });
       toast({
-        title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถตรวจสอบโค้ดส่วนลดได้ในขณะนี้",
+        title: "Error",
+        description: "Unable to validate discount code at this time",
         variant: "destructive",
       });
     } finally {
@@ -185,8 +196,8 @@ export function PaymentMethodDialog({
   const handleConfirm = async () => {
     if (!selectedMethodId) {
       toast({
-        title: "กรุณาเลือกวิธีชำระเงิน",
-        description: "โปรดเลือกวิธีการชำระเงินก่อนดำเนินการต่อ",
+        title: "Please select a payment method",
+        description: "Please choose a payment method to continue",
         variant: "destructive",
       });
       return;
@@ -206,40 +217,41 @@ export function PaymentMethodDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
+        <DialogHeader className="space-y-1">
+          <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-9 w-9 shrink-0 rounded-full"
               onClick={onBack}
+              aria-label="Back to plan selection"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <div>
-              <DialogTitle>เลือกวิธีชำระเงิน</DialogTitle>
-              <DialogDescription>
-                {selectedPlan.name} Plan - {billingCycle === "yearly" ? "รายปี" : "รายเดือน"}
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="text-lg">Select payment method</DialogTitle>
+              <DialogDescription className="text-sm">
+                {selectedPlan.name} Plan · {billingCycle === "yearly" ? "Annually" : "Monthly"}
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
         {/* Order Summary */}
-        <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+        <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
           <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">แผน</span>
+            <span className="text-sm text-muted-foreground">Plan</span>
             <span className="font-medium">{selectedPlan.name}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">รอบการชำระ</span>
+            <span className="text-sm text-muted-foreground">Billing cycle</span>
             <span className="font-medium">
-              {billingCycle === "yearly" ? "รายปี" : "รายเดือน"}
+              {billingCycle === "yearly" ? "Annually" : "Monthly"}
             </span>
           </div>
           <Separator />
           <div className="flex justify-between items-center">
-            <span className="text-sm text-muted-foreground">ราคาปกติ</span>
+            <span className="text-sm text-muted-foreground">Regular price</span>
             <span className={cn(appliedDiscount && "line-through text-muted-foreground")}>
               {formatPrice(basePrice)}
             </span>
@@ -249,7 +261,7 @@ export function PaymentMethodDialog({
             <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
               <span className="text-sm flex items-center gap-1">
                 <Tag className="h-3 w-3" />
-                ประหยัดจากรายปี
+                Annual savings
               </span>
               <span className="font-medium">-{formatPrice(monthlySavings)}</span>
             </div>
@@ -259,16 +271,16 @@ export function PaymentMethodDialog({
             <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400">
               <span className="text-sm flex items-center gap-1">
                 <Tag className="h-3 w-3" />
-                โค้ดส่วนลด ({appliedDiscount.code})
+                Discount code ({appliedDiscount.code})
               </span>
               <span className="font-medium">-{formatPrice(discountAmount)}</span>
             </div>
           )}
 
           <Separator />
-          <div className="flex justify-between items-center">
-            <span className="font-semibold">ยอดรวมทั้งหมด</span>
-            <span className="text-xl font-bold text-primary">
+          <div className="flex justify-between items-center pt-1">
+            <span className="font-semibold text-base">Total</span>
+            <span className="text-xl font-bold text-primary tabular-nums">
               {formatPrice(finalPrice)}
             </span>
           </div>
@@ -276,13 +288,13 @@ export function PaymentMethodDialog({
 
         {/* Discount Code */}
         <div className="space-y-2">
-          <Label htmlFor="discount" className="text-sm">
-            โค้ดส่วนลด (ถ้ามี)
+          <Label htmlFor="discount" className="text-sm font-medium">
+            Promo code
           </Label>
           <div className="flex gap-2">
             <Input
               id="discount"
-              placeholder="กรอกโค้ดส่วนลด"
+              placeholder="Enter code"
               value={discountCode}
               onChange={(e) => setDiscountCode(e.target.value)}
               disabled={!!appliedDiscount || isApplyingDiscount}
@@ -290,77 +302,85 @@ export function PaymentMethodDialog({
             />
             <Button
               variant="outline"
+              size="default"
               onClick={handleApplyDiscount}
               disabled={!discountCode.trim() || !!appliedDiscount || isApplyingDiscount}
             >
               {isApplyingDiscount ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : appliedDiscount ? (
-                <Check className="h-4 w-4 text-emerald-500" />
+                <>
+                  <Check className="h-4 w-4 text-emerald-500 mr-1" />
+                  Applied
+                </>
               ) : (
-                "ใช้โค้ด"
+                "Apply"
               )}
             </Button>
           </div>
           {appliedDiscount && (
-            <p className="text-xs text-emerald-600 dark:text-emerald-400">
-              ✓ ใช้โค้ด {appliedDiscount.code}ลดสำเร็จ
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+              <Check className="h-3 w-3" />
+              {appliedDiscount.code} applied
             </p>
           )}
         </div>
 
         {/* Payment Methods */}
         <div className="space-y-3">
-          <Label className="text-sm font-medium">เลือกวิธีชำระเงิน</Label>
+          <Label className="text-sm font-medium">Payment method</Label>
           <RadioGroup value={selectedMethodId} onValueChange={setSelectedMethodId}>
-            {paymentMethods.map((method) => (
-              <div
-                key={method.id}
-                className={cn(
-                  "flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all",
-                  selectedMethodId === method.id
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-muted-foreground/50"
-                )}
-                onClick={() => setSelectedMethodId(method.id)}
-              >
-                <RadioGroupItem value={method.id} id={method.id} />
+            <div className="space-y-2">
+              {paymentMethods.map((method) => (
                 <div
+                  key={method.id}
                   className={cn(
-                    "flex items-center justify-center h-10 w-10 rounded-lg",
+                    "flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all",
                     selectedMethodId === method.id
-                      ? "bg-primary/20 text-primary"
-                      : "bg-muted text-muted-foreground"
+                      ? "border-primary bg-primary/5 shadow-sm"
+                      : "border-border hover:border-primary/30 hover:bg-muted/30"
                   )}
+                  onClick={() => setSelectedMethodId(method.id)}
                 >
-                  {paymentIcons[method.slug] || <CreditCard className="h-5 w-5" />}
-                </div>
-                <div className="flex-1">
-                  <Label
-                    htmlFor={method.id}
-                    className="font-medium cursor-pointer"
+                  <RadioGroupItem value={method.id} id={method.id} className="shrink-0" />
+                  <div
+                    className={cn(
+                      "flex shrink-0 items-center justify-center h-11 w-11 rounded-xl",
+                      selectedMethodId === method.id
+                        ? "bg-primary/20 text-primary"
+                        : "bg-muted text-muted-foreground"
+                    )}
                   >
-                    {method.name}
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    {method.description}
-                  </p>
+                    {paymentIcons[method.slug] ?? <CreditCard className="h-5 w-5" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <Label
+                      htmlFor={method.id}
+                      className="font-medium cursor-pointer block"
+                    >
+                      {method.name}
+                    </Label>
+                    {method.description && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {method.description}
+                      </p>
+                    )}
+                  </div>
+                  {selectedMethodId === method.id && (
+                    <Check className="h-5 w-5 shrink-0 text-primary" />
+                  )}
                 </div>
-                {selectedMethodId === method.id && (
-                  <Check className="h-5 w-5 text-primary" />
-                )}
-              </div>
-            ))}
+              ))}
+            </div>
           </RadioGroup>
         </div>
 
-        {/* Mock Payment Notice */}
-        <div className="bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-          <p className="text-xs text-amber-700 dark:text-amber-300 flex items-start gap-2">
-            <Shield className="h-4 w-4 flex-shrink-0 mt-0.5" />
+        {/* Demo Mode Notice */}
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+          <p className="text-sm text-amber-700 dark:text-amber-300 flex items-start gap-3">
+            <Shield className="h-4 w-4 shrink-0 mt-0.5" />
             <span>
-              <strong>Demo Mode:</strong> นี่คือระบบทดสอบ การชำระเงินจะจำลองเป็นสำเร็จโดยอัตโนมัติ
-              ไม่มีการเรียกเก็บเงินจริง
+              <strong>Demo mode</strong> — Payments are simulated. No real charges.
             </span>
           </p>
         </div>
@@ -368,27 +388,25 @@ export function PaymentMethodDialog({
         {/* Confirm Button */}
         <Button
           size="lg"
-          className="w-full"
+          className="w-full h-12 text-base font-semibold"
           onClick={handleConfirm}
           disabled={!selectedMethodId || isProcessing}
         >
           {isProcessing ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              กำลังประมวลผล...
+              Processing...
             </>
           ) : (
-            <>
-              ยืนยันชำระเงิน {formatPrice(finalPrice)}
-            </>
+            <>Confirm payment · {formatPrice(finalPrice)}</>
           )}
         </Button>
 
         {/* Security Badge */}
-        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-          <Shield className="h-3 w-3" />
-          <span>การชำระเงินปลอดภัยด้วยการเข้ารหัส SSL</span>
-        </div>
+        <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+          <Shield className="h-3.5 w-3" />
+          Secure payment with SSL encryption
+        </p>
       </DialogContent>
     </Dialog>
   );

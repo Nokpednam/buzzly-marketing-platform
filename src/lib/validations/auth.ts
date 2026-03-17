@@ -67,8 +67,30 @@ export const signupStep2Schema = z.object({
 // Combined signup schema for full form validation
 export const signupFullSchema = signupStep1Schema.merge(signupStep2Schema);
 
+// Change password validation schema
+const passwordSchema = z
+  .string()
+  .min(1, "Password is required")
+  .min(8, "Password must be at least 8 characters")
+  .max(128, "Password must be less than 128 characters")
+  .regex(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+    "Password must contain at least one uppercase letter, one lowercase letter, and one number"
+  );
+
+export const changePasswordSchema = z
+  .object({
+    newPassword: passwordSchema,
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 // Type exports
 export type LoginFormData = z.infer<typeof loginSchema>;
 export type SignupStep1FormData = z.infer<typeof signupStep1Schema>;
 export type SignupStep2FormData = z.infer<typeof signupStep2Schema>;
 export type SignupFullFormData = z.infer<typeof signupFullSchema>;
+export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;

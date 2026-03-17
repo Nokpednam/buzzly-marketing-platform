@@ -75,23 +75,23 @@ export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
     try {
       const result = await createSubscription(selectedPlanId, methodId, billingCycle, discountCode);
       if (result.success) {
-        toast.success("ชำระเงินสำเร็จ เปลี่ยนแพ็กเกจเรียบร้อยแล้ว");
+        toast.success("Payment successful. Plan updated.");
         setPaymentDialogOpen(false);
         setSelectedPlanId(null);
         await refetchSubscriptionData(true); // Silent update local subscription state for the UI
         await refetchPlan(true); // Silent update global plan state
       } else {
-        toast.error(result.error || "เกิดข้อผิดพลาดในการชำระเงิน");
+        toast.error(result.error || "Payment failed");
       }
     } catch (error: any) {
-      toast.error(error.message || "เกิดข้อผิดพลาดไม่ทราบสาเหตุ");
+      toast.error(error.message || "An unexpected error occurred");
     } finally {
       setIsProcessingPayment(false);
     }
   };
 
   const handleCancelPlan = async () => {
-    if (!confirm("คุณต้องการยกเลิกแผนปัจจุบันใช่หรือไม่? สิทธิพิเศษจะสิ้นสุดลงเมื่อครบรอบบิล")) return;
+    if (!confirm("Do you want to cancel your current plan? Benefits will end at the end of the billing period.")) return;
     const success = await cancelSubscription();
     if (success) {
       await refetchSubscriptionData(true); // Silent update local subscription state for the UI
@@ -115,13 +115,13 @@ export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
   return (
     <div className="space-y-6">
       {/* Current Plan */}
-      <Card className="border-0 shadow-sm">
+      <Card className="border-0 shadow-sm rounded-2xl">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>แผนปัจจุบัน</CardTitle>
+              <CardTitle>Current plan</CardTitle>
               <CardDescription>
-                {currentPlan ? `คุณกำลังใช้แผน ${currentPlan.name}` : "คุณยังไม่ได้สมัครแผน"}
+                {currentPlan ? `You are on the ${currentPlan.name} plan` : "You have not subscribed to a plan yet"}
               </CardDescription>
             </div>
             {currentPlan && (
@@ -139,27 +139,27 @@ export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
                 <p className="text-3xl font-bold">
                   ฿{getPrice(currentPlan, currentSubscription?.billing_cycle || "monthly").toLocaleString()}
                   <span className="text-lg font-normal text-muted-foreground">
-                    /{currentSubscription?.billing_cycle === "yearly" ? "ปี" : "เดือน"}
+                    /{currentSubscription?.billing_cycle === "yearly" ? "year" : "month"}
                   </span>
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  ชำระ{currentSubscription?.billing_cycle === "yearly" ? "รายปี" : "รายเดือน"} •
-                  รอบบิลถัดไป: {currentSubscription?.current_period_end
-                    ? new Date(currentSubscription.current_period_end).toLocaleDateString("th-TH")
+                  {currentSubscription?.billing_cycle === "yearly" ? "Annual" : "Monthly"} billing •
+                  Next bill: {currentSubscription?.current_period_end
+                    ? new Date(currentSubscription.current_period_end).toLocaleDateString()
                     : "-"}
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={scrollToPlans}>เปลี่ยนแผน</Button>
+                <Button variant="outline" onClick={scrollToPlans}>Change plan</Button>
                 {currentSubscription?.cancel_at_period_end ? (
-                  <Badge variant="destructive">จะยกเลิกเมื่อสิ้นสุดรอบบิล</Badge>
+                  <Badge variant="destructive">Cancels at end of billing period</Badge>
                 ) : (
-                  <Button variant="ghost" className="text-destructive" onClick={handleCancelPlan}>ยกเลิกแผน</Button>
+                  <Button variant="ghost" className="text-destructive" onClick={handleCancelPlan}>Cancel plan</Button>
                 )}
               </div>
             </div>
           ) : (
-            <p className="text-muted-foreground">เลือกแผนด้านล่างเพื่อเริ่มใช้งาน</p>
+            <p className="text-muted-foreground">Select a plan below to get started</p>
           )}
         </CardContent>
       </Card>
@@ -168,11 +168,11 @@ export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
       <div className="flex justify-center">
         <Tabs value={billingCycle} onValueChange={(v) => setBillingCycle(v as "monthly" | "yearly")}>
           <TabsList>
-            <TabsTrigger value="monthly">รายเดือน</TabsTrigger>
+            <TabsTrigger value="monthly">Monthly</TabsTrigger>
             <TabsTrigger value="yearly" className="gap-2">
-              รายปี
+              Yearly
               <Badge variant="secondary" className="text-xs">
-                ประหยัดสูงสุด 17%
+                Save up to 17%
               </Badge>
             </TabsTrigger>
           </TabsList>
@@ -195,25 +195,25 @@ export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <Badge className="gap-1">
                     <Star className="h-3 w-3" />
-                    แนะนำ
+                    Popular
                   </Badge>
                 </div>
               )}
               <CardHeader className="pt-6">
                 <CardTitle className="flex items-center justify-between">
                   {plan.name}
-                  {isCurrentPlan && <Badge variant="outline">ใช้อยู่</Badge>}
+                  {isCurrentPlan && <Badge variant="outline">Current</Badge>}
                 </CardTitle>
                 <div className="mt-2">
                   <span className="text-3xl font-bold">
                     ฿{getPrice(plan, billingCycle).toLocaleString()}
                   </span>
                   <span className="text-muted-foreground">
-                    /{billingCycle === "yearly" ? "ปี" : "เดือน"}
+                    /{billingCycle === "yearly" ? "year" : "month"}
                   </span>
                 </div>
                 {billingCycle === "yearly" && savings > 0 && (
-                  <p className="text-sm text-success">ประหยัด 17%</p>
+                  <p className="text-sm text-success">Save 17%</p>
                 )}
               </CardHeader>
               <CardContent className="space-y-4">
@@ -232,7 +232,7 @@ export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
                   disabled={isCurrentPlan || isDowngrade}
                   onClick={() => handleUpgrade(plan.id)}
                 >
-                  {isCurrentPlan ? "แผนปัจจุบัน" : isDowngrade ? "ไม่สามารถลดแผนได้" : "เลือกแผนนี้"}
+                  {isCurrentPlan ? "Current plan" : isDowngrade ? "Cannot downgrade" : "Select plan"}
                 </Button>
               </CardContent>
             </Card>
@@ -241,11 +241,11 @@ export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
       </div>
 
       {/* Payment Method */}
-      <Card className="border-0 shadow-sm">
+      <Card className="border-0 shadow-sm rounded-2xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
-            วิธีการชำระเงิน
+            Payment method
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -254,27 +254,27 @@ export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
       </Card>
 
       {/* Invoices */}
-      <Card className="border-0 shadow-sm">
+      <Card className="border-0 shadow-sm rounded-2xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            ประวัติใบแจ้งหนี้
+            Invoice history
           </CardTitle>
         </CardHeader>
         <CardContent>
           {invoicesLoading ? (
             <Skeleton className="h-32 w-full" />
           ) : invoices.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">ยังไม่มีใบแจ้งหนี้</p>
+            <p className="text-center text-muted-foreground py-8">No invoices yet</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>เลขที่</TableHead>
-                  <TableHead>วันที่</TableHead>
-                  <TableHead>รายการ</TableHead>
-                  <TableHead>สถานะ</TableHead>
-                  <TableHead className="text-right">จำนวน</TableHead>
+                  <TableHead>Invoice #</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -288,7 +288,7 @@ export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
                       <div className="flex items-center gap-1 text-muted-foreground">
                         <Calendar className="h-3 w-3" />
                         {invoice.created_at
-                          ? new Date(invoice.created_at).toLocaleDateString("th-TH")
+                          ? new Date(invoice.created_at).toLocaleDateString()
                           : "-"}
                       </div>
                     </TableCell>
@@ -316,7 +316,7 @@ export function BillingTab({ onNavigateToPaymentMethods }: BillingTabProps) {
           {invoices.length > 5 && (
             <div className="mt-4 text-center">
               <Button variant="link" className="gap-1">
-                ดูทั้งหมด
+                View all
                 <ArrowUpRight className="h-3 w-3" />
               </Button>
             </div>
@@ -348,13 +348,13 @@ function PaymentMethodDisplay({ onNavigate }: { onNavigate?: () => void }) {
     return (
       <div className="flex flex-col items-center justify-center py-6 text-center border rounded-lg border-dashed">
         <CreditCard className="h-8 w-8 text-muted-foreground/30 mb-2" />
-        <p className="text-sm text-muted-foreground">ยังไม่มีวิธีการชำระเงินเริ่มต้น</p>
+        <p className="text-sm text-muted-foreground">No default payment method</p>
         <Button
           variant="link"
           className="text-primary mt-2"
           onClick={() => onNavigate?.()}
         >
-          เพิ่มวิธีการชำระเงิน
+          Add payment method
         </Button>
       </div>
     );
@@ -374,7 +374,7 @@ function PaymentMethodDisplay({ onNavigate }: { onNavigate?: () => void }) {
           </p>
           {defaultMethod.card_exp_month && defaultMethod.card_exp_year && (
             <p className="text-sm text-muted-foreground">
-              หมดอายุ {String(defaultMethod.card_exp_month).padStart(2, '0')}/{defaultMethod.card_exp_year}
+              Expires {String(defaultMethod.card_exp_month).padStart(2, '0')}/{defaultMethod.card_exp_year}
             </p>
           )}
         </div>
@@ -384,7 +384,7 @@ function PaymentMethodDisplay({ onNavigate }: { onNavigate?: () => void }) {
         size="sm"
         onClick={() => onNavigate?.()}
       >
-        จัดการ
+        Manage
       </Button>
     </div>
   );

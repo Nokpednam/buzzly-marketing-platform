@@ -25,10 +25,18 @@ export async function generatePdfFromElement(element: HTMLElement): Promise<Blob
 }
 
 export async function uploadReportPdf(blob: Blob, fileName: string): Promise<string> {
+  return uploadReportFile(blob, fileName, "application/pdf");
+}
+
+export async function uploadReportFile(
+  blob: Blob,
+  fileName: string,
+  contentType: string
+): Promise<string> {
   const { error } = await supabase.storage
     .from("reports")
     .upload(fileName, blob, {
-      contentType: "application/pdf",
+      contentType,
       upsert: true,
     });
 
@@ -41,6 +49,10 @@ export async function uploadReportPdf(blob: Blob, fileName: string): Promise<str
 }
 
 export function downloadPdfBlob(blob: Blob, fileName: string): void {
+  downloadBlob(blob, fileName);
+}
+
+export function downloadBlob(blob: Blob, fileName: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

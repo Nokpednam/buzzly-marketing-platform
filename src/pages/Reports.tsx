@@ -20,7 +20,6 @@ import {
   Download,
   FileText,
   Calendar,
-  Clock,
   Plus,
   MoreHorizontal,
   Eye,
@@ -29,7 +28,6 @@ import {
   FileSpreadsheet,
   BarChart3,
   DollarSign,
-  Users,
   Smartphone,
   ArrowRight,
   Sparkles,
@@ -48,18 +46,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PlanRestrictedPage } from "@/components/PlanRestrictedPage";
 import { useReports } from "@/hooks/useReports";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
+import { useAdPersonas } from "@/hooks/useAdPersonas";
 import { format } from "date-fns";
-import { th } from "date-fns/locale";
 import { toast } from "sonner";
-import { generatePdfFromElement, uploadReportPdf, downloadPdfBlob } from "@/lib/reportPdf";
+import { generatePdfFromElement, uploadReportPdf, uploadReportFile, downloadPdfBlob, downloadBlob } from "@/lib/reportPdf";
+import { generateExcelFromReportData, generateCsvFromReportData } from "@/lib/reportExcel";
 import { ReportChartBlocks, REPORT_CHART_OPTIONS, type ReportChartId } from "@/components/reports/ReportChartBlocks";
 import { Checkbox } from "@/components/ui/checkbox";
 
 const reportTemplates = [
-  { id: "campaign", name: "Campaign Performance", description: "Conversion & CTR deep dive", icon: BarChart3, color: "text-blue-500", bg: "bg-blue-500/10" },
-  { id: "roi", name: "ROI Analysis", description: "Financial efficiency report", icon: DollarSign, color: "text-amber-500", bg: "bg-amber-500/10" },
-  { id: "audience", name: "Audience Insights", description: "Demographics & Behavior", icon: Users, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-  { id: "channel", name: "Channel Comparison", description: "Multi-platform benchmarks", icon: Smartphone, color: "text-purple-500", bg: "bg-purple-500/10" },
+  { id: "campaign", name: "Campaign Performance", description: "Conversion & CTR from Campaign", icon: BarChart3, color: "text-blue-500", bg: "bg-blue-500/10" },
+  { id: "roi", name: "ROI Analysis", description: "Graphs from Analytics page", icon: DollarSign, color: "text-amber-500", bg: "bg-amber-500/10" },
+  { id: "channel", name: "Persona", description: "Persona & Platform", icon: Smartphone, color: "text-purple-500", bg: "bg-purple-500/10" },
 ];
 
 function formatMetricValue(value: number, type: "number" | "percent" | "currency"): string {
@@ -70,10 +68,40 @@ function formatMetricValue(value: number, type: "number" | "percent" | "currency
   return value.toLocaleString();
 }
 
+function getDateRangeValue(
+  mode: string,
+  dateFrom: string,
+  dateTo: string
+): string {
+  if (mode === "custom" && dateFrom && dateTo) {
+    return `custom:${dateFrom}:${dateTo}`;
+  }
+  return mode;
+}
+
+function getDateRangeLabel(mode: string, dateFrom: string, dateTo: string): string {
+  if (mode === "custom" && dateFrom && dateTo) {
+    const from = new Date(dateFrom);
+    const to = new Date(dateTo);
+    return `${format(from, "MMM d, yyyy")} — ${format(to, "MMM d, yyyy")}`;
+  }
+  const labels: Record<string, string> = { "7d": "Last 7 days", "30d": "Last 30 days", "90d": "Last 90 days" };
+  return labels[mode] ?? mode;
+}
+
 function ReportsContent() {
-  const [reportDateRange, setReportDateRange] = useState("30d");
+  const [reportDateMode, setReportDateMode] = useState<"7d" | "30d" | "90d" | "custom">("30d");
+  const [dateFrom, setDateFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split("T")[0]!;
+  });
+  const [dateTo, setDateTo] = useState(() => new Date().toISOString().split("T")[0]!);
+  const reportDateRange = getDateRangeValue(reportDateMode, dateFrom, dateTo);
+
   const { reports, isLoading, createReport, deleteReport, updateReportFileUrl } = useReports();
   const { data: metrics } = useDashboardMetrics(reportDateRange);
+  const { personaData, totalImpressions: personaImpressions } = useAdPersonas({ mode: "all" });
   const reportRef = useRef<HTMLDivElement>(null);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -81,7 +109,7 @@ function ReportsContent() {
   const [previewReportType, setPreviewReportType] = useState<string>("campaign");
   const [filterFormat, setFilterFormat] = useState("all");
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isCreatingWithPdf, setIsCreatingWithPdf] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [editingReportId, setEditingReportId] = useState<string | null>(null);
 
   // Custom report form state
@@ -128,48 +156,96 @@ function ReportsContent() {
       }
 
       downloadPdfBlob(blob, `${safeName}.pdf`);
-      toast.success(saveToReports ? "ดาวน์โหลดและบันทึกรายงานสำเร็จ" : "ดาวน์โหลด PDF สำเร็จ");
+      toast.success(saveToReports ? "Report saved and downloaded" : "PDF downloaded");
       if (saveToReports) {
         setIsPreviewOpen(false);
         setEditingReportId(null);
       }
     } catch (err) {
-      toast.error("ไม่สามารถสร้าง PDF ได้", { description: err instanceof Error ? err.message : undefined });
+      toast.error("Failed to generate PDF", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsDownloading(false);
     }
   };
 
+  const handleDownloadExcel = () => {
+    const payload = {
+      reportName: previewReport ?? "Marketing Report",
+      reportType: previewReportType,
+      dateRangeLabel: getDateRangeLabel(reportDateMode, dateFrom, dateTo),
+      metrics: metrics ?? undefined,
+      personaData: previewReportType === "channel" ? personaData ?? undefined : undefined,
+      generatedAt: format(new Date(), "MMMM d, yyyy"),
+    };
+    const buffer = generateExcelFromReportData(payload);
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const safeName = (previewReport ?? "report").replace(/[^a-zA-Z0-9ก-๙\s-]/g, "_");
+    downloadBlob(blob, `${safeName}.xlsx`);
+    toast.success("Excel downloaded");
+  };
+
   const handleSaveReport = async () => {
     if (!newReportName.trim()) return;
-    setIsCreatingWithPdf(true);
+    setIsCreating(true);
+    const safeName = newReportName.replace(/[^a-zA-Z0-9ก-๙\s-]/g, "_");
+    const reportPayload = {
+      reportName: newReportName,
+      reportType: newReportType,
+      dateRangeLabel: getDateRangeLabel(reportDateMode, dateFrom, dateTo),
+      metrics: metrics ?? undefined,
+      personaData: newReportType === "channel" ? personaData ?? undefined : undefined,
+      generatedAt: format(new Date(), "MMMM d, yyyy"),
+    };
+
     try {
-      // Wait for hidden report content to render
-      await new Promise((r) => setTimeout(r, 300));
-      const sourceEl = document.getElementById("report-pdf-source");
-      if (!sourceEl) {
-        toast.error("ไม่สามารถสร้างรายงานได้");
-        return;
+      if (newReportFormat === "excel" || newReportFormat === "csv") {
+        const isExcel = newReportFormat === "excel";
+        const buffer = isExcel
+          ? generateExcelFromReportData(reportPayload)
+          : new TextEncoder().encode(generateCsvFromReportData(reportPayload));
+        const blob = isExcel ? new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }) : new Blob([buffer], { type: "text/csv" });
+        const ext = isExcel ? "xlsx" : "csv";
+        const fileName = `report_${Date.now()}.${ext}`;
+        const contentType = isExcel ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv";
+        const publicUrl = await uploadReportFile(blob, fileName, contentType);
+
+        await createReport.mutateAsync({
+          name: newReportName,
+          report_type: newReportType,
+          file_format: newReportFormat,
+          file_url: publicUrl,
+        });
+
+        downloadBlob(blob, `${safeName}.${ext}`);
+        toast.success("Report saved and downloaded");
+      } else {
+        await new Promise((r) => setTimeout(r, 300));
+        const sourceEl = document.getElementById("report-pdf-source");
+        if (!sourceEl) {
+          toast.error("Failed to create report");
+          return;
+        }
+
+        const blob = await generatePdfFromElement(sourceEl as HTMLElement);
+        const fileName = `report_${Date.now()}.pdf`;
+        const publicUrl = await uploadReportPdf(blob, fileName);
+
+        await createReport.mutateAsync({
+          name: newReportName,
+          report_type: newReportType,
+          file_format: "pdf",
+          file_url: publicUrl,
+        });
+
+        downloadPdfBlob(blob, `${safeName}.pdf`);
+        toast.success("Report saved and downloaded");
       }
-
-      const blob = await generatePdfFromElement(sourceEl as HTMLElement);
-      const fileName = `report_${Date.now()}.pdf`;
-      const publicUrl = await uploadReportPdf(blob, fileName);
-
-      await createReport.mutateAsync({
-        name: newReportName,
-        report_type: newReportType,
-        file_format: "pdf",
-        file_url: publicUrl,
-      });
-
-      downloadPdfBlob(blob, `${newReportName.replace(/[^a-zA-Z0-9ก-๙\s-]/g, "_")}.pdf`);
       setIsGenerateOpen(false);
       setNewReportName("");
     } catch (err) {
-      toast.error("ไม่สามารถสร้างรายงานได้", { description: err instanceof Error ? err.message : undefined });
+      toast.error("Failed to create report", { description: err instanceof Error ? err.message : undefined });
     } finally {
-      setIsCreatingWithPdf(false);
+      setIsCreating(false);
     }
   };
 
@@ -194,13 +270,6 @@ function ReportsContent() {
           <p className="text-muted-foreground">Transform your marketing data into actionable stakeholder insights.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            className="rounded-xl px-6 h-11 border-primary/20 hover:bg-primary/5 text-primary"
-            onClick={() => toast.info("เลือกวัน-เวลาสำหรับส่งอัตโนมัติ — พร้อมใช้งานเร็วๆ นี้")}
-          >
-            <Clock className="h-4 w-4 mr-2" /> Schedule Automation
-          </Button>
           <Button
             onClick={() => setIsGenerateOpen(true)}
             className="rounded-xl px-6 h-11 shadow-lg shadow-primary/20 bg-primary"
@@ -237,15 +306,6 @@ function ReportsContent() {
               </Card>
             ))}
           </div>
-
-          <Card className="bg-primary text-primary-foreground border-none rounded-3xl overflow-hidden relative">
-            <div className="absolute top-0 right-0 p-4 opacity-10"><BarChart3 className="h-20 w-20" /></div>
-            <CardContent className="p-6 relative">
-              <h4 className="font-bold mb-1">AI Smart Summary</h4>
-              <p className="text-xs opacity-80 mb-4 leading-relaxed">Let Buzzly AI analyze your top campaigns and generate a narrative summary for your next meeting.</p>
-              <Button size="sm" variant="secondary" className="w-full font-bold">Try AI Insights</Button>
-            </CardContent>
-          </Card>
         </div>
 
         {/* RIGHT: RECENT ACTIVITY (8 COL) */}
@@ -277,14 +337,14 @@ function ReportsContent() {
               ) : filteredReports.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <FileText className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                  <p className="font-bold text-muted-foreground">ยังไม่มีรายงาน</p>
-                  <p className="text-sm text-muted-foreground mt-1">คลิก "Custom Report" เพื่อสร้างรายงานแรกของคุณ</p>
+                  <p className="font-bold text-muted-foreground">No reports yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">Click "Custom Report" to create your first report</p>
                   <Button
                     size="sm"
                     className="mt-4 rounded-xl"
                     onClick={() => setIsGenerateOpen(true)}
                   >
-                    <Plus className="h-4 w-4 mr-2" /> สร้างรายงาน
+                    <Plus className="h-4 w-4 mr-2" /> Create Report
                   </Button>
                 </div>
               ) : (
@@ -304,11 +364,11 @@ function ReportsContent() {
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
                               {report.created_at
-                                ? format(new Date(report.created_at), "d MMM yyyy", { locale: th })
+                                ? format(new Date(report.created_at), "MMM d, yyyy")
                                 : "—"}
                             </span>
                             <Badge variant="outline" className="text-[9px] py-0 h-4">
-                              {report.report_type}
+                              {report.report_type === "channel" ? "Persona" : report.report_type}
                             </Badge>
                             <Badge
                               className={`text-[9px] py-0 h-4 ${report.status === "ready"
@@ -338,7 +398,7 @@ function ReportsContent() {
                             asChild
                           >
                             <a href={report.file_url} target="_blank" rel="noopener noreferrer" download>
-                              <Download className="h-3.5 w-3.5" /> Download PDF
+                              <Download className="h-3.5 w-3.5" /> Download {report.file_format === "excel" ? "Excel" : report.file_format === "csv" ? "CSV" : "PDF"}
                             </a>
                           </Button>
                         ) : (
@@ -348,7 +408,7 @@ function ReportsContent() {
                             className="rounded-xl px-4 h-9 gap-2"
                             onClick={() => handleQuickGenerate(report.report_type, report.name, report.id)}
                           >
-                            <Download className="h-3.5 w-3.5" /> สร้าง PDF
+                            <Download className="h-3.5 w-3.5" /> Generate PDF
                           </Button>
                         )}
                         <DropdownMenu>
@@ -358,7 +418,7 @@ function ReportsContent() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="rounded-xl">
-                            <DropdownMenuItem onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success("ลิ้งถูกคัดลอกแล้ว"); }}>
+                            <DropdownMenuItem onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success("Link copied"); }}>
                               <Share2 className="mr-2 h-4 w-4" /> Share with Team
                             </DropdownMenuItem>
                             <DropdownMenuItem
@@ -383,19 +443,19 @@ function ReportsContent() {
       <Dialog open={isGenerateOpen} onOpenChange={setIsGenerateOpen}>
         <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto rounded-3xl">
           <DialogHeader>
-            <DialogTitle className="text-xl font-black">สร้างรายงานใหม่</DialogTitle>
+            <DialogTitle className="text-xl font-black">Create New Report</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>ชื่อรายงาน</Label>
+              <Label>Report Name</Label>
               <Input
-                placeholder="เช่น Monthly Performance Q1 2026"
+                placeholder="e.g. Monthly Performance Q1 2026"
                 value={newReportName}
                 onChange={(e) => setNewReportName(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label>ประเภทรายงาน</Label>
+              <Label>Report Type</Label>
               <Select value={newReportType} onValueChange={setNewReportType}>
                 <SelectTrigger>
                   <SelectValue />
@@ -410,7 +470,7 @@ function ReportsContent() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>รูปแบบไฟล์</Label>
+              <Label>File Format</Label>
               <Select value={newReportFormat} onValueChange={setNewReportFormat}>
                 <SelectTrigger>
                   <SelectValue />
@@ -423,53 +483,76 @@ function ReportsContent() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>ช่วงข้อมูล</Label>
-              <Select value={reportDateRange} onValueChange={setReportDateRange}>
+              <Label>Date Range</Label>
+              <Select value={reportDateMode} onValueChange={(v) => setReportDateMode(v as "7d" | "30d" | "90d" | "custom")}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="7d">7 วันล่าสุด</SelectItem>
-                  <SelectItem value="30d">30 วันล่าสุด</SelectItem>
-                  <SelectItem value="90d">90 วันล่าสุด</SelectItem>
+                  <SelectItem value="7d">Last 7 days</SelectItem>
+                  <SelectItem value="30d">Last 30 days</SelectItem>
+                  <SelectItem value="90d">Last 90 days</SelectItem>
+                  <SelectItem value="custom">Custom range</SelectItem>
                 </SelectContent>
               </Select>
+              {reportDateMode === "custom" && (
+                <div className="flex gap-2 items-center">
+                  <Input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="rounded-lg"
+                  />
+                  <span className="text-muted-foreground">to</span>
+                  <Input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="rounded-lg"
+                  />
+                </div>
+              )}
             </div>
-            <div className="space-y-3">
-              <Label>กราฟที่จะรวมในรายงาน</Label>
-              <p className="text-xs text-muted-foreground">เลือกกราฟจาก Dashboard / Analytics</p>
-              <div className="flex flex-col gap-2 rounded-xl border p-3 bg-muted/20">
-                {REPORT_CHART_OPTIONS.map((opt) => (
-                  <label key={opt.id} className="flex items-center gap-3 cursor-pointer hover:bg-muted/30 rounded-lg p-2 -m-1">
-                    <Checkbox
-                      checked={selectedCharts.includes(opt.id)}
-                      onCheckedChange={() => toggleChart(opt.id)}
-                    />
-                    <opt.icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <div className="min-w-0">
-                      <span className="text-sm font-medium">{opt.name}</span>
-                      <span className="text-xs text-muted-foreground block truncate">{opt.description}</span>
-                    </div>
-                  </label>
-                ))}
+            {(newReportType === "campaign" || newReportType === "roi") && (
+              <div className="space-y-3">
+                <Label>Charts to include</Label>
+                <p className="text-xs text-muted-foreground">Select charts from Campaign / Analytics</p>
+                <div className="flex flex-col gap-2 rounded-xl border p-3 bg-muted/20">
+                  {REPORT_CHART_OPTIONS.map((opt) => (
+                    <label key={opt.id} className="flex items-center gap-3 cursor-pointer hover:bg-muted/30 rounded-lg p-2 -m-1">
+                      <Checkbox
+                        checked={selectedCharts.includes(opt.id)}
+                        onCheckedChange={() => toggleChart(opt.id)}
+                      />
+                      <opt.icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-sm font-medium">{opt.name}</span>
+                        <span className="text-xs text-muted-foreground block truncate">{opt.description}</span>
+                      </div>
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+            {newReportType === "channel" && (
+              <p className="text-xs text-muted-foreground">Persona report includes age, gender, interests, device charts and easy-to-read geographic breakdown</p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsGenerateOpen(false)}>
-              ยกเลิก
+              Cancel
             </Button>
             <Button
               onClick={handleSaveReport}
-              disabled={!newReportName.trim() || createReport.isPending || isCreatingWithPdf}
+              disabled={!newReportName.trim() || createReport.isPending || isCreating}
               className="rounded-xl"
             >
-              {(createReport.isPending || isCreatingWithPdf) ? (
+              {(createReport.isPending || isCreating) ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
                 <Plus className="h-4 w-4 mr-2" />
               )}
-              {isCreatingWithPdf ? "กำลังสร้าง PDF..." : "สร้างรายงาน"}
+              {isCreating ? `Generating ${newReportFormat === "pdf" ? "PDF" : newReportFormat === "excel" ? "Excel" : "CSV"}...` : "Create Report"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -485,8 +568,11 @@ function ReportsContent() {
           <ReportDocument
             reportName={newReportName || "Marketing Report"}
             reportType={newReportType}
+            dateRangeLabel={getDateRangeLabel(reportDateMode, dateFrom, dateTo)}
             metrics={metrics}
             selectedCharts={selectedCharts}
+            personaData={newReportType === "channel" ? personaData ?? undefined : undefined}
+            personaImpressions={newReportType === "channel" ? personaImpressions : undefined}
           />
         </div>
       )}
@@ -505,27 +591,55 @@ function ReportsContent() {
               <ReportDocument
                 reportName={previewReport ?? "Performance Summary"}
                 reportType={previewReportType}
+                dateRangeLabel={getDateRangeLabel(reportDateMode, dateFrom, dateTo)}
                 metrics={metrics}
                 selectedCharts={selectedCharts}
+                personaData={previewReportType === "channel" ? personaData ?? undefined : undefined}
+                personaImpressions={previewReportType === "channel" ? personaImpressions : undefined}
               />
             </div>
           </div>
           <div className="p-4 bg-background border-t space-y-3">
-            <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-xs font-medium text-muted-foreground mr-2">กราฟ:</span>
-              {REPORT_CHART_OPTIONS.map((opt) => (
-                <label key={opt.id} className="flex items-center gap-1.5 cursor-pointer text-xs">
-                  <Checkbox
-                    checked={selectedCharts.includes(opt.id)}
-                    onCheckedChange={() => toggleChart(opt.id)}
-                  />
-                  {opt.name}
-                </label>
-              ))}
+            <div className="flex flex-wrap gap-4 items-center">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">Date range:</span>
+                <Select value={reportDateMode} onValueChange={(v) => setReportDateMode(v as "7d" | "30d" | "90d" | "custom")}>
+                  <SelectTrigger className="w-[140px] h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="7d">7 days</SelectItem>
+                    <SelectItem value="30d">30 days</SelectItem>
+                    <SelectItem value="90d">90 days</SelectItem>
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+                {reportDateMode === "custom" && (
+                  <div className="flex gap-1 items-center">
+                    <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-8 text-xs w-[130px]" />
+                    <span className="text-muted-foreground">to</span>
+                    <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-8 text-xs w-[130px]" />
+                  </div>
+                )}
+              </div>
+              {(previewReportType === "campaign" || previewReportType === "roi") && (
+                <>
+                  <span className="text-xs font-medium text-muted-foreground mr-2">Charts:</span>
+                  {REPORT_CHART_OPTIONS.map((opt) => (
+                    <label key={opt.id} className="flex items-center gap-1.5 cursor-pointer text-xs">
+                      <Checkbox
+                        checked={selectedCharts.includes(opt.id)}
+                        onCheckedChange={() => toggleChart(opt.id)}
+                      />
+                      {opt.name}
+                    </label>
+                  ))}
+                </>
+              )}
             </div>
             <div className="flex justify-between items-center">
             <span className="text-xs text-muted-foreground">Viewing Page 1 of 1</span>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button variant="ghost" onClick={() => setIsPreviewOpen(false)}>Close</Button>
               <Button
                 className="rounded-xl px-6 bg-primary"
@@ -538,11 +652,19 @@ function ReportsContent() {
               <Button
                 variant="outline"
                 className="rounded-xl"
+                onClick={handleDownloadExcel}
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Download Excel
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-xl"
                 onClick={() => handleDownloadPDF(true)}
                 disabled={isDownloading}
               >
                 {isDownloading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileCheck className="h-4 w-4 mr-2" />}
-                บันทึกและดาวน์โหลด
+                Save & Download
               </Button>
             </div>
             </div>
@@ -568,6 +690,7 @@ function Metric({ label, value, change }: { label: string; value: string; change
 interface ReportDocumentProps {
   reportName: string;
   reportType: string;
+  dateRangeLabel?: string;
   metrics?: {
     totalImpressions: number;
     totalClicks: number;
@@ -579,9 +702,11 @@ interface ReportDocumentProps {
     trendData?: { date: string; impressions: number; clicks: number; spend: number }[];
   } | null;
   selectedCharts?: ReportChartId[];
+  personaData?: { age_distribution: Record<string, number>; gender: Record<string, number>; top_locations: { name: string; pct: number }[]; interests: { name: string; pct: number }[]; device_type: Record<string, number> } | null;
+  personaImpressions?: number;
 }
 
-function ReportDocument({ reportName, reportType, metrics, selectedCharts = [] }: ReportDocumentProps) {
+function ReportDocument({ reportName, reportType, dateRangeLabel, metrics, selectedCharts = [], personaData, personaImpressions = 0 }: ReportDocumentProps) {
   const imp = metrics?.totalImpressions ?? 0;
   const clicks = metrics?.totalClicks ?? 0;
   const spend = metrics?.totalSpend ?? 0;
@@ -597,12 +722,13 @@ function ReportDocument({ reportName, reportType, metrics, selectedCharts = [] }
           <div className="bg-primary text-primary-foreground text-[10px] font-black px-2 py-1 rounded w-fit mb-4 tracking-widest">BUZZLY REPORT</div>
           <h2 className="text-3xl font-black uppercase tracking-tighter">{reportName}</h2>
           <p className="text-muted-foreground font-sans italic">
-            Generated on {format(new Date(), "d MMMM yyyy", { locale: th })}
+            Generated on {format(new Date(), "MMMM d, yyyy")}
+            {dateRangeLabel && ` · Date range: ${dateRangeLabel}`}
           </p>
         </div>
         <div className="text-right text-[10px] font-bold text-muted-foreground uppercase leading-loose">
           Ref: #BZY-{Date.now().toString().slice(-6)}<br />
-          Type: {reportType}<br />
+          Type: {reportType === "channel" ? "Persona" : reportType}<br />
           Status: Finalized
         </div>
       </div>
@@ -614,7 +740,13 @@ function ReportDocument({ reportName, reportType, metrics, selectedCharts = [] }
         <Metric label="Conversions" value={formatMetricValue(conv, "number")} />
         <Metric label="ROAS" value={`${roas.toFixed(1)}x`} />
       </div>
-      <ReportChartBlocks metrics={metrics ?? undefined} selectedChartIds={selectedCharts} />
+      <ReportChartBlocks
+        metrics={metrics ?? undefined}
+        selectedChartIds={selectedCharts}
+        reportType={reportType}
+        personaData={personaData}
+        personaImpressions={personaImpressions}
+      />
 
       <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 mt-8">
         <h4 className="text-sm font-bold flex items-center gap-2 mb-2">
@@ -622,12 +754,10 @@ function ReportDocument({ reportName, reportType, metrics, selectedCharts = [] }
         </h4>
         <p className="text-xs leading-relaxed text-muted-foreground">
           {reportType === "roi"
-            ? `ROAS สูงสุดที่ ${roas.toFixed(1)}x โดยมีค่าใช้จ่ายโฆษณารวม ฿${spend.toLocaleString("th-TH")} และ conversion ${conv.toLocaleString()} รายการ`
-            : reportType === "audience"
-              ? `ผู้ชมรวม ${formatMetricValue(imp, "number")} impressions และ ${formatMetricValue(clicks, "number")} คลิก (CTR ${ctr.toFixed(2)}%)`
-              : reportType === "channel"
-                ? "เปรียบเทียบประสิทธิภาพแต่ละแพลตฟอร์ม — ใช้ข้อมูลจากช่องทางที่เชื่อมต่อเพื่อวิเคราะห์ ROI และ engagement"
-                : `ประสิทธิภาพแคมเปญรวม: Impressions ${formatMetricValue(imp, "number")}, Clicks ${formatMetricValue(clicks, "number")}, Spend ฿${spend.toLocaleString("th-TH")}. CTR เฉลี่ย ${ctr.toFixed(2)}% และ ROAS ${roas.toFixed(1)}x`}
+            ? `Peak ROAS at ${roas.toFixed(1)}x with total ad spend ฿${spend.toLocaleString("th-TH")} and ${conv.toLocaleString()} conversions`
+            : reportType === "channel"
+              ? "Platform performance comparison — Persona and easy-to-read geographic charts"
+              : `Overall campaign performance: Impressions ${formatMetricValue(imp, "number")}, Clicks ${formatMetricValue(clicks, "number")}, Spend ฿${spend.toLocaleString("th-TH")}. Avg CTR ${ctr.toFixed(2)}% and ROAS ${roas.toFixed(1)}x`}
         </p>
       </div>
     </>
@@ -636,7 +766,7 @@ function ReportDocument({ reportName, reportType, metrics, selectedCharts = [] }
 
 export default function Reports() {
   return (
-    <PlanRestrictedPage requiredFeature="customReports" featureDescription="สร้างและดาวน์โหลดรายงานการตลาดแบบกำหนดเอง">
+    <PlanRestrictedPage requiredFeature="customReports" featureDescription="Create and download custom marketing reports">
       <ReportsContent />
     </PlanRestrictedPage>
   );
