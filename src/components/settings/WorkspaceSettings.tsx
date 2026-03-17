@@ -67,7 +67,7 @@ export function WorkspaceSettings() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <Card className="border-0 shadow-sm">
+        <Card className="border-0 shadow-sm rounded-2xl">
           <CardHeader>
             <Skeleton className="h-6 w-48" />
             <Skeleton className="h-4 w-64 mt-2" />
@@ -95,24 +95,24 @@ export function WorkspaceSettings() {
   if (!hasTeam) {
     return (
       <div className="space-y-6">
-        <Card className="border-0 shadow-sm">
+        <Card className="border-0 shadow-sm rounded-2xl">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5" />
-              สร้าง Workspace ใหม่
+              Create new workspace
             </CardTitle>
             <CardDescription>
-              คุณยังไม่มี Workspace กรุณาสร้าง Workspace เพื่อเริ่มต้นใช้งาน
+              You don't have a workspace yet. Create one to get started.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="workspaceName">ชื่อ Workspace *</Label>
+              <Label htmlFor="workspaceName">Workspace name *</Label>
               <Input
                 id="workspaceName"
                 value={newWorkspaceName}
                 onChange={(e) => setNewWorkspaceName(e.target.value)}
-                placeholder="เช่น My Store, ร้านค้าของฉัน"
+                placeholder="e.g. My Store, Acme Inc"
               />
             </div>
             <Button
@@ -120,7 +120,7 @@ export function WorkspaceSettings() {
               disabled={!newWorkspaceName.trim() || isCreating}
             >
               {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {isCreating ? "กำลังสร้าง..." : "สร้าง Workspace"}
+              {isCreating ? "Creating..." : "Create workspace"}
             </Button>
           </CardContent>
         </Card>
@@ -137,7 +137,7 @@ export function WorkspaceSettings() {
             <Building2 className="h-5 w-5" />
             Workspace Identity
           </CardTitle>
-          <CardDescription>ตั้งค่าข้อมูลพื้นฐานของ Workspace</CardDescription>
+          <CardDescription>Configure your workspace identity and basic info</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Logo Preview */}
@@ -165,7 +165,7 @@ export function WorkspaceSettings() {
                 placeholder="https://example.com/logo.png"
                 className="mt-1"
               />
-              <p className="mt-1 text-xs text-muted-foreground">ใส่ URL รูปภาพโลโก้ของ Workspace</p>
+              <p className="mt-1 text-xs text-muted-foreground">Enter the URL of your workspace logo image</p>
             </div>
           </div>
 
@@ -173,22 +173,22 @@ export function WorkspaceSettings() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="workspaceName">ชื่อ Workspace *</Label>
+              <Label htmlFor="workspaceName">Workspace name *</Label>
               <Input
                 id="workspaceName"
                 value={workspace.name}
                 onChange={(e) => setWorkspace({ ...workspace, name: e.target.value })}
-                placeholder="เช่น My Store, ร้านค้าของฉัน"
+                placeholder="e.g. My Store, Acme Inc"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="businessType">ประเภทธุรกิจ (Business Type)</Label>
+              <Label htmlFor="businessType">Business type</Label>
               <Select
                 value={workspace.business_type_id}
                 onValueChange={(value) => setWorkspace({ ...workspace, business_type_id: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="เลือกประเภทธุรกิจ" />
+                  <SelectValue placeholder="Select business type" />
                 </SelectTrigger>
                 <SelectContent>
                   {businessTypes.map((type) => (
@@ -203,22 +203,22 @@ export function WorkspaceSettings() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="companyName">ชื่อบริษัท (Company Name)</Label>
+              <Label htmlFor="companyName">Company name</Label>
               <Input
                 id="companyName"
                 value={workspace.company_name || ""}
                 onChange={(e) => setWorkspace({ ...workspace, company_name: e.target.value })}
-                placeholder="ระบุชื่อบริษัทจดทะเบียน (ถ้ามี)"
+                placeholder="Registered company name (if applicable)"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="industry">อุตสาหกรรม (Industry)</Label>
+              <Label htmlFor="industry">Industry</Label>
               <Select
                 value={workspace.industries_id}
                 onValueChange={(value) => setWorkspace({ ...workspace, industries_id: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="เลือกประเภทอุตสาหกรรม" />
+                  <SelectValue placeholder="Select industry" />
                 </SelectTrigger>
                 <SelectContent>
                   {industries.map((industry) => (
@@ -265,12 +265,12 @@ export function WorkspaceSettings() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">คำอธิบายธุรกิจ</Label>
+            <Label htmlFor="description">Business description</Label>
             <Textarea
               id="description"
               value={workspace.description}
               onChange={(e) => setWorkspace({ ...workspace, description: e.target.value })}
-              placeholder="บอกเล่าเกี่ยวกับธุรกิจของคุณ..."
+              placeholder="Tell us about your business..."
               rows={3}
             />
           </div>
@@ -284,7 +284,7 @@ export function WorkspaceSettings() {
         </Button>
         <Button onClick={handleSave} disabled={saving || !workspace.name.trim()}>
           {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          {saving ? "กำลังบันทึก..." : "Save Changes"}
+          {saving ? "Saving..." : "Save changes"}
         </Button>
       </div>
     </div>

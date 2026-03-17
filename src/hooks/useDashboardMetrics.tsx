@@ -43,6 +43,16 @@ function parseDateRange(dateRange: string): { start: string; end: string } {
       return { start: `${y}-01-01`, end: `${y}-12-31` };
     }
   }
+  if (dateRange.startsWith("custom:")) {
+    const parts = dateRange.split(":");
+    if (parts.length === 3 && parts[1] && parts[2]) {
+      const start = parts[1];
+      const end = parts[2];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(start) && /^\d{4}-\d{2}-\d{2}$/.test(end)) {
+        return { start, end };
+      }
+    }
+  }
 
   let startDate = new Date(now);
   switch (dateRange) {

@@ -94,8 +94,8 @@ export function UpgradeRequiredDialog({
       const success = await updatePlan("free");
       if (success) {
         toast({
-          title: "ดาวน์เกรดสำเร็จ",
-          description: "คุณได้กลับไปใช้งาน Free Plan",
+          title: "Downgrade successful",
+          description: "You have switched back to Free Plan",
         });
         onOpenChange(false);
       }
@@ -114,8 +114,8 @@ export function UpgradeRequiredDialog({
 
     if (!realPlan) {
       toast({
-        title: "เกิดข้อผิดพลาด",
-        description: "ไม่พบข้อมูลแพ็กเกจ กรุณาลองใหม่",
+        title: "Error",
+        description: "Plan not found. Please try again",
         variant: "destructive",
       });
       return;
@@ -136,8 +136,8 @@ export function UpgradeRequiredDialog({
         await refetchSubscription();
 
         toast({
-          title: "อัปเกรดสำเร็จ! 🎉",
-          description: `คุณได้อัปเกรดเป็น ${selectedPlanType.toUpperCase()} Plan เรียบร้อยแล้ว`,
+          title: "Upgrade successful! 🎉",
+          description: `You have been upgraded to ${selectedPlanType.toUpperCase()} Plan`,
         });
 
         // Mission 3: award points for upgrading to a paid plan (one-time)
@@ -158,8 +158,8 @@ export function UpgradeRequiredDialog({
         onOpenChange(false);
       } else {
         toast({
-          title: "เกิดข้อผิดพลาด",
-          description: result.error || "ไม่สามารถดำเนินการได้ กรุณาลองใหม่",
+          title: "Error",
+          description: result.error || "Unable to complete. Please try again",
           variant: "destructive",
         });
         // Reset to plan selection for retry
@@ -167,8 +167,8 @@ export function UpgradeRequiredDialog({
       }
     } catch (error) {
       toast({
-        title: "เกิดข้อผิดพลาด",
-        description: "ไม่สามารถดำเนินการได้ กรุณาลองใหม่",
+        title: "Error",
+        description: "Unable to complete. Please try again",
         variant: "destructive",
       });
     } finally {
@@ -199,7 +199,7 @@ export function UpgradeRequiredDialog({
                   </div>
                   <div>
                     <DialogTitle className="text-xl">
-                      ฟีเจอร์นี้ต้องการอัปเกรด Plan
+                      This feature requires a plan upgrade
                     </DialogTitle>
                   </div>
                 </div>
@@ -216,7 +216,7 @@ export function UpgradeRequiredDialog({
                         </p>
                       )}
                       <p className="text-sm text-primary mt-2">
-                        ต้องการ <span className="font-semibold">{requiredPlan.toUpperCase()}</span> Plan หรือสูงกว่า
+                        Requires <span className="font-semibold">{requiredPlan.toUpperCase()}</span> Plan or higher
                       </p>
                     </div>
                   </div>
@@ -231,7 +231,7 @@ export function UpgradeRequiredDialog({
                     billingCycle === "monthly" ? "font-semibold" : "text-muted-foreground"
                   )}
                 >
-                  รายเดือน
+                  Monthly
                 </Label>
                 <Switch
                   id="upgrade-billing-toggle"
@@ -247,7 +247,7 @@ export function UpgradeRequiredDialog({
                     billingCycle === "yearly" ? "font-semibold" : "text-muted-foreground"
                   )}
                 >
-                  รายปี
+                  Annually
                   <Badge variant="secondary" className="bg-accent text-accent-foreground">
                     -17%
                   </Badge>
@@ -278,12 +278,12 @@ export function UpgradeRequiredDialog({
                     >
                       {plan.popular && (
                         <Badge className="absolute -top-2 left-1/2 -translate-x-1/2 bg-primary">
-                          แนะนำ
+                          Recommended
                         </Badge>
                       )}
                       {isCurrentPlan && (
                         <Badge variant="secondary" className="absolute -top-2 right-2">
-                          Plan ปัจจุบัน
+                          Current Plan
                         </Badge>
                       )}
 
@@ -363,7 +363,7 @@ export function UpgradeRequiredDialog({
                           )}
                           variant={selectedPlanType === plan.id ? "default" : "outline"}
                         >
-                          {selectedPlanType === plan.id ? "เลือกแล้ว ✓" : "เลือก Plan นี้"}
+                          {selectedPlanType === plan.id ? "Selected ✓" : "Select this plan"}
                         </Button>
                       )}
                     </div>
@@ -377,10 +377,10 @@ export function UpgradeRequiredDialog({
                   <Users className="h-5 w-5 text-violet-500 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-sm font-medium text-foreground">
-                      Team Plan: เชิญสมาชิกมาจัดการร้านค้าร่วมกัน
+                      Team Plan: Invite members to manage your store together
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      สามารถเชิญสมาชิกได้สูงสุด 5 คน มาดูแลและจัดการ Marketing Dashboard ร่วมกัน
+                      Invite up to 5 members to manage and handle the Marketing Dashboard together
                     </p>
                   </div>
                 </div>
@@ -395,8 +395,8 @@ export function UpgradeRequiredDialog({
                   onClick={handleProceed}
                 >
                   {selectedPlanType && selectedPlanType !== currentPlan
-                    ? `อัปเกรดเป็น ${planDisplays.find((p) => p.id === selectedPlanType)?.name}`
-                    : "กรุณาเลือก Plan ที่ต้องการอัปเกรด"}
+                    ? `Upgrade to ${planDisplays.find((p) => p.id === selectedPlanType)?.name}`
+                    : "Please select a plan to upgrade"}
                 </Button>
               </div>
             </>

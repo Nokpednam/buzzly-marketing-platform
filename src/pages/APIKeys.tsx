@@ -42,19 +42,17 @@ import {
   XCircle,
   AlertCircle,
   RefreshCw,
-  Building2,
   Link2,
-  ChevronRight,
-  Lock,
   FlaskConical,
   MoreVertical,
   Plus,
   Filter,
   ArrowUpDown,
+  Building2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { usePlatformConnections } from "@/hooks/usePlatformConnections";
-import { useOnboardingGuard } from "@/hooks/useOnboardingGuard";
 import { useWorkspaceMembers } from "@/hooks/useWorkspaceMembers";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -105,7 +103,6 @@ export default function APIKeys() {
     refreshPlatformStatus,
     refetch,
   } = usePlatformConnections();
-  const { state } = useOnboardingGuard();
   const { data: members = [] } = useWorkspaceMembers();
 
   const [editingPlatformId, setEditingPlatformId] = useState<string | null>(null);
@@ -125,10 +122,6 @@ export default function APIKeys() {
 
   if (isLoading) return <LoadingState />;
 
-  if (state === "no_workspace") {
-    return <OnboardingStepper state={state} hasTeam={hasTeam} navigate={navigate} />;
-  }
-
   const categories = ["All", ...Array.from(new Set(platforms.map((p) => p.category_name || "Other").filter(Boolean)))];
   const filteredPlatforms = platforms
     .filter((p) => categoryFilter === "All" || (p.category_name || "Other") === categoryFilter)
@@ -143,11 +136,30 @@ export default function APIKeys() {
 
   return (
     <div className="space-y-6">
-      {/* 0. ONBOARDING STEPPER */}
-      {state === "no_platform" && (
-        <div className="mb-8">
-          <OnboardingStepper state={state} hasTeam={hasTeam} navigate={navigate} />
-        </div>
+      {/* 0. NO WORKSPACE BANNER */}
+      {!hasTeam && (
+        <Card className="border-amber-500/30 bg-amber-500/5 dark:bg-amber-500/10">
+          <CardContent className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-6">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/20">
+                <Building2 className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Create your workspace first</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  You need a workspace before connecting platforms. Go to Settings to create one.
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => navigate("/settings?tab=manage-workspace")}
+              className="shrink-0"
+            >
+              <Building2 className="h-4 w-4 mr-2" />
+              Create Workspace
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {/* 1. PAGE HEADER — Apps integration style */}
@@ -258,6 +270,7 @@ export default function APIKeys() {
                     <IntegrationCard
                       key={platform.id}
                       platform={platform}
+                      hasTeam={hasTeam}
                       visibleTokens={visibleTokens}
                       setVisibleTokens={setVisibleTokens}
                       openFormId={openFormId}
@@ -290,6 +303,7 @@ export default function APIKeys() {
                     <IntegrationCard
                       key={platform.id}
                       platform={platform}
+                      hasTeam={hasTeam}
                       visibleTokens={visibleTokens}
                       setVisibleTokens={setVisibleTokens}
                       openFormId={openFormId}
@@ -332,6 +346,12 @@ export default function APIKeys() {
   }
 
   async function handleConnect(platformId: string) {
+    if (!hasTeam) {
+      toast.error("กรุณาสร้าง Workspace ก่อน", {
+        description: "ไปที่ Settings > Manage Workspace เพื่อสร้าง Workspace ก่อนเชื่อมต่อ Platform",
+      });
+      return;
+    }
     setConnecting(platformId);
     const key = apiKeyInputs[platformId]?.trim() || undefined;
     await connectPlatform(platformId, key);
@@ -347,6 +367,7 @@ export default function APIKeys() {
 
 interface IntegrationCardProps {
   platform: Platform;
+  hasTeam: boolean;
   visibleTokens: string[];
   setVisibleTokens: React.Dispatch<React.SetStateAction<string[]>>;
   openFormId: string | null;
@@ -366,6 +387,7 @@ interface IntegrationCardProps {
 
 function IntegrationCard({
   platform,
+  hasTeam,
   visibleTokens,
   setVisibleTokens,
   openFormId,
@@ -416,6 +438,7 @@ function IntegrationCard({
               className="h-8 w-8 shrink-0 rounded-full border bg-background hover:bg-muted"
               onClick={() => setOpenFormId((prev) => (prev === platform.id ? null : platform.id))}
               disabled={connecting === platform.id}
+              title={!hasTeam ? "Create workspace first" : undefined}
             >
               <Plus className="h-4 w-4" />
             </Button>
@@ -459,21 +482,26 @@ function IntegrationCard({
 
         {openFormId === platform.id && platform.status !== "connected" && (
           <div className="space-y-2 pt-2 border-t">
+            {!hasTeam && (
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                Create your workspace first to connect platforms.
+              </p>
+            )}
             <Label className="text-[10px] font-medium text-muted-foreground uppercase">API Key</Label>
             <div className="flex gap-2">
               <Input
                 placeholder="Paste API key..."
                 value={apiKeyInputs[platform.id] ?? ""}
                 onChange={(e) => setApiKeyInputs((prev) => ({ ...prev, [platform.id]: e.target.value }))}
-                onKeyDown={(e) => e.key === "Enter" && connecting !== platform.id && onConnect(platform.id)}
+                onKeyDown={(e) => e.key === "Enter" && connecting !== platform.id && hasTeam && onConnect(platform.id)}
                 className="h-9 text-xs rounded-lg"
-                disabled={connecting === platform.id}
+                disabled={connecting === platform.id || !hasTeam}
               />
               <Button
                 size="sm"
                 className="h-9 shrink-0"
                 onClick={() => onConnect(platform.id)}
-                disabled={connecting === platform.id}
+                disabled={connecting === platform.id || !hasTeam}
               >
                 {connecting === platform.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Connect"}
               </Button>
@@ -609,177 +637,6 @@ function DeleteAction({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
-}
-
-// ── ONBOARDING STEPPER ─────────────────────────────────────────────────────
-
-type StepStatus = "completed" | "current" | "locked";
-
-interface Step {
-  number: number;
-  title: string;
-  description: string;
-  status: StepStatus;
-  buttonLabel: string;
-  buttonDisabled: boolean;
-  disabledHint?: string;
-  onAction: () => void;
-  icon: React.ElementType;
-}
-
-function OnboardingStepper({
-  state,
-  hasTeam,
-  navigate,
-}: {
-  state: string;
-  hasTeam: boolean;
-  navigate: ReturnType<typeof useNavigate>;
-}) {
-  const step1Status: StepStatus = hasTeam ? "completed" : "current";
-  const step2Status: StepStatus = !hasTeam ? "locked" : "current";
-
-  const steps: Step[] = [
-    {
-      number: 1,
-      title: "Create Your Workspace",
-      description: "Set up your workspace to organize your team, campaigns, and integrations.",
-      status: step1Status,
-      buttonLabel: "Go to Workspace Settings",
-      buttonDisabled: false,
-      onAction: () => navigate("/settings?tab=workspace"),
-      icon: Building2,
-    },
-    {
-      number: 2,
-      title: "Connect Your First Platform",
-      description: "Link your marketing platform to start syncing campaign data and insights.",
-      status: step2Status,
-      buttonLabel: !hasTeam ? "Complete Step 1 first" : "Set Up Integration",
-      buttonDisabled: !hasTeam,
-      disabledHint: !hasTeam ? "Complete Step 1 first" : undefined,
-      onAction: () => {
-        document.getElementById("integrations-list")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      },
-      icon: Link2,
-    },
-  ];
-
-  return (
-    <div className="relative min-h-[80vh] flex items-center justify-center p-4 md:p-8 overflow-hidden rounded-[3rem] bg-gradient-to-br from-indigo-50 via-white to-cyan-50 dark:from-slate-950 dark:via-background dark:to-slate-900 border border-border/50">
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/20 blur-[120px] rounded-full mix-blend-multiply animate-pulse" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-cyan-500/20 blur-[120px] rounded-full mix-blend-multiply animate-pulse delay-1000" />
-      <div className="absolute top-[40%] left-[50%] w-[30%] h-[30%] bg-purple-500/20 blur-[100px] rounded-full mix-blend-multiply animate-pulse delay-2000" />
-
-      <div className="max-w-3xl w-full relative z-10 space-y-10">
-        <div className="text-center space-y-4">
-          <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-white/50 dark:bg-black/50 border border-white/20 dark:border-white/10 shadow-sm backdrop-blur-md text-primary font-bold text-[10px] uppercase tracking-[0.2em] mb-4">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
-            </span>
-            Getting Started
-          </div>
-          <h1 className="text-5xl md:text-7xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 dark:from-white dark:via-indigo-200 dark:to-white">
-            SETUP BUZZLY.
-          </h1>
-          <p className="text-lg text-muted-foreground/80 max-w-lg mx-auto font-medium">
-            Complete these two steps to unlock your intelligent dashboard.
-          </p>
-        </div>
-
-        <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 rounded-[3rem] blur opacity-20 group-hover:opacity-30 transition duration-1000" />
-          <Card className="relative rounded-[3rem] border-white/20 dark:border-white/10 bg-white/60 dark:bg-black/40 backdrop-blur-2xl shadow-2xl overflow-hidden pt-8 pb-4">
-            <CardContent className="p-8 md:p-12 space-y-0 relative z-10">
-              {steps.map((step, idx) => (
-                <StepRow key={step.number} step={step} isLast={idx === steps.length - 1} />
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StepRow({ step, isLast }: { step: Step; isLast: boolean }) {
-  const isCompleted = step.status === "completed";
-  const isCurrent = step.status === "current";
-  const isLocked = step.status === "locked";
-
-  return (
-    <div className={cn("flex gap-8 group/step transition-all duration-500", isCurrent ? "opacity-100" : "opacity-60")}>
-      <div className="flex flex-col items-center">
-        <div
-          className={cn(
-            "h-14 w-14 rounded-2xl flex items-center justify-center font-black text-xl flex-shrink-0 border-2 transition-all duration-500",
-            isCompleted && "bg-emerald-500 border-emerald-500 text-white",
-            isCurrent && "bg-gradient-to-br from-indigo-500 to-cyan-500 border-transparent text-white shadow-xl scale-110",
-            isLocked && "bg-muted/50 border-border/50 text-muted-foreground"
-          )}
-        >
-          {isCompleted ? <CheckCircle2 className="h-6 w-6" /> : isLocked ? <Lock className="h-5 w-5 opacity-50" /> : step.number}
-        </div>
-        {!isLast && (
-          <div
-            className={cn(
-              "w-0.5 flex-1 my-4 min-h-[3rem]",
-              isCompleted ? "bg-emerald-500/30" : "bg-border/60"
-            )}
-          />
-        )}
-      </div>
-      <div className={cn("pb-10 flex-1", isCurrent && "translate-x-2", isLast && "pb-0")}>
-        <div className="flex items-center gap-4 mb-2">
-          <h3
-            className={cn(
-              "font-black text-2xl uppercase tracking-tighter",
-              isLocked && "text-muted-foreground",
-              isCompleted && "text-muted-foreground line-through decoration-2 decoration-emerald-500/30",
-              isCurrent && "text-foreground"
-            )}
-          >
-            {step.title}
-          </h3>
-          {isCompleted && (
-            <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs uppercase font-bold px-3 py-1">
-              Done
-            </Badge>
-          )}
-        </div>
-        <p className={cn("text-base md:text-lg mb-6 leading-relaxed max-w-xl font-medium", (isLocked || isCompleted) && "text-muted-foreground/60")}>
-          {step.description}
-        </p>
-        {!isCompleted && (
-          <Button
-            disabled={step.buttonDisabled}
-            onClick={step.onAction}
-            size="lg"
-            className={cn(
-              "rounded-2xl font-bold tracking-wide uppercase text-xs h-12 px-8",
-              isCurrent && "bg-foreground text-background shadow-xl hover:scale-105",
-              isLocked && "opacity-50 cursor-not-allowed bg-muted text-muted-foreground"
-            )}
-            variant={isCurrent ? "default" : "outline"}
-          >
-            {step.buttonDisabled ? (
-              <>
-                <Lock className="h-4 w-4 mr-2" />
-                {step.buttonLabel}
-              </>
-            ) : (
-              <>
-                <step.icon className="h-4 w-4 mr-2" />
-                {step.buttonLabel}
-                <ChevronRight className="h-4 w-4 ml-2" />
-              </>
-            )}
-          </Button>
-        )}
-      </div>
-    </div>
   );
 }
 
