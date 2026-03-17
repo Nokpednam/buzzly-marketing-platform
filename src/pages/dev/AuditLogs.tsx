@@ -162,7 +162,7 @@ export default function AuditLogs() {
   const [selectedAction, setSelectedAction] = useState("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [page, setPage] = useState(1);
-  const pageSize = 50;
+  const pageSize = 25;
   const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null);
 
   const { data, isLoading, isFetching, refetch } = useAuditLogs(
@@ -205,72 +205,69 @@ export default function AuditLogs() {
 
       {/* Activity Stats */}
       <div className="grid gap-4 md:grid-cols-6">
-        <Card className="bg-slate-900/50 border-slate-800 shadow-lg">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Feature Views</p>
-                <p className="text-2xl font-bold text-cyan-400 leading-tight">{stats?.featureViews ?? 0}</p>
+        <Card className="bg-slate-900/50 border-slate-800 shadow-lg group hover:border-cyan-500/30 transition-colors">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Feature Views</p>
+                <p className="text-2xl font-bold text-cyan-400">{stats?.featureViews ?? 0}</p>
               </div>
-              <LayoutDashboard className="h-5 w-5 text-cyan-500/50" />
-            </div>
-            <Link to="/owner/product-usage" className="text-[10px] text-cyan-400/80 hover:text-cyan-400 mt-2 inline-flex items-center gap-1">
-              <BarChart3 className="h-3 w-3" /> ดู Product Usage
-            </Link>
-          </CardContent>
-        </Card>
-        <Card className="bg-slate-900/50 border-slate-800 shadow-lg">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Total Logins</p>
-                <p className="text-2xl font-bold text-white leading-tight">{stats?.totalLogins || 0}</p>
-              </div>
-              <LogIn className="h-5 w-5 text-slate-500" />
+              <LayoutDashboard className="h-5 w-5 text-cyan-500/40 group-hover:text-cyan-400 transition-colors" />
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-slate-900/50 border-slate-800 shadow-lg">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Failed Logins</p>
-                <p className="text-2xl font-bold text-rose-500 leading-tight">{stats?.failedLogins || 0}</p>
+        <Card className="bg-slate-900/50 border-slate-800 shadow-lg group hover:border-slate-700 transition-colors">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Logins</p>
+                <p className="text-2xl font-bold text-white">{stats?.totalLogins || 0}</p>
               </div>
-              <Shield className="h-5 w-5 text-rose-500/30" />
+              <LogIn className="h-5 w-5 text-slate-500 group-hover:text-slate-400 transition-colors" />
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-slate-900/50 border-slate-800 shadow-lg">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Data Exports</p>
-                <p className="text-2xl font-bold text-white leading-tight">{stats?.dataExports || 0}</p>
+        <Card className="bg-slate-900/50 border-slate-800 shadow-lg group hover:border-rose-500/30 transition-colors">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Failed Logins</p>
+                <p className="text-2xl font-bold text-rose-500">{stats?.failedLogins || 0}</p>
               </div>
-              <FileDown className="h-5 w-5 text-blue-500/30" />
+              <Shield className="h-5 w-5 text-rose-500/30 group-hover:text-rose-500/50 transition-colors" />
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-slate-900/50 border-slate-800 shadow-lg">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Security Actions</p>
-                <p className="text-2xl font-bold text-white leading-tight">{stats?.securityActions || 0}</p>
+        <Card className="bg-slate-900/50 border-slate-800 shadow-lg group hover:border-blue-500/30 transition-colors">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Data Exports</p>
+                <p className="text-2xl font-bold text-white">{stats?.dataExports || 0}</p>
               </div>
-              <Key className="h-5 w-5 text-amber-500/30" />
+              <FileDown className="h-5 w-5 text-blue-500/30 group-hover:text-blue-500/50 transition-colors" />
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-slate-900/50 border-slate-800 shadow-lg">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Settings Changes</p>
-                <p className="text-2xl font-bold text-white leading-tight">{stats?.settingsChanges || 0}</p>
+        <Card className="bg-slate-900/50 border-slate-800 shadow-lg group hover:border-amber-500/30 transition-colors">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Security Actions</p>
+                <p className="text-2xl font-bold text-white">{stats?.securityActions || 0}</p>
               </div>
-              <Settings className="h-5 w-5 text-blue-500/30" />
+              <Key className="h-5 w-5 text-amber-500/30 group-hover:text-amber-500/50 transition-colors" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-slate-900/50 border-slate-800 shadow-lg group hover:border-blue-500/30 transition-colors">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Settings Changes</p>
+                <p className="text-2xl font-bold text-white">{stats?.settingsChanges || 0}</p>
+              </div>
+              <Settings className="h-5 w-5 text-blue-500/30 group-hover:text-blue-500/50 transition-colors" />
             </div>
           </CardContent>
         </Card>
