@@ -159,7 +159,19 @@ export function useLoyaltyTierHistoryManual(page = 0) {
                 .order("changed_at", { ascending: false })
                 .range(from, to);
 
-            if (error) throw error;
+            if (error) {
+                if (error.code === "PGRST200" || error.message?.includes("Could not find a relationship")) {
+                    const { data: fallback, error: fallbackError } = await (supabase as any)
+                        .from("loyalty_tier_history")
+                        .select("*")
+                        .eq("change_type", 'manual')
+                        .order("changed_at", { ascending: false })
+                        .range(from, to);
+                    if (fallbackError) throw fallbackError;
+                    return (fallback as unknown as LoyaltyTierHistoryEntry[]) ?? [];
+                }
+                throw error;
+            }
             return (data as unknown as LoyaltyTierHistoryEntry[]) ?? [];
         },
         placeholderData: keepPreviousData,

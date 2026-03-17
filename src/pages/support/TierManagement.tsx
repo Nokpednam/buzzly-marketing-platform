@@ -195,7 +195,7 @@ export default function TierManagement() {
   const [activitiesPage, setActivitiesPage] = useState(0);
 
   const { data: tierHistory = [], isLoading: historyLoading, isError: historyError } = useLoyaltyTierHistoryManual(historyPage);
-  const { data: loyaltyTierHistoryAll = [], isLoading: loyaltyHistoryLoading, isError: loyaltyHistoryError } = useLoyaltyTierHistoryAll(loyaltyHistoryPage);
+  const { data: loyaltyTierHistoryAll = [], isLoading: loyaltyHistoryLoading, isError: loyaltyHistoryError, error: loyaltyHistoryErrorDetail, refetch: refetchLoyaltyHistory } = useLoyaltyTierHistoryAll(loyaltyHistoryPage);
   const { data: pointsTransactions = [], isLoading: txLoading, isError: txError, error: txErrorDetail } = usePointsTransactions(transactionsPage);
   const { data: suspiciousActivities = [], isLoading: alertsLoading, unresolvedCount, resolveActivity, suspendCustomer } = useSuspiciousActivities(activitiesPage);
   const { query: searchQuery, setQuery: setSearchQuery, data: searchResults = [], isFetching: searchLoading, isError: searchError, error: searchErrorDetail } = useCustomerSearch();
@@ -690,6 +690,16 @@ export default function TierManagement() {
             <div className="px-6 pb-6">
               {loyaltyHistoryLoading ? (
                 <div className="space-y-2 py-8"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
+              ) : loyaltyHistoryError ? (
+                <div className="py-16 text-center space-y-3">
+                  <p className="text-destructive font-medium">Failed to load tier history</p>
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                    {(loyaltyHistoryErrorDetail as Error)?.message ?? "Check RLS: ensure you are logged in as Support/Owner/Dev with status=active, approval_status=approved in employees table."}
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => refetchLoyaltyHistory()}>
+                    Retry
+                  </Button>
+                </div>
               ) : (() => {
                 const actualChanges = loyaltyTierHistoryAll.filter(
                   (h: LoyaltyTierHistoryEntry) => (h.old_tier ?? "") !== (h.new_tier ?? "")
