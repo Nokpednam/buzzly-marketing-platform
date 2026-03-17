@@ -537,24 +537,14 @@ export function useManualTierOverride() {
             newTierName: string;
             reason: string;
         }) => {
-            // 1. Resolve tier name → tier ID
-            const { data: tierData, error: tierError } = await supabase
-                .from("loyalty_tiers")
-                .select("id")
-                .eq("name", newTierName)
-                .maybeSingle();
-
-            if (tierError) throw tierError;
-            if (!tierData) throw new Error(`Tier "${newTierName}" not found`);
-
-            // 2. Call the atomic RPC — employee guard enforced server-side
+            // Call the atomic RPC — employee guard enforced server-side
             const trimmedReason = reason?.trim() || null;
             const { data, error: rpcError } = await supabase.rpc(
-                "manual_override_customer_tier",
+                "admin_override_tier",
                 {
-                    target_user_id: userId,
-                    new_tier_id: tierData.id,
-                    override_reason: trimmedReason,
+                    p_user_id: userId,
+                    p_new_tier_name: newTierName,
+                    p_reason: trimmedReason,
                 }
             );
 
@@ -566,8 +556,10 @@ export function useManualTierOverride() {
             await queryClient.refetchQueries({ queryKey: ["loyalty-tier-history-all"] });
             queryClient.invalidateQueries({ queryKey: ["customer-search"] });
             queryClient.invalidateQueries({ queryKey: ["all-customers-dropdown"] });
+            queryClient.invalidateQueries({ queryKey: ["all_customers"] });
             queryClient.invalidateQueries({ queryKey: ["tier-history"] });
             queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history"] });
+            queryClient.invalidateQueries({ queryKey: ["loyalty_tier_history"] });
             queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-manual"] });
             queryClient.invalidateQueries({ queryKey: ["points-transactions-admin"] });
             toast.success("Tier updated successfully");
