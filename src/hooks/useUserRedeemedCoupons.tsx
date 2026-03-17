@@ -25,12 +25,12 @@ export interface RedeemedCoupon {
     };
     /**
      * Live status from the discounts table (if discount_id is set).
-     * If the discount has been fully used (times_used >= usage_limit) or
+     * If the discount has been fully used (usage_count >= usage_limit) or
      * is_active=false, this will be true regardless of the status column.
      */
     discount?: {
         is_active: boolean;
-        times_used: number | null;
+        usage_count: number | null;
         usage_limit: number | null;
     } | null;
 }
@@ -40,9 +40,9 @@ export function isCouponUsed(coupon: RedeemedCoupon): boolean {
     if (coupon.status === "used") return true;
     // Also check if the discount row has been exhausted
     if (coupon.discount) {
-        const { is_active, times_used, usage_limit } = coupon.discount;
+        const { is_active, usage_count, usage_limit } = coupon.discount;
         if (!is_active) return true;
-        if (usage_limit != null && times_used != null && times_used >= usage_limit) return true;
+        if (usage_limit != null && usage_count != null && usage_count >= usage_limit) return true;
     }
     return false;
 }
@@ -73,7 +73,7 @@ export function useUserRedeemedCoupons() {
                     ),
                     discount:discounts (
                         is_active,
-                        times_used,
+                        usage_count,
                         usage_limit
                     )
                 `)
@@ -114,7 +114,7 @@ export function useAllRedeemedCoupons() {
                     ),
                     discount:discounts (
                         is_active,
-                        times_used,
+                        usage_count,
                         usage_limit
                     )
                 `)
