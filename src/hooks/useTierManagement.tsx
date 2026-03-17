@@ -106,6 +106,28 @@ export function useLoyaltyTierHistory(page = 0) {
     });
 }
 
+// ─── Loyalty Tier History (All: Auto + Manual, for unified table with Origin) ───
+
+export function useLoyaltyTierHistoryAll(page = 0) {
+    return useQuery({
+        queryKey: ["loyalty-tier-history-all", page],
+        queryFn: async () => {
+            const from = page * ADMIN_PAGE_SIZE;
+            const to = from + ADMIN_PAGE_SIZE;
+
+            const { data, error } = await (supabase as any)
+                .from("loyalty_tier_history")
+                .select('*, customer:profile_customers!loyalty_tier_history_profile_customer_id_fkey(first_name, last_name, user_id)')
+                .order("changed_at", { ascending: false })
+                .range(from, to);
+
+            if (error) throw error;
+            return (data as unknown as LoyaltyTierHistoryEntry[]) ?? [];
+        },
+        placeholderData: keepPreviousData,
+    });
+}
+
 // ─── Loyalty Tier History (Manual Overrides) ──────────────────────────────────
 
 export function useLoyaltyTierHistoryManual(page = 0) {
@@ -283,7 +305,7 @@ export function useSuspiciousActivities(page = 0) {
             toast.success("Marked as resolved");
         },
         onError: (error: Error) => {
-            toast.error("เกิดข้อผิดพลาด", { description: error.message });
+            toast.error("Error", { description: error.message });
         },
     });
 
@@ -478,7 +500,7 @@ export function useManualTierOverride() {
             queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history"] });
             queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-manual"] });
             queryClient.invalidateQueries({ queryKey: ["points-transactions"] });
-            toast.success("อัปเดต Tier สำเร็จ");
+            toast.success("Tier updated successfully");
         },
         onError: (error: Error) => {
             toast.error("Update failed", { description: error.message });
@@ -486,6 +508,70 @@ export function useManualTierOverride() {
     });
 }
 
+
+// ─── Loyalty Tiers (for Tier Rules config) ────────────────────────────────────
+
+export interface LoyaltyTierRule {
+    id: string;
+    name: string;
+    min_points: number | null;
+    priority_level: number | null;
+    retention_period_days: number | null;
+}
+
+export function useLoyaltyTiers() {
+    return useQuery({
+        queryKey: ["loyalty-tiers-rules"],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from("loyalty_tiers")
+                .select("id, name, min_points, priority_level, retention_period_days")
+                .eq("is_active", true)
+                .order("priority_level", { ascending: true });
+            if (error) throw error;
+            return (data as unknown as LoyaltyTierRule[]) ?? [];
+        },
+    });
+}
+
+export function useUpdateTierRetention() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async ({ tierId, retentionDays }: { tierId: string; retentionDays: number }) => {
+            const { error } = await (supabase as any).rpc("update_tier_retention_period", {
+                p_tier_id: tierId,
+                p_retention_days: retentionDays,
+            });
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["loyalty-tiers-rules"] });
+            toast.success("Tier rules updated successfully");
+        },
+        onError: (err: Error) => {
+            toast.error("Update failed", { description: err.message });
+        },
+    });
+}
+
+export function useEvaluateInactivityDowngrades() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: async () => {
+            const { data, error } = await (supabase as any).rpc("evaluate_inactivity_tier_downgrades");
+            if (error) throw error;
+            return data as { downgraded_count: number };
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ["loyalty-tier-history-all"] });
+            queryClient.invalidateQueries({ queryKey: ["all-customers-dropdown"] });
+            toast.success(`Evaluation complete: ${data?.downgraded_count ?? 0} tier(s) downgraded`);
+        },
+        onError: (err: Error) => {
+            toast.error("Evaluation failed", { description: err.message });
+        },
+    });
+}
 
 // ─── Manual Point Adjustment ──────────────────────────────────────────────────
 
