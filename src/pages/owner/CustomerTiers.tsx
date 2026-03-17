@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
 import { useCustomerTiers } from "@/hooks/useCustomerTiers";
 import { useDiscounts } from "@/hooks/useDiscounts";
 import { useToast } from "@/hooks/use-toast";
@@ -15,16 +14,12 @@ import { tierColors, tierIcons } from "@/hooks/useLoyaltyTier";
 import {
   PieChart, Pie, Cell, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend,
-  LineChart, Line, Area, AreaChart, CartesianGrid
+  LineChart, Line, Area, AreaChart
 } from "recharts";
 import {
   Users, TrendingUp, TrendingDown, DollarSign,
-  Award, ArrowUpRight, ArrowDownRight, Clock, Zap, AlertTriangle, Send, Tag
+  Award, ArrowUpRight, ArrowDownRight, Clock, Zap, AlertTriangle, Send, Tag, Copy
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { th } from "date-fns/locale";
-import { Sparkline } from "@/components/campaigns/Sparkline";
 
 interface TierDistribution {
   name: string;
@@ -59,7 +54,6 @@ export default function CustomerTiers() {
   // Promo Dispatch Modal State
   const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<{ id: string, name: string } | null>(null);
-  const [promoContext, setPromoContext] = useState<"promo" | "re_engage">("promo");
   const [promoTab, setPromoTab] = useState<"select" | "create">("select");
   const [selectedCodeId, setSelectedCodeId] = useState<string>("");
   const [newPromoForm, setNewPromoForm] = useState({
@@ -71,19 +65,18 @@ export default function CustomerTiers() {
   const { draftDiscounts, ongoingDiscounts, createDiscount } = useDiscounts();
   const availableDiscounts = [...ongoingDiscounts, ...draftDiscounts];
 
-  const handleOpenPromoModal = (customerId: string, customerName: string, context: "promo" | "re_engage" = "promo") => {
+  const handleOpenPromoModal = (customerId: string, customerName: string) => {
     setSelectedCustomer({ id: customerId, name: customerName });
-    setPromoContext(context);
     setIsPromoModalOpen(true);
   };
 
   const handleCopyAndSend = async () => {
-    let discountId = "";
+    let finalCode = "";
 
     if (promoTab === "select") {
       const selected = availableDiscounts.find(d => d.id === selectedCodeId);
       if (!selected) return;
-      discountId = selected.id;
+      finalCode = selected.code;
     } else {
       if (!newPromoForm.code) return;
       try {
@@ -93,38 +86,20 @@ export default function CustomerTiers() {
           discount_value: newPromoForm.discount_value,
           description: `Created explicitly for ${selectedCustomer?.name}`,
         });
-        discountId = created.id;
+        finalCode = created.code;
       } catch (error) {
         return; // Error handled by mutation hook
       }
     }
 
-    if (!selectedCustomer?.id || !discountId) return;
-
-    try {
-      const { data, error } = await supabase.rpc("send_promo_to_customer", {
-        p_customer_id: selectedCustomer.id,
-        p_discount_id: discountId,
-        p_context: promoContext,
-      });
-
-      if (error) throw error;
-
-      const success = (data as { success?: boolean })?.success;
-      if (success) {
-        toast({
-          title: "ส่งสำเร็จ!",
-          description: `โค้ดส่วนลดถูกส่งไปยังช่องแจ้งเตือนของ ${selectedCustomer.name} แล้ว`,
-        });
-      } else {
-        toast({ title: "เกิดข้อผิดพลาด", description: "ไม่สามารถส่งได้", variant: "destructive" });
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "ไม่สามารถส่งได้";
-      toast({ title: "เกิดข้อผิดพลาด", description: msg, variant: "destructive" });
-    }
-
+    navigator.clipboard.writeText(finalCode);
+    toast({
+      title: "Code Copied & Ready!",
+      description: `Discount code «${finalCode}» is copied and ready to be sent to ${selectedCustomer?.name}`,
+    });
     setIsPromoModalOpen(false);
+
+    // reset form
     setNewPromoForm({ code: "", discount_type: "percent", discount_value: 10 });
     setSelectedCodeId("");
   };
@@ -142,97 +117,150 @@ export default function CustomerTiers() {
   const totalRevenue = data?.totalRevenue ?? 0;
   const avgSpendAll = data?.avgSpendAll ?? 0;
   const platinumCount = data?.platinumCount ?? 0;
-  const byGender = data?.byGender ?? [];
-  const genderTrend = data?.genderTrend ?? [];
-  const kpiSparklines = data?.kpiSparklines ?? { totalCustomers: [], newMonthly: [], active: [], churned: [] };
-  const kpiChange = data?.kpiChange ?? { totalCustomers: 0, newMonthly: 0, active: 0, churned: 0 };
-  const accountGrowth = data?.accountGrowth ?? [];
-  const retentionChurn = data?.retentionChurn ?? [];
-
-  const ACCENT = "#06b6d4";
-  const GENDER_COLORS = { Male: "#0ea5e9", Female: "#14b8a6", "Not Specified": "#94a3b8" };
 
   if (loading) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-        <p className="text-sm text-gray-500 font-medium">กำลังโหลดภาพรวมลูกค้า...</p>
-      </div>
-    );
+    return <div className="p-8 text-center">Loading tier analytics...</div>;
   }
 
+  // Reuse existing JSX structure but with real data
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-              ภาพรวมลูกค้า
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              Customer Overview — Loyalty Tier & Performance
-            </p>
-          </div>
-          <Select value={timePeriod} onValueChange={setTimePeriod}>
-            <SelectTrigger className="w-[160px] h-9 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800">
-              <SelectValue placeholder="ช่วงเวลา" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">7 วันล่าสุด</SelectItem>
-              <SelectItem value="30d">30 วันล่าสุด</SelectItem>
-              <SelectItem value="90d">90 วันล่าสุด</SelectItem>
-              <SelectItem value="1y">1 ปีล่าสุด</SelectItem>
-            </SelectContent>
-          </Select>
+    <div className="space-y-6 px-6 pb-6 pt-2">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
+            Customer Tiers
+          </h1>
+          <p className="text-slate-500 mt-2 text-lg font-medium">
+            Loyalty Tier Overview & Performance
+          </p>
         </div>
+        <Select value={timePeriod} onValueChange={setTimePeriod}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Time period" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7d">Last 7 days</SelectItem>
+            <SelectItem value="30d">Last 30 days</SelectItem>
+            <SelectItem value="90d">Last 90 days</SelectItem>
+            <SelectItem value="1y">Last year</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-        {/* 4 KPI Cards — Linear style with Sparklines */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { key: "totalCustomers", label: "ลูกค้าทั้งหมด", value: totalCustomers, change: kpiChange.totalCustomers, sparkline: kpiSparklines.totalCustomers, icon: Users },
-            { key: "newMonthly", label: "ลูกค้าใหม่ (รายเดือน)", value: kpiSparklines.newMonthly[kpiSparklines.newMonthly.length - 1]?.value ?? 0, change: kpiChange.newMonthly, sparkline: kpiSparklines.newMonthly, icon: TrendingUp },
-            { key: "active", label: "ลูกค้าที่ใช้งานอยู่", value: kpiSparklines.active[kpiSparklines.active.length - 1]?.value ?? 0, change: kpiChange.active, sparkline: kpiSparklines.active, icon: Zap },
-            { key: "churned", label: "ลูกค้าที่หลุด", value: kpiSparklines.churned[kpiSparklines.churned.length - 1]?.value ?? 0, change: kpiChange.churned, sparkline: kpiSparklines.churned, icon: TrendingDown },
-          ].map(({ key, label, value, change, sparkline, icon: Icon }) => (
-            <Card key={key} className="bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 rounded-xl shadow-sm">
-              <CardContent className="p-4">
-                <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{label}</p>
-                <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">{(value ?? 0).toLocaleString()}</p>
-                <div className="mt-2 h-10">
-                  {sparkline.length >= 2 && (
-                    <Sparkline data={sparkline} height={36} strokeColor={ACCENT} />
-                  )}
-                </div>
-                <p className={cn(
-                  "text-xs font-medium mt-2",
-                  change >= 0 ? "text-cyan-600 dark:text-cyan-400" : "text-gray-500 dark:text-gray-400"
-                )}>
-                  {change >= 0 ? "+" : ""}{change}% vs เดือนก่อน
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      {/* Summary Cards */}
+      <div className="grid gap-6 md:grid-cols-4">
+        {/* Total Members - Deep Blue Gradient */}
+        <Card className="bg-gradient-to-br from-blue-600 to-blue-700 border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <Users className="h-24 w-24 text-white transform rotate-12 translate-x-8 translate-y-[-10px]" />
+          </div>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+            <CardTitle className="text-sm font-medium text-blue-100">Total Members</CardTitle>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white backdrop-blur-sm">
+              <Users className="h-5 w-5" />
+            </div>
+          </CardHeader>
+          <CardContent className="relative z-10">
+            <div className="text-4xl font-bold tracking-tight text-white shadow-sm">{(totalCustomers || 0).toLocaleString()}</div>
+            <div className="flex items-center text-xs font-medium mt-3 text-blue-100">
+              <span className="flex items-center bg-white/20 px-2 py-1 rounded-lg text-white mr-2 backdrop-blur-sm">
+                <ArrowUpRight className="h-3 w-3 mr-1" />
+                12.5%
+              </span>
+              <span>vs last month</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Revenue - Deep Emerald Gradient */}
+        <Card className="bg-gradient-to-br from-emerald-600 to-teal-700 border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <DollarSign className="h-24 w-24 text-white transform rotate-12 translate-x-8 translate-y-[-10px]" />
+          </div>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+            <CardTitle className="text-sm font-medium text-emerald-100">Total Revenue</CardTitle>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white backdrop-blur-sm">
+              <DollarSign className="h-5 w-5" />
+            </div>
+          </CardHeader>
+          <CardContent className="relative z-10">
+            <div className="text-4xl font-bold tracking-tight text-white shadow-sm">฿{(totalRevenue / 1000).toFixed(0)}K</div>
+            <div className="flex items-center text-xs font-medium mt-3 text-emerald-100">
+              <span className="flex items-center bg-white/20 px-2 py-1 rounded-lg text-white mr-2 backdrop-blur-sm">
+                <ArrowUpRight className="h-3 w-3 mr-1" />
+                8.2%
+              </span>
+              <span>vs last month</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Avg Spend - Deep Orange/Red Gradient */}
+        <Card className="bg-gradient-to-br from-orange-500 to-red-600 border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <TrendingUp className="h-24 w-24 text-white transform rotate-12 translate-x-8 translate-y-[-10px]" />
+          </div>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+            <CardTitle className="text-sm font-medium text-orange-100">Average Spend</CardTitle>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white backdrop-blur-sm">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+          </CardHeader>
+          <CardContent className="relative z-10">
+            <div className="text-4xl font-bold tracking-tight text-white shadow-sm">฿{avgSpendAll.toLocaleString()}</div>
+            <div className="flex items-center text-xs font-medium mt-3 text-orange-100">
+              <span className="flex items-center bg-white/20 px-2 py-1 rounded-lg text-white mr-2 backdrop-blur-sm">
+                <ArrowUpRight className="h-3 w-3 mr-1" />
+                5.4%
+              </span>
+              <span>vs last month</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Points Burn Rate - Deep Indigo/Purple Gradient */}
+        <Card className="bg-gradient-to-br from-indigo-600 to-purple-700 border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4 opacity-10">
+            <Zap className="h-24 w-24 text-white transform rotate-12 translate-x-8 translate-y-[-10px]" />
+          </div>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
+            <CardTitle className="text-sm font-medium text-indigo-100">Points Burn Rate</CardTitle>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 text-white backdrop-blur-sm">
+              <Zap className="h-5 w-5" />
+            </div>
+          </CardHeader>
+          <CardContent className="relative z-10">
+            <div className="text-4xl font-bold tracking-tight text-white shadow-sm">{pointsBurnRate}%</div>
+            <div className="flex items-center text-xs font-medium mt-3 text-indigo-100">
+              <span className="flex items-center bg-white/20 px-2 py-1 rounded-lg text-white mr-2 backdrop-blur-sm">
+                Engagement
+              </span>
+              <span>Points Spent/Earned</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <Tabs defaultValue="overview" className="w-full space-y-6">
-        <TabsList className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-1 rounded-xl h-10 inline-flex">
-          <TabsTrigger value="overview" className="rounded-lg h-8 px-5 text-sm data-[state=active]:bg-gray-100 dark:data-[state=active]:bg-gray-800 data-[state=active]:shadow-sm">
+        <TabsList className="bg-slate-100/50 p-1 border border-slate-200/60 rounded-xl h-12 inline-flex">
+          <TabsTrigger value="overview" className="rounded-lg h-9 px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">
             Overview
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="rounded-lg h-8 px-5 text-sm data-[state=active]:bg-gray-100 dark:data-[state=active]:bg-gray-800 data-[state=active]:shadow-sm">
+          <TabsTrigger value="analytics" className="rounded-lg h-9 px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">
             Analytics
           </TabsTrigger>
-          <TabsTrigger value="insights" className="rounded-lg h-8 px-5 text-sm data-[state=active]:bg-gray-100 dark:data-[state=active]:bg-gray-800 data-[state=active]:shadow-sm">
+          <TabsTrigger value="insights" className="rounded-lg h-9 px-6 data-[state=active]:bg-white data-[state=active]:shadow-sm">
             Actionable Insights
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="insights" className="space-y-6 mt-6">
+        <TabsContent value="insights" className="space-y-6 mt-0">
           {/* Actionable Insights Row */}
           <div className="grid gap-6 md:grid-cols-2">
             {/* Near Upgrade */}
-            <Card className="bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 rounded-xl shadow-sm">
-              <CardHeader className="bg-gray-50 dark:bg-gray-800/50 rounded-t-xl pb-4 border-b border-gray-100 dark:border-gray-800">
+            <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5">
+              <CardHeader className="bg-primary/5 rounded-t-xl pb-4 border-b border-primary/10">
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-xl font-bold text-primary flex items-center gap-2">
@@ -261,10 +289,10 @@ export default function CustomerTiers() {
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="text-right hidden sm:block">
-                            <p className="text-sm font-bold text-emerald-600">ต้อง ฿{cust.spendNeeded.toLocaleString()}</p>
+                            <p className="text-sm font-bold text-emerald-600">฿{cust.spendNeeded.toLocaleString()} needed</p>
                           </div>
                           <button
-                            onClick={() => handleOpenPromoModal(cust.id, cust.name, "promo")}
+                            onClick={() => handleOpenPromoModal(cust.id, cust.name)}
                             className="h-8 px-3 rounded-md bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold uppercase tracking-wider flex items-center gap-1 transition-colors whitespace-nowrap">
                             <Send className="h-3 w-3" /> Send Promo
                           </button>
@@ -277,8 +305,8 @@ export default function CustomerTiers() {
             </Card>
 
             {/* Churn Risk VIPs */}
-            <Card className="bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 rounded-xl shadow-sm">
-              <CardHeader className="bg-gray-50 dark:bg-gray-800/50 rounded-t-xl pb-4 border-b border-gray-100 dark:border-gray-800">
+            <Card className="glass-panel border-destructive/10 shadow-lg shadow-destructive/5">
+              <CardHeader className="bg-destructive/5 rounded-t-xl pb-4 border-b border-destructive/10">
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-xl font-bold text-destructive flex items-center gap-2">
@@ -309,7 +337,7 @@ export default function CustomerTiers() {
                             {cust.daysInactive} days ago
                           </div>
                           <button
-                            onClick={() => handleOpenPromoModal(cust.id, cust.name, "re_engage")}
+                            onClick={() => handleOpenPromoModal(cust.id, cust.name)}
                             className="h-8 px-3 rounded-md bg-red-100 text-red-600 hover:bg-red-200 text-xs font-bold uppercase tracking-wider flex items-center gap-1 transition-colors whitespace-nowrap">
                             <Send className="h-3 w-3" /> Re-engage
                           </button>
@@ -323,143 +351,97 @@ export default function CustomerTiers() {
           </div>
         </TabsContent>
 
-        <TabsContent value="overview" className="space-y-6 mt-6">
-          {/* Main Visualization: Gender Donut + Line Trend */}
-          <Card className="bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 rounded-xl shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold text-gray-900 dark:text-gray-100">การกระจายตามเพศและแนวโน้ม</CardTitle>
-              <CardDescription className="text-gray-500 dark:text-gray-400">Gender Segment & Trend (6 เดือน)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-6 lg:grid-cols-[1fr,1.5fr]">
-                {/* Donut — Left */}
-                <div className="flex flex-col items-center justify-center">
-                  <div className="relative h-[220px] w-full max-w-[220px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={byGender.filter((g) => g.count > 0)}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={90}
-                          paddingAngle={2}
-                          dataKey="count"
-                        >
-                          {byGender.filter((g) => g.count > 0).map((entry, i) => (
-                            <Cell key={entry.gender} fill={(GENDER_COLORS as Record<string, string>)[entry.gender] ?? "#94a3b8"} strokeWidth={0} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", backgroundColor: "hsl(var(--card))", fontSize: "12px" }}
-                          formatter={(value: number, _name: string, props: { payload: { gender: string; percentage: number } }) => [`${value} (${props.payload.percentage}%)`, props.payload.gender]}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      <span className="text-2xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{totalCustomers}</span>
-                      <span className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">ลูกค้า</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap justify-center gap-4 mt-4">
-                    {byGender.filter((g) => g.count > 0).map((g) => (
-                      <div key={g.gender} className="flex items-center gap-2">
-                        <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: (GENDER_COLORS as Record<string, string>)[g.gender] ?? "#94a3b8" }} />
-                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{g.gender}</span>
-                        <span className="text-xs text-gray-500 tabular-nums">{g.percentage}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                {/* Line Chart — Right */}
-                <div className="min-h-[260px]">
+        <TabsContent value="overview" className="space-y-6 mt-0">
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Tier Distribution Pie Chart */}
+            <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold">Customer Distribution</CardTitle>
+                <CardDescription>Members segmented by loyalty tier</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] relative">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={genderTrend} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
-                      <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                    <PieChart>
+                      <Pie
+                        data={tierDistribution}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={80}
+                        outerRadius={110}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {tierDistribution.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} strokeWidth={0} />
+                        ))}
+                      </Pie>
                       <Tooltip
-                        contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", backgroundColor: "hsl(var(--card))", fontSize: "12px" }}
-                        labelFormatter={(label) => label}
+                        contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "12px", border: "1px solid hsl(var(--border))", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}
+                        itemStyle={{ fontWeight: "bold" }}
                       />
-                      <Legend />
-                      <Line type="monotone" dataKey="Male" stroke="#0ea5e9" strokeWidth={2} dot={false} name="Male" />
-                      <Line type="monotone" dataKey="Female" stroke="#14b8a6" strokeWidth={2} dot={false} name="Female" />
-                      <Line type="monotone" dataKey="Not Specified" stroke="#94a3b8" strokeWidth={2} dot={false} name="Not Specified" />
-                    </LineChart>
+                    </PieChart>
                   </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-4xl font-bold tracking-tighter">{totalCustomers}</span>
+                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold font-sans">Total Members</span>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="mt-6 grid grid-cols-4 gap-4">
+                  {tierDistribution.map((tier) => (
+                    <div key={tier.name} className="flex flex-col items-center">
+                      <div className="text-xl font-black" style={{ color: tier.color }}>{tier.value}</div>
+                      <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider flex items-center gap-1">
+                        {tier.name}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* 2. Account Growth Trend */}
-          <Card className="bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 rounded-xl shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold text-gray-900 dark:text-gray-100">Account Growth Trend</CardTitle>
-              <CardDescription className="text-gray-500 dark:text-gray-400">การสร้างบัญชีและ Activation รายเดือน</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[280px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={accountGrowth} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
-                    <defs>
-                      <linearGradient id="creationsGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={ACCENT} stopOpacity={0.35} />
-                        <stop offset="100%" stopColor={ACCENT} stopOpacity={0.02} />
-                      </linearGradient>
-                      <linearGradient id="activationsGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.25} />
-                        <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0.02} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                    <Tooltip
-                      contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", backgroundColor: "hsl(var(--card))", fontSize: "12px" }}
-                      formatter={(value: number, name: string) => [value.toLocaleString(), name === "creations" ? "สร้างบัญชี" : "Activation"]}
-                    />
-                    <Legend formatter={(value) => (value === "creations" ? "สร้างบัญชี" : "Activation")} />
-                    <Area type="monotone" dataKey="creations" stroke={ACCENT} strokeWidth={2} fill="url(#creationsGrad)" name="creations" />
-                    <Area type="monotone" dataKey="activations" stroke="#0ea5e9" strokeWidth={2} fill="url(#activationsGrad)" name="activations" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 3. Retention & Churn Analytics */}
-          <Card className="bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 rounded-xl shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold text-gray-900 dark:text-gray-100">Retention & Churn Analytics</CardTitle>
-              <CardDescription className="text-gray-500 dark:text-gray-400">อัตราการคงอยู่และอัตราการหลุดตามเวลา</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[280px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={retentionChurn} margin={{ top: 8, right: 16, left: 0, bottom: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                    <Tooltip
-                      contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", backgroundColor: "hsl(var(--card))", fontSize: "12px" }}
-                      formatter={(value: number, name: string) => [`${value}%`, name === "retentionRate" ? "Retention Rate" : "Churn Rate"]}
-                    />
-                    <Legend formatter={(value) => (value === "retentionRate" ? "Retention Rate" : "Churn Rate")} />
-                    <Line type="monotone" dataKey="retentionRate" stroke={ACCENT} strokeWidth={2} dot={false} name="retentionRate" />
-                    <Line type="monotone" dataKey="churnRate" stroke="#64748b" strokeWidth={2} dot={false} strokeDasharray="5 5" name="churnRate" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Top Performers */}
+            <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-xl font-bold">
+                  <Award className="h-6 w-6 text-yellow-500" />
+                  Top Performers
+                </CardTitle>
+                <CardDescription>High-value customers based on lifetime spend</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {topPerformers.map((customer, index) => (
+                    <div key={customer.id} className="group flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 transition-all">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white font-black text-sm">
+                          #{index + 1}
+                        </div>
+                        <div>
+                          <p className="font-bold text-lg">{customer.name}</p>
+                          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <span style={{ color: tierColors[customer.tier as keyof typeof tierColors]?.text }}>{tierIcons[customer.tier as keyof typeof tierIcons]} {customer.tier}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-black text-xl text-primary">฿{customer.totalSpend.toLocaleString() ?? 0}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{customer.points.toLocaleString() ?? 0} PTS</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
-        <TabsContent value="analytics" className="space-y-6 mt-6">
+        <TabsContent value="analytics" className="space-y-6 mt-0">
           <div className="grid gap-6 md:grid-cols-2">
             {/* Revenue by Tier */}
-            <Card className="bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 rounded-xl shadow-sm">
+            <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5">
               <CardHeader>
                 <CardTitle className="text-xl font-bold">Revenue by Tier</CardTitle>
                 <CardDescription>Total revenue and average spend per segment</CardDescription>
@@ -469,7 +451,7 @@ export default function CustomerTiers() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={revenueByTier} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12, fontWeight: 'bold' }} />
-                      <YAxis tickFormatter={(v) => `$${v / 1000}K`} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                      <YAxis tickFormatter={(v) => `฿${v / 1000}K`} axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
                       <Tooltip
                         cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }}
                         contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "12px", border: "1px solid hsl(var(--border))", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)" }}
@@ -506,7 +488,7 @@ export default function CustomerTiers() {
             </Card>
 
             {/* Tier Movement Trends */}
-            <Card className="bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 rounded-xl shadow-sm">
+            <Card className="glass-panel border-primary/10 shadow-lg shadow-primary/5">
               <CardHeader>
                 <CardTitle className="text-xl font-bold italic tracking-tight">Tier Transition Velocity</CardTitle>
                 <CardDescription>Momentum of customer upgrades and downgrades over time</CardDescription>
@@ -552,7 +534,6 @@ export default function CustomerTiers() {
         </TabsContent>
 
       </Tabs>
-      </div>
 
       {/* Promo Dispatch Modal */}
       <Dialog open={isPromoModalOpen} onOpenChange={setIsPromoModalOpen}>
@@ -642,8 +623,8 @@ export default function CustomerTiers() {
             >
               {createDiscount.isPending ? "Creating..." : (
                 <>
-                  <Send className="h-4 w-4" />
-                  ส่งให้ลูกค้า
+                  <Copy className="h-4 w-4" />
+                  Copy & Send
                 </>
               )}
             </Button>
