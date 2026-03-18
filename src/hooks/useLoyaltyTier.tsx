@@ -108,9 +108,10 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Fetch Profile, Loyalty (direct by profile_customer_id), Transactions, and Missions in parallel
-      // NOTE: Fetch loyalty_points directly by profile_customer_id to avoid embed/loyalty_point_id ambiguity
-      const [profileRes, txsRes, catalogueRes, completionsRes, pointsTxsRes] = await Promise.all([
+      // Fetch Profile, Tier (via RPC — bypasses RLS, guaranteed correct after Support adjust),
+      // Transactions, and Missions in parallel
+      const [tierRes, profileRes, txsRes, catalogueRes, completionsRes, pointsTxsRes] = await Promise.all([
+        supabase.rpc("get_my_loyalty_tier"),
         supabase
           .from("profile_customers")
           .select("id, created_at")
@@ -140,20 +141,10 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
       if (profileRes.error && profileRes.error.code !== "PGRST116") throw profileRes.error;
       if (catalogueRes.error) throw catalogueRes.error;
 
-      // Fetch loyalty_points directly by profile_customer_id (source of truth for tier)
-      let loyaltyData: { point_balance?: number; loyalty_tiers?: LoyaltyTier } | null = null;
-      if (profileRes.data?.id) {
-        const { data: lpData } = await supabase
-          .from("loyalty_points")
-          .select("point_balance, loyalty_tiers (*)")
-          .eq("profile_customer_id", profileRes.data.id)
-          .maybeSingle();
-        loyaltyData = lpData as typeof loyaltyData;
-      }
-
-      // 1. Process Loyalty Data
-      const totalSpend = txsRes.data?.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0) || 0;
-      let tier: LoyaltyTier | null = (loyaltyData as any)?.loyalty_tiers || null;
+      // 1. Process Loyalty Data — tier from RPC (SECURITY DEFINER, always correct)
+      const tierPayload = (tierRes.data as { tier?: LoyaltyTier | null; point_balance?: number }) ?? {};
+      let tier: LoyaltyTier | null = tierPayload.tier ?? null;
+      const pointsBalance = tierPayload.point_balance ?? 0;
 
       if (!tier) {
         const { data: bronzeTier } = await supabase
@@ -164,9 +155,11 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
         if (bronzeTier) tier = bronzeTier;
       }
 
+      const totalSpend = txsRes.data?.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0) || 0;
+
       setUserLoyalty({
         tier,
-        points_balance: (loyaltyData as any)?.point_balance || 0,
+        points_balance: pointsBalance,
         total_spend_amount: totalSpend,
         member_since: profileRes.data?.created_at || null,
         recentTransactions: pointsTxsRes.data || [],
