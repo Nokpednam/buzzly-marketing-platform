@@ -4,28 +4,54 @@
 **Run:** `npm run dev` (port 8080). **NO `bun`**.
 
 **Dirs:** `@/` = `src/`.
-`pages/`: Customer, `dev/`, `support/`, `owner/`, `employee/`.
-`components/ui/` (shadcn), `layout/`, `hooks/`, `integrations/supabase/`, `supabase/migrations/`.
+- `pages/`: Customer, `dev/`, `support/`, `owner/`, `employee/`, `social/`
+- `components/`: `ui/` (shadcn), `layout/`, `admin/`, `campaigns/`, `customer/`, `dashboard/`, `dev/`, `feedback/`, `icons/`, `landing/`, `owner/`, `persona/`, `reports/`, `settings/`, `shared/`, `sidebar/`, `social/`, `subscription/`, `support/`, `team/`
+- `hooks/`, `contexts/`, `integrations/supabase/`, `services/`, `lib/`, `utils/`, `constants/`
+- `supabase/migrations/` (202+ migrations)
 
 **Routes (`App.tsx`):**
 - **Public:** `/`, `/auth`, `/signup`, `/employee/login`, `/employee/signup`
-- **Customer (`CustomerProtectedRoute`):** `/dashboard`, `/campaigns`, `/rewards`, `/analytics`, etc.
-- **Employee (`EmployeeProtectedRoute`):** `/dev/*` (`dev`|`owner`), `/support/*` (`support`|`owner`), `/owner/*` (`owner`)
-- **Legacy:** NO `/admin/*` routes (redirects to dev/support).
+- **Customer (`CustomerProtectedRoute` + `TeamPermissionsGuard`):**
+  `/dashboard`, `/personas`, `/campaigns`, `/campaigns/:id`, `/social/*` (planner/analytics/inbox/integrations), `/customer-journey`, `/aarrr-funnel`, `/analytics`, `/reports`, `/api-keys`, `/settings`, `/team`
+- **Employee — Dev** (`DevLayout`, roles: `dev`|`owner`): `/dev/monitor`, `/dev/audit-logs`, `/dev/employees`, `/dev/support`
+- **Employee — Support** (`SupportLayout`, roles: `support`|`owner`): `/support/workspaces`, `/support/tier-management`, `/support/rewards-management`, `/support/redemption-requests`, `/support/discount-management`, `/support/activity-codes`
+- **Employee — Owner** (`OwnerLayout`, role: `owner`): `/owner/dashboard`, `/owner/product-usage`, `/owner/business-performance`, `/owner/user-feedback`, `/owner/executive-report`, `/owner/customer-tiers`
+- **Legacy:** `/admin/*` all redirect to `/dev/*` or `/support/*`. `/prospects` redirects to `/personas`.
 
-**Auth:** Customers: Supabase Auth. Employees: `employees` table + `useEmployeeAuth` (roles: `dev`, `support`, `owner`).
-**Plans:** `PlanContext` (`hasFeature()`). Slugs: `free-*`, `pro-*`, `team-*`.
+**Auth:** Customers: Supabase Auth (`profile_customers`). Employees: `employees` table + `useEmployeeAuth` (roles: `dev`, `support`, `owner`).
+**Plans:** `PlanContext` (`hasFeature()`). Slugs: `free-*`, `pro-*`, `team-*`. See `constants/plans.ts`.
+**Contexts:** `PlanContext` (plan/feature access), `SocialFiltersContext` (social filter state).
 
 **Database (Supabase):** RLS ALWAYS enabled. Client: `import { supabase } from "@/integrations/supabase/client"`.
-- *Tables:* workspaces, workspace_members, subscriptions, subscription_plans, campaigns, ad_groups, ads, ad_insights, social_posts, email_campaigns, email_messages, customer_personas, loyalty_tiers, customer_loyalty_points, tier_history, reward_items, reward_redemptions, point_earning_rules, discounts, customer_discount_notifications, employees, error_logs, audit_logs, notifications, reports, api_keys, platforms, platform_connections
+- *Key tables:* workspaces, workspace_members, workspace_ad_persona, workspace_api_keys, customer, profile_customers, subscriptions, subscription_plans, payment_methods, payment_transactions, invoices, currencies, campaigns, ad_groups, ads, ad_insights, ad_accounts, campaign_ads, social_posts, social_comments, sync_history, customer_personas, ad_personas, post_personas, persona_metrics_daily, loyalty_tiers, loyalty_points, loyalty_tier_history, tier_history, loyalty_missions, loyalty_mission_completions, loyalty_activity_codes, points_transactions, reward_items, reward_redemptions, discounts, customer_notifications, customer_coupons, user_redeemed_coupons, employees, audit_logs_enhanced, error_logs, notifications, workspace_notifications, notification_preferences, reports, scheduled_reports, revenue_metrics, platforms, feedback, suspicious_activities
 - *Migrations:* `supabase/migrations/` (append-only, NEVER edit existing).
 
+**Key RPC Functions:**
+- `redeem_reward(p_reward_item_id)` — atomic reward redemption
+- `award_loyalty_points(p_action_type)` — award points for activities
+- `get_my_loyalty_tier()` — current user tier (SECURITY DEFINER)
+- `auto_evaluate_loyalty_tier()` — auto-tier from points
+- `admin_override_tier()` / `manual_override_customer_tier()` — support overrides
+- `get_customer_journey_funnel_totals()` / `get_customer_journey_monthly_data()` — AARRR analytics
+- `search_customers_for_support()` — support customer search
+- `ensure_loyalty_wallet()` — guarantee loyalty_points record exists
+- `detect_suspicious_points_activity()` — fraud detection
+
 **Hooks (React Query):** Wrap Supabase calls. Throw errors.
-- *List:* useWorkspace, useWorkspaceMembers, useCampaigns, useAdGroups, useAds, useAdInsights, useSocialPosts, usePlatformConnections, usePlatformsDB, useSubscription, usePlanAccess, useCustomerTiers, useLoyaltyTier, useTierManagement, useCustomerRewards, useRewardsManagement, useRewardsCampaigns, useRedemptionRequests, useDiscounts, useCustomerCoupons, useEmployees, useEmployeeAuth, useAdminMonitor, useDevMonitor, useAuditLogs, useAdminWorkspaces, useDevWorkspaces, useNotifications, useTeamManagement, useUserRole, useOwnerMetrics, useDashboardMetrics, useAnalyticsData, useFunnelData, useReports, useScheduledReports
+- *Loyalty/Rewards:* useLoyaltyTier, useLoyaltyMissions, useAwardMission, useCustomerRewards, useRewardsManagement, useRedemptionRequests, useTierManagement, useActivityCodes, useCustomerTiers, useCustomerCoupons, useUserRedeemedCoupons, useDiscounts
+- *Campaigns/Ads:* useCampaigns, useCampaignAdsAndPosts, useAdGroups, useAds, useAdInsights, useAdPersonas, useAdPosts, useBudgets
+- *Persona/Audience:* useCustomerPersonas, usePersonas, usePersonaInsights, useWorkspaceAdPersona, usePostPersonaLinks, useLinkableItems, useAudienceDiscovery
+- *Social:* useSocialPosts, useSocialAnalyticsSummary, useSocialInbox, useSocialComments, useSocialCalendar, useUnifiedCalendar
+- *Analytics:* useAnalyticsData, useDashboardMetrics, useCustomerJourneyData, useCustomerJourneyMonthlyData, useAARRRMonthlyData, useFunnelData, useReports, useScheduledReports, useRevenueMetrics, useOwnerMetrics
+- *Employee/Admin:* useEmployeeAuth, useEmployees, useAdminMonitor, useAdminWorkspaces, useAdminMembers, useAdminSupport, useDevMonitor, useDevWorkspaces, useDevMembers, useDevSupport, useAuditLogs
+- *Workspace/Team:* useWorkspace, useWorkspaceMembers, useWorkspaceInfo, useWorkspaceNotifications, useTeamManagement, useTeamPermissions, useUserRole
+- *Settings/Misc:* useSubscription, usePlanAccess, usePlatformConnections, usePlatformsDB, useNotifications, useNotificationPreferences, useUserPaymentMethods, useInvoices, useActivity, useSyncHistory, useSidebarState, useTags, useOnboardingGuard, useProfileCustomer
 
 **Patterns & Rules:**
-1. React Query hooks ONLY for DB. No raw `fetch` or local state.
-2. Log errors to `error_logs` (`logError`), notify via `toast`. Never swallow errors.
+1. React Query hooks ONLY for DB. No raw `fetch` or local state for server data.
+2. Log errors to `error_logs` via `logError` (`@/services/errorLogger`), notify via `toast`. Never swallow errors.
 3. Scope queries by `workspaceId` (pass as query key).
-4. Loyalty: Use RPC `redeem_reward` for points. Tier upgrades via DB triggers. Support needs RLS.
-5. NEVER: Edit `types.ts`, bypass RLS silently, commit `.env`.
+4. Loyalty: Use RPC `redeem_reward` for redemptions. Tier upgrades via DB triggers (`auto_evaluate_loyalty_tier`). Support overrides via `manual_override_customer_tier`. Always call `ensure_loyalty_wallet()` before awarding points.
+5. Social: Use `@/lib/socialQueryInvalidation` for consistent cache invalidation after mutations.
+6. Permissions: Wrap customer pages with `TeamPermissionsGuard`. Check `useTeamPermissions` before rendering sensitive actions.
+7. NEVER: Edit `types.ts`, bypass RLS silently, commit `.env`, use `bun`.
