@@ -141,10 +141,27 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
       if (profileRes.error && profileRes.error.code !== "PGRST116") throw profileRes.error;
       if (catalogueRes.error) throw catalogueRes.error;
 
-      // 1. Process Loyalty Data — tier from RPC (SECURITY DEFINER, always correct)
-      const tierPayload = (tierRes.data as { tier?: LoyaltyTier | null; point_balance?: number }) ?? {};
-      let tier: LoyaltyTier | null = tierPayload.tier ?? null;
-      const pointsBalance = tierPayload.point_balance ?? 0;
+      // 1. Process Loyalty Data — tier from RPC (SECURITY DEFINER) or fallback to direct query
+      let tier: LoyaltyTier | null = null;
+      let pointsBalance = 0;
+
+      if (!tierRes.error && tierRes.data) {
+        const payload = tierRes.data as { tier?: LoyaltyTier | null; point_balance?: number };
+        tier = payload.tier ?? null;
+        pointsBalance = payload.point_balance ?? 0;
+      }
+
+      // Fallback: RPC may not exist (migrations not run) — fetch directly by profile_customer_id
+      if ((!tier || tierRes.error) && profileRes.data?.id) {
+        const { data: lpData } = await supabase
+          .from("loyalty_points")
+          .select("point_balance, loyalty_tiers (*)")
+          .eq("profile_customer_id", profileRes.data.id)
+          .maybeSingle();
+        const lp = lpData as { point_balance?: number; loyalty_tiers?: LoyaltyTier } | null;
+        if (lp?.loyalty_tiers) tier = lp.loyalty_tiers;
+        if (lp?.point_balance != null) pointsBalance = lp.point_balance;
+      }
 
       if (!tier) {
         const { data: bronzeTier } = await supabase
