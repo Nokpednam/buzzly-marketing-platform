@@ -108,18 +108,12 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Fetch Profile/Tier, Transactions, and Missions in parallel
+      // Fetch Profile, Loyalty (direct by profile_customer_id), Transactions, and Missions in parallel
+      // NOTE: Fetch loyalty_points directly by profile_customer_id to avoid embed/loyalty_point_id ambiguity
       const [profileRes, txsRes, catalogueRes, completionsRes, pointsTxsRes] = await Promise.all([
         supabase
           .from("profile_customers")
-          .select(`
-            id,
-            created_at,
-            loyalty_points (
-              point_balance,
-              loyalty_tiers (*)
-            )
-          `)
+          .select("id, created_at")
           .eq("user_id", user.id)
           .maybeSingle(),
         supabase
@@ -146,9 +140,19 @@ export function LoyaltyProvider({ children }: { children: ReactNode }) {
       if (profileRes.error && profileRes.error.code !== "PGRST116") throw profileRes.error;
       if (catalogueRes.error) throw catalogueRes.error;
 
+      // Fetch loyalty_points directly by profile_customer_id (source of truth for tier)
+      let loyaltyData: { point_balance?: number; loyalty_tiers?: LoyaltyTier } | null = null;
+      if (profileRes.data?.id) {
+        const { data: lpData } = await supabase
+          .from("loyalty_points")
+          .select("point_balance, loyalty_tiers (*)")
+          .eq("profile_customer_id", profileRes.data.id)
+          .maybeSingle();
+        loyaltyData = lpData as typeof loyaltyData;
+      }
+
       // 1. Process Loyalty Data
       const totalSpend = txsRes.data?.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0) || 0;
-      const loyaltyData = profileRes.data?.loyalty_points?.[0] || profileRes.data?.loyalty_points;
       let tier: LoyaltyTier | null = (loyaltyData as any)?.loyalty_tiers || null;
 
       if (!tier) {
