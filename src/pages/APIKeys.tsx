@@ -103,7 +103,7 @@ export default function APIKeys() {
     refreshPlatformStatus,
     refetch,
   } = usePlatformConnections();
-  const { data: members = [] } = useWorkspaceMembers();
+  const { members = [] } = useWorkspaceMembers();
 
   const [editingPlatformId, setEditingPlatformId] = useState<string | null>(null);
   const [visibleTokens, setVisibleTokens] = useState<string[]>([]);
@@ -126,8 +126,19 @@ export default function APIKeys() {
   const filteredPlatforms = platforms
     .filter((p) => categoryFilter === "All" || (p.category_name || "Other") === categoryFilter)
     .sort((a, b) => {
-      if (sortBy === "name") return (a.name || "").localeCompare(b.name || "");
-      if (sortBy === "status") return (a.status === "connected" ? 0 : 1) - (b.status === "connected" ? 0 : 1);
+      // Create a shallow copy array effect conceptually by returning new sorted order
+      if (sortBy === "name") {
+        return (a.name || "").localeCompare(b.name || "");
+      }
+      if (sortBy === "status") {
+        const order = { connected: 1, error: 2, disconnected: 3 };
+        return order[a.status] - order[b.status];
+      }
+      if (sortBy === "lastSync") {
+        const dateA = a.lastSync ? new Date(a.lastSync).getTime() : 0;
+        const dateB = b.lastSync ? new Date(b.lastSync).getTime() : 0;
+        return dateB - dateA; // Newest first
+      }
       return 0;
     });
 
@@ -420,7 +431,7 @@ function IntegrationCard({
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white dark:bg-white/10 shadow-sm ring-1 ring-black/5 dark:ring-white/10 overflow-hidden p-2">
             {platform.icon ? (
-              <platform.icon className="h-8 w-8 shrink-0" id={platform.id} />
+              <platform.icon className="h-8 w-8 shrink-0" />
             ) : platform.icon_url ? (
               <img src={platform.icon_url} alt={platform.name} className="h-8 w-8 object-contain" />
             ) : (

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/hooks/useWorkspace";
+import { useSocialFilters } from "@/contexts/SocialFiltersContext";
 import { USE_MOCK_DATA, MOCK_CALENDAR_DAYS } from "@/lib/mock-api-data";
 import { getSocialPostDisplayTitle } from "@/lib/socialPostDisplay";
 
@@ -94,6 +95,7 @@ function groupByDate(items: CalendarItem[]): UnifiedCalendarDay[] {
 
 export function useUnifiedCalendar(dateRange: string, viewYear?: number, viewMonth?: number) {
   const { workspace } = useWorkspace();
+  const { activePlatforms } = useSocialFilters();
 
   const today = new Date();
   const resolvedYear = viewYear ?? today.getFullYear();
@@ -106,6 +108,7 @@ export function useUnifiedCalendar(dateRange: string, viewYear?: number, viewMon
       dateRange,
       resolvedYear,
       resolvedMonth,
+      activePlatforms,
       USE_MOCK_DATA ? "mock" : "live",
     ],
     // In mock mode we don't need a workspace — run unconditionally
@@ -113,6 +116,9 @@ export function useUnifiedCalendar(dateRange: string, viewYear?: number, viewMon
     queryFn: async () => {
       // ── MOCK MODE ──────────────────────────────────────────────────────
       if (USE_MOCK_DATA) {
+        // If no platforms are selected, show nothing — same behaviour as useAdInsights
+        if (activePlatforms.length === 0) return [];
+
         const startDate = getEffectiveStartDate(dateRange, resolvedYear, resolvedMonth);
         const startDateStr = startDate.slice(0, 10);
 
@@ -132,13 +138,27 @@ export function useUnifiedCalendar(dateRange: string, viewYear?: number, viewMon
                 ad_group_name: null,
                 created_at: null,
               }))
-              .filter((item) => Boolean(getCalendarAnchorDate(item))) as CalendarItem[],
+              .filter((item) => {
+                if (!Boolean(getCalendarAnchorDate(item))) return false;
+                // Filter by active platforms:
+                // Posts have platform_id; ads fall back to platform_slug.
+                const matchesById = item.platform_id
+                  ? activePlatforms.includes(item.platform_id)
+                  : false;
+                const matchesBySlug = item.platform_slug
+                  ? activePlatforms.some((p) => p.toLowerCase().includes(item.platform_slug.toLowerCase()))
+                  : false;
+                return matchesById || matchesBySlug;
+              }) as CalendarItem[],
           }));
 
         return filtered;
       }
 
       // ── LIVE MODE ──────────────────────────────────────────────────────
+      // If no platforms are selected, show nothing — same behaviour as useAdInsights
+      if (activePlatforms.length === 0) return [];
+
       if (!workspace?.id) return [];
 
       const startDate = getEffectiveStartDate(dateRange, resolvedYear, resolvedMonth);
@@ -161,6 +181,11 @@ export function useUnifiedCalendar(dateRange: string, viewYear?: number, viewMon
       const items: CalendarItem[] = (postsResult.data ?? [])
         .filter((row) => {
           if (row.post_type === "chat") {
+            return false;
+          }
+
+          // Apply platform filter — only show posts whose platform is active
+          if (row.platform_id && !activePlatforms.includes(row.platform_id)) {
             return false;
           }
 

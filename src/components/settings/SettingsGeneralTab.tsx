@@ -154,8 +154,17 @@ export const SettingsGeneralTab: React.FC = () => {
   const handleUploadAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/svg+xml'];
+    if (!validTypes.includes(file.type)) {
+      toast({ title: "Invalid file type", description: "Only JPG, PNG and SVG are allowed.", variant: "destructive" });
+      e.target.value = "";
+      return;
+    }
+
     if (file.size > 2 * 1024 * 1024) {
-      toast({ title: "File exceeds 2MB limit", variant: "destructive" });
+      toast({ title: "File exceeds 2MB limit", description: "Please upload an image smaller than 2MB.", variant: "destructive" });
+      e.target.value = "";
       return;
     }
     try {
@@ -168,7 +177,19 @@ export const SettingsGeneralTab: React.FC = () => {
       const ext = file.name.split(".").pop();
       const path = `${user.id}/avatar.${ext}`;
 
-      await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('path', path);
+      formData.append('bucket', 'avatars');
+
+      const { data, error } = await supabase.functions.invoke('secure-upload', {
+        body: formData,
+      });
+
+      if (error) {
+        throw new Error(error.message || "Edge function upload failed");
+      }
+
       const {
         data: { publicUrl },
       } = supabase.storage.from("avatars").getPublicUrl(path);
@@ -185,7 +206,7 @@ export const SettingsGeneralTab: React.FC = () => {
     } catch (err: unknown) {
       toast({
         title: "Upload failed",
-        description: err instanceof Error ? err.message : undefined,
+        description: err instanceof Error ? err.message : String(err),
         variant: "destructive",
       });
     } finally {
@@ -312,7 +333,7 @@ export const SettingsGeneralTab: React.FC = () => {
             </Button>
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/svg+xml"
               className="hidden"
               onChange={handleUploadAvatar}
               disabled={isUploadingAvatar}
