@@ -52,6 +52,7 @@ import DiscountManagement from "./pages/support/DiscountManagement";
 import ActivityCodes from "./pages/support/ActivityCodes";
 import TeamManagement from "./pages/TeamManagement";
 import OwnerDashboard from "./pages/owner/OwnerDashboard";
+import OwnerAuditLogs from "./pages/owner/OwnerAuditLogs";
 import ProductUsage from "./pages/owner/ProductUsage";
 import BusinessPerformance from "./pages/owner/BusinessPerformance";
 import UserFeedback from "./pages/owner/UserFeedback";
@@ -220,6 +221,7 @@ const App = () => {
                     <Route path="/owner/user-feedback" element={<UserFeedback />} />
                     <Route path="/owner/executive-report" element={<ExecutiveReport />} />
                     <Route path="/owner/customer-tiers" element={<CustomerTiers />} />
+                    <Route path="/settings/audit-logs" element={<OwnerAuditLogs />} />
                   </Route>
 
                   <Route path="*" element={<NotFound />} />

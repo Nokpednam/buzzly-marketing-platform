@@ -32,13 +32,13 @@ import {
   Legend,
   ReferenceLine,
 } from "recharts";
-import { useNavigate } from "react-router-dom";
+
 import { useSubscriptionMetrics, useCohortAnalysis, useSurvivalAnalysis } from "@/hooks/useOwnerMetrics";
 import { subDays, format as fnsFormat } from "date-fns";
 import { cn } from "@/lib/utils";
 
 export default function BusinessPerformance() {
-  const navigate = useNavigate();
+
   // Time range toggle state
   type TimeRange = '7d' | '1m' | '3m' | '6m' | '1y';
   const [timeRange, setTimeRange] = useState<TimeRange>('1m');
@@ -118,7 +118,7 @@ export default function BusinessPerformance() {
   // KPI data safely mapped
   const kpis: {
     title: string; value: string; change: number; trend: 'up' | 'down';
-    icon: React.ElementType; gradient: string; text: string; linkTo?: string;
+    icon: React.ElementType; gradient: string; text: string;
   }[] = [
       {
         title: "Monthly Recurring Revenue",
@@ -137,7 +137,6 @@ export default function BusinessPerformance() {
         icon: Users,
         gradient: "from-blue-600 to-indigo-700",
         text: "text-blue-100",
-        linkTo: "/owner/product-usage",
       },
       {
         title: "Annual Run Rate",
@@ -217,8 +216,7 @@ export default function BusinessPerformance() {
         {kpis.map((kpi) => (
           <Card
             key={kpi.title}
-            onClick={() => kpi.linkTo && navigate(kpi.linkTo)}
-            className={`bg-gradient-to-br ${kpi.gradient} border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden ${kpi.linkTo ? 'cursor-pointer' : ''}`}
+            className={`bg-gradient-to-br ${kpi.gradient} border-none shadow-xl hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 group relative overflow-hidden`}
           >
             <div className="absolute top-0 right-0 p-4 opacity-10">
               <kpi.icon className="h-24 w-24 text-white transform rotate-12 translate-x-8 translate-y-[-10px]" />
