@@ -16,12 +16,19 @@ export interface LoyaltyTierHistoryEntry {
     old_tier: string | null;
     new_tier: string;
     changed_at: string;
+    created_at?: string;
     /** 'auto' = written by system trigger; 'manual' = written by admin override */
     change_type: 'auto' | 'manual';
     change_reason?: string | null;
     changer_id?: string | null;
     // Joined
-    customer?: { full_name: string | null; email: string | null } | null;
+    customer?: {
+        full_name?: string | null;
+        email?: string | null;
+        first_name?: string | null;
+        last_name?: string | null;
+        user_id?: string | null;
+    } | null;
     changer?: { full_name: string | null; email: string | null } | null;
 }
 
@@ -681,7 +688,7 @@ export function useManualPointAdjustment() {
                 .maybeSingle();
 
             if (!profile || !profile.loyalty_points) {
-                throw new Error("ไม่พบข้อมูลคะแนนสะสมของลูกค้ารายนี้");
+                throw new Error("Cannot find loyalty points data for this customer");
             }
 
             const lpInfo = Array.isArray(profile.loyalty_points) ? profile.loyalty_points[0] : profile.loyalty_points;

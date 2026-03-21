@@ -17,6 +17,12 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage,
 } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +33,7 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Plus, Pencil, Trash2, Zap, ToggleLeft, ToggleRight,
-  AlertCircle, Tag,
+  AlertCircle, Tag, MoreHorizontal,
 } from "lucide-react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
@@ -237,42 +243,42 @@ export default function ActivityCodes() {
               </Button>
             </div>
           ) : (
-            <Table>
+            <Table className="table-fixed w-full">
               <TableHeader>
-                <TableRow>
-                  <TableHead>Action Code</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Points</TableHead>
-                  <TableHead className="text-right">Limit</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-[140px]">Action Code</TableHead>
+                  <TableHead className="w-[180px]">Name</TableHead>
+                  <TableHead className="w-[200px]">Description</TableHead>
+                  <TableHead className="text-right w-[100px]">Points</TableHead>
+                  <TableHead className="text-center w-[70px]">Limit</TableHead>
+                  <TableHead className="w-[120px]">Status</TableHead>
+                  <TableHead className="w-[110px]">Created</TableHead>
+                  <TableHead className="text-right w-[60px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {codes.map((code) => (
                   <TableRow key={code.id}>
-                    <TableCell>
+                    <TableCell className="w-[140px]">
                       <code className="text-xs bg-muted px-2 py-0.5 rounded font-mono">
                         {code.action_code}
                       </code>
                     </TableCell>
-                    <TableCell className="font-medium">{code.name}</TableCell>
-                    <TableCell className="max-w-[200px]">
+                    <TableCell className="font-medium w-[180px] truncate">{code.name}</TableCell>
+                    <TableCell className="w-[200px]">
                       <p className="text-sm text-muted-foreground truncate">
                         {code.description ?? "—"}
                       </p>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right w-[100px]">
                       <span className="font-bold text-yellow-600">
                         +{code.reward_points.toLocaleString()} pts
                       </span>
                     </TableCell>
-                    <TableCell className="text-right text-muted-foreground text-sm">
+                    <TableCell className="text-center text-muted-foreground text-sm w-[70px]">
                       {code.usage_limit != null ? code.usage_limit.toLocaleString() : "∞"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-[120px]">
                       <div className="flex items-center gap-2">
                         <Switch
                           checked={code.is_active}
@@ -288,28 +294,29 @@ export default function ActivityCodes() {
                         </Badge>
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {format(new Date(code.created_at), "d MMM yyyy", { locale: safeLocale })}
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap w-[110px]">
+                      {format(new Date(code.created_at), "d MMM yyyy")}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEdit(code)}
-                          className="h-8 w-8"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeleteTarget(code)}
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                    <TableCell className="text-right w-[60px]">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Open menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(code)} className="gap-2">
+                            <Pencil className="h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => setDeleteTarget(code)}
+                            className="gap-2 text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}

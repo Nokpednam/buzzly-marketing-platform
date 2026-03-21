@@ -85,7 +85,7 @@ export default function RewardsManagement() {
     };
 
     const handleDelete = (reward: RewardItem) => {
-        if (window.confirm(`คุณแน่ใจหรือไม่ที่จะลบ "${reward.name}"?`)) {
+        if (window.confirm(`Are you sure you want to delete "${reward.name}"?`)) {
             deleteRewardItem.mutate(reward.id);
         }
     };
@@ -122,7 +122,7 @@ export default function RewardsManagement() {
                     <h1 className="text-3xl font-bold flex items-center gap-2">
                         <PackageOpen className="h-8 w-8 text-primary" /> Rewards Catalog
                     </h1>
-                    <p className="text-muted-foreground mt-1">จัดการแคตตาล็อกของรางวัลสำหรับนำไปแลกด้วยคะแนนสะสม</p>
+                    <p className="text-muted-foreground mt-1">Manage rewards catalog for point redemptions</p>
                 </div>
                 <Button onClick={openCreate} className="shrink-0">
                     <Plus className="h-4 w-4 mr-2" /> Add Reward
@@ -162,13 +162,13 @@ export default function RewardsManagement() {
                 <CardHeader>
                     <div className="flex flex-col sm:flex-row justify-between gap-4">
                         <div>
-                            <CardTitle>รายการของรางวัล</CardTitle>
-                            <CardDescription>ของรางวัลทั้งหมดในระบบ</CardDescription>
+                            <CardTitle>Reward List</CardTitle>
+                            <CardDescription>All rewards in the system</CardDescription>
                         </div>
                         <div className="relative w-full sm:max-w-xs">
                             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="ค้นหาชื่อของรางวัล..."
+                                placeholder="Search rewards..."
                                 className="pl-8"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -184,20 +184,20 @@ export default function RewardsManagement() {
                     ) : filteredRewards.length === 0 ? (
                         <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
                             <Gift className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                            ไม่พบรายการของรางวัล
+                            No rewards found
                         </div>
                     ) : (
                         <div className="rounded-md border">
-                            <Table>
+                            <Table className="table-fixed w-full">
                                 <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-[80px]">รูปภาพ</TableHead>
-                                        <TableHead>ของรางวัล</TableHead>
-                                        <TableHead>ประเภท</TableHead>
-                                        <TableHead className="text-right">คะแนนที่ใช้แลก</TableHead>
-                                        <TableHead className="text-right">จำนวนคงเหลือ</TableHead>
-                                        <TableHead className="text-center">สถานะใช้งาน</TableHead>
-                                        <TableHead className="text-right">จัดการ</TableHead>
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableHead className="w-[80px]">Image</TableHead>
+                                        <TableHead className="w-[250px]">Reward</TableHead>
+                                        <TableHead className="w-[120px]">Type</TableHead>
+                                        <TableHead className="text-right w-[150px]">Points Required</TableHead>
+                                        <TableHead className="text-right w-[120px]">Stock</TableHead>
+                                        <TableHead className="text-center w-[100px]">Status</TableHead>
+                                        <TableHead className="text-right w-[100px]">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -206,7 +206,7 @@ export default function RewardsManagement() {
                                             key={reward.id}
                                             className={`transition-opacity duration-200 ${reward.is_active ? "" : "opacity-60 bg-muted/20"}`}
                                         >
-                                            <TableCell>
+                                            <TableCell className="w-[80px]">
                                                 <div className="h-10 w-10 rounded-md border bg-muted flex items-center justify-center overflow-hidden">
                                                     {reward.image_url ? (
                                                         <img src={reward.image_url} alt={reward.name} className="h-full w-full object-cover" />
@@ -215,39 +215,39 @@ export default function RewardsManagement() {
                                                     )}
                                                 </div>
                                             </TableCell>
-                                            <TableCell>
-                                                <p className="font-medium">{reward.name}</p>
+                                            <TableCell className="w-[250px]">
+                                                <p className="font-medium truncate">{reward.name}</p>
                                                 {reward.description && (
-                                                    <p className="text-xs text-muted-foreground truncate max-w-[200px]">{reward.description}</p>
+                                                    <p className="text-xs text-muted-foreground truncate">{reward.description}</p>
                                                 )}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="w-[120px]">
                                                 <Badge variant="outline" className="uppercase text-[10px]">
-                                                    {reward.reward_type}
+                                                    {reward.reward_type.replace(/_/g, " ")}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="text-right font-medium text-amber-600">
+                                            <TableCell className="text-right font-medium text-amber-600 w-[150px]">
                                                 {reward.points_cost.toLocaleString()}
                                             </TableCell>
-                                            <TableCell className="text-right">
+                                            <TableCell className="text-right w-[120px]">
                                                 {reward.stock_quantity === null ? (
-                                                    <Badge variant="secondary" className="font-normal text-xs">ไม่จำกัด</Badge>
+                                                    <Badge variant="secondary" className="font-normal text-xs">Unlimited</Badge>
                                                 ) : reward.stock_quantity <= 0 ? (
-                                                    <Badge variant="destructive" className="font-normal text-xs">หมด</Badge>
+                                                    <Badge variant="destructive" className="font-normal text-xs">Sold Out</Badge>
                                                 ) : (
                                                     <span className={reward.stock_quantity <= 10 ? "text-orange-500 font-bold" : ""}>
                                                         {reward.stock_quantity.toLocaleString()}
                                                     </span>
                                                 )}
                                             </TableCell>
-                                            <TableCell className="text-center">
+                                            <TableCell className="text-center w-[100px]">
                                                 <Switch
                                                     checked={reward.is_active}
                                                     onCheckedChange={() => toggleRewardStatus.mutate({ id: reward.id, is_active: !reward.is_active })}
                                                     disabled={toggleRewardStatus.isPending && toggleRewardStatus.variables?.id === reward.id}
                                                 />
                                             </TableCell>
-                                            <TableCell className="text-right">
+                                            <TableCell className="text-right w-[100px]">
                                                 <div className="flex items-center justify-end gap-1">
                                                     <Button variant="ghost" size="sm" onClick={() => openEdit(reward)}>
                                                         <Edit className="h-4 w-4" />
@@ -276,26 +276,26 @@ export default function RewardsManagement() {
             <Dialog open={dialogOpen} onOpenChange={(open) => !open && setDialogOpen(false)}>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>{isEditing ? "แก้ไขของรางวัล" : "เพิ่มของรางวัลใหม่"}</DialogTitle>
+                        <DialogTitle>{isEditing ? "Edit Reward" : "Add New Reward"}</DialogTitle>
                         <DialogDescription>
-                            {isEditing ? `แก้ไขข้อมูลของรางวัล "${form.name}"` : "กรอกข้อมูลของรางวัลที่ต้องการเพิ่มในระบบ"}
+                            {isEditing ? `Update details for reward "${form.name}"` : "Enter information for the new reward to add to the system"}
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4 py-2">
                         <div className="space-y-2">
-                            <Label>ชื่อของรางวัล <span className="text-destructive">*</span></Label>
+                            <Label>Reward Name <span className="text-destructive">*</span></Label>
                             <Input
-                                placeholder="เช่น Extra Storage 10GB"
+                                placeholder="e.g. Extra Storage 10GB"
                                 value={form.name}
                                 onChange={(e) => set("name", e.target.value)}
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <Label>คำอธิบาย</Label>
+                            <Label>Description</Label>
                             <Textarea
-                                placeholder="รายละเอียดของรางวัล..."
+                                placeholder="Reward details..."
                                 className="resize-none"
                                 rows={3}
                                 value={form.description}
@@ -305,7 +305,7 @@ export default function RewardsManagement() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>ประเภท</Label>
+                                <Label>Type</Label>
                                 <Select value={form.reward_type} onValueChange={(v) => set("reward_type", v)}>
                                     <SelectTrigger>
                                         <SelectValue />
@@ -319,7 +319,7 @@ export default function RewardsManagement() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label>คะแนนที่ใช้แลก</Label>
+                                <Label>Points Required</Label>
                                 <Input
                                     type="number"
                                     min={0}
@@ -331,18 +331,18 @@ export default function RewardsManagement() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>จำนวนสต๊อก <span className="text-xs text-muted-foreground">(เว้นว่าง = ไม่จำกัด)</span></Label>
+                                <Label>Stock Quantity <span className="text-xs text-muted-foreground">(Empty = Unlimited)</span></Label>
                                 <Input
                                     type="number"
                                     min={0}
-                                    placeholder="ไม่จำกัด"
+                                    placeholder="Unlimited"
                                     value={form.stock_quantity}
                                     onChange={(e) => set("stock_quantity", e.target.value === "" ? "" : Number(e.target.value))}
                                 />
                             </div>
 
                             <div className="space-y-2">
-                                <Label>URL รูปภาพ</Label>
+                                <Label>Image URL</Label>
                                 <Input
                                     placeholder="https://..."
                                     value={form.image_url}
@@ -357,15 +357,15 @@ export default function RewardsManagement() {
                                 checked={form.is_active}
                                 onCheckedChange={(v) => set("is_active", v)}
                             />
-                            <Label htmlFor="is_active" className="cursor-pointer">เปิดให้แลกได้ทันที</Label>
+                            <Label htmlFor="is_active" className="cursor-pointer">Active and Ready for Redemption</Label>
                         </div>
                     </div>
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setDialogOpen(false)}>ยกเลิก</Button>
+                        <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleSubmit} disabled={isPending || !form.name.trim()}>
                             {isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                            {isEditing ? "บันทึก" : "เพิ่มของรางวัล"}
+                            {isEditing ? "Save Changes" : "Add Reward"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

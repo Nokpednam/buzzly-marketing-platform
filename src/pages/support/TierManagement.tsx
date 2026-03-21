@@ -40,6 +40,8 @@ import {
   TrendingUp,
   TrendingDown,
   ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
   Loader2,
   Settings2,
   Play,
@@ -139,7 +141,7 @@ const TierRuleRow = ({
   return (
     <TableRow className="border-b border-slate-50">
       <TableCell className="py-4">
-                        <span className="mr-2">{getTierIcon(tier.name, safeTierIcons) ?? "👤"}</span>
+        <span className="mr-2">{getTierIcon(tier.name, safeTierIcons) ?? "👤"}</span>
         <Badge className={cn(
           "rounded-full border-none",
           safeTierColors[tier.name]?.bg ?? (tier.name.toLowerCase().includes("bronze") ? safeTierColors.Bronze?.bg : tier.name.toLowerCase().includes("silver") ? safeTierColors.Silver?.bg : tier.name.toLowerCase().includes("gold") ? safeTierColors.Gold?.bg : tier.name.toLowerCase().includes("platinum") ? safeTierColors.Platinum?.bg : "bg-slate-100"),
@@ -338,142 +340,142 @@ export default function TierManagement() {
               </DialogHeader>
             </div>
             <div className="p-6 pt-4 space-y-5 max-h-[70vh] overflow-y-auto">
-            <div className="space-y-2 relative">
-              <div className="flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-slate-600 text-xs font-semibold">1</span>
-                <Label className="text-slate-700 font-medium">Select customer</Label>
-              </div>
-              <div className="relative">
-                <Input
-                  placeholder={allCustomersLoading ? "Loading customers..." : "Search by name, email, or customer ID..."}
-                  value={godCustomerSearch}
-                  onChange={(e) => { setGodCustomerSearch(e.target.value); setGodDropdownOpen(true); }}
-                  onFocus={() => setGodDropdownOpen(true)}
-                  disabled={allCustomersLoading}
-                  className="rounded-xl border-slate-200 h-11"
-                />
-                {(allCustomersLoading || (godCustomerSearch.trim().length >= 1 && adjustSearchLoading)) && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                )}
-              </div>
-              {godDropdownOpen && (godCustomerSearch.length > 0 || adjustDropdownCustomers.length > 0) && (
-                <div className="absolute top-full left-0 w-full mt-1.5 border border-slate-200 rounded-xl max-h-52 overflow-y-auto bg-white shadow-lg z-50">
-                  {adjustDropdownCustomers.length === 0 ? (
-                    <p className="text-sm text-slate-500 text-center py-4">No customers found</p>
-                  ) : (
-                    adjustDropdownCustomers.map((c: { id: string; full_name?: string; loyalty_tier?: string; email?: string }) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        className={cn(
-                          "w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 transition-colors text-sm rounded-lg mx-1 my-0.5 first:mt-1 last:mb-1",
-                          godCustomerId === c.id && "bg-slate-100 ring-1 ring-slate-200"
-                        )}
-                        onClick={() => {
-                          setGodCustomerId(c.id);
-                          setGodCustomerSearch(c.full_name ?? c.id.slice(0, 8));
-                          setGodTier(c.loyalty_tier ?? ""); // Pre-select current tier so user must change it
-                          setGodDropdownOpen(false);
-                        }}
-                      >
-                        <span className="flex items-center gap-2">
-                          <span>{safeTierIcons[c.loyalty_tier ?? ""] ?? "👤"}</span>
-                          <span className="truncate">{c.full_name ?? "Unspecified"}</span>
-                        </span>
-                        <Badge
-                          variant="secondary"
+              <div className="space-y-2 relative">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-slate-600 text-xs font-semibold">1</span>
+                  <Label className="text-slate-700 font-medium">Select customer</Label>
+                </div>
+                <div className="relative">
+                  <Input
+                    placeholder={allCustomersLoading ? "Loading customers..." : "Search by name, email, or customer ID..."}
+                    value={godCustomerSearch}
+                    onChange={(e) => { setGodCustomerSearch(e.target.value); setGodDropdownOpen(true); }}
+                    onFocus={() => setGodDropdownOpen(true)}
+                    disabled={allCustomersLoading}
+                    className="rounded-xl border-slate-200 h-11"
+                  />
+                  {(allCustomersLoading || (godCustomerSearch.trim().length >= 1 && adjustSearchLoading)) && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+                {godDropdownOpen && (godCustomerSearch.length > 0 || adjustDropdownCustomers.length > 0) && (
+                  <div className="absolute top-full left-0 w-full mt-1.5 border border-slate-200 rounded-xl max-h-52 overflow-y-auto bg-white shadow-lg z-50">
+                    {adjustDropdownCustomers.length === 0 ? (
+                      <p className="text-sm text-slate-500 text-center py-4">No customers found</p>
+                    ) : (
+                      adjustDropdownCustomers.map((c: { id: string; full_name?: string; loyalty_tier?: string; email?: string }) => (
+                        <button
+                          key={c.id}
+                          type="button"
                           className={cn(
-                            "text-[10px] rounded-full border-none",
-                            (safeTierColors as Record<string, { bg: string; text: string }>)[c.loyalty_tier ?? ""]?.bg,
-                            (safeTierColors as Record<string, { bg: string; text: string }>)[c.loyalty_tier ?? ""]?.text
+                            "w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50 transition-colors text-sm rounded-lg mx-1 my-0.5 first:mt-1 last:mb-1",
+                            godCustomerId === c.id && "bg-slate-100 ring-1 ring-slate-200"
                           )}
+                          onClick={() => {
+                            setGodCustomerId(c.id);
+                            setGodCustomerSearch(c.full_name ?? c.id.slice(0, 8));
+                            setGodTier(c.loyalty_tier ?? ""); // Pre-select current tier so user must change it
+                            setGodDropdownOpen(false);
+                          }}
                         >
-                          {c.loyalty_tier ?? "Bronze"}
-                        </Badge>
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
-              {godSelectedCustomer && (
-                <div className="flex items-center gap-3 p-4 mt-3 rounded-xl bg-slate-50/80 border border-slate-100">
-                  <span className="text-2xl">{getTierIcon(godSelectedCustomer.loyalty_tier ?? "", safeTierIcons)}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm leading-snug">{godSelectedCustomer.full_name ?? "Unspecified"}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(godSelectedCustomer.loyalty_points_balance ?? 0).toLocaleString()} pts
-                    </p>
+                          <span className="flex items-center gap-2">
+                            <span>{safeTierIcons[c.loyalty_tier ?? ""] ?? "👤"}</span>
+                            <span className="truncate">{c.full_name ?? "Unspecified"}</span>
+                          </span>
+                          <Badge
+                            variant="secondary"
+                            className={cn(
+                              "text-[10px] rounded-full border-none",
+                              (safeTierColors as Record<string, { bg: string; text: string }>)[c.loyalty_tier ?? ""]?.bg,
+                              (safeTierColors as Record<string, { bg: string; text: string }>)[c.loyalty_tier ?? ""]?.text
+                            )}
+                          >
+                            {c.loyalty_tier ?? "Bronze"}
+                          </Badge>
+                        </button>
+                      ))
+                    )}
                   </div>
-                  <Badge className={cn("shadow-none", getTierBadgeClass(godSelectedCustomer.loyalty_tier ?? "Bronze", safeTierColors))}>
-                    {godSelectedCustomer.loyalty_tier ?? "Bronze"}
-                  </Badge>
-                </div>
-              )}
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-slate-600 text-xs font-semibold">2</span>
-                <Label className="text-slate-700 font-medium">New tier</Label>
-              </div>
-              <Select value={godTier} onValueChange={setGodTier}>
-                <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-white">
-                  <SelectValue placeholder="Select new tier" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tierRules.map((t) => (
-                    <SelectItem key={t.id} value={t.name}>
-                      {safeTierIcons[t.name] ?? "👤"} {t.name}
-                    </SelectItem>
-                  ))}
-                  {tierRules.length === 0 && (
-                    <>
-                      <SelectItem value="Bronze">🥉 Bronze</SelectItem>
-                      <SelectItem value="Silver">🥈 Silver</SelectItem>
-                      <SelectItem value="Gold">🥇 Gold</SelectItem>
-                      <SelectItem value="Platinum">💎 Platinum</SelectItem>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-slate-600 text-xs font-semibold">3</span>
-                <Label className="text-slate-700 font-medium">Reason (required)</Label>
-              </div>
-              <Textarea
-                placeholder="Reason for tier change..."
-                value={godReason}
-                onChange={(e) => setGodReason(e.target.value)}
-                className="rounded-xl border-slate-200 min-h-[88px] resize-none"
-                rows={3}
-              />
-            </div>
-            <div className="pt-2 space-y-1">
-              {godTier === (godSelectedCustomer?.loyalty_tier ?? "") && godSelectedCustomer && (
-                <p className="text-xs text-amber-600">Select a different tier to change</p>
-              )}
-              <Button
-                type="button"
-                className="w-full font-semibold rounded-xl h-12 bg-slate-800 hover:bg-slate-900 text-white shadow-sm"
-                disabled={
-                  !godCustomerId ||
-                  !godTier ||
-                  !godReason.trim() ||
-                  manualOverride.isPending ||
-                  godTier === (godSelectedCustomer?.loyalty_tier ?? "")
-                }
-                onClick={handleGodOverride}
-              >
-                {manualOverride.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Edit className="h-4 w-4 mr-2" />
                 )}
-                Save tier change
-              </Button>
+                {godSelectedCustomer && (
+                  <div className="flex items-center gap-3 p-4 mt-3 rounded-xl bg-slate-50/80 border border-slate-100">
+                    <span className="text-2xl">{getTierIcon(godSelectedCustomer.loyalty_tier ?? "", safeTierIcons)}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm leading-snug">{godSelectedCustomer.full_name ?? "Unspecified"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(godSelectedCustomer.loyalty_points_balance ?? 0).toLocaleString()} pts
+                      </p>
+                    </div>
+                    <Badge className={cn("shadow-none", getTierBadgeClass(godSelectedCustomer.loyalty_tier ?? "Bronze", safeTierColors))}>
+                      {godSelectedCustomer.loyalty_tier ?? "Bronze"}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-slate-600 text-xs font-semibold">2</span>
+                  <Label className="text-slate-700 font-medium">New tier</Label>
+                </div>
+                <Select value={godTier} onValueChange={setGodTier}>
+                  <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-white">
+                    <SelectValue placeholder="Select new tier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tierRules.map((t) => (
+                      <SelectItem key={t.id} value={t.name}>
+                        {safeTierIcons[t.name] ?? "👤"} {t.name}
+                      </SelectItem>
+                    ))}
+                    {tierRules.length === 0 && (
+                      <>
+                        <SelectItem value="Bronze">🥉 Bronze</SelectItem>
+                        <SelectItem value="Silver">🥈 Silver</SelectItem>
+                        <SelectItem value="Gold">🥇 Gold</SelectItem>
+                        <SelectItem value="Platinum">💎 Platinum</SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-slate-600 text-xs font-semibold">3</span>
+                  <Label className="text-slate-700 font-medium">Reason (required)</Label>
+                </div>
+                <Textarea
+                  placeholder="Reason for tier change..."
+                  value={godReason}
+                  onChange={(e) => setGodReason(e.target.value)}
+                  className="rounded-xl border-slate-200 min-h-[88px] resize-none"
+                  rows={3}
+                />
+              </div>
+              <div className="pt-2 space-y-1">
+                {godTier === (godSelectedCustomer?.loyalty_tier ?? "") && godSelectedCustomer && (
+                  <p className="text-xs text-amber-600">Select a different tier to change</p>
+                )}
+                <Button
+                  type="button"
+                  className="w-full font-semibold rounded-xl h-12 bg-slate-800 hover:bg-slate-900 text-white shadow-sm"
+                  disabled={
+                    !godCustomerId ||
+                    !godTier ||
+                    !godReason.trim() ||
+                    manualOverride.isPending ||
+                    godTier === (godSelectedCustomer?.loyalty_tier ?? "")
+                  }
+                  onClick={handleGodOverride}
+                >
+                  {manualOverride.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Edit className="h-4 w-4 mr-2" />
+                  )}
+                  Save tier change
+                </Button>
+              </div>
             </div>
-          </div>
           </DialogContent>
         </Dialog>
       </div>
@@ -762,183 +764,213 @@ export default function TierManagement() {
                   return <div className="py-16 text-center text-muted-foreground">No tier changes found</div>;
                 }
                 return (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent border-b border-slate-100">
-                      <TableHead className="bg-transparent">Date</TableHead>
-                      <TableHead className="bg-transparent">Customer</TableHead>
-                      <TableHead className="bg-transparent">Previous</TableHead>
-                      <TableHead className="bg-transparent">New Tier</TableHead>
-                      <TableHead className="bg-transparent">Origin</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {actualChanges.map((h: LoyaltyTierHistoryEntry) => {
-                      const dateToFormat = h.changed_at || (h as Record<string, unknown>).created_at as string | undefined;
-                      const customer = (h as Record<string, unknown>).customer as { first_name?: string; last_name?: string } | undefined;
-                      const customerName = customer ? `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() || "—" : h.profile_customer_id.slice(0, 8);
-                      const displayOldTier = displayOld(h.old_tier);
-                      const oldPriority = getTierPriority(displayOldTier, tierRules);
-                      const newPriority = getTierPriority(h.new_tier, tierRules);
-                      const isRise = newPriority > oldPriority;
-                      const isDrop = newPriority < oldPriority;
-                      const tierBadgeClass = (tier: string) => getTierBadgeClass(tier, safeTierColors);
-                      return (
-                        <TableRow key={h.id} className="border-b border-slate-50">
-                          <TableCell className="text-sm whitespace-nowrap py-4">
-                            {dateToFormat ? format(new Date(dateToFormat), "d MMM yyyy HH:mm", { locale: safeLocale }) : "—"}
-                          </TableCell>
-                          <TableCell className="font-medium py-4">{customerName}</TableCell>
-                          <TableCell className="py-4">
-                            <Badge variant="secondary" className={tierBadgeClass(displayOldTier)}>
-                              {displayOldTier}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="py-4">
-                            <div className="flex items-center gap-2">
-                              {isRise && <TrendingUp className="h-4 w-4 text-emerald-500 flex-shrink-0" />}
-                              {isDrop && <TrendingDown className="h-4 w-4 text-red-500 flex-shrink-0" />}
-                              <Badge variant="secondary" className={tierBadgeClass(h.new_tier)}>
-                                {h.new_tier}
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent border-b border-slate-100">
+                        <TableHead className="bg-transparent">Date</TableHead>
+                        <TableHead className="bg-transparent">Customer</TableHead>
+                        <TableHead className="bg-transparent">Previous</TableHead>
+                        <TableHead className="bg-transparent">New Tier</TableHead>
+                        <TableHead className="bg-transparent">Origin</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {actualChanges.map((h: LoyaltyTierHistoryEntry) => {
+                        const dateToFormat = h.changed_at || h.created_at;
+                        const customer = h.customer;
+                        const customerName = customer ? `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() || "—" : h.profile_customer_id.slice(0, 8);
+                        const displayOldTier = displayOld(h.old_tier);
+                        const oldPriority = getTierPriority(displayOldTier, tierRules);
+                        const newPriority = getTierPriority(h.new_tier, tierRules);
+                        const isRise = newPriority > oldPriority;
+                        const isDrop = newPriority < oldPriority;
+                        const tierBadgeClass = (tier: string) => getTierBadgeClass(tier, safeTierColors);
+                        return (
+                          <TableRow key={h.id} className="border-b border-slate-50">
+                            <TableCell className="text-sm whitespace-nowrap py-4">
+                              {dateToFormat ? format(new Date(dateToFormat), "d MMM yyyy HH:mm", { locale: safeLocale }) : "—"}
+                            </TableCell>
+                            <TableCell className="font-medium py-4">{customerName}</TableCell>
+                            <TableCell className="py-4">
+                              <Badge variant="secondary" className={tierBadgeClass(displayOldTier)}>
+                                {displayOldTier}
                               </Badge>
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-4">
-                            <Badge variant="outline" className={cn(
-                              "rounded-full text-xs font-medium",
-                              h.change_type === "manual" ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-slate-50 text-slate-600"
-                            )}>
-                              {h.change_type === "manual" ? "Support" : "System"}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                            </TableCell>
+                            <TableCell className="py-4">
+                              <div className="flex items-center gap-2">
+                                {isRise && <TrendingUp className="h-4 w-4 text-emerald-500 flex-shrink-0" />}
+                                {isDrop && <TrendingDown className="h-4 w-4 text-red-500 flex-shrink-0" />}
+                                <Badge variant="secondary" className={tierBadgeClass(h.new_tier)}>
+                                  {h.new_tier}
+                                </Badge>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-4">
+                              <Badge variant="outline" className={cn(
+                                "rounded-full text-xs font-medium",
+                                h.change_type === "manual" ? "border-blue-200 bg-blue-50 text-blue-700" : "border-slate-200 bg-slate-50 text-slate-600"
+                              )}>
+                                {h.change_type === "manual" ? "Support" : "System"}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 );
               })()}
             </div>
 
           </TabsContent>
 
-        <TabsContent value="transactions" className="m-0">
-          <div className="px-6 py-4 border-b border-slate-100">
-            <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-              <ArrowUpDown className="h-4 w-4 text-blue-600" /> Points Transactions
-            </h3>
-            <p className="text-sm text-muted-foreground mt-0.5">ประวัติการได้รับ/ใช้คะแนนทั้งหมด</p>
-          </div>
-          <div className="px-6 pb-6">
-            {txLoading ? (
-              <div className="space-y-2 py-8"><Skeleton className="h-12 w-full" /></div>
-            ) : txError ? (
-              <div className="py-16 text-center text-destructive">Error loading transactions</div>
-            ) : pointsTransactions.length === 0 ? (
-              <div className="py-16 text-center text-muted-foreground">No transactions found</div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent border-b border-slate-100">
-                    <TableHead className="bg-transparent">Date</TableHead>
-                    <TableHead className="bg-transparent">Customer</TableHead>
-                    <TableHead className="bg-transparent">Type</TableHead>
-                    <TableHead className="text-right bg-transparent">Amount</TableHead>
-                    <TableHead className="text-right bg-transparent">Balance After</TableHead>
-                    <TableHead className="bg-transparent">Description</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pointsTransactions.slice(0, ADMIN_PAGE_SIZE).map((tx: { id: string; created_at: string; user_id: string; transaction_type: string; points_amount?: number; balance_after?: number; description?: string; customer?: { full_name?: string; email?: string } }) => {
-                    const customerName = tx.customer?.full_name ?? tx.customer?.email ?? tx.user_id.slice(0, 8);
-                    return (
-                      <TableRow key={tx.id} className="border-b border-slate-50">
-                        <TableCell className="text-sm py-4">
-                          {format(new Date(tx.created_at), "d MMM yyyy HH:mm", { locale: safeLocale })}
+          <TabsContent value="transactions" className="m-0">
+            <div className="px-6 py-4 border-b border-slate-100">
+              <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                <ArrowUpDown className="h-4 w-4 text-blue-600" /> Points Transactions
+              </h3>
+                            <p className="text-sm text-muted-foreground mt-0.5">Full history of points earned and used</p>
+            </div>
+            <div className="px-6 pb-6">
+              {txLoading ? (
+                <div className="space-y-2 py-8"><Skeleton className="h-12 w-full" /></div>
+              ) : txError ? (
+                <div className="py-16 text-center text-destructive">Error loading transactions</div>
+              ) : pointsTransactions.length === 0 ? (
+                <div className="py-16 text-center text-muted-foreground">No transactions found</div>
+              ) : (
+                <>
+                  <Table className="table-fixed w-full">
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent border-b border-slate-100">
+                        <TableHead className="bg-transparent w-[180px]">Date</TableHead>
+                        <TableHead className="bg-transparent w-[220px]">Customer</TableHead>
+                        <TableHead className="text-center bg-transparent w-[80px]">Type</TableHead>
+                        <TableHead className="text-center bg-transparent w-[120px]">Amount</TableHead>
+                        <TableHead className="text-center bg-transparent w-[150px]">Balance After</TableHead>
+                        <TableHead className="bg-transparent">Description</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pointsTransactions.slice(0, ADMIN_PAGE_SIZE).map((tx: { id: string; created_at: string; user_id: string; transaction_type: string; points_amount?: number; balance_after?: number; description?: string; customer?: { full_name?: string; email?: string } }) => {
+                        const customerName = tx.customer?.full_name ?? tx.customer?.email ?? tx.user_id.slice(0, 8);
+                        return (
+                          <TableRow key={tx.id} className="border-b border-slate-50">
+                            <TableCell className="text-sm py-4 w-[180px]">
+                              {format(new Date(tx.created_at), "d MMM yyyy HH:mm", { locale: safeLocale })}
+                            </TableCell>
+                            <TableCell className="font-medium py-4 w-[220px] truncate">{customerName}</TableCell>
+                            <TableCell className="text-center py-4 w-[80px]">
+                              <Badge variant="outline" className="capitalize rounded-full text-xs font-medium border-slate-200 bg-slate-50">
+                                {tx.transaction_type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className={cn("text-center font-medium py-4 w-[120px]", getTransactionTypeColor(tx.transaction_type))}>
+                              {(() => {
+                                const amt = tx.points_amount ?? 0;
+                                const isDebit = tx.transaction_type === "spend" || tx.transaction_type === "adjustment" || tx.transaction_type === "expire";
+                                const displayAmt = isDebit ? -Math.abs(amt) : Math.abs(amt);
+                                return (displayAmt >= 0 ? "+" : "") + displayAmt.toLocaleString();
+                              })()}
+                            </TableCell>
+                            <TableCell className="text-center font-semibold py-4 w-[150px]">{(tx.balance_after ?? 0).toLocaleString()}</TableCell>
+                            <TableCell className="py-4 text-slate-600 truncate pl-4">{tx.description ?? "—"}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                  
+                  {/* Pagination */}
+                  <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
+                    <p className="text-sm text-slate-500">
+                      Showing {pointsTransactions.length > 0 ? (transactionsPage * ADMIN_PAGE_SIZE) + 1 : 0} - {Math.min((transactionsPage + 1) * ADMIN_PAGE_SIZE, (transactionsPage * ADMIN_PAGE_SIZE) + pointsTransactions.length)}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => setTransactionsPage(Math.max(0, transactionsPage - 1))}
+                        disabled={transactionsPage === 0}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm font-medium px-2">Page {transactionsPage + 1}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => setTransactionsPage(transactionsPage + 1)}
+                        disabled={pointsTransactions.length <= ADMIN_PAGE_SIZE}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="alerts" className="m-0">
+            <div className="px-6 py-4 border-b border-slate-100">
+              <h3 className="text-base font-semibold text-slate-800">Suspicious activity (Loyalty)</h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Auto-detected: sudden large point gains (≥500 pts), or rapid earns (3+ per hour)
+              </p>
+            </div>
+            <div className="px-6 pb-6">
+              {alertsLoading ? (
+                <div className="space-y-2 py-8"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
+              ) : suspiciousActivities.length === 0 ? (
+                <div className="py-16 text-center">
+                  <p className="text-muted-foreground">No suspicious activity</p>
+                  <p className="text-sm text-slate-400 mt-1">Alerts will appear when: sudden large point gains or rapid earns are detected</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent border-b border-slate-100">
+                      <TableHead className="bg-transparent">Date</TableHead>
+                      <TableHead className="bg-transparent">Type</TableHead>
+                      <TableHead className="bg-transparent">Severity</TableHead>
+                      <TableHead className="bg-transparent">Description</TableHead>
+                      <TableHead className="bg-transparent">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {suspiciousActivities.map((a: { id: string; created_at: string; activity_type: string; severity: string; description: string | null; is_resolved: boolean }) => (
+                      <TableRow key={a.id} className="border-b border-slate-50">
+                        <TableCell className="text-sm py-4 whitespace-nowrap">
+                          {format(new Date(a.created_at), "d MMM yyyy HH:mm", { locale: safeLocale })}
                         </TableCell>
-                        <TableCell className="font-medium py-4">{customerName}</TableCell>
                         <TableCell className="py-4">
-                          <Badge variant="outline" className="capitalize rounded-full text-xs font-medium border-slate-200 bg-slate-50">
-                            {tx.transaction_type}
+                          <Badge variant="outline" className="rounded-full text-xs font-medium border-slate-200 bg-slate-50">
+                            {a.activity_type === "large_single_earn" ? "Large single earn" : a.activity_type === "rapid_points_spike" ? "Rapid points spike" : a.activity_type}
                           </Badge>
                         </TableCell>
-                        <TableCell className={cn("text-right font-medium py-4", getTransactionTypeColor(tx.transaction_type))}>
-                          {(() => {
-                            const amt = tx.points_amount ?? 0;
-                            const isDebit = tx.transaction_type === "spend" || tx.transaction_type === "adjustment" || tx.transaction_type === "expire";
-                            const displayAmt = isDebit ? -Math.abs(amt) : Math.abs(amt);
-                            return (displayAmt >= 0 ? "+" : "") + displayAmt.toLocaleString();
-                          })()}
+                        <TableCell className="py-4">
+                          <Badge className={cn("rounded-full text-xs font-medium border-none", getSeverityColor(a.severity))}>
+                            {a.severity}
+                          </Badge>
                         </TableCell>
-                        <TableCell className="text-right font-semibold py-4">{(tx.balance_after ?? 0).toLocaleString()}</TableCell>
-                        <TableCell className="max-w-[200px] truncate py-4 text-slate-600">{tx.description ?? "—"}</TableCell>
+                        <TableCell className="max-w-[280px] py-4 text-slate-600 text-sm">{a.description ?? "—"}</TableCell>
+                        <TableCell className="py-4">
+                          {a.is_resolved ? (
+                            <Badge variant="secondary" className="rounded-full bg-slate-100 text-slate-600">Resolved</Badge>
+                          ) : (
+                            <Badge variant="destructive" className="rounded-full bg-amber-100 text-amber-800 border-amber-200">Pending</Badge>
+                          )}
+                        </TableCell>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="alerts" className="m-0">
-          <div className="px-6 py-4 border-b border-slate-100">
-            <h3 className="text-base font-semibold text-slate-800">Suspicious activity (Loyalty)</h3>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Auto-detected: sudden large point gains (≥500 pts), or rapid earns (3+ per hour)
-            </p>
-          </div>
-          <div className="px-6 pb-6">
-            {alertsLoading ? (
-              <div className="space-y-2 py-8"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
-            ) : suspiciousActivities.length === 0 ? (
-              <div className="py-16 text-center">
-                <p className="text-muted-foreground">No suspicious activity</p>
-                <p className="text-sm text-slate-400 mt-1">Alerts will appear when: sudden large point gains or rapid earns are detected</p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent border-b border-slate-100">
-                    <TableHead className="bg-transparent">Date</TableHead>
-                    <TableHead className="bg-transparent">Type</TableHead>
-                    <TableHead className="bg-transparent">Severity</TableHead>
-                    <TableHead className="bg-transparent">Description</TableHead>
-                    <TableHead className="bg-transparent">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {suspiciousActivities.map((a: { id: string; created_at: string; activity_type: string; severity: string; description: string | null; is_resolved: boolean }) => (
-                    <TableRow key={a.id} className="border-b border-slate-50">
-                      <TableCell className="text-sm py-4 whitespace-nowrap">
-                        {format(new Date(a.created_at), "d MMM yyyy HH:mm", { locale: safeLocale })}
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <Badge variant="outline" className="rounded-full text-xs font-medium border-slate-200 bg-slate-50">
-                          {a.activity_type === "large_single_earn" ? "Large single earn" : a.activity_type === "rapid_points_spike" ? "Rapid points spike" : a.activity_type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <Badge className={cn("rounded-full text-xs font-medium border-none", getSeverityColor(a.severity))}>
-                          {a.severity}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[280px] py-4 text-slate-600 text-sm">{a.description ?? "—"}</TableCell>
-                      <TableCell className="py-4">
-                        {a.is_resolved ? (
-                          <Badge variant="secondary" className="rounded-full bg-slate-100 text-slate-600">Resolved</Badge>
-                        ) : (
-                          <Badge variant="destructive" className="rounded-full bg-amber-100 text-amber-800 border-amber-200">Pending</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
