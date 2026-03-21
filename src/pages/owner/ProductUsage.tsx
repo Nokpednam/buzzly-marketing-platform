@@ -470,13 +470,7 @@ export default function ProductUsage() {
               Actionable UX insights, AARRR funnel, journey & persona
             </p>
           </div>
-          <Link
-            to="/dev/audit-logs"
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
-          >
-            <Activity className="w-3.5 h-3.5" />
-            Audit Logs
-          </Link>
+
         </div>
 
         <Tabs defaultValue="ux-insights" className="space-y-6">

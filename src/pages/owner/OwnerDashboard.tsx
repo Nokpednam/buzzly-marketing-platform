@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -36,6 +36,7 @@ import {
   TooltipProps,
 } from "recharts";
 import { useQueryClient } from "@tanstack/react-query";
+import { subDays, format as fnsFormat } from "date-fns";
 import {
   useSubscriptionMetrics,
   useProductUsageMetrics,
@@ -102,11 +103,42 @@ export default function OwnerDashboard() {
   const activeSubs = subscriptionMetrics?.activeSubscriptions ?? 0;
 
   const monthlyData = subscriptionMetrics?.monthlyData ?? [];
-  const trendData = monthlyData.slice(-12).map((d) => ({
-    date: d.month,
-    mrr: d.mrr,
-    payingWorkspaces: d.activeAt,
-  }));
+  const rawTransactions = subscriptionMetrics?.rawTransactions ?? [];
+
+  // Build chart data that actually responds to the selected time range
+  const trendData = useMemo(() => {
+    if (timeRange === "7d" || timeRange === "1m") {
+      const daysBack = timeRange === "7d" ? 7 : 30;
+      const cutoff = subDays(new Date(), daysBack);
+      const dailyMap = new Map<string, { mrr: number; users: Set<string> }>();
+      for (let i = daysBack - 1; i >= 0; i--) {
+        const key = fnsFormat(subDays(new Date(), i), "MMM dd");
+        dailyMap.set(key, { mrr: 0, users: new Set() });
+      }
+      rawTransactions
+        .filter((tx) => new Date(tx.date) >= cutoff)
+        .forEach((tx) => {
+          const key = fnsFormat(new Date(tx.date), "MMM dd");
+          if (dailyMap.has(key)) {
+            const e = dailyMap.get(key)!;
+            e.mrr += tx.amount;
+            e.users.add(tx.userId);
+          }
+        });
+      return Array.from(dailyMap.entries()).map(([date, e]) => ({
+        date,
+        mrr: Math.round(e.mrr),
+        payingWorkspaces: e.users.size,
+      }));
+    }
+    // monthly slice for 3m / 6m / 1y
+    const sliceCount = timeRange === "3m" ? 3 : timeRange === "6m" ? 6 : 12;
+    return monthlyData.slice(-sliceCount).map((d) => ({
+      date: d.month,
+      mrr: d.mrr,
+      payingWorkspaces: d.activeAt,
+    }));
+  }, [timeRange, monthlyData, rawTransactions]);
 
   const platformUsers = usageMetrics?.platformUsersCount ?? 0;
   const breakdown = timeRangeData?.breakdown ?? { newMrr: 0, expansion: 0, churn: 0 };
