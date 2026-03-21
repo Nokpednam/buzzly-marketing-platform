@@ -7,7 +7,7 @@ import { auditTier } from "@/lib/auditLogger";
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export const ADMIN_PAGE_SIZE = 8;
-export const ALERTS_PAGE_SIZE = 5;
+export const ALERTS_PAGE_SIZE = 6;
 
 /** Row from the new loyalty_tier_history table (simple denormalized log) */
 export interface LoyaltyTierHistoryEntry {
@@ -28,6 +28,7 @@ export interface LoyaltyTierHistoryEntry {
         first_name?: string | null;
         last_name?: string | null;
         user_id?: string | null;
+        customer_email?: string | null;
     } | null;
     changer?: { full_name: string | null; email: string | null } | null;
 }
@@ -96,7 +97,7 @@ export function useLoyaltyTierHistory(page = 0) {
         queryKey: ["loyalty-tier-history", page],
         queryFn: async () => {
             const from = page * ADMIN_PAGE_SIZE;
-            const to = from + ADMIN_PAGE_SIZE;
+            const to = from + ADMIN_PAGE_SIZE - 1;
 
             // Only show auto-logged changes (change_type='auto') in the Auto-Log section.
             const { data, error } = await (supabase as any)
@@ -116,18 +117,15 @@ export function useLoyaltyTierHistory(page = 0) {
 // ─── Loyalty Tier History (All: Auto + Manual) — via RPC (bulletproof) ────────
 
 /** Fetch tier history via RPC — bypasses RLS/PostgREST, guaranteed to work */
-const TIER_HISTORY_PAGE_SIZE = 50;
+const TIER_HISTORY_MAX_FETCH = 150;
 
-export function useLoyaltyTierHistoryAll(page = 0) {
+export function useLoyaltyTierHistoryAll(limit = TIER_HISTORY_MAX_FETCH) {
     return useQuery({
-        queryKey: ["loyalty-tier-history-all", page],
+        queryKey: ["loyalty-tier-history-all", limit],
         queryFn: async () => {
-            const limit = TIER_HISTORY_PAGE_SIZE;
-            const offset = page * TIER_HISTORY_PAGE_SIZE;
-
             const { data, error } = await supabase.rpc("get_tier_history_for_support", {
                 p_limit: limit,
-                p_offset: offset,
+                p_offset: 0,
             });
 
             if (error) throw error;
@@ -144,6 +142,7 @@ export function useLoyaltyTierHistoryAll(page = 0) {
                 customer_first_name: string | null;
                 customer_last_name: string | null;
                 customer_user_id: string | null;
+                customer_email: string | null;
             }>;
 
             return rows.map((r) => ({
@@ -159,6 +158,7 @@ export function useLoyaltyTierHistoryAll(page = 0) {
                     first_name: r.customer_first_name,
                     last_name: r.customer_last_name,
                     user_id: r.customer_user_id,
+                    email: r.customer_email,
                 },
             })) as LoyaltyTierHistoryEntry[];
         },
@@ -289,19 +289,30 @@ export function usePointsTransactions(page = 0) {
 
 // ─── Suspicious Activities ────────────────────────────────────────────────────
 
-export function useSuspiciousActivities(page = 0) {
+export function useSuspiciousActivities(page = 0, filters?: { type?: string; severity?: string; status?: string }) {
     const queryClient = useQueryClient();
 
-    const query = useQuery({
-        queryKey: ["suspicious-activities", page],
+    const query = useQuery<SuspiciousActivity[], Error>({
+        queryKey: ["suspicious-activities", page, filters],
         queryFn: async () => {
             const from = page * ALERTS_PAGE_SIZE;
-            const to = from + ALERTS_PAGE_SIZE; // Fetch one extra to check if next exists
+            const to = from + ALERTS_PAGE_SIZE - 1;
 
-            // No FK from user_id to customer — fetch without join.
-            const { data, error } = await supabase
+            let supabaseQuery = supabase
                 .from("suspicious_activities")
-                .select("*")
+                .select("*, customer:customer(full_name, email)");
+
+            if (filters?.type && filters.type !== "all") {
+                supabaseQuery = supabaseQuery.eq("activity_type", filters.type);
+            }
+            if (filters?.severity && filters.severity !== "all") {
+                supabaseQuery = supabaseQuery.eq("severity", filters.severity);
+            }
+            if (filters?.status && filters.status !== "all") {
+                supabaseQuery = supabaseQuery.eq("is_resolved", filters.status === "resolved");
+            }
+
+            const { data, error } = await supabaseQuery
                 .order("created_at", { ascending: false })
                 .range(from, to);
 

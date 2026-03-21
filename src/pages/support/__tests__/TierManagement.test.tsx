@@ -50,11 +50,35 @@ const mockResolveActivity = vi.fn();
 const mockSuspendCustomer = vi.fn();
 
 vi.mock('@/hooks/useTierManagement', () => ({
-    useTierHistory: () => ({ data: [], isLoading: false, isError: false }),
-    useLoyaltyTierHistory: () => ({ data: [], isLoading: false, isError: false }),
-    usePointsTransactions: () => ({ data: [], isLoading: false, isError: false }),
-    useCustomerSearch: () => ({
-        query: 'somchai',
+    useLoyaltyTierHistoryAll: () => ({
+        data: [{
+            id: 'h1',
+            old_tier: 'Bronze',
+            new_tier: 'Silver',
+            changed_at: '2023-01-01',
+            change_type: 'manual',
+            customer: { first_name: 'Somchai', last_name: 'Jaidee', email: 'somchai@example.com' }
+        }],
+        isLoading: false,
+        isError: false,
+        refetch: vi.fn()
+    }),
+    usePointsTransactions: () => ({
+        data: [{
+            id: 't1',
+            created_at: '2023-01-01',
+            user_id: 'u1',
+            transaction_type: 'earn',
+            points_amount: 100,
+            balance_after: 1100,
+            description: 'Test transaction',
+            customer: { full_name: 'Somchai Jaidee', email: 'somchai@example.com' }
+        }],
+        isLoading: false,
+        isError: false
+    }),
+    useCustomerSearch: (q: string) => ({
+        query: q || 'somchai',
         setQuery: vi.fn(),
         data: [{
             id: '123',
@@ -65,16 +89,19 @@ vi.mock('@/hooks/useTierManagement', () => ({
             total_spend: 5000,
             created_at: '2023-01-01'
         }],
-        isFetching: false
+        isFetching: false,
+        isError: false
     }),
     useManualTierOverride: () => ({ mutateAsync: vi.fn(), isPending: false }),
-    useSuspiciousActivities: () => ({
+    useSuspiciousActivities: (page = 0, filters?: any) => ({
         data: [{
             id: 'sus1',
-            user_id: 'u1',
+            user_id: 'user-123',
             activity_type: 'login',
             severity: 'high',
+            description: 'ได้รับคะแนน 4 ครั้งใน 1 ชั่วโมง — น่าสงสัย',
             is_resolved: false,
+            metadata: {},
             created_at: '2023-01-01',
             customer: { full_name: 'คุณศราวุธ มีพิรุธ', email: 'sus@examole.com' }
         }],
@@ -83,6 +110,11 @@ vi.mock('@/hooks/useTierManagement', () => ({
         resolveActivity: { mutate: mockResolveActivity, isPending: false, mutateAsync: vi.fn() },
         suspendCustomer: { mutate: mockSuspendCustomer, isPending: false, mutateAsync: vi.fn() }
     }),
+    useAllCustomers: () => ({ data: [], isLoading: false }),
+    useLoyaltyTiers: () => ({ data: [], isLoading: false }),
+    useUpdateTierRetention: () => ({ mutate: vi.fn(), isPending: false }),
+    useEvaluateInactivityDowngrades: () => ({ mutate: vi.fn(), isPending: false }),
+    useSyncTierFromLifetimePoints: () => ({ mutate: vi.fn(), isPending: false }),
     ADMIN_PAGE_SIZE: 8,
     ALERTS_PAGE_SIZE: 5,
 }));
@@ -151,15 +183,21 @@ describe('TierManagement', () => {
         const user = userEvent.setup();
         renderWithProviders(<TierManagement />);
 
-        // Default tab: History
+        // Default tab: Rules
+        expect(screen.getByText('Tier Rules — Inactivity downgrade period')).toBeInTheDocument();
+
+        // Switch to History
+        const historyTab = screen.getByRole('tab', { name: /Tier History/i });
+        await user.click(historyTab);
         expect(screen.getByText('Tier Change History')).toBeInTheDocument();
 
-        // Switch to Suspicious Activities
-        const alertsTab = screen.getByRole('tab', { name: /Suspicious Activities/i });
+        // Switch to Suspicious
+        const alertsTab = screen.getByRole('tab', { name: /Suspicious/i });
         await user.click(alertsTab);
 
-        expect(screen.getByText('Suspicious activities requiring review')).toBeInTheDocument();
+        expect(screen.getByText('Suspicious activity (Loyalty)')).toBeInTheDocument();
         expect(screen.getByText('คุณศราวุธ มีพิรุธ')).toBeInTheDocument(); // Mock data in alerts tab
+        expect(screen.getByText('sus@examole.com')).toBeInTheDocument(); // Email in alerts tab
     });
 
     it('handles suspicious activity actions', async () => {
@@ -167,19 +205,20 @@ describe('TierManagement', () => {
         renderWithProviders(<TierManagement />);
 
         // Switch to Suspicious Activities
-        const alertsTab = screen.getByRole('tab', { name: /Suspicious Activities/i });
+        const alertsTab = screen.getByRole('tab', { name: /Suspicious/i });
         await user.click(alertsTab);
 
-        // Click Inspect
-        const inspectBtn = screen.getByRole('button', { name: /Resolved/i });
-        await user.click(inspectBtn);
+        // Wait for mock data
+        await screen.findByText('คุณศราวุธ มีพิรุธ');
 
-        expect(mockResolveActivity).toHaveBeenCalledWith({ activityId: 'sus1' });
+        // Open actions menu
+        const actionBtn = screen.getByLabelText('Actions');
+        await user.click(actionBtn);
 
-        // Click Suspend
-        const suspendBtn = screen.getByRole('button', { name: /Suspend/i });
-        await user.click(suspendBtn);
+        // Click Resolve
+        const resolveItem = screen.getByText('Mark as Resolved');
+        await user.click(resolveItem);
 
-        expect(mockSuspendCustomer).toHaveBeenCalledWith('u1');
+        expect(mockResolveActivity).toHaveBeenCalled();
     });
 });

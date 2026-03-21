@@ -32,6 +32,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   AlertTriangle,
   Search,
   History,
@@ -45,6 +53,9 @@ import {
   Loader2,
   Settings2,
   Play,
+  MoreVertical,
+  CheckCircle,
+  Slash,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { tierColors, tierIcons } from "@/hooks/useLoyaltyTier";
@@ -65,6 +76,7 @@ import {
   ALERTS_PAGE_SIZE,
   type CustomerSearchResult,
   type LoyaltyTierHistoryEntry,
+  type SuspiciousActivity,
 } from "@/hooks/useTierManagement";
 
 /** Tier priority for rise/drop indicator (higher = better) */
@@ -195,10 +207,17 @@ export default function TierManagement() {
   const [loyaltyHistoryPage, setLoyaltyHistoryPage] = useState(0);
   const [transactionsPage, setTransactionsPage] = useState(0);
   const [activitiesPage, setActivitiesPage] = useState(0);
+  const [alertTypeFilter, setAlertTypeFilter] = useState("all");
+  const [alertSeverityFilter, setAlertSeverityFilter] = useState("all");
+  const [alertStatusFilter, setAlertStatusFilter] = useState("all");
 
-  const { data: loyaltyTierHistoryAll = [], isLoading: loyaltyHistoryLoading, isError: loyaltyHistoryError, error: loyaltyHistoryErrorDetail, refetch: refetchLoyaltyHistory } = useLoyaltyTierHistoryAll(loyaltyHistoryPage);
+  const { data: loyaltyTierHistoryAll = [], isLoading: loyaltyHistoryLoading, isError: loyaltyHistoryError, error: loyaltyHistoryErrorDetail, refetch: refetchLoyaltyHistory } = useLoyaltyTierHistoryAll();
   const { data: pointsTransactions = [], isLoading: txLoading, isError: txError, error: txErrorDetail } = usePointsTransactions(transactionsPage);
-  const { data: suspiciousActivities = [], isLoading: alertsLoading, unresolvedCount, resolveActivity, suspendCustomer } = useSuspiciousActivities(activitiesPage);
+  const { data: suspiciousActivities = [] as SuspiciousActivity[], isLoading: alertsLoading, unresolvedCount, resolveActivity } = useSuspiciousActivities(activitiesPage, {
+    type: alertTypeFilter,
+    severity: alertSeverityFilter,
+    status: alertStatusFilter
+  });
   const { query: searchQuery, setQuery: setSearchQuery, data: searchResults = [], isFetching: searchLoading, isError: searchError, error: searchErrorDetail } = useCustomerSearch();
   const { data: adjustSearchResults = [], isFetching: adjustSearchLoading } = useCustomerSearch(
     adjustDialogOpen && godCustomerSearch ? godCustomerSearch : ""
@@ -213,6 +232,8 @@ export default function TierManagement() {
   const safeTierIcons = tierIcons || defaultTierIcons;
   const safeTierColors = tierColors || defaultTierColors;
   const safeLocale = enUS;
+
+  const isFiltered = alertTypeFilter !== "all" || alertSeverityFilter !== "all" || alertStatusFilter !== "all";
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -711,7 +732,7 @@ export default function TierManagement() {
                 Sync tier history
               </Button>
             </div>
-            <div className="px-6 pb-6">
+            <div className="px-6 pb-6 min-h-[520px]">
               {loyaltyHistoryLoading ? (
                 <div className="space-y-2 py-8"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
               ) : loyaltyHistoryError ? (
@@ -760,25 +781,31 @@ export default function TierManagement() {
                 actualChanges.sort(
                   (a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime()
                 );
+                const HISTORY_PAGE_SIZE = 6;
+                const totalPages = Math.ceil(actualChanges.length / HISTORY_PAGE_SIZE);
+                const paginatedChanges = actualChanges.slice(loyaltyHistoryPage * HISTORY_PAGE_SIZE, (loyaltyHistoryPage + 1) * HISTORY_PAGE_SIZE);
+
                 if (actualChanges.length === 0) {
                   return <div className="py-16 text-center text-muted-foreground">No tier changes found</div>;
                 }
                 return (
-                  <Table>
+                  <>
+                  <Table className="table-fixed w-full border-collapse">
                     <TableHeader>
-                      <TableRow className="hover:bg-transparent border-b border-slate-100">
-                        <TableHead className="bg-transparent">Date</TableHead>
-                        <TableHead className="bg-transparent">Customer</TableHead>
-                        <TableHead className="bg-transparent">Previous</TableHead>
-                        <TableHead className="bg-transparent">New Tier</TableHead>
-                        <TableHead className="bg-transparent">Origin</TableHead>
+                      <TableRow className="hover:bg-transparent border-b border-slate-100 h-12">
+                        <TableHead className="w-[160px] bg-transparent">Date</TableHead>
+                        <TableHead className="w-[220px] bg-transparent">Customer</TableHead>
+                        <TableHead className="w-[120px] bg-transparent">Previous</TableHead>
+                        <TableHead className="w-[160px] bg-transparent">New Tier</TableHead>
+                        <TableHead className="w-[100px] bg-transparent">Origin</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {actualChanges.map((h: LoyaltyTierHistoryEntry) => {
+                      {paginatedChanges.map((h: LoyaltyTierHistoryEntry) => {
                         const dateToFormat = h.changed_at || h.created_at;
                         const customer = h.customer;
                         const customerName = customer ? `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim() || "—" : h.profile_customer_id.slice(0, 8);
+                        const customerEmail = customer?.email;
                         const displayOldTier = displayOld(h.old_tier);
                         const oldPriority = getTierPriority(displayOldTier, tierRules);
                         const newPriority = getTierPriority(h.new_tier, tierRules);
@@ -786,11 +813,14 @@ export default function TierManagement() {
                         const isDrop = newPriority < oldPriority;
                         const tierBadgeClass = (tier: string) => getTierBadgeClass(tier, safeTierColors);
                         return (
-                          <TableRow key={h.id} className="border-b border-slate-50">
-                            <TableCell className="text-sm whitespace-nowrap py-4">
+                          <TableRow key={h.id} className="border-b border-slate-50 hover:bg-slate-50/50 h-[82px]">
+                            <TableCell className="text-sm text-slate-500 py-4 tabular-nums">
                               {dateToFormat ? format(new Date(dateToFormat), "d MMM yyyy HH:mm", { locale: safeLocale }) : "—"}
                             </TableCell>
-                            <TableCell className="font-medium py-4">{customerName}</TableCell>
+                            <TableCell className="py-4 truncate" title={customerName}>
+                              <div className="font-medium text-sm truncate">{customerName}</div>
+                              {customerEmail && <div className="text-xs text-muted-foreground truncate">{customerEmail}</div>}
+                            </TableCell>
                             <TableCell className="py-4">
                               <Badge variant="secondary" className={tierBadgeClass(displayOldTier)}>
                                 {displayOldTier}
@@ -818,6 +848,39 @@ export default function TierManagement() {
                       })}
                     </TableBody>
                   </Table>
+
+                  {/* Pagination Controls */}
+                  {actualChanges.length > 0 && (
+                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
+                      <p className="text-sm text-slate-500">
+                        Showing {(loyaltyHistoryPage * HISTORY_PAGE_SIZE) + 1} - {Math.min((loyaltyHistoryPage * HISTORY_PAGE_SIZE) + HISTORY_PAGE_SIZE, actualChanges.length)}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setLoyaltyHistoryPage(p => Math.max(0, p - 1))}
+                          disabled={loyaltyHistoryPage === 0}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-sm font-medium px-2">
+                          Page {loyaltyHistoryPage + 1}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setLoyaltyHistoryPage(p => p + 1)}
+                          disabled={loyaltyHistoryPage >= totalPages - 1}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  </>
                 );
               })()}
             </div>
@@ -829,7 +892,7 @@ export default function TierManagement() {
               <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
                 <ArrowUpDown className="h-4 w-4 text-blue-600" /> Points Transactions
               </h3>
-                            <p className="text-sm text-muted-foreground mt-0.5">Full history of points earned and used</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Full history of points earned and used</p>
             </div>
             <div className="px-6 pb-6">
               {txLoading ? (
@@ -853,13 +916,15 @@ export default function TierManagement() {
                     </TableHeader>
                     <TableBody>
                       {pointsTransactions.slice(0, ADMIN_PAGE_SIZE).map((tx: { id: string; created_at: string; user_id: string; transaction_type: string; points_amount?: number; balance_after?: number; description?: string; customer?: { full_name?: string; email?: string } }) => {
-                        const customerName = tx.customer?.full_name ?? tx.customer?.email ?? tx.user_id.slice(0, 8);
                         return (
                           <TableRow key={tx.id} className="border-b border-slate-50">
                             <TableCell className="text-sm py-4 w-[180px]">
                               {format(new Date(tx.created_at), "d MMM yyyy HH:mm", { locale: safeLocale })}
                             </TableCell>
-                            <TableCell className="font-medium py-4 w-[220px] truncate">{customerName}</TableCell>
+                            <TableCell className="font-medium py-4 w-[220px] truncate">
+                              <div>{tx.customer?.full_name ?? tx.user_id.slice(0, 8)}</div>
+                              {tx.customer?.email && <div className="text-xs text-muted-foreground font-normal">{tx.customer.email}</div>}
+                            </TableCell>
                             <TableCell className="text-center py-4 w-[80px]">
                               <Badge variant="outline" className="capitalize rounded-full text-xs font-medium border-slate-200 bg-slate-50">
                                 {tx.transaction_type}
@@ -880,7 +945,7 @@ export default function TierManagement() {
                       })}
                     </TableBody>
                   </Table>
-                  
+
                   {/* Pagination */}
                   <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
                     <p className="text-sm text-slate-500">
@@ -920,53 +985,172 @@ export default function TierManagement() {
                 Auto-detected: sudden large point gains (≥500 pts), or rapid earns (3+ per hour)
               </p>
             </div>
-            <div className="px-6 pb-6">
+
+            <div className="px-6 py-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-end gap-3">
+              <Select value={alertTypeFilter} onValueChange={(v) => { setAlertTypeFilter(v); setActivitiesPage(0); }}>
+                <SelectTrigger className="h-9 w-[160px] bg-white border-slate-200 text-xs shadow-sm hover:border-blue-400 transition-colors">
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All types</SelectItem>
+                  <SelectItem value="large_single_earn">Large single earn</SelectItem>
+                  <SelectItem value="rapid_points_spike">Rapid points spike</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={alertSeverityFilter} onValueChange={(v) => { setAlertSeverityFilter(v); setActivitiesPage(0); }}>
+                <SelectTrigger className="h-9 w-[130px] bg-white border-slate-200 text-xs shadow-sm hover:border-blue-400 transition-colors">
+                  <SelectValue placeholder="All severities" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All severities</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={alertStatusFilter} onValueChange={(v) => { setAlertStatusFilter(v); setActivitiesPage(0); }}>
+                <SelectTrigger className="h-9 w-[120px] bg-white border-slate-200 text-xs shadow-sm hover:border-blue-400 transition-colors">
+                  <SelectValue placeholder="All status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All status</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="resolved">Resolved</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="px-6 pb-6 min-h-[520px]">
               {alertsLoading ? (
                 <div className="space-y-2 py-8"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
               ) : suspiciousActivities.length === 0 ? (
-                <div className="py-16 text-center">
-                  <p className="text-muted-foreground">No suspicious activity</p>
-                  <p className="text-sm text-slate-400 mt-1">Alerts will appear when: sudden large point gains or rapid earns are detected</p>
+                <div className="py-16 text-center border border-dashed border-slate-200 rounded-xl bg-slate-50/50 mt-4">
+                  <p className="text-slate-600 font-medium">{isFiltered ? "No alerts match your search filters" : "No suspicious activity detected yet"}</p>
+                  <p className="text-sm text-slate-400 mt-1 max-w-sm mx-auto">
+                    {isFiltered 
+                      ? "Try adjusting your filters or resetting them to see more results." 
+                      : "The system automatically monitors for sudden large point gains or rapid earn patterns."}
+                  </p>
+                  {isFiltered && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-5 h-8 text-xs"
+                      onClick={() => {
+                        setAlertTypeFilter("all");
+                        setAlertSeverityFilter("all");
+                        setAlertStatusFilter("all");
+                        setActivitiesPage(0);
+                      }}
+                    >
+                      Clear all filters
+                    </Button>
+                  )}
                 </div>
               ) : (
-                <Table>
+                <Table className="table-fixed w-full border-collapse">
                   <TableHeader>
-                    <TableRow className="hover:bg-transparent border-b border-slate-100">
-                      <TableHead className="bg-transparent">Date</TableHead>
-                      <TableHead className="bg-transparent">Type</TableHead>
-                      <TableHead className="bg-transparent">Severity</TableHead>
+                    <TableRow className="hover:bg-transparent border-b border-slate-100 h-12">
+                      <TableHead className="w-[160px] bg-transparent">Date</TableHead>
+                      <TableHead className="w-[220px] bg-transparent">Customer</TableHead>
+                      <TableHead className="w-[160px] text-center bg-transparent">Type</TableHead>
+                      <TableHead className="w-[110px] text-center bg-transparent">Severity</TableHead>
                       <TableHead className="bg-transparent">Description</TableHead>
-                      <TableHead className="bg-transparent">Status</TableHead>
+                      <TableHead className="w-[100px] text-center bg-transparent">Status</TableHead>
+                      <TableHead className="w-[60px] text-right bg-transparent"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {suspiciousActivities.map((a: { id: string; created_at: string; activity_type: string; severity: string; description: string | null; is_resolved: boolean }) => (
-                      <TableRow key={a.id} className="border-b border-slate-50">
-                        <TableCell className="text-sm py-4 whitespace-nowrap">
+                      <TableRow key={a.id} className="border-b border-slate-50 hover:bg-slate-50/50 h-[82px]">
+                        <TableCell className="text-sm text-slate-500 py-4 tabular-nums">
                           {format(new Date(a.created_at), "d MMM yyyy HH:mm", { locale: safeLocale })}
                         </TableCell>
-                        <TableCell className="py-4">
+                        <TableCell className="py-4 truncate" title={(a as any).customer?.full_name}>
+                          <div className="font-medium text-sm truncate">{(a as any).customer?.full_name ?? "—"}</div>
+                          {(a as any).customer?.email && <div className="text-xs text-muted-foreground truncate">{(a as any).customer.email}</div>}
+                        </TableCell>
+                        <TableCell className="py-4 text-center">
                           <Badge variant="outline" className="rounded-full text-xs font-medium border-slate-200 bg-slate-50">
                             {a.activity_type === "large_single_earn" ? "Large single earn" : a.activity_type === "rapid_points_spike" ? "Rapid points spike" : a.activity_type}
                           </Badge>
                         </TableCell>
-                        <TableCell className="py-4">
+                        <TableCell className="py-4 text-center">
                           <Badge className={cn("rounded-full text-xs font-medium border-none", getSeverityColor(a.severity))}>
                             {a.severity}
                           </Badge>
                         </TableCell>
-                        <TableCell className="max-w-[280px] py-4 text-slate-600 text-sm">{a.description ?? "—"}</TableCell>
-                        <TableCell className="py-4">
+                        <TableCell className="py-4 text-slate-600 text-sm truncate" title={a.description ?? ""}>{a.description ?? "—"}</TableCell>
+                        <TableCell className="py-4 text-center">
                           {a.is_resolved ? (
                             <Badge variant="secondary" className="rounded-full bg-slate-100 text-slate-600">Resolved</Badge>
                           ) : (
                             <Badge variant="destructive" className="rounded-full bg-amber-100 text-amber-800 border-amber-200">Pending</Badge>
                           )}
                         </TableCell>
+                        <TableCell className="py-4 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-slate-400 hover:text-slate-600"
+                                aria-label="Actions"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                disabled={a.is_resolved}
+                                onClick={() => resolveActivity.mutate({ activityId: a.id })}
+                                className="gap-2 cursor-pointer"
+                              >
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                <span>Mark as Resolved</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+              )}
+
+              {/* Pagination Controls */}
+              {suspiciousActivities.length > 0 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
+                  <p className="text-sm text-slate-500">
+                    Showing {(activitiesPage * ALERTS_PAGE_SIZE) + 1} - {(activitiesPage * ALERTS_PAGE_SIZE) + suspiciousActivities.length}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActivitiesPage(p => Math.max(0, p - 1))}
+                      disabled={activitiesPage === 0}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-sm font-medium px-2">
+                      Page {activitiesPage + 1}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActivitiesPage(p => p + 1)}
+                      disabled={suspiciousActivities.length < ALERTS_PAGE_SIZE}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
           </TabsContent>
