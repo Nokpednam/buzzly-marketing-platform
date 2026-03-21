@@ -355,7 +355,7 @@ export const CreatePersonaDialog = ({
       <DialogContent className="max-w-3xl max-h-[92vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
           <DialogTitle className="text-lg font-bold">
-            {isEditMode ? "แก้ไข Customer Persona" : "สร้าง Customer Persona ใหม่"}
+            {isEditMode ? "Edit Customer Persona" : "Create New Customer Persona"}
           </DialogTitle>
         </DialogHeader>
 
@@ -404,22 +404,22 @@ export const CreatePersonaDialog = ({
             <div className="flex-1 overflow-y-auto px-6 py-5">
               {/* ── BASIC INFO ── */}
               <TabsContent value="basic" className="mt-0 space-y-4">
-                <SectionHeading>ข้อมูลพื้นฐาน</SectionHeading>
+                <SectionHeading>Basic Information</SectionHeading>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="persona_name">ชื่อ Persona *</Label>
+                    <Label htmlFor="persona_name">Persona Name *</Label>
                     <Input
                       id="persona_name"
                       value={formData.persona_name}
                       onChange={(e) =>
                         setFormData({ ...formData, persona_name: e.target.value })
                       }
-                      placeholder="เช่น Young Professionals"
+                      placeholder="e.g., Young Professionals"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="gender">เพศ</Label>
+                    <Label htmlFor="gender">Gender</Label>
                     <Select
                       value={formData.gender_id}
                       onValueChange={(v) =>
@@ -427,7 +427,7 @@ export const CreatePersonaDialog = ({
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="เลือกเพศ" />
+                        <SelectValue placeholder="Select Gender" />
                       </SelectTrigger>
                       <SelectContent>
                         {genders.map((g) => (
@@ -440,14 +440,14 @@ export const CreatePersonaDialog = ({
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="description">คำอธิบาย</Label>
+                  <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
                     value={formData.description}
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
-                    placeholder="อธิบายกลุ่มลูกค้านี้..."
+                    placeholder="Describe this customer group..."
                     rows={3}
                   />
                 </div>
@@ -812,17 +812,17 @@ export const CreatePersonaDialog = ({
                 variant="outline"
                 onClick={() => onOpenChange(false)}
               >
-                ยกเลิก
+                Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={isLoading || !formData.persona_name}
               >
                 {isLoading
-                  ? "กำลังบันทึก..."
+                  ? "Saving..."
                   : isEditMode
-                  ? "บันทึกการแก้ไข"
-                  : "สร้าง Persona"}
+                  ? "Save Changes"
+                  : "Create Persona"}
               </Button>
             </DialogFooter>
           </Tabs>
