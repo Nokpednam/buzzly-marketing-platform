@@ -6,6 +6,7 @@ export interface AuditLog {
   user_id: string | null;
   action_type_id: string | null;
   action_name?: string;
+  display_action_name?: string;
   description: string | null;
   category: string | null;
   status: string | null;
@@ -25,8 +26,9 @@ export function useAuditLogs(category?: string, page: number = 1, pageSize: numb
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
 
+      // Query the unified view instead of the base table
       let query = supabase
-        .from("audit_logs_enhanced")
+        .from("audit_logs_view")
         .select(`
           id,
           user_id,
@@ -37,7 +39,9 @@ export function useAuditLogs(category?: string, page: number = 1, pageSize: numb
           ip_address,
           metadata,
           created_at,
-          action_type:action_type_id (action_name)
+          user_email,
+          user_role,
+          display_action_name
         `, { count: 'exact' });
 
       if (category && category !== "all") {
@@ -86,12 +90,29 @@ export function useAuditLogs(category?: string, page: number = 1, pageSize: numb
         query = query.in("category", categories);
       }
 
+      // 1. Search filter
       if (searchQuery) {
-        query = query.or(`description.ilike.%${searchQuery}%,ip_address.ilike.%${searchQuery}%,user_id.ilike.%${searchQuery}%`);
+        query = query.or(`description.ilike.%${searchQuery}%,ip_address.ilike.%${searchQuery}%,user_email.ilike.%${searchQuery}%`);
       }
 
+      // 2. Status filter
       if (statusFilter && statusFilter !== "all") {
         query = query.eq("status", statusFilter);
+      }
+      
+      // 3. Role filter (SERVER-SIDE)
+      if (roleFilter && roleFilter !== "all") {
+        query = query.ilike("user_role", `%${roleFilter}%`);
+      }
+      
+      // 4. Action filter (SERVER-SIDE)
+      if (actionFilter && actionFilter !== "all") {
+        // Handle "Page View" which can have appended paths
+         if (actionFilter === "Page View") {
+             query = query.ilike("display_action_name", `Page View%`);
+         } else {
+             query = query.ilike("display_action_name", `${actionFilter}%`);
+         }
       }
 
       const { data, error, count } = await query
@@ -100,117 +121,14 @@ export function useAuditLogs(category?: string, page: number = 1, pageSize: numb
 
       if (error) throw error;
 
-      // Fetch user details for each log
-      const logs = data || [];
-      const userIds = [...new Set(logs.map(log => log.user_id).filter(Boolean))] as string[];
-
-      // Get user emails and roles from employees table
-      const { data: employees } = await supabase
-        .from('employees')
-        .select('user_id, email, role_employees(role_name)')
-        .in('user_id', userIds);
-
-      const foundEmployeeIds = new Set((employees || []).map(e => e.user_id));
-      const missingUserIds = userIds.filter(id => !foundEmployeeIds.has(id));
-
-      // Get user details from customer table for missing IDs
-      let customers: any[] = [];
-      if (missingUserIds.length > 0) {
-        const { data: customerData } = await supabase
-          .from('customer')
-          .select('id, email, full_name')
-          .in('id', missingUserIds);
-        customers = customerData || [];
-      }
-
-      // Create a map of user_id -> { email, role }
-      const userMap = new Map();
-
-      // Add employees
-      (employees || []).forEach(emp => {
-        if (emp.user_id) {
-          userMap.set(emp.user_id, {
-            email: emp.email,
-            role: (emp.role_employees as any)?.role_name || 'Employee'
-          });
-        }
-      });
-
-      // Add customers
-      customers.forEach(cust => {
-        userMap.set(cust.id, {
-          email: cust.email,
-          role: 'Customer'
-        });
-      });
-
-      const getPageLabel = (path: string | undefined): string => {
-        if (!path) return path || "";
-        const map: Record<string, string> = {
-          "/dashboard": "Dashboard",
-          "/personas": "Personas",
-          "/campaigns": "Campaigns",
-          "/social/planner": "Social Planner",
-          "/social/analytics": "Social Analytics",
-          "/social/inbox": "Social Inbox",
-          "/social/integrations": "Social Integrations",
-          "/customer-journey": "Customer Journey",
-          "/aarrr-funnel": "AARRR Funnel",
-          "/api-keys": "API Keys",
-          "/analytics": "Analytics",
-          "/reports": "Reports",
-          "/settings": "Settings",
-          "/team": "Team Management",
-          "/support/workspaces": "Support: Workspaces",
-          "/support/tier-management": "Support: Tier Management",
-          "/support/rewards-management": "Support: Rewards",
-          "/support/redemption-requests": "Support: Redemption Requests",
-          "/support/discount-management": "Support: Discount Management",
-          "/support/activity-codes": "Support: Activity Codes",
-        };
-        if (map[path]) return map[path];
-        if (/^\/campaigns\/[^/]+/.test(path)) return "Campaign Detail";
-        return path;
-      };
-
-      const enrichedLogs = logs.map((log: any) => {
-        const userInfo = log.user_id ? userMap.get(log.user_id) : null;
-        const metadata = log.metadata as any || {};
-        const pageUrl = metadata?.page_url;
-        const baseAction = log.action_type?.action_name || metadata.action_name || "Unknown";
-        const isPageView = log.category === "feature" && (baseAction === "Page View" || metadata.action_name === "Page View" || String(baseAction).includes("เข้าหน้า"));
-        const displayAction = isPageView && pageUrl
-          ? `Page View ${getPageLabel(pageUrl)}`
-          : isPageView && !pageUrl
-            ? "Page View"
-            : String(baseAction).replace(/เข้าหน้า\s*/g, "Page View ");
-
-        return {
+      // Map back to the expected format by the component
+      const logs = (data || []).map(log => ({
           ...log,
-          action_name: displayAction,
-          user_email: userInfo?.email || metadata.email || "Unknown",
-          user_role: userInfo?.role || metadata.role || "User",
-        };
-      });
-
-      // Apply role filter client-side after enrichment
-      const roleFiltered = roleFilter && roleFilter !== "all"
-        ? enrichedLogs.filter((log: any) =>
-            (log.user_role || '').toLowerCase().includes(roleFilter.toLowerCase())
-          )
-        : enrichedLogs;
-
-      // Apply action filter client-side
-      const filteredLogs = actionFilter && actionFilter !== "all"
-        ? roleFiltered.filter((log: any) => {
-            const name = (log.action_name || '').toLowerCase();
-            const filter = actionFilter.toLowerCase();
-            return name === filter || name.startsWith(filter + ' ');
-          })
-        : roleFiltered;
+          action_name: log.display_action_name // Map the view column to the property expected by UI
+      }));
 
       return {
-        logs: filteredLogs as AuditLog[],
+        logs: logs as AuditLog[],
         totalCount: count || 0,
         totalPages: Math.ceil((count || 0) / pageSize)
       };

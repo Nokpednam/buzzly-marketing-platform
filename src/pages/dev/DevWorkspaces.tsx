@@ -308,7 +308,7 @@ export default function DevWorkspaces() {
                                                             <Users className="h-4 w-4 mr-2 text-blue-500" />View Members
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => { setSelectedWorkspace(workspace); setViewMode("api"); }}>
-                                                            <Link2 className="h-4 w-4 mr-2 text-cyan-500" />Manage Ad Accounts
+                                                            <Link2 className="h-4 w-4 mr-2 text-cyan-500" />Manage Workspaces
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem

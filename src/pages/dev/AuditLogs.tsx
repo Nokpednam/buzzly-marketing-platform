@@ -160,7 +160,7 @@ export default function AuditLogs() {
   const [selectedAction, setSelectedAction] = useState("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [page, setPage] = useState(1);
-  const pageSize = 25;
+  const pageSize = 8;
   const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null);
 
   const { data, isLoading, isFetching, refetch } = useAuditLogs(
