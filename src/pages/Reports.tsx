@@ -47,6 +47,7 @@ import { PlanRestrictedPage } from "@/components/PlanRestrictedPage";
 import { useReports } from "@/hooks/useReports";
 import { useDashboardMetrics } from "@/hooks/useDashboardMetrics";
 import { useAdPersonas } from "@/hooks/useAdPersonas";
+import { useRevenueMetrics, type DerivedRevenue } from "@/hooks/useRevenueMetrics";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { generatePdfFromElement, uploadReportPdf, uploadReportFile, downloadPdfBlob, downloadBlob } from "@/lib/reportPdf";
@@ -101,6 +102,13 @@ function ReportsContent() {
 
   const { reports, isLoading, createReport, deleteReport, updateReportFileUrl } = useReports();
   const { data: metrics } = useDashboardMetrics(reportDateRange);
+  const { revenueMetrics } = useRevenueMetrics(
+    metrics ? {
+        totalSpend: metrics.totalSpend,
+        avgRoas: metrics.avgRoas,
+        totalConversions: metrics.totalConversions,
+      } : undefined
+  );
   const { personaData, totalImpressions: personaImpressions } = useAdPersonas({ mode: "all" });
   const reportRef = useRef<HTMLDivElement>(null);
   const [isGenerateOpen, setIsGenerateOpen] = useState(false);
@@ -573,6 +581,7 @@ function ReportsContent() {
             selectedCharts={selectedCharts}
             personaData={newReportType === "channel" ? personaData ?? undefined : undefined}
             personaImpressions={newReportType === "channel" ? personaImpressions : undefined}
+            revenueMetrics={newReportType === "roi" ? revenueMetrics ?? undefined : undefined}
           />
         </div>
       )}
@@ -596,6 +605,7 @@ function ReportsContent() {
                 selectedCharts={selectedCharts}
                 personaData={previewReportType === "channel" ? personaData ?? undefined : undefined}
                 personaImpressions={previewReportType === "channel" ? personaImpressions : undefined}
+                revenueMetrics={previewReportType === "roi" ? revenueMetrics ?? undefined : undefined}
               />
             </div>
           </div>
@@ -698,15 +708,17 @@ interface ReportDocumentProps {
     totalConversions: number;
     avgCtr: number;
     avgCpc: number;
+    avgCpm: number;
     avgRoas: number;
-    trendData?: { date: string; impressions: number; clicks: number; spend: number }[];
+    trendData: { date: string; impressions: number; clicks: number; spend: number }[];
   } | null;
   selectedCharts?: ReportChartId[];
   personaData?: { age_distribution: Record<string, number>; gender: Record<string, number>; top_locations: { name: string; pct: number }[]; interests: { name: string; pct: number }[]; device_type: Record<string, number> } | null;
   personaImpressions?: number;
+  revenueMetrics?: DerivedRevenue | null;
 }
 
-function ReportDocument({ reportName, reportType, dateRangeLabel, metrics, selectedCharts = [], personaData, personaImpressions = 0 }: ReportDocumentProps) {
+function ReportDocument({ reportName, reportType, dateRangeLabel, metrics, selectedCharts = [], personaData, personaImpressions = 0, revenueMetrics }: ReportDocumentProps) {
   const imp = metrics?.totalImpressions ?? 0;
   const clicks = metrics?.totalClicks ?? 0;
   const spend = metrics?.totalSpend ?? 0;
@@ -714,6 +726,60 @@ function ReportDocument({ reportName, reportType, dateRangeLabel, metrics, selec
   const ctr = metrics?.avgCtr ?? 0;
   const cpc = metrics?.avgCpc ?? 0;
   const roas = metrics?.avgRoas ?? 0;
+
+  let kpiCards = null;
+
+  if (reportType === "roi") {
+    const totalRev = revenueMetrics?.gross_revenue ?? 0;
+    const netProfit = revenueMetrics?.net_revenue ? revenueMetrics.net_revenue - spend : 0;
+    const avgCpa = conv > 0 ? spend / conv : 0;
+    
+    kpiCards = (
+      <>
+        <Metric label="Total Revenue" value={formatMetricValue(totalRev, "currency")} />
+        <Metric label="Net Profit" value={formatMetricValue(netProfit, "currency")} />
+        <Metric label="Ad Spend" value={formatMetricValue(spend, "currency")} />
+        <Metric label="Conversions" value={formatMetricValue(conv, "number")} />
+        <Metric label="Avg CPA" value={formatMetricValue(avgCpa, "currency")} />
+        <Metric label="ROAS" value={`${roas.toFixed(1)}x`} />
+      </>
+    );
+  } else if (reportType === "channel") { // channel corresponds to Persona
+    let topAge = "—";
+    if (personaData?.age_distribution) {
+      const sorted = Object.entries(personaData.age_distribution).sort((a, b) => b[1] - a[1]);
+      if (sorted.length > 0) topAge = sorted[0][0];
+    }
+    let topLoc = "—";
+    if (personaData?.top_locations && personaData.top_locations.length > 0) {
+      topLoc = personaData.top_locations[0].name;
+    }
+    
+    const audienceSize = personaImpressions > 0 ? personaImpressions : imp;
+    
+    kpiCards = (
+      <>
+        <Metric label="Total Audience Size" value={formatMetricValue(audienceSize, "number")} />
+        <Metric label="Top Age Group" value={topAge} />
+        <Metric label="Top Location" value={topLoc} />
+        <Metric label="Avg Engagement Rate" value={formatMetricValue(ctr, "percent")} />
+        <Metric label="Total Clicks" value={formatMetricValue(clicks, "number")} />
+        <Metric label="Ad Spend" value={formatMetricValue(spend, "currency")} />
+      </>
+    );
+  } else {
+    // campaign (Campaign Performance)
+    kpiCards = (
+      <>
+        <Metric label="Total Impressions" value={formatMetricValue(imp, "number")} change="+12%" />
+        <Metric label="CTR Rate" value={formatMetricValue(ctr, "percent")} change="+0.4%" />
+        <Metric label="Ad Spend" value={formatMetricValue(spend, "currency")} />
+        <Metric label="Total Clicks" value={formatMetricValue(clicks, "number")} />
+        <Metric label="Conversions" value={formatMetricValue(conv, "number")} />
+        <Metric label="ROAS" value={`${roas.toFixed(1)}x`} />
+      </>
+    );
+  }
 
   return (
     <>
@@ -733,12 +799,7 @@ function ReportDocument({ reportName, reportType, dateRangeLabel, metrics, selec
         </div>
       </div>
       <div className="grid grid-cols-3 gap-8 mb-12">
-        <Metric label="Total Impressions" value={formatMetricValue(imp, "number")} change="+12%" />
-        <Metric label="CTR Rate" value={formatMetricValue(ctr, "percent")} change="+0.4%" />
-        <Metric label="Ad Spend" value={formatMetricValue(spend, "currency")} />
-        <Metric label="Total Clicks" value={formatMetricValue(clicks, "number")} />
-        <Metric label="Conversions" value={formatMetricValue(conv, "number")} />
-        <Metric label="ROAS" value={`${roas.toFixed(1)}x`} />
+        {kpiCards}
       </div>
       <ReportChartBlocks
         metrics={metrics ?? undefined}

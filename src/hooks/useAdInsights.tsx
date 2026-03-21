@@ -147,7 +147,11 @@ export function useAdInsights(
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error("DASHBOARD FETCH ERROR (useAdInsights):", error);
+        throw error;
+      }
+      console.log(`DASHBOARD FETCH SUCCESS (useAdInsights): Found ${data?.length || 0} rows`);
       return (data ?? []).map((row) => normalizeInsightMetrics(row as unknown as AdInsight));
     },
   });

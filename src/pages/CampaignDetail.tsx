@@ -596,6 +596,14 @@ export default function CampaignDetail() {
                     <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#94a3b8" }} tickLine={false} axisLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} tickLine={false} axisLine={false} />
                     <Tooltip
+                      formatter={(value: any, name: string) => {
+                        if (name === "Spend") return [`฿${Number(value).toFixed(2)}`, name];
+                        if (name === "Ctr" || name === "Cpc" || name === "Cpm" || name === "Roas") return [`${Number(value).toFixed(2)}`, name];
+                        const valNum = Number(value);
+                        if (valNum >= 1000000) return [`${(valNum / 1000000).toFixed(1)}M`, name];
+                        if (valNum >= 1000) return [`${(valNum / 1000).toFixed(1)}K`, name];
+                        return [valNum.toLocaleString(), name];
+                      }}
                       contentStyle={{
                         backgroundColor: "rgba(255,255,255,0.98)",
                         backdropFilter: "blur(8px)",

@@ -90,8 +90,12 @@ export function useDashboardMetrics(dateRange: string = "7d", platformId: string
         .select("platform_id, team_id")
         .or(`team_id.eq.${workspaceId},team_id.is.null`);
 
-      if (adAccountsError) throw adAccountsError;
+      if (adAccountsError) {
+        console.error("DASHBOARD FETCH ERROR (ad_accounts):", adAccountsError);
+        throw adAccountsError;
+      }
 
+      console.log("DASHBOARD FETCH: Found ad accounts", adAccounts?.length);
       const platformIdsForWorkspace = adAccounts?.map(account => account.platform_id) || [];
 
       let query = supabase
@@ -111,7 +115,12 @@ export function useDashboardMetrics(dateRange: string = "7d", platformId: string
 
       const { data: insights, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error("DASHBOARD FETCH ERROR (ad_insights):", error);
+        throw error;
+      }
+
+      console.log(`DASHBOARD FETCH SUCCESS: Found ${insights?.length || 0} insights for ${start} to ${end}`);
 
 
       // Aggregate metrics
