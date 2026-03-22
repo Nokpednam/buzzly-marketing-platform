@@ -3,6 +3,9 @@
 -- Timestamp: 20260321160600
 -- ============================================================================
 
+-- Drop the existing function first so we can change its return type
+DROP FUNCTION IF EXISTS public.get_tier_history_for_support(integer, integer);
+
 CREATE OR REPLACE FUNCTION public.get_tier_history_for_support(
     p_limit  integer DEFAULT 50,
     p_offset integer DEFAULT 0
