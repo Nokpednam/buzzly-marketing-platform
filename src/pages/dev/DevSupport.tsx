@@ -95,13 +95,15 @@ export default function DevSupport() {
         }
     };
 
-    const copyToClipboard = (text: string) => {
+    const copyToClipboard = (text: string, description: string = "Error details copied to clipboard") => {
         navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        if (text === JSON.stringify(selectedLog, null, 2)) {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
         toast({
             title: "Copied to clipboard",
-            description: "Error details copied to clipboard",
+            description: description,
         });
     };
 
@@ -325,6 +327,18 @@ export default function DevSupport() {
                                                             <span className="text-sm font-semibold text-white truncate max-w-[130px]">
                                                                 {log.user_email?.split('@')[0] || "Unknown"}
                                                             </span>
+                                                            {log.user_email && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        copyToClipboard(log.user_email!, "User email copied to clipboard");
+                                                                    }}
+                                                                    className="p-1 rounded-md hover:bg-slate-800 text-slate-500 hover:text-white transition-colors opacity-0 group-hover:opacity-100"
+                                                                    title="Copy Email"
+                                                                >
+                                                                    <Copy className="h-3 w-3" />
+                                                                </button>
+                                                            )}
                                                         </div>
                                                         <p className="text-[10px] text-slate-500 font-medium">
                                                             {log.user_id.slice(0, 8)}
@@ -448,8 +462,19 @@ export default function DevSupport() {
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 bg-slate-950/40 rounded-xl border border-slate-800/60 shadow-inner">
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">User Impacted</label>
-                                        <div className="text-sm font-bold text-white truncate" title={selectedLog.user_email || "N/A"}>
-                                            {selectedLog.user_email || "Anonymous"}
+                                        <div className="flex items-center gap-1.5 group/email">
+                                            <div className="text-sm font-bold text-white truncate" title={selectedLog.user_email || "N/A"}>
+                                                {selectedLog.user_email || "Anonymous"}
+                                            </div>
+                                            {selectedLog.user_email && (
+                                                <button
+                                                    onClick={() => copyToClipboard(selectedLog.user_email!, "User email copied to clipboard")}
+                                                    className="p-1 rounded-md hover:bg-slate-800 text-slate-500 hover:text-white transition-colors"
+                                                    title="Copy Email"
+                                                >
+                                                    <Copy className="h-3 w-3" />
+                                                </button>
+                                            )}
                                         </div>
                                         {selectedLog.user_id && (
                                             <code className="text-[10px] bg-slate-900 border border-slate-800 px-1.5 py-0.5 rounded text-slate-400 font-mono">
