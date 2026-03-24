@@ -57,3 +57,4 @@
 7. NEVER: Edit `types.ts`, bypass RLS silently, commit `.env`, use `bun`.
 
    
+
