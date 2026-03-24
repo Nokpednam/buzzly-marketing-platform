@@ -4,12 +4,21 @@
  * Client-side mirror of the mock API server's key dictionary.
  * Used by the UI to show developer hints about which keys are valid.
  *
- * The mock server must be running: cd mock-api && npm start   (port 3001)
+ * Local dev: run mock-api (`cd mock-api && npm start`, port 3001).
+ * Production: set VITE_BACKEND_API_URL on the frontend (e.g. https://your-mock-api.vercel.app) — no trailing slash.
  */
 
-// Backend/Mock API server URL — override via VITE_BACKEND_API_URL in .env
-export const MOCK_API_BASE_URL =
-  import.meta.env.VITE_BACKEND_API_URL ?? "https://mock-api-sable.vercel.app/";
+function normalizeBackendBaseUrl(raw: string): string {
+  return raw.trim().replace(/\/+$/, '');
+}
+
+// Backend/Mock API server URL — override via VITE_BACKEND_API_URL in .env / Vercel
+const rawBackend =
+  typeof import.meta.env.VITE_BACKEND_API_URL === 'string' && import.meta.env.VITE_BACKEND_API_URL.length > 0
+    ? import.meta.env.VITE_BACKEND_API_URL
+    : 'http://localhost:3001';
+
+export const MOCK_API_BASE_URL = normalizeBackendBaseUrl(rawBackend);
 
 export interface MockKeyInfo {
   tenant: "shop-a" | "shop-b";

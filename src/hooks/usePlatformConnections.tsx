@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { MOCK_API_BASE_URL } from "@/lib/mockApiKeys";
+import { postValidateMockApiKey } from "@/lib/mockApiBackend";
 import { invalidateSocialRealtimeQueries } from "@/lib/socialQueryInvalidation";
 import { logAuditEvent } from "@/lib/auditLogger";
 import { logError } from "@/services/errorLogger";
@@ -219,25 +220,20 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       // ── Step 1: Validate the API key against the backend ──────────
       if (apiKey?.trim()) {
         toast.info('กำลังตรวจสอบ API Key...');
-        try {
-          const validateRes = await fetch(`${MOCK_API_BASE_URL}/validate-key`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ apiKey: apiKey.trim(), platformSlug: platform?.slug }),
+        const validated = await postValidateMockApiKey(apiKey.trim(), platform?.slug);
+        if (!validated.ok) {
+          toast.error(validated.userMessage, {
+            description: validated.detail ? `${validated.detail} · URL: ${MOCK_API_BASE_URL}` : MOCK_API_BASE_URL,
           });
-          const validation = await validateRes.json() as {
-            valid: boolean; tenant?: string; shopLabel?: string; error?: string;
-          };
-          if (!validation.valid) {
-            toast.error(`API Key ไม่ถูกต้อง: ${validation.error ?? 'Unknown key'}`);
-            return false;
-          }
-          tenant = validation.tenant ?? null;
-          toast.info(`พบ ${validation.shopLabel} · กำลังนำเข้าข้อมูล...`);
-        } catch {
-          toast.error('ไม่สามารถติดต่อ Backend ได้ — รัน: cd mock-api && npm start');
           return false;
         }
+        const validation = validated.validation;
+        if (!validation.valid) {
+          toast.error(`API Key ไม่ถูกต้อง: ${validation.error ?? 'Unknown key'}`);
+          return false;
+        }
+        tenant = validation.tenant ?? null;
+        toast.info(`พบ ${validation.shopLabel} · กำลังนำเข้าข้อมูล...`);
       } else {
         toast.info(`กำลังเชื่อมต่อ ${platform?.name}...`);
         await new Promise(resolve => setTimeout(resolve, 800));

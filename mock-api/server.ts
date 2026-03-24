@@ -1742,29 +1742,34 @@ app.get("/", (_req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`\n🐝 Buzzly Mock API Server running at http://localhost:${PORT}`);
-  console.log(`   Tenants: shop-a (high volume) | shop-b (niche)`);
-  console.log(`\n   Endpoints:`);
-  console.log(`   POST /validate-key`);
-  console.log(`   POST /api/rpc/create_ad_with_mirror_post`);
-  console.log(`   GET  /api/ad-groups?workspaceId=<uuid>`);
-  console.log(`   POST /api/ad-groups`);
-  console.log(`   PUT  /api/ad-groups/:id`);
-  console.log(`   DELETE /api/ad-groups/:id?workspaceId=<uuid>`);
-  console.log(`   GET  /facebook/:tenant/insights`);
-  console.log(`   GET  /facebook/:tenant/leads`);
-  console.log(`   GET  /facebook/:tenant/ads`);
-  console.log(`   GET  /facebook/:tenant/chats`);
-  console.log(`   GET  /instagram/:tenant/ads`);
-  console.log(`   GET  /tiktok/:tenant/ads`);
-  console.log(`   GET  /shopee/:tenant/orders/list`);
-  console.log(`   GET  /shopee/:tenant/marketing/shop_performance`);
-  console.log(`   GET  /shopee/:tenant/ads`);
-  console.log(`   GET  /google/:tenant/ads`);
-  console.log(`\n   Valid API Keys:`);
-  Object.entries(MOCK_API_KEYS).forEach(([key, val]) => {
-    console.log(`   ${key.padEnd(22)} → ${val.shopLabel}`);
+/** Exported for Vercel serverless (`api/index.ts`). Local dev uses `app.listen` below. */
+export default app;
+
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`\n🐝 Buzzly Mock API Server running at http://localhost:${PORT}`);
+    console.log(`   Tenants: shop-a (high volume) | shop-b (niche)`);
+    console.log(`\n   Endpoints:`);
+    console.log(`   POST /validate-key`);
+    console.log(`   POST /api/rpc/create_ad_with_mirror_post`);
+    console.log(`   GET  /api/ad-groups?workspaceId=<uuid>`);
+    console.log(`   POST /api/ad-groups`);
+    console.log(`   PUT  /api/ad-groups/:id`);
+    console.log(`   DELETE /api/ad-groups/:id?workspaceId=<uuid>`);
+    console.log(`   GET  /facebook/:tenant/insights`);
+    console.log(`   GET  /facebook/:tenant/leads`);
+    console.log(`   GET  /facebook/:tenant/ads`);
+    console.log(`   GET  /facebook/:tenant/chats`);
+    console.log(`   GET  /instagram/:tenant/ads`);
+    console.log(`   GET  /tiktok/:tenant/ads`);
+    console.log(`   GET  /shopee/:tenant/orders/list`);
+    console.log(`   GET  /shopee/:tenant/marketing/shop_performance`);
+    console.log(`   GET  /shopee/:tenant/ads`);
+    console.log(`   GET  /google/:tenant/ads`);
+    console.log(`\n   Valid API Keys:`);
+    Object.entries(MOCK_API_KEYS).forEach(([key, val]) => {
+      console.log(`   ${key.padEnd(22)} → ${val.shopLabel}`);
+    });
+    console.log();
   });
-  console.log();
-});
+}
