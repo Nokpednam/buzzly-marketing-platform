@@ -35,7 +35,8 @@ BEGIN
                 old_tier,
                 new_tier,
                 change_type,
-                change_reason
+                change_reason,
+                changed_at
             ) VALUES (
                 r.profile_customer_id,
                 v_tiers[i],
@@ -45,7 +46,8 @@ BEGIN
                     WHEN i = 1 THEN 'Points threshold reached: 500 points'
                     WHEN i = 2 THEN 'Points threshold reached: 2000 points'
                     ELSE 'VIP upgrade: 5000+ lifetime points'
-                END
+                END,
+                NOW() - (random() * INTERVAL '90 days')
             );
         -- 25% chance: add a downgrade (for variety)
         ELSIF v_rand < 0.85 THEN
@@ -55,13 +57,15 @@ BEGIN
                 old_tier,
                 new_tier,
                 change_type,
-                change_reason
+                change_reason,
+                changed_at
             ) VALUES (
                 r.profile_customer_id,
                 v_tiers[i + 1],
                 v_tiers[i],
                 'auto',
-                'Inactivity downgrade: no earn/redeem in 90+ days'
+                'Inactivity downgrade: no earn/redeem in 90+ days',
+                NOW() - (random() * INTERVAL '90 days')
             );
         END IF;
     END LOOP;

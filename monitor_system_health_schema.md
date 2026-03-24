@@ -70,14 +70,29 @@
 
 ---
 
-## 3. Entity-Relationship Diagram (ERD)
+## 3. หน้า Support & Error Logs (`/dev/support`)
+หน้านี้เน้นการวินิจฉัยปัญหา (Diagnostics) โดยเชื่อมโยงข้อผิดพลาดเข้ากับผู้ใช้งานที่ได้รับผลกระทบ
+
+| ตารางหลัก (Source) | ตารางที่เชื่อมโยง (JOIN) | ความสัมพันธ์ (Relationship) | จุดประสงค์ (Purpose) |
+| :--- | :--- | :--- | :--- |
+| `error_logs` | `employees` | `error_logs.user_id` $\rightarrow$ `employees.user_id` | เพื่อดึง **Email** ของพนักงานมาแสดงผลในตารางและหน้า Diagnostics |
+| `error_logs` | `customer` | `error_logs.user_id` $\rightarrow$ `customer.id` | เพื่อดึง **Email** ของลูกค้ามาแสดงผล ประโยชน์ในการทำ User Support |
+
+**ข้อมูลสำคัญ:**
+- `Email`: แสดงตัวตนชัดเจนว่าใครพบปัญหา
+- `Diagnostics Details`: ข้อมูลทางเทคนิค เช่น `message`, `stack_trace` และ `metadata` เพื่อระบุตำแหน่งที่โค้ดพัง
+
+---
+
+## 4. Entity-Relationship Diagram (ERD)
 
 ```mermaid
 erDiagram
     SERVER ||--o| PROVIDER_SERVER : "managed by"
     DATA_PIPELINE ||--o| PIPELINE_TYPE : "typed as"
     EXTERNAL_API_STATUS ||--o| PLATFORMS : "monitors"
-    ERROR_LOGS ||--o| USERS : "logged for"
+    ERROR_LOGS ||--o| EMPLOYEES : "logged for"
+    ERROR_LOGS ||--o| CUSTOMER : "logged for"
     
     SERVER {
         uuid id
@@ -117,6 +132,16 @@ erDiagram
         timestamp created_at
     }
     
+    EMPLOYEES {
+        uuid user_id
+        varchar email
+    }
+
+    CUSTOMER {
+        uuid id
+        varchar email
+    }
+
     PROVIDER_SERVER {
         uuid id
         varchar name "AWS | GCP | Azure"
@@ -135,6 +160,6 @@ erDiagram
 
 ---
 
-## 4. หมายเหตุเพิ่มเติม
+## 5. หมายเหตุเพิ่มเติม
 - ข้อมูลทั้งหมดในหน้านี้รองรับการทำงานแบบ **Real-time** ผ่าน Supabase Realtime โดยอาศัยการฟัง Event จากตาราง `server`, `data_pipeline`, และ `error_logs` โดยตรง
-- การ JOIN ข้อมูลจะทำผ่าน Supabase Client (Frontend Hooks) โดยมีการใช้คำสั่ง `.select('*, related_table:related_column(name)')` เพื่อดึงข้อมูลตารางที่เกี่ยวข้องกันมาแสดงผลพร้อมกัน
+- การ JOIN ข้อมูลจะทำผ่าน Supabase Client (Frontend Hooks) โดยมีการใช้คำสั่ง `.select('*, related_table:related_column(name)')` หรือใช้วิธีทำ Mapping ข้อมูลหลังดึงมาแล้ว เพื่อประสิทธิภาพในการเรนเดอร์

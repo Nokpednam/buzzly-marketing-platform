@@ -350,6 +350,20 @@ BEGIN
     
     RAISE NOTICE 'Reference Data Polish: Backfilled missing user_ids in error_logs';
   END IF;
+
+  -- ─── New: Randomize timestamps for realism ─────────
+  -- Tier History: randomize anything created in the last 15 mins (during this seed)
+  UPDATE public.loyalty_tier_history
+  SET changed_at = NOW() - (random() * INTERVAL '90 days')
+  WHERE changed_at > NOW() - INTERVAL '15 minutes';
+
+  -- Points Transactions: randomize anything created in the last 15 mins
+  -- (Some might already be randomized, but this ensures everything is spread out)
+  UPDATE public.points_transactions
+  SET created_at = NOW() - (random() * INTERVAL '90 days')
+  WHERE created_at > NOW() - INTERVAL '15 minutes';
+
+  RAISE NOTICE '✅ Timestamps randomized for realism (Last 90 days).';
 END $$;
 
 -- ============================================================

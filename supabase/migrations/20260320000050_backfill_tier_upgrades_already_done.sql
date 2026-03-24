@@ -20,7 +20,7 @@ SELECT
     lt.name,
     'auto',
     'System auto-evaluated tier (backfill)',
-    NOW()
+    NOW() - (random() * INTERVAL '30 days')
 FROM public.loyalty_points lp
 JOIN public.loyalty_tiers lt ON lt.id = lp.loyalty_tier_id
 WHERE lt.name IN ('Silver', 'Gold', 'Platinum')
