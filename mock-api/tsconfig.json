@@ -8,5 +8,5 @@
     "resolveJsonModule": true,
     "outDir": "./dist"
   },
-  "include": ["*.ts", "scripts/*.ts", "api/*.ts"]
+  "include": ["*.ts", "scripts/*.ts"]
 }

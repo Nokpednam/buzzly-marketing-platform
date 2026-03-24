@@ -1,20 +1,20 @@
 {
   "name": "buzzly-mock-api",
   "version": "1.0.0",
-  "description": "Mock API server for Facebook Graph API & Shopee Open Platform",
+  "description": "Mock API for Buzzly. Vercel: set Root Directory to mock-api if repo is monorepo; env SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY for /api/connect.",
   "type": "module",
   "scripts": {
     "start": "tsx server.ts",
     "seed": "tsx scripts/seed-to-supabase.ts"
   },
   "dependencies": {
-    "express": "^4.21.0",
-    "cors": "^2.8.5"
+    "@supabase/supabase-js": "^2.86.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0"
   },
   "devDependencies": {
-    "@types/express": "^5.0.0",
     "@types/cors": "^2.8.17",
-    "tsx": "^4.21.0",
-    "@supabase/supabase-js": "^2.86.0"
+    "@types/express": "^5.0.0",
+    "tsx": "^4.21.0"
   }
 }

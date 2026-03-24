@@ -7,10 +7,22 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+if (
+  typeof SUPABASE_URL !== 'string' ||
+  !SUPABASE_URL.trim() ||
+  typeof SUPABASE_PUBLISHABLE_KEY !== 'string' ||
+  !SUPABASE_PUBLISHABLE_KEY.trim()
+) {
+  console.error(
+    '[Buzzly] Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY / VITE_SUPABASE_ANON_KEY. ' +
+      'Loyalty points and Supabase will not work. Add them in Vercel → Environment Variables (all Preview/Production targets), then redeploy.'
+  );
+}
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+export const supabase = createClient<Database>(SUPABASE_URL ?? '', SUPABASE_PUBLISHABLE_KEY ?? '', {
   auth: {
     storage: localStorage,
     persistSession: true,
