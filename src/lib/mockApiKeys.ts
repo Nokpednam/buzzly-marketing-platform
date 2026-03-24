@@ -16,7 +16,7 @@ function normalizeBackendBaseUrl(raw: string): string {
 const rawBackend =
   typeof import.meta.env.VITE_BACKEND_API_URL === 'string' && import.meta.env.VITE_BACKEND_API_URL.length > 0
     ? import.meta.env.VITE_BACKEND_API_URL
-    : 'http://localhost:3001';
+    : 'https://mock-api-sable.vercel.app/';
 
 export const MOCK_API_BASE_URL = normalizeBackendBaseUrl(rawBackend);
 
