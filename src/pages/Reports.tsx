@@ -771,8 +771,8 @@ function ReportDocument({ reportName, reportType, dateRangeLabel, metrics, selec
     // campaign (Campaign Performance)
     kpiCards = (
       <>
-        <Metric label="Total Impressions" value={formatMetricValue(imp, "number")} change="+12%" />
-        <Metric label="CTR Rate" value={formatMetricValue(ctr, "percent")} change="+0.4%" />
+        <Metric label="Total Impressions" value={formatMetricValue(imp, "number")} />
+        <Metric label="CTR Rate" value={formatMetricValue(ctr, "percent")} />
         <Metric label="Ad Spend" value={formatMetricValue(spend, "currency")} />
         <Metric label="Total Clicks" value={formatMetricValue(clicks, "number")} />
         <Metric label="Conversions" value={formatMetricValue(conv, "number")} />

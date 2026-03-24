@@ -85,10 +85,53 @@ export function useDashboardMetrics(dateRange: string = "7d", platformId: string
     queryFn: async (): Promise<DashboardMetrics> => {
       const { start, end } = parseDateRange(dateRange);
 
+      // 1. Fetch campaigns for this workspace
+      const { data: campaigns, error: campaignsError } = await supabase
+        .from("campaigns")
+        .select("id")
+        .eq("team_id", workspaceId!);
+
+      if (campaignsError) {
+        console.error("DASHBOARD FETCH ERROR (campaigns):", campaignsError);
+        throw campaignsError;
+      }
+
+      // 2. If no campaigns exist, return all zeroes immediately
+      if (!campaigns || campaigns.length === 0) {
+        console.log("DASHBOARD: 0 campaigns, returning zeroes");
+        return {
+          totalImpressions: 0,
+          totalClicks: 0,
+          totalSpend: 0,
+          totalConversions: 0,
+          avgCtr: 0,
+          avgCpc: 0,
+          avgCpm: 0,
+          avgRoas: 0,
+          trendData: [],
+        };
+      }
+
+      const campaignIds = campaigns.map((c) => c.id);
+
+      // 3. Fetch all ad_ids linked to these campaigns
+      const { data: campaignAds, error: campaignAdsError } = await (supabase as any)
+        .from("campaign_ads")
+        .select("ad_id")
+        .in("campaign_id", campaignIds);
+
+      if (campaignAdsError) {
+        console.error("DASHBOARD FETCH ERROR (campaign_ads):", campaignAdsError);
+        throw campaignAdsError;
+      }
+
+      const validAdIds = campaignAds?.map((ca: any) => ca.ad_id) ?? [];
+
+      // 4. Then query standard ad_accounts for platform filtering
       const { data: adAccounts, error: adAccountsError } = await supabase
         .from("ad_accounts")
-        .select("platform_id, team_id")
-        .or(`team_id.eq.${workspaceId},team_id.is.null`);
+        .select("id, platform_id, team_id")
+        .eq("team_id", workspaceId!);
 
       if (adAccountsError) {
         console.error("DASHBOARD FETCH ERROR (ad_accounts):", adAccountsError);
@@ -96,21 +139,37 @@ export function useDashboardMetrics(dateRange: string = "7d", platformId: string
       }
 
       console.log("DASHBOARD FETCH: Found ad accounts", adAccounts?.length);
-      const platformIdsForWorkspace = adAccounts?.map(account => account.platform_id) || [];
+      const validAccountIds = adAccounts?.map((a) => a.id) ?? [];
+
+      // If there are no ad accounts but somehow campaigns exist (rare), we can't filter by platform properly
+      // but let's proceed and just rely on campaign IDs for security.
+
+      // Build the OR clause for insights linking: must match either directly by campaign_id OR via ads_id
+      const insightLinkingOrs = [];
+      if (campaignIds.length > 0) insightLinkingOrs.push(`campaign_id.in.(${campaignIds.join(",")})`);
+      if (validAdIds.length > 0) insightLinkingOrs.push(`ads_id.in.(${validAdIds.join(",")})`);
+      const linkingFilter = insightLinkingOrs.length > 0 ? insightLinkingOrs.join(",") : "id.is.null"; // fallback to nothing match if empty
 
       let query = supabase
         .from("ad_insights")
-        .select(`
-          *,
-          ad_accounts!inner(platform_id, team_id)
-        `)
-        .eq("ad_accounts.team_id", workspaceId!)
+        .select("*")
         .gte("date", start)
         .lte("date", end)
+        .or(linkingFilter)
         .order("date", { ascending: true });
 
-      if (platformId !== "all") {
-        query = query.eq("ad_accounts.platform_id", platformId);
+      if (platformId !== "all" && validAccountIds.length > 0) {
+        // filter accounts by platform
+        const platformAccountIds = adAccounts
+           .filter(a => a.platform_id === platformId)
+           .map(a => a.id);
+        
+        if (platformAccountIds.length === 0) {
+           // Platform requested has no accounts, so naturally no insights
+           query = supabase.from("ad_insights").select("*").eq("id", "00000000-0000-0000-0000-000000000000"); 
+        } else {
+           query = query.in("ad_account_id", platformAccountIds);
+        }
       }
 
       const { data: insights, error } = await query;

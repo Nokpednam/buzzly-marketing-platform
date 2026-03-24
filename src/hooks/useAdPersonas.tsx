@@ -150,11 +150,11 @@ export function useAdPersonas({ mode, adId, campaignId }: AdPersonaFilter) {
     return map;
   }, [insightsRaw, mockImpressionsMap]);
 
-  // Use mock ads as fallback when no real data (so graphs always display)
+  // Only fall back to mock data when the mock flag is explicitly enabled
   const effectiveAds = useMemo((): AdWithPersona[] => {
     if (adsRaw.length > 0) return adsRaw;
     if (USE_MOCK_DATA) return buildMockAdsWithPersona(workspaceId ?? null);
-    return buildMockAdsWithPersona(workspaceId ?? null); // fallback to demo data when empty
+    return []; // no real ads exist for this workspace
   }, [adsRaw, workspaceId]);
 
   const personaData = useMemo((): PersonaData | null => {
