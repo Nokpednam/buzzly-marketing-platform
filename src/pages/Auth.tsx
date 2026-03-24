@@ -171,7 +171,7 @@ export default function Auth() {
 
         <div className="relative z-10">
           <Link
-            to="/"
+            to="/landing"
             className="flex items-center gap-2 mb-8 w-fit group"
           >
             <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
@@ -213,7 +213,7 @@ export default function Auth() {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-white">
         <div className="w-full max-w-md space-y-8">
           <Link
-            to="/"
+            to="/landing"
             className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-700 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />

@@ -230,18 +230,23 @@ export function useCampaigns() {
       const { data, error } = await supabase
         .from("campaigns")
         .insert({ ...newCampaign, team_id: workspaceId } as any)
-        .select()
-        .single();
+        .select();
+
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Failed to create campaign");
+      }
+      
+      const campaignData = data[0];
 
       if (adIds.length > 0) {
         const { error: junctionError } = await (supabase as any)
           .from("campaign_ads")
-          .insert(adIds.map((adId: string) => ({ campaign_id: data.id, ad_id: adId })));
+          .insert(adIds.map((adId: string) => ({ campaign_id: campaignData.id, ad_id: adId })));
         if (junctionError) throw junctionError;
       }
 
-      return data;
+      return campaignData;
     },
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns", workspaceId] });
@@ -279,13 +284,22 @@ export function useCampaigns() {
       updates: CampaignUpdate;
       adIds?: string[];
     }) => {
+      const updateData = Object.keys(updates).length > 0 
+        ? updates 
+        : { updated_at: new Date().toISOString() } as CampaignUpdate;
+
       const { data, error } = await supabase
         .from("campaigns")
-        .update(updates)
+        .update(updateData)
         .eq("id", id)
-        .select()
-        .single();
+        .select();
+
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Cannot find campaign or permission denied");
+      }
+
+      const campaignData = data[0];
 
       // Replace ad assignments when adIds is explicitly provided
       if (adIds !== undefined) {
@@ -303,7 +317,7 @@ export function useCampaigns() {
         }
       }
 
-      return data;
+      return campaignData;
     },
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["campaigns", workspaceId] });

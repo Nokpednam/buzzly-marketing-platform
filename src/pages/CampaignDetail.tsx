@@ -829,23 +829,33 @@ export default function CampaignDetail() {
 
       {/* Manage Ads Dialog */}
       <Dialog open={manageAdsOpen} onOpenChange={setManageAdsOpen}>
-        <DialogContent className="sm:max-w-[480px] rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">Manage Ads</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="sm:max-w-[540px] rounded-[2rem] p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="p-8 pb-0">
+            <div className="flex items-center gap-3 text-primary mb-1">
+              <div className="h-8 w-8 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Settings2 className="h-4 w-4" />
+              </div>
+              <DialogTitle className="text-2xl font-black tracking-tight">Manage Ads</DialogTitle>
+            </div>
+            <DialogDescription className="text-slate-500 font-medium ml-11">
               Add or remove ads from this campaign. Changes are saved when you click Save.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
+          <div className="px-8 py-6">
             <AdAllocator value={managedAdIds} onChange={setManagedAdIds} />
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setManageAdsOpen(false)}>
+          <DialogFooter className="p-6 bg-slate-50/80 border-t flex sm:justify-between items-center gap-4">
+            <Button 
+              variant="ghost" 
+              onClick={() => setManageAdsOpen(false)}
+              className="rounded-xl px-6 hover:bg-slate-200/50 font-bold"
+            >
               Cancel
             </Button>
             <Button
               onClick={handleSaveManagedAds}
               disabled={updateCampaign.isPending}
+              className="rounded-xl px-8 bg-cyan-500 hover:bg-cyan-600 shadow-lg shadow-cyan-500/30 border-none transition-all hover:scale-[1.02] active:scale-95 font-black"
             >
               {updateCampaign.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />

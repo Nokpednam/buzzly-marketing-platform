@@ -135,8 +135,9 @@ const App = () => {
               <BrowserRouter>
                 <Routes>
                   {/* Public Routes */}
-                  <Route path="/" element={<Landing />} />
-                  <Route path="/auth" element={<Auth />} />
+                  <Route path="/" element={<Auth />} />
+                  <Route path="/landing" element={<Landing />} />
+                  <Route path="/auth" element={<Navigate to="/" replace />} />
                   <Route path="/signup" element={<SignUp />} />
 
                   {/* Customer Routes */}

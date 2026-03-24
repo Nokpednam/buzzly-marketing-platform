@@ -216,7 +216,7 @@ export default function EmployeeLogin() {
                             </Link>
                         </p>
                         <Link
-                            to="/"
+                            to="/landing"
                             className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
                         >
                             <ArrowLeft className="h-3 w-3" />

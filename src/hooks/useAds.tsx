@@ -120,10 +120,13 @@ export function useAds() {
       const { data, error } = await supabase
         .from("ads")
         .insert(payload)
-        .select()
-        .single();
+        .select();
+
       if (error) throw error;
-      return data;
+      if (!data || data.length === 0) {
+        throw new Error("Failed to create ad");
+      }
+      return data[0];
     },
     onSuccess: () => {
       void invalidateSocialRealtimeQueries(queryClient);
@@ -141,9 +144,14 @@ export function useAds() {
         .from("ads")
         .update(payload)
         .eq("id", id)
-        .select()
-        .single();
+        .select();
+
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Cannot find ad or permission denied");
+      }
+      
+      const adData = data[0];
 
       const mirrorUpdates = buildMirrorPostUpdates(updates);
       const { error: mirrorError } = await supabase
@@ -156,7 +164,7 @@ export function useAds() {
         throw mirrorError;
       }
 
-      return data;
+      return adData;
     },
     onSuccess: () => {
       void invalidateSocialRealtimeQueries(queryClient);
