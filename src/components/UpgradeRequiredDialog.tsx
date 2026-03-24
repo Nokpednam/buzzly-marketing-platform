@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useLoyaltyTier } from "@/hooks/useLoyaltyTier";
 import { supabase } from "@/integrations/supabase/client";
+import { logError } from "@/services/errorLogger";
 
 interface UpgradeRequiredDialogProps {
   open: boolean;
@@ -145,13 +146,23 @@ export function UpgradeRequiredDialog({
           'award_loyalty_points' as any,
           { p_action_type: 'upgrade_plan' }
         );
-        console.log('[Mission] upgrade_plan result:', missionResult, missionError);
         if (missionResult?.success) {
           toast({
             title: '🎉 Mission Complete!',
             description: `+${missionResult.points_awarded} Points for upgrading your plan!`,
           });
           await refetchLoyalty();
+        } else if (missionError) {
+          void logError('UpgradeRequiredDialog.upgradeMission', new Error(missionError.message), {
+            component: 'UpgradeRequiredDialog',
+            code: missionError.code,
+          });
+          toast({
+            variant: 'destructive',
+            title: 'Upgrade successful',
+            description:
+              'Plan changed, but loyalty points could not be updated. Check Supabase env and migrations.',
+          });
         }
 
         setShowPaymentDialog(false);

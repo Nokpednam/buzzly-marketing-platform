@@ -9,7 +9,7 @@
 
 // Backend/Mock API server URL — override via VITE_BACKEND_API_URL in .env
 export const MOCK_API_BASE_URL =
-  import.meta.env.VITE_BACKEND_API_URL ?? "http://localhost:3001";
+  import.meta.env.VITE_BACKEND_API_URL ?? "https://mock-api-sable.vercel.app/";
 
 export interface MockKeyInfo {
   tenant: "shop-a" | "shop-b";

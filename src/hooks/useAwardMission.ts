@@ -1,4 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { logError } from '@/services/errorLogger';
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -19,6 +21,7 @@ export interface MissionResult {
  */
 export function useAwardMission() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const awardMission = useCallback(
     async (actionType: string): Promise<MissionResult | null> => {
@@ -31,11 +34,21 @@ export function useAwardMission() {
         );
 
         if (error) {
-          console.error('[useAwardMission] RPC error:', error.message);
+          void logError('useAwardMission.rpc', new Error(error.message), {
+            hook: 'useAwardMission',
+            actionType,
+            code: error.code,
+          });
+          toast({
+            variant: 'destructive',
+            title: 'Could not update points',
+            description:
+              'Loyalty mission could not be saved. Check Supabase env (URL + anon key) and that migrations are applied.',
+          });
           return null;
         }
 
-        if (data && (data as any).success) {
+        if (data && (data as MissionResult).success) {
           window.dispatchEvent(new CustomEvent('loyalty-refetch'));
           queryClient.invalidateQueries({ queryKey: ['loyalty-missions'] });
           queryClient.invalidateQueries({ queryKey: ['loyalty-tier'] });
@@ -43,11 +56,16 @@ export function useAwardMission() {
 
         return data as unknown as MissionResult;
       } catch (err) {
-        console.error('[useAwardMission] Unexpected error:', err);
+        void logError('useAwardMission', err, { hook: 'useAwardMission', actionType });
+        toast({
+          variant: 'destructive',
+          title: 'Could not update points',
+          description: 'Something went wrong while awarding loyalty points. Please try again.',
+        });
         return null;
       }
     },
-    [queryClient]
+    [queryClient, toast]
   );
 
   return { awardMission };

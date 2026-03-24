@@ -5,6 +5,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { useWorkspace } from "@/hooks/useWorkspace";
 import { useLoyaltyTier } from "@/hooks/useLoyaltyTier";
 import { auditCampaign } from "@/lib/auditLogger";
+import { logError } from "@/services/errorLogger";
 
 // ─── Client-side progress calculator (mirrors supabase/functions/_shared/campaignProgress.ts) ──
 //
@@ -263,10 +264,17 @@ export function useCampaigns() {
         'award_loyalty_points' as any,
         { p_action_type: 'create_campaign' }
       );
-      console.log('[Mission] create_campaign result:', missionResult, missionError);
       if (missionResult?.success) {
         toast.success(`🎉 Mission Complete! +${missionResult.points_awarded} Points for launching your first Campaign!`);
         window.dispatchEvent(new CustomEvent('loyalty-refetch'));
+      } else if (missionError) {
+        void logError('useCampaigns.createCampaign.mission', new Error(missionError.message), {
+          hook: 'useCampaigns',
+          code: missionError.code,
+        });
+        toast.error(
+          'แคมเปญถูกบันทึกแล้ว แต่ระบบแต้มอัปเดตไม่สำเร็จ — ตรวจสอบ Supabase env และ migration บนโปรเจกต์คลาวด์'
+        );
       }
     },
     onError: (error: Error) => {

@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { MOCK_API_BASE_URL } from "@/lib/mockApiKeys";
 import { invalidateSocialRealtimeQueries } from "@/lib/socialQueryInvalidation";
 import { logAuditEvent } from "@/lib/auditLogger";
+import { logError } from "@/services/errorLogger";
 
 export type PlatformStatus = "connected" | "disconnected" | "error";
 
@@ -347,13 +348,18 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
         'award_loyalty_points',
         { p_action_type: 'connect_api' }
       );
-      
+
       if (missionResult?.success) {
-        // Emit global event to sync LoyaltyProvider across the app
         window.dispatchEvent(new CustomEvent('loyalty-refetch'));
+      } else if (missionError) {
+        void logError('usePlatformConnections.connectPlatform.mission', new Error(missionError.message), {
+          hook: 'usePlatformConnections',
+          code: missionError.code,
+        });
+        toast.error(
+          'เชื่อมต่อสำเร็จแล้ว แต่ระบบแต้มอัปเดตไม่สำเร็จ — ตรวจสอบ Supabase env และ migration บนโปรเจกต์คลาวด์'
+        );
       }
-      
-      void missionError;
 
       // ── Step 7: Invalidate caches → frontend re-fetches from DB ──
       await invalidateConnectedData();

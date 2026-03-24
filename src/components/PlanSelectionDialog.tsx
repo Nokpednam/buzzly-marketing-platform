@@ -16,6 +16,7 @@ import { PaymentMethodDialog } from "@/components/subscription/PaymentMethodDial
 import { toast } from "@/hooks/use-toast";
 import { useLoyaltyTier } from "@/hooks/useLoyaltyTier";
 import { supabase } from "@/integrations/supabase/client";
+import { logError } from "@/services/errorLogger";
 
 interface PlanSelectionDialogProps {
   open: boolean;
@@ -132,7 +133,7 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
         });
 
         // Mission 3: award points for upgrading to a paid plan (one-time)
-        const { data: missionResult } = await supabase.rpc(
+        const { data: missionResult, error: missionError } = await supabase.rpc(
           'award_loyalty_points' as any,
           { p_action_type: 'upgrade_plan' }
         );
@@ -143,6 +144,17 @@ export function PlanSelectionDialog({ open, onOpenChange }: PlanSelectionDialogP
           });
           await refetchLoyalty();
           window.dispatchEvent(new CustomEvent('loyalty-refetch'));
+        } else if (missionError) {
+          void logError('PlanSelectionDialog.upgradeMission', new Error(missionError.message), {
+            component: 'PlanSelectionDialog',
+            code: missionError.code,
+          });
+          toast({
+            variant: 'destructive',
+            title: 'Plan upgraded',
+            description:
+              'Payment succeeded, but loyalty points could not be updated. Check Supabase env and migrations.',
+          });
         }
 
         setShowPaymentDialog(false);

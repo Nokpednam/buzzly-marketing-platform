@@ -1,6 +1,6 @@
 -- Create point_earning_rules table
 CREATE TABLE IF NOT EXISTS public.point_earning_rules (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     action_code VARCHAR UNIQUE NOT NULL,
     name VARCHAR NOT NULL,
     description TEXT,
@@ -31,7 +31,7 @@ CREATE POLICY "Admins can manage point earning rules"
 
 -- Create user_completed_rules table
 CREATE TABLE IF NOT EXISTS public.user_completed_rules (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.customer(id) ON DELETE CASCADE,
     rule_id UUID NOT NULL REFERENCES public.point_earning_rules(id) ON DELETE CASCADE,
     points_transaction_id UUID REFERENCES public.points_transactions(id) ON DELETE SET NULL,
@@ -61,7 +61,7 @@ CREATE POLICY "Admins can manage user completed rules"
 
 -- Create reward_items table
 CREATE TABLE IF NOT EXISTS public.reward_items (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR NOT NULL,
     description TEXT,
     reward_type VARCHAR NOT NULL, -- e.g., 'system_quota', 'service', 'partner_perk', 'digital_asset'
@@ -93,7 +93,7 @@ CREATE POLICY "Admins can manage reward items"
 
 -- Create reward_redemptions table
 CREATE TABLE IF NOT EXISTS public.reward_redemptions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.customer(id) ON DELETE CASCADE,
     reward_id UUID NOT NULL REFERENCES public.reward_items(id) ON DELETE CASCADE,
     points_transaction_id UUID REFERENCES public.points_transactions(id) ON DELETE SET NULL,
