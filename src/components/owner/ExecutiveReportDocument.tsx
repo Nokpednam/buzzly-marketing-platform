@@ -21,15 +21,42 @@ export const ExecutiveReportDocument = React.forwardRef<HTMLDivElement, Executiv
     ({ data, selectedMetrics, dateRange }, ref) => {
         const { subscriptionMetrics, feedbackMetrics, productUsageMetrics, aarrrMetrics, tierMetrics, discounts } = data;
 
+        // Safe Math & Fallbacks
+        const safeNumber = (val: any) => (typeof val === 'number' && !isNaN(val)) ? val : 0;
+        
+        const calculatePercentChange = (current: any, previous: any) => {
+            const c = safeNumber(current);
+            const p = safeNumber(previous);
+            return p === 0 ? (c > 0 ? 100 : 0) : ((c - p) / p) * 100;
+        };
+
         // Formatters
-        const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
-        const formatNumber = (val: number) => new Intl.NumberFormat('en-US').format(val);
+        const formatCurrency = (val: any) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(safeNumber(val));
+        const formatNumber = (val: any) => new Intl.NumberFormat('en-US').format(safeNumber(val));
 
         const hasMetric = (id: string) => selectedMetrics.includes(id);
 
+        // Safe Data Extraction for Subscription Metrics
+        const getTimeRangeKey = (range: string) => {
+            if (range === 'last-week') return '7d';
+            if (range === 'last-quarter') return '3m';
+            if (range === 'last-year') return '1y';
+            return '1m'; // default to 1m for last-month and custom
+        };
+
+        const subMetrics = subscriptionMetrics?.timeRangeData?.[getTimeRangeKey(dateRange)] || subscriptionMetrics || {};
+        const currentMrr = safeNumber(subMetrics?.currentMrr ?? 0);
+        const previousMrr = safeNumber(subMetrics?.previousMrr ?? 0);
+        // Fallback to recalculating the percent change if the property is missing
+        const mrrGrowth = subMetrics?.mrrGrowth !== undefined ? safeNumber(subMetrics.mrrGrowth) : calculatePercentChange(currentMrr, previousMrr);
+        const arr = safeNumber(subMetrics?.arr ?? 0);
+        const newMrr = safeNumber(subMetrics?.breakdown?.newMrr ?? 0);
+        const expansion = safeNumber(subMetrics?.breakdown?.expansion ?? 0);
+        const churn = safeNumber(subMetrics?.breakdown?.churn ?? 0);
+
         // Helpers to process discounts
         const activeDiscounts = discounts?.filter(d => d.is_active) || [];
-        const totalUsage = activeDiscounts.reduce((sum, d) => sum + (d.collections_count || 0), 0);
+        const totalUsage = activeDiscounts.reduce((sum, d) => sum + safeNumber(d.collections_count), 0);
 
         // Page Break component for multi-page reports (supported cleanly when printing/generating PDFs usually)
         const PageBreak = () => <div style={{ height: '2rem', width: '100%', pageBreakAfter: 'always', breakAfter: 'page' }} />;
@@ -77,10 +104,10 @@ export const ExecutiveReportDocument = React.forwardRef<HTMLDivElement, Executiv
                                 <Card className="shadow-sm border-slate-200 bg-slate-50 border-t-4 border-t-slate-800">
                                     <CardContent className="pt-6">
                                         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Monthly Recurring Revenue</p>
-                                        <div className="text-4xl font-black text-slate-900 tracking-tight">{formatCurrency(subscriptionMetrics.currentMrr)}</div>
-                                        <p className={`text-sm mt-3 font-semibold flex items-center ${subscriptionMetrics.mrrGrowth >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                            {subscriptionMetrics.mrrGrowth >= 0 ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
-                                            {Math.abs(subscriptionMetrics.mrrGrowth)}% vs previous
+                                        <div className="text-4xl font-black text-slate-900 tracking-tight">{formatCurrency(currentMrr)}</div>
+                                        <p className={`text-sm mt-3 font-semibold flex items-center ${mrrGrowth >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                            {mrrGrowth >= 0 ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
+                                            {Math.abs(Math.round(mrrGrowth * 10) / 10)}% vs previous
                                         </p>
                                     </CardContent>
                                 </Card>
@@ -88,7 +115,7 @@ export const ExecutiveReportDocument = React.forwardRef<HTMLDivElement, Executiv
                                 <Card className="shadow-sm border-slate-200">
                                     <CardContent className="pt-6">
                                         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Annual Run Rate</p>
-                                        <div className="text-3xl font-black text-slate-800 tracking-tight">{formatCurrency(subscriptionMetrics.arr)}</div>
+                                        <div className="text-3xl font-black text-slate-800 tracking-tight">{formatCurrency(arr)}</div>
                                         <p className="text-xs mt-3 text-slate-500 font-medium">Projected 12-month value</p>
                                     </CardContent>
                                 </Card>
@@ -96,10 +123,10 @@ export const ExecutiveReportDocument = React.forwardRef<HTMLDivElement, Executiv
                                 <Card className="shadow-sm border-slate-200">
                                     <CardContent className="pt-6">
                                         <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Net New MRR Flux</p>
-                                        <div className="text-2xl font-bold text-slate-800 tracking-tight">{formatCurrency(subscriptionMetrics.breakdown?.newMrr || 0)}</div>
+                                        <div className="text-2xl font-bold text-slate-800 tracking-tight">{formatCurrency(newMrr)}</div>
                                         <div className="mt-3 flex justify-between text-xs font-semibold">
-                                            <span className="text-emerald-600">+Exp: {formatCurrency(subscriptionMetrics.breakdown?.expansion || 0)}</span>
-                                            <span className="text-rose-600">-Chrn: {formatCurrency(subscriptionMetrics.breakdown?.churn || 0)}</span>
+                                            <span className="text-emerald-600">+Exp: {formatCurrency(expansion)}</span>
+                                            <span className="text-rose-600">-Chrn: {formatCurrency(churn)}</span>
                                         </div>
                                     </CardContent>
                                 </Card>
