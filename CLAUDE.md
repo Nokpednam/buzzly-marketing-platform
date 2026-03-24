@@ -55,3 +55,5 @@
 5. Social: Use `@/lib/socialQueryInvalidation` for consistent cache invalidation after mutations.
 6. Permissions: Wrap customer pages with `TeamPermissionsGuard`. Check `useTeamPermissions` before rendering sensitive actions.
 7. NEVER: Edit `types.ts`, bypass RLS silently, commit `.env`, use `bun`.
+
+   
