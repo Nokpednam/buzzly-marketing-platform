@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScheduledPostCard } from "@/components/social/planner/ScheduledPostCard";
@@ -179,102 +180,107 @@ export function ContentCalendar({
         </div>
       </CardHeader>
 
-      <CardContent className="px-4 pb-4">
-        <div className="grid grid-cols-7 mb-1">
-          {WEEKDAY_LABELS.map((label) => (
-            <div
-              key={label}
-              className="text-center text-[11px] font-bold text-foreground/70 uppercase tracking-wide py-1"
-            >
-              {label}
-            </div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-7 gap-1">
-          {rows.map((row, ri) =>
-            row.map((day, ci) => {
-              if (day === null) {
-                return <div key={`${ri}-${ci}`} className="min-h-[7rem]" />;
-              }
-
-              const dateISO = toISODate(viewYear, viewMonth, day);
-              const dayItems = itemsByDate.get(dateISO) ?? [];
-              const isToday =
-                today.getFullYear() === viewYear &&
-                today.getMonth() === viewMonth &&
-                today.getDate() === day;
-              const isPast = isPastDate(viewYear, viewMonth, day);
-              const canCreate = !isPast;
-
-              return (
+      <CardContent className="px-0 pb-0">
+        <ScrollArea className="w-full">
+          <div className="min-w-[700px] px-4 pb-4">
+            <div className="grid grid-cols-7 mb-1">
+              {WEEKDAY_LABELS.map((label) => (
                 <div
-                  key={dateISO}
-                  className={cn(
-                    "group relative min-h-[7rem] rounded-lg border p-2 flex flex-col gap-1 transition-colors",
-                    "border-border/40 hover:bg-muted/20",
-                    isToday && "border-primary/30 bg-primary/5"
-                  )}
+                  key={label}
+                  className="text-center text-[11px] font-bold text-foreground/70 uppercase tracking-wide py-1"
                 >
-                  <div className="flex items-center justify-between shrink-0">
-                    <span
+                  {label}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {rows.map((row, ri) =>
+                row.map((day, ci) => {
+                  if (day === null) {
+                    return <div key={`${ri}-${ci}`} className="min-h-[7rem]" />;
+                  }
+
+                  const dateISO = toISODate(viewYear, viewMonth, day);
+                  const dayItems = itemsByDate.get(dateISO) ?? [];
+                  const isToday =
+                    today.getFullYear() === viewYear &&
+                    today.getMonth() === viewMonth &&
+                    today.getDate() === day;
+                  const isPast = isPastDate(viewYear, viewMonth, day);
+                  const canCreate = !isPast;
+
+                  return (
+                    <div
+                      key={dateISO}
                       className={cn(
-                        "text-xs font-semibold leading-none w-5 h-5 flex items-center justify-center rounded-full",
-                        isToday
-                          ? "bg-primary text-primary-foreground"
-                          : "text-foreground/75"
+                        "group relative min-h-[7rem] rounded-lg border p-2 flex flex-col gap-1 transition-colors",
+                        "border-border/40 hover:bg-muted/20",
+                        isToday && "border-primary/30 bg-primary/5"
                       )}
                     >
-                      {day}
-                    </span>
-                    {canCreate && dayItems.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => onDayClick(dateISO)}
-                        className="flex h-5 w-5 items-center justify-center rounded-md text-foreground/60 opacity-0 transition-all hover:bg-primary/10 hover:text-primary group-hover:opacity-100"
-                        aria-label={`Add post ${dateISO}`}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </button>
-                    ) : null}
-                  </div>
-
-                  {dayItems.length === 0 ? (
-                    canCreate ? (
-                      <button
-                        type="button"
-                        onClick={() => onDayClick(dateISO)}
-                        className="flex flex-1 min-h-[4rem] items-center justify-center rounded-md text-foreground/35 opacity-0 transition-all hover:bg-muted/20 group-hover:opacity-100"
-                        aria-label={`Add post ${dateISO}`}
-                      >
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-foreground/25 group-hover:border-primary/40 group-hover:text-primary/70">
-                          <Plus className="h-4 w-4" />
+                      <div className="flex items-center justify-between shrink-0">
+                        <span
+                          className={cn(
+                            "text-xs font-semibold leading-none w-5 h-5 flex items-center justify-center rounded-full",
+                            isToday
+                              ? "bg-primary text-primary-foreground"
+                              : "text-foreground/75"
+                          )}
+                        >
+                          {day}
                         </span>
-                      </button>
-                    ) : (
-                      <div className="flex flex-1 min-h-[4rem]" aria-hidden />
-                    )
-                  ) : (
-                  <div className="flex flex-col gap-0.5 overflow-hidden">
-                    {dayItems.slice(0, 3).map((item) => (
-                      <ScheduledPostCard
-                        key={item.id}
-                        item={item}
-                        onClick={onItemClick}
-                      />
-                    ))}
-                    {dayItems.length > 3 && (
-                      <span className="text-[10px] text-foreground/70 px-1">
-                        +{dayItems.length - 3} more
-                      </span>
-                    )}
-                  </div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
+                        {canCreate && dayItems.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => onDayClick(dateISO)}
+                            className="flex h-5 w-5 items-center justify-center rounded-md text-foreground/60 opacity-0 transition-all hover:bg-primary/10 hover:text-primary group-hover:opacity-100"
+                            aria-label={`Add post ${dateISO}`}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        ) : null}
+                      </div>
+
+                      {dayItems.length === 0 ? (
+                        canCreate ? (
+                          <button
+                            type="button"
+                            onClick={() => onDayClick(dateISO)}
+                            className="flex flex-1 min-h-[4rem] items-center justify-center rounded-md text-foreground/35 opacity-0 transition-all hover:bg-muted/20 group-hover:opacity-100"
+                            aria-label={`Add post ${dateISO}`}
+                          >
+                            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-foreground/25 group-hover:border-primary/40 group-hover:text-primary/70">
+                              <Plus className="h-4 w-4" />
+                            </span>
+                          </button>
+                        ) : (
+                          <div className="flex flex-1 min-h-[4rem]" aria-hidden />
+                        )
+                      ) : (
+                      <div className="flex flex-col gap-0.5 overflow-hidden">
+                        {dayItems.slice(0, 3).map((item) => (
+                          <ScheduledPostCard
+                            key={item.id}
+                            item={item}
+                            onClick={onItemClick}
+                          />
+                        ))}
+                        {dayItems.length > 3 && (
+                          <span className="text-[10px] text-foreground/70 px-1">
+                            +{dayItems.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
       </CardContent>
     </Card>
   );

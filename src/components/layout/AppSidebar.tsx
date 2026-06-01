@@ -35,7 +35,7 @@ import { useSidebarState } from "@/hooks/useSidebarState";
 import { useWorkspaceInfo } from "@/hooks/useWorkspaceInfo";
 import { PlanSelectionDialog } from "@/components/PlanSelectionDialog";
 
-const navGroups: Array<{
+export const navGroups: Array<{
   label: string;
   items: Array<{
     title: string;
@@ -104,7 +104,7 @@ export function AppSidebar() {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen border-r border-border/60 bg-card/50 backdrop-blur-xl transition-all duration-300 flex flex-col select-none",
+        "hidden md:flex fixed left-0 top-0 z-40 h-screen border-r border-border/60 bg-card/50 backdrop-blur-xl transition-all duration-300 flex-col select-none",
         collapsed ? "w-20" : "w-72",
       )}
     >

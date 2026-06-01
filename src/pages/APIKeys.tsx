@@ -493,28 +493,39 @@ function IntegrationCard({
 
         {openFormId === platform.id && platform.status !== "connected" && (
           <div className="space-y-2 pt-2 border-t">
-            {!hasTeam && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                Create your workspace first to connect platforms.
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-[10px] font-medium text-muted-foreground uppercase">API Key</Label>
+              <p className="text-[10px] text-muted-foreground">
+                You can generate an API key in the {platform.name} Developer Console. For quick testing, you can use our demo key.
               </p>
-            )}
-            <Label className="text-[10px] font-medium text-muted-foreground uppercase">API Key</Label>
-            <div className="flex gap-2">
-              <Input
-                placeholder="Paste API key..."
-                value={apiKeyInputs[platform.id] ?? ""}
-                onChange={(e) => setApiKeyInputs((prev) => ({ ...prev, [platform.id]: e.target.value }))}
-                onKeyDown={(e) => e.key === "Enter" && connecting !== platform.id && hasTeam && onConnect(platform.id)}
-                className="h-9 text-xs rounded-lg"
-                disabled={connecting === platform.id || !hasTeam}
-              />
-              <Button
-                size="sm"
-                className="h-9 shrink-0"
-                onClick={() => onConnect(platform.id)}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex gap-2 flex-1">
+                <Input
+                  placeholder="Paste API key..."
+                  value={apiKeyInputs[platform.id] ?? ""}
+                  onChange={(e) => setApiKeyInputs((prev) => ({ ...prev, [platform.id]: e.target.value }))}
+                  onKeyDown={(e) => e.key === "Enter" && connecting !== platform.id && hasTeam && onConnect(platform.id)}
+                  className="h-9 text-xs rounded-lg flex-1"
+                  disabled={connecting === platform.id || !hasTeam}
+                />
+                <Button
+                  size="sm"
+                  className="h-9 shrink-0"
+                  onClick={() => onConnect(platform.id)}
+                  disabled={connecting === platform.id || !hasTeam}
+                >
+                  {connecting === platform.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Connect"}
+                </Button>
+              </div>
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                className="h-9 shrink-0 text-[10px]"
+                onClick={() => setApiKeyInputs((prev) => ({ ...prev, [platform.id]: `test_key_${platform.slug}_123456789` }))}
                 disabled={connecting === platform.id || !hasTeam}
               >
-                {connecting === platform.id ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Connect"}
+                Use Test Key
               </Button>
             </div>
             {import.meta.env.DEV && (KEYS_BY_PLATFORM[platform.slug ?? ""] ?? []).length > 0 && (

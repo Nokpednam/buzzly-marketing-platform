@@ -29,8 +29,9 @@ export function MainLayout() {
       <AppSidebar />
       <div
         className={cn(
-          "transition-all duration-300 min-h-screen",
-          collapsed ? "pl-20" : "pl-72",
+          "transition-all duration-300 min-h-screen flex flex-col",
+          collapsed ? "md:pl-20" : "md:pl-72",
+          "pl-0", // Remove padding on mobile
           USE_MOCK_DATA && "pt-6",
         )}
       >
