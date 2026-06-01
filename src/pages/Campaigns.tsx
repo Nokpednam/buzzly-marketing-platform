@@ -405,18 +405,20 @@ export default function Campaigns() {
 
       {/* 3. FILTER & SEARCH BAR */}
       <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-gradient-to-r from-violet-50/30 via-sky-50/30 to-emerald-50/30 dark:from-violet-950/10 dark:via-sky-950/10 dark:to-emerald-950/10 p-2 rounded-2xl backdrop-blur-sm border border-slate-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full lg:w-auto">
-          <TabsList className="bg-transparent h-10 gap-1">
-            {["all", "active", "paused", "scheduled", "draft", "completed"].map((tab) => (
-              <TabsTrigger
-                key={tab}
-                value={tab}
-                className="rounded-lg px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm capitalize"
-              >
-                {tab}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full lg:w-auto overflow-hidden">
+          <div className="w-full overflow-x-auto scrollbar-hide pb-1">
+            <TabsList className="bg-transparent h-10 gap-1 inline-flex min-w-max">
+              {["all", "active", "paused", "scheduled", "draft", "completed"].map((tab) => (
+                <TabsTrigger
+                  key={tab}
+                  value={tab}
+                  className="rounded-lg px-4 data-[state=active]:bg-background data-[state=active]:shadow-sm capitalize"
+                >
+                  {tab}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
         </Tabs>
         <div className="relative w-full lg:max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
