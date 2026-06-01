@@ -522,7 +522,10 @@ function IntegrationCard({
                 variant="secondary" 
                 size="sm" 
                 className="h-9 shrink-0 text-[10px]"
-                onClick={() => setApiKeyInputs((prev) => ({ ...prev, [platform.id]: `test_key_${platform.slug}_123456789` }))}
+                onClick={() => {
+                  const validKey = (KEYS_BY_PLATFORM[platform.slug ?? ""] ?? [])[0]?.key || `test_key_${platform.slug}_1234`;
+                  setApiKeyInputs((prev) => ({ ...prev, [platform.id]: validKey }));
+                }}
                 disabled={connecting === platform.id || !hasTeam}
               >
                 Use Test Key
