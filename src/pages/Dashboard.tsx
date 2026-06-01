@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -40,6 +40,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Loader2 } from "lucide-react";
 import { OnboardingBanner } from "@/components/dashboard/OnboardingBanner";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { seedDemoDataForWorkspace } from "@/lib/seedDemoData";
+import { supabase } from "@/integrations/supabase/client";
 
 const formatValue = (value: number, format: string) => {
   switch (format) {
@@ -67,6 +70,7 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = React.useState(false);
 
   const { data: metrics, isLoading, refetch } = useDashboardMetrics(dateRange, selectedPlatform);
+  const [isSeeding, setIsSeeding] = useState(false);
 
   const { revenueMetrics, isFromAdInsights } = useRevenueMetrics(
     metrics
@@ -100,6 +104,32 @@ export default function Dashboard() {
   }
 
   const hasData = metrics && (metrics.totalImpressions > 0 || metrics.totalClicks > 0);
+
+  // Auto-seed demo data if empty
+  useEffect(() => {
+    let mounted = true;
+    const seedData = async () => {
+      // Accessing workspaceId from useOnboardingGuard is complicated. Wait, usePlatformConnections has no workspaceId. 
+      // Let's get it from the user directly via supabase auth, or from the metrics hook?
+      // Actually, metrics query uses workspaceId. Let's get it from useDashboardMetrics? No, we can just fetch it.
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: teamMember } = await supabase.from('team_members').select('team_id').eq('user_id', user.id).single();
+      const workspaceId = teamMember?.team_id;
+
+      if (!isLoading && !hasData && workspaceId && !isSeeding) {
+        setIsSeeding(true);
+        const seeded = await seedDemoDataForWorkspace(workspaceId, supabase);
+        if (seeded && mounted) {
+          toast.success("Demo data has been populated! 🚀");
+          refetch();
+        }
+        if (mounted) setIsSeeding(false);
+      }
+    };
+    seedData();
+    return () => { mounted = false; };
+  }, [isLoading, hasData, isSeeding, refetch]);
 
   // Derived stats from trend data
   const trendData = metrics?.trendData ?? [];
