@@ -85,19 +85,37 @@ export function useDashboardMetrics(dateRange: string = "7d", platformId: string
     queryFn: async (): Promise<DashboardMetrics> => {
       const { start, end } = parseDateRange(dateRange);
 
-      // 1. Fetch campaigns for this workspace
-      const { data: campaigns, error: campaignsError } = await supabase
-        .from("campaigns")
-        .select("id")
+      // 1. Fetch ad_accounts first to get valid account IDs for this workspace
+      const { data: adAccounts, error: adAccountsError } = await supabase
+        .from("ad_accounts")
+        .select("id, platform_id, team_id")
         .eq("team_id", workspaceId!);
 
-      if (campaignsError) {
-        console.error("DASHBOARD FETCH ERROR (campaigns):", campaignsError);
-        throw campaignsError;
+      if (adAccountsError) {
+        console.error("DASHBOARD FETCH ERROR (ad_accounts):", adAccountsError);
+        throw adAccountsError;
       }
 
-      // 2. If no campaigns exist, return all zeroes immediately
-      if (!campaigns || campaigns.length === 0) {
+      console.log("DASHBOARD FETCH: Found ad accounts", adAccounts?.length);
+      const validAccountIds = adAccounts?.map((a) => a.id) ?? [];
+
+      // 2. Fetch campaigns for these ad accounts
+      let campaignIds: string[] = [];
+      if (validAccountIds.length > 0) {
+        const { data: campaigns, error: campaignsError } = await supabase
+          .from("campaigns")
+          .select("id")
+          .in("ad_account_id", validAccountIds);
+
+        if (campaignsError) {
+          console.error("DASHBOARD FETCH ERROR (campaigns):", campaignsError);
+          throw campaignsError;
+        }
+        campaignIds = campaigns?.map((c) => c.id) ?? [];
+      }
+
+      // 3. If no campaigns exist, return all zeroes immediately
+      if (campaignIds.length === 0) {
         console.log("DASHBOARD: 0 campaigns, returning zeroes");
         return {
           totalImpressions: 0,
@@ -112,9 +130,7 @@ export function useDashboardMetrics(dateRange: string = "7d", platformId: string
         };
       }
 
-      const campaignIds = campaigns.map((c) => c.id);
-
-      // 3. Fetch all ad_ids linked to these campaigns
+      // 4. Fetch all ad_ids linked to these campaigns
       const { data: campaignAds, error: campaignAdsError } = await (supabase as any)
         .from("campaign_ads")
         .select("ad_id")
@@ -126,20 +142,6 @@ export function useDashboardMetrics(dateRange: string = "7d", platformId: string
       }
 
       const validAdIds = campaignAds?.map((ca: any) => ca.ad_id) ?? [];
-
-      // 4. Then query standard ad_accounts for platform filtering
-      const { data: adAccounts, error: adAccountsError } = await supabase
-        .from("ad_accounts")
-        .select("id, platform_id, team_id")
-        .eq("team_id", workspaceId!);
-
-      if (adAccountsError) {
-        console.error("DASHBOARD FETCH ERROR (ad_accounts):", adAccountsError);
-        throw adAccountsError;
-      }
-
-      console.log("DASHBOARD FETCH: Found ad accounts", adAccounts?.length);
-      const validAccountIds = adAccounts?.map((a) => a.id) ?? [];
 
       // If there are no ad accounts but somehow campaigns exist (rare), we can't filter by platform properly
       // but let's proceed and just rely on campaign IDs for security.
