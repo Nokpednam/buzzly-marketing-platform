@@ -658,16 +658,16 @@ export default function Campaigns() {
 
       {/* DIALOG */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[550px] rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
-          <DialogHeader className="p-8 bg-muted/50 border-b">
-            <DialogTitle className="text-2xl font-black">
+        <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[550px] rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+          <DialogHeader className="p-4 sm:p-8 bg-muted/50 border-b">
+            <DialogTitle className="text-xl sm:text-2xl font-black">
               {editingCampaign ? "EDIT CAMPAIGN" : "NEW CAMPAIGN"}
             </DialogTitle>
             <DialogDescription>
               Set up your delivery parameters and budget.
             </DialogDescription>
           </DialogHeader>
-          <div className="p-8 space-y-5 overflow-y-auto max-h-[65vh]">
+          <div className="p-4 sm:p-8 space-y-5 overflow-y-auto max-h-[65vh]">
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                 Ad Account
@@ -705,7 +705,7 @@ export default function Campaigns() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   Budget (฿)
@@ -756,7 +756,7 @@ export default function Campaigns() {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
                   Start Date
@@ -863,13 +863,13 @@ export default function Campaigns() {
               <AdAllocator value={selectedAdIds} onChange={setSelectedAdIds} />
             </div>
           </div>
-          <DialogFooter className="p-8 bg-muted/20 border-t flex items-center justify-between sm:justify-between">
-            <Button variant="ghost" className="rounded-xl" onClick={() => setIsDialogOpen(false)}>
+          <DialogFooter className="p-4 sm:p-8 bg-muted/20 border-t flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-between gap-3">
+            <Button variant="ghost" className="rounded-xl w-full sm:w-auto" onClick={() => setIsDialogOpen(false)}>
               Cancel
             </Button>
             <Button
               onClick={handleSubmit}
-              className="rounded-xl px-8 shadow-lg shadow-primary/10"
+              className="rounded-xl px-8 shadow-lg shadow-primary/10 w-full sm:w-auto"
             >
               {editingCampaign ? "Save Changes" : "Initialize Campaign"}
             </Button>
