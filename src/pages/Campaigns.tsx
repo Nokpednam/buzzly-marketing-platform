@@ -660,7 +660,7 @@ export default function Campaigns() {
 
       {/* DIALOG */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[550px] rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+        <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[550px] rounded-3xl p-0 overflow-hidden border-none shadow-2xl pointer-events-auto">
           <DialogHeader className="p-4 sm:p-8 bg-muted/50 border-b">
             <DialogTitle className="text-xl sm:text-2xl font-black">
               {editingCampaign ? "EDIT CAMPAIGN" : "NEW CAMPAIGN"}
