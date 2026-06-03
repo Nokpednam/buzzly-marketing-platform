@@ -21,7 +21,17 @@ Buzzly is a marketing platform where businesses can connect their ad accounts (F
 
 It's not just a dashboard. It has a full role-based system with separate portals for business owners, support staff, developers, and end customers. There's also a loyalty/gamification layer with tiers, points, missions, and rewards.
 
-I built this as a university project to learn how a real SaaS product works end-to-end: auth flows, database design, RLS security, API integrations, role management, and deployment.
+We built this as a university project to learn how a real SaaS product works end-to-end: auth flows, database design, RLS security, API integrations, role management, and deployment.
+
+## Preview
+
+<div align="center">
+
+| Dashboard | Campaigns | Customer Personas |
+|:-:|:-:|:-:|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Campaigns](docs/screenshots/campaigns.png) | ![Personas](docs/screenshots/personas.png) |
+
+</div>
 
 ## Features
 
@@ -236,4 +246,16 @@ Building this project taught me a lot about how real SaaS products work:
 
 ---
 
-Built by **Natthawut Wanma** — [GitHub](https://github.com/Nokpednam)
+## Team
+
+Built by students at Naresuan University.
+
+| Name | GitHub |
+|------|--------|
+| Natthawut Wanma | [@Nokpednam](https://github.com/Nokpednam) |
+| Kittikorn Maekuadee | — |
+| Panuwat | [@Panuwat-JR](https://github.com/Panuwat-JR) |
+| Natchaporn | [@natchapornp66-sudo](https://github.com/natchapornp66-sudo) |
+| Supas | — |
+| Tanatron | — |
+| LunaDogZ | [@LunaDogZ](https://github.com/LunaDogZ) |
