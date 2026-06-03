@@ -151,17 +151,21 @@ export function AdInsightsSummary({
     const totalLikes = organicPosts.reduce((sum, post) => sum + (post.likes ?? 0), 0);
     const totalComments = organicPosts.reduce((sum, post) => sum + (post.comments ?? 0), 0);
     const totalShares = organicPosts.reduce((sum, post) => sum + (post.shares ?? 0), 0);
-    const totalReach = organicPosts.reduce((sum, post) => sum + (post.reach ?? 0), 0);
+    const totalReach = organicPosts.reduce((sum, post) => sum + (post.reach || post.impressions || 0), 0);
+    const totalImpressions = organicPosts.reduce((sum, post) => sum + (post.impressions || post.reach || 0), 0);
+    const totalClicks = organicPosts.reduce((sum, post) => sum + (post.clicks || 0), 0);
     const totalEngagement = totalLikes + totalComments + totalShares;
     const avgEngagementRate = totalReach > 0 ? (totalEngagement / totalReach) * 100 : 0;
 
-    const byDate = new Map<string, { rawDate: string; engagement: number; reach: number }>();
+    const byDate = new Map<string, { rawDate: string; engagement: number; reach: number; impressions: number; clicks: number }>();
     for (const post of organicPosts) {
       const rawDate = (post.published_at ?? post.scheduled_at ?? post.created_at)?.slice(0, 10);
       if (!rawDate) continue;
-      const entry = byDate.get(rawDate) ?? { rawDate, engagement: 0, reach: 0 };
-      entry.engagement += (post.likes ?? 0) + (post.comments ?? 0) + (post.shares ?? 0);
-      entry.reach += post.reach ?? 0;
+      const entry = byDate.get(rawDate) ?? { rawDate, engagement: 0, reach: 0, impressions: 0, clicks: 0 };
+      entry.engagement += (post.likes || 0) + (post.comments || 0) + (post.shares || 0);
+      entry.reach += post.reach || post.impressions || 0;
+      entry.impressions += post.impressions || post.reach || 0;
+      entry.clicks += post.clicks || 0;
       byDate.set(rawDate, entry);
     }
 
@@ -171,6 +175,8 @@ export function AdInsightsSummary({
       totalComments,
       totalShares,
       totalReach,
+      totalImpressions,
+      totalClicks,
       totalEngagement,
       avgEngagementRate,
       dailyData: Array.from(byDate.values()).sort((a, b) => a.rawDate.localeCompare(b.rawDate)),
@@ -265,10 +271,17 @@ export function AdInsightsSummary({
   const totalReach =
     (showOrganicData ? organicSummary.totalReach : 0) +
     (showPaidData ? summary.totalReach : 0);
-  const totalImpressions = showPaidData ? summary.totalImpressions : 0;
-  const totalClicks = showPaidData ? summary.totalClicks : 0;
+  const totalImpressions = 
+    (showPaidData ? summary.totalImpressions : 0) +
+    (showOrganicData ? organicSummary.totalImpressions : 0);
+  const totalClicks = 
+    (showPaidData ? summary.totalClicks : 0) +
+    (showOrganicData ? organicSummary.totalClicks : 0);
   const totalEngagement = showOrganicData ? organicSummary.totalEngagement : 0;
   const avgEngagementRate = showOrganicData ? organicSummary.avgEngagementRate : 0;
+
+  console.log("DEBUG organicPosts:", organicPosts);
+  console.log("DEBUG organicSummary:", organicSummary);
 
   const hasOrganicChartData = organicChartData.length > 0;
   const hasPaidData = paidChartData.length > 0;
