@@ -68,6 +68,19 @@ Robust tools for team management, API integrations, and loyalty programs.
 | <img src="docs/screenshots/settings-loyalty.png" width="400" alt="Loyalty"/> | <img src="docs/screenshots/reports.png" width="400" alt="Reports"/> |
 | *Configure tiers, points, and rewards.* | *Generate beautiful PDF performance reports.* |
 
+### 🔐 Role-Based Portals
+Different views and permissions depending on the user's role.
+
+| Business Owner | Support Staff |
+|:-:|:-:|
+| <img src="docs/screenshots/role-owner.png" width="400" alt="Owner Portal"/> | <img src="docs/screenshots/role-support.png" width="400" alt="Support Portal"/> |
+| *Financial overview and tier management.* | *Customer workspaces and redemptions.* |
+
+| Developer / Admin | End Customer |
+|:-:|:-:|
+| <img src="docs/screenshots/role-dev.png" width="400" alt="Dev Portal"/> | <img src="docs/screenshots/rewards-center.png" width="400" alt="Customer Portal"/> |
+| *System monitor, logs, and server health.* | *Loyalty rewards and gamification.* |
+
 ## Features
 
 ### For Business Users
