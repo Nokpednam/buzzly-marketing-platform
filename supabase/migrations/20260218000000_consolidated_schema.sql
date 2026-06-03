@@ -1345,7 +1345,7 @@ ALTER TABLE public.industries OWNER TO postgres;
 -- Name: invoice_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
-CREATE SEQUENCE public.invoice_seq
+CREATE SEQUENCE IF NOT EXISTS public.invoice_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
