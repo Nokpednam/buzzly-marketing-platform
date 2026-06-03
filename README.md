@@ -23,15 +23,50 @@ It's not just a dashboard. It has a full role-based system with separate portals
 
 We built this as a university project to learn how a real SaaS product works end-to-end: auth flows, database design, RLS security, API integrations, role management, and deployment.
 
-## Preview
+## 📸 Platform Showcase
 
+### 📊 Business Intelligence & Analytics
+The core dashboard for business users to track ad performance across all platforms.
 <div align="center">
-
-| Dashboard | Campaigns | Customer Personas |
-|:-:|:-:|:-:|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Campaigns](docs/screenshots/campaigns.png) | ![Personas](docs/screenshots/personas.png) |
-
+  <img src="docs/screenshots/dashboard.png" width="800" alt="Dashboard" />
 </div>
+
+<br/>
+
+**Deep Dive Analytics**
+| Analytics Hub | Campaign Management |
+|:-:|:-:|
+| <img src="docs/screenshots/analytics-hub.png" width="400" alt="Analytics Hub"/> | <img src="docs/screenshots/campaigns.png" width="400" alt="Campaigns"/> |
+| *Cross-platform performance audit.* | *Monitor and scale growth initiatives.* |
+
+### 🎯 Audience & Social Media
+Understand who your customers are and engage with them directly.
+
+| Customer Personas | Social Planner |
+|:-:|:-:|
+| <img src="docs/screenshots/customer-personas.png" width="400" alt="Personas"/> | <img src="docs/screenshots/social-planner.png" width="400" alt="Social Planner"/> |
+| *Aggregated demographics and interests.* | *Plan and schedule social posts.* |
+
+### 🚀 Funnels & Journey Mapping
+Track users from their first impression to successful conversion.
+
+| AARRR Funnel | Customer Journey |
+|:-:|:-:|
+| <img src="docs/screenshots/aarrr-funnel.png" width="400" alt="AARRR Funnel"/> | <img src="docs/screenshots/customer-journey.png" width="400" alt="Customer Journey"/> |
+| *Pirate metrics conversion flow.* | *Visualizing the path to purchase.* |
+
+### ⚙️ Management & Operations
+Robust tools for team management, API integrations, and loyalty programs.
+
+| Team & Roles | Platform Integrations |
+|:-:|:-:|
+| <img src="docs/screenshots/team-management.png" width="400" alt="Team"/> | <img src="docs/screenshots/api-keys.png" width="400" alt="API Keys"/> |
+| *Granular RBAC for team members.* | *Connect Meta, Google, TikTok, etc.* |
+
+| Loyalty Settings | Reports & Exports |
+|:-:|:-:|
+| <img src="docs/screenshots/settings-loyalty.png" width="400" alt="Loyalty"/> | <img src="docs/screenshots/reports.png" width="400" alt="Reports"/> |
+| *Configure tiers, points, and rewards.* | *Generate beautiful PDF performance reports.* |
 
 ## Features
 
