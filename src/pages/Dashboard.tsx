@@ -91,18 +91,6 @@ export default function Dashboard() {
     setIsRefreshing(false);
   };
 
-  if (onboardingState === "loading") {
-    return (
-      <div className="flex items-center justify-center min-h-[70vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (onboardingState !== "ready") {
-    return <OnboardingBanner state={onboardingState} />;
-  }
-
   const hasData = metrics && (metrics.totalImpressions > 0 || metrics.totalClicks > 0);
 
   // Auto-seed demo data if empty
@@ -114,7 +102,9 @@ export default function Dashboard() {
       // Actually, metrics query uses workspaceId. Let's get it from useDashboardMetrics? No, we can just fetch it.
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data: teamMember } = await supabase.from('team_members').select('team_id').eq('user_id', user.id).single();
+      
+      // Fixed: use workspace_members instead of team_members which doesn't exist
+      const { data: teamMember } = await supabase.from('workspace_members').select('team_id').eq('user_id', user.id).single();
       const workspaceId = teamMember?.team_id;
 
       if (!isLoading && !hasData && workspaceId && !isSeeding) {
@@ -130,6 +120,18 @@ export default function Dashboard() {
     seedData();
     return () => { mounted = false; };
   }, [isLoading, hasData, isSeeding, refetch]);
+
+  if (onboardingState === "loading") {
+    return (
+      <div className="flex items-center justify-center min-h-[70vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (onboardingState !== "ready") {
+    return <OnboardingBanner state={onboardingState} />;
+  }
 
   // Derived stats from trend data
   const trendData = metrics?.trendData ?? [];
