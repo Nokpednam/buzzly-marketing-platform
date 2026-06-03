@@ -276,26 +276,17 @@ export function PlatformConnectionsProvider({ children }: { children: ReactNode 
       // ── Step 4: Ingest via backend (API key required) ─────────────
       if (adAccount?.id) {
         if (tenant && apiKey?.trim()) {
-          // Delegate to backend ingestion endpoint.
-          // The server fetches from EXTERNAL_API_BASE_URL and writes to DB.
-          // Raw external API data is never forwarded to the browser.
+          // Generate mock data locally instead of relying on external Vercel API
           toast.info('กำลังซิงค์ข้อมูลจาก API...');
-          const ingestRes = await fetch(`${MOCK_API_BASE_URL}/api/connect`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              apiKey: apiKey.trim(),
-              platformSlug: platform?.slug,
-              workspaceId: teamId,
-              adAccountId: adAccount.id,
-            }),
-          });
-          if (!ingestRes.ok) {
-            const err = await ingestRes.json().catch(() => ({ error: `HTTP ${ingestRes.status}` }));
-            throw new Error((err as any).error ?? `Ingestion failed: ${ingestRes.status}`);
+          
+          const { generateMockDataForPlatform } = await import('@/lib/seedDemoData');
+          const success = await generateMockDataForPlatform(adAccount.id, platform?.slug || 'unknown', supabase);
+          
+          if (!success) {
+            throw new Error(`Ingestion failed to insert mock data for ${platform?.name}`);
           }
-          const result = await ingestRes.json() as { message: string; rowsInserted: number };
-          toast.success(`${result.message} · ${result.rowsInserted} วันข้อมูล`);
+          
+          toast.success(`จำลองข้อมูลสำหรับ ${platform?.name} สำเร็จ · 30 วันย้อนหลัง`);
         } else {
           // No API key → connection saved but no data ingested
           toast.warning(`${platform?.name} เชื่อมต่อแล้ว แต่ยังไม่มีข้อมูล — กรุณาใส่ API Key เพื่อซิงค์ข้อมูล`);

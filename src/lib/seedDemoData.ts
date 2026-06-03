@@ -142,3 +142,78 @@ export async function seedDemoDataForWorkspace(workspaceId: string, supabase: Su
     return false;
   }
 }
+
+export async function generateMockDataForPlatform(adAccountId: string, platformSlug: string, supabase: SupabaseClient) {
+  try {
+    // Check if we already have campaigns
+    const { data: existingCampaigns } = await supabase
+      .from("campaigns")
+      .select("id, ad_account_id")
+      .eq("ad_account_id", adAccountId);
+
+    let campaigns = existingCampaigns;
+    if (!campaigns || campaigns.length === 0) {
+      const namePrefix = platformSlug === 'facebook' ? 'FB Retargeting' : platformSlug === 'tiktok' ? 'TT Viral' : 'Mock Campaign';
+      const { data: newCampaigns } = await supabase
+        .from("campaigns")
+        .insert([
+          {
+            ad_account_id: adAccountId,
+            name: `${namePrefix} - Alpha`,
+            objective: "Conversion",
+            status: "active",
+            budget_amount: 100000,
+            target_kpi_clicks: 50000,
+            target_kpi_conversions: 1000,
+            target_kpi_spend: 90000,
+            target_kpi_impressions: 1000000
+          }
+        ])
+        .select("id, ad_account_id");
+      campaigns = newCampaigns;
+    }
+
+    if (!campaigns || campaigns.length === 0) return false;
+
+    // Generate 30 days of Insights
+    const insights = [];
+    for (const campaign of campaigns) {
+      let baseImpressions = platformSlug === 'tiktok' ? 25000 : 15000;
+      let baseClicks = platformSlug === 'google' ? 800 : 400;
+      let baseSpend = 3000;
+      let baseConversions = 45;
+
+      for (let i = 0; i < 30; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - (29 - i));
+        
+        const dailyImpressions = Math.floor(baseImpressions + (i * 200) + (Math.random() * 5000 - 2500));
+        const dailyClicks = Math.floor(baseClicks + (i * 10) + (Math.random() * 200 - 100));
+        const dailySpend = Math.floor(baseSpend + (i * 50) + (Math.random() * 800 - 400));
+        const dailyConversions = Math.floor(baseConversions + (i * 2) + (Math.random() * 20 - 10));
+
+        insights.push({
+          campaign_id: campaign.id,
+          ad_account_id: campaign.ad_account_id,
+          date: date.toISOString().split("T")[0],
+          impressions: Math.max(0, dailyImpressions),
+          clicks: Math.max(0, dailyClicks),
+          spend: Math.max(0, dailySpend),
+          conversions: Math.max(0, dailyConversions),
+          roas: Number((2.0 + Math.random() * 1.5).toFixed(2)),
+        });
+      }
+    }
+
+    const { error: insertError } = await supabase.from("ad_insights").insert(insights);
+    if (insertError) {
+      console.error("Failed to insert mock insights:", insertError);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Mock generation error:", error);
+    return false;
+  }
+}
