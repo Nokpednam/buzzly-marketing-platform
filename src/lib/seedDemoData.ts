@@ -117,13 +117,13 @@ export async function seedDemoDataForWorkspace(workspaceId: string, supabase: Su
 
         insights.push({
           campaign_id: campaign.id,
+          ad_account_id: campaign.ad_account_id,
           date: date.toISOString().split("T")[0],
           impressions: Math.max(0, dailyImpressions),
           clicks: Math.max(0, dailyClicks),
           spend: Math.max(0, dailySpend),
           conversions: Math.max(0, dailyConversions),
           roas: Number((2.0 + Math.random() * 1.5).toFixed(2)),
-          // ad_account_id would ideally be linked, but for dashboard queries, campaign_id is enough
         });
       }
     }
