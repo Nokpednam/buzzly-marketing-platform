@@ -147,10 +147,10 @@ export async function seedDemoDataForWorkspace(workspaceId: string, supabase: Su
 
 export async function generateMockDataForPlatform(adAccountId: string, platformSlug: string, supabase: SupabaseClient) {
   try {
-    // 1. Get the team_id for this ad_account to satisfy RLS
+    // 1. Get the team_id and platform_id for this ad_account to satisfy RLS
     const { data: adAccount } = await supabase
       .from("ad_accounts")
-      .select("team_id")
+      .select("team_id, platform_id")
       .eq("id", adAccountId)
       .single();
       
@@ -159,6 +159,7 @@ export async function generateMockDataForPlatform(adAccountId: string, platformS
       return false;
     }
     const teamId = adAccount.team_id;
+    const platformId = adAccount.platform_id;
 
     // Check if we already have campaigns
     const { data: existingCampaigns } = await supabase
@@ -224,8 +225,57 @@ export async function generateMockDataForPlatform(adAccountId: string, platformS
     const { error: insertError } = await supabase.from("ad_insights").insert(insights);
     if (insertError) {
       console.error("Failed to insert mock insights:", insertError);
-      return false;
     }
+
+    // Seed mock persona (Ads)
+    const mockPersonaData = {
+      age_distribution: { "18-24": 0.25, "25-34": 0.45, "35-44": 0.20, "45+": 0.10 },
+      gender: { male: 0.40, female: 0.55, other: 0.05 },
+      device_type: { mobile: 0.85, desktop: 0.10, tablet: 0.05 },
+      top_locations: [{ name: "Bangkok", pct: 0.60 }, { name: "Chiang Mai", pct: 0.15 }, { name: "Phuket", pct: 0.10 }],
+      interests: [{ name: "Shopping", pct: 0.8 }, { name: "Travel", pct: 0.6 }, { name: "Food", pct: 0.5 }]
+    };
+
+    const { error: adError } = await supabase.from("ads").insert({
+      team_id: teamId,
+      name: `${platformSlug.charAt(0).toUpperCase() + platformSlug.slice(1)} Target Audience Ad`,
+      platform: platformSlug,
+      persona_data: mockPersonaData,
+      status: 'active'
+    });
+    if (adError) console.error("Failed to insert mock ad persona:", adError);
+
+    // Seed mock social posts
+    const today = new Date();
+    const mockPosts = [
+      {
+        team_id: teamId,
+        platform_id: platformId,
+        content: `Welcome to our new ${platformSlug} campaign! #Launch`,
+        post_type: 'image',
+        status: 'published',
+        published_at: new Date(today.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        impressions: 4500,
+        likes: 350,
+        comments: 42,
+        shares: 15
+      },
+      {
+        team_id: teamId,
+        platform_id: platformId,
+        content: `Check out our upcoming features 🚀`,
+        post_type: 'video',
+        status: 'scheduled',
+        scheduled_at: new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString(),
+        impressions: 0,
+        likes: 0,
+        comments: 0,
+        shares: 0
+      }
+    ];
+
+    const { error: postError } = await supabase.from("social_posts").insert(mockPosts);
+    if (postError) console.error("Failed to insert mock social posts:", postError);
 
     return true;
   } catch (error) {
