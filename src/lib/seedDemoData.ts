@@ -68,6 +68,7 @@ export async function seedDemoDataForWorkspace(workspaceId: string, supabase: Su
         .from("campaigns")
         .insert([
           {
+            team_id: workspaceId,
             ad_account_id: fbAcc?.id || adAccounts[0].id,
             name: "Q3 Global Brand Awareness",
             objective: "Brand Awareness",
@@ -79,6 +80,7 @@ export async function seedDemoDataForWorkspace(workspaceId: string, supabase: Su
             target_kpi_impressions: 5000000
           },
           {
+            team_id: workspaceId,
             ad_account_id: ttAcc?.id || adAccounts[0].id,
             name: "Gen-Z Viral Trend Campaign",
             objective: "Conversion",
@@ -145,6 +147,19 @@ export async function seedDemoDataForWorkspace(workspaceId: string, supabase: Su
 
 export async function generateMockDataForPlatform(adAccountId: string, platformSlug: string, supabase: SupabaseClient) {
   try {
+    // 1. Get the team_id for this ad_account to satisfy RLS
+    const { data: adAccount } = await supabase
+      .from("ad_accounts")
+      .select("team_id")
+      .eq("id", adAccountId)
+      .single();
+      
+    if (!adAccount?.team_id) {
+      console.error("No team_id found for ad_account", adAccountId);
+      return false;
+    }
+    const teamId = adAccount.team_id;
+
     // Check if we already have campaigns
     const { data: existingCampaigns } = await supabase
       .from("campaigns")
@@ -158,6 +173,7 @@ export async function generateMockDataForPlatform(adAccountId: string, platformS
         .from("campaigns")
         .insert([
           {
+            team_id: teamId,
             ad_account_id: adAccountId,
             name: `${namePrefix} - Alpha`,
             objective: "Conversion",
