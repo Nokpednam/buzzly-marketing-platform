@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@/test/utils/test-utils';
+import userEvent from '@testing-library/user-event';
 import ExecutiveReport from '../ExecutiveReport';
 
 // Mock Toast
@@ -8,6 +9,45 @@ vi.mock('@/hooks/use-toast', () => ({
     useToast: () => ({
         toast: mockToast,
     }),
+}));
+
+// Mock html2canvas and jsPDF to avoid JSDOM errors
+vi.mock('html2canvas', () => ({
+    default: vi.fn().mockResolvedValue({
+        toDataURL: vi.fn().mockReturnValue('data:image/jpeg;base64,mock'),
+        height: 100,
+        width: 100
+    })
+}));
+vi.mock('jspdf', () => ({
+    jsPDF: vi.fn().mockImplementation(() => ({
+        internal: { pageSize: { getWidth: () => 210 } },
+        addImage: vi.fn(),
+        output: vi.fn().mockReturnValue(new Blob())
+    }))
+}));
+
+// Mock hooks
+const mockCreateScheduledReport = vi.fn();
+vi.mock('@/hooks/useScheduledReports', () => ({
+    useScheduledReports: vi.fn(() => ({
+        scheduledReports: [],
+        isLoading: false,
+        toggleActive: { mutate: vi.fn() },
+        deleteScheduledReport: { mutate: vi.fn(), isPending: false },
+        createScheduledReport: { mutateAsync: mockCreateScheduledReport }
+    }))
+}));
+
+vi.mock('@/hooks/useReports', () => ({
+    useReports: vi.fn(() => ({
+        reports: [
+            { id: '1', name: 'Q4 2024 Executive Summary', created_at: '2024-10-01T00:00:00Z', status: 'completed', report_type: 'executive', file_url: '#' }
+        ],
+        isLoading: false,
+        deleteReport: { mutate: vi.fn(), isPending: false },
+        createReport: { mutateAsync: vi.fn() }
+    }))
 }));
 
 // Mock UI Components that use Radix primitives
@@ -22,6 +62,16 @@ vi.mock('@/components/ui/tabs', () => ({
     TabsContent: ({ children, value }: any) => <div data-testid={`tab-content-${value}`}>{children}</div>,
 }));
 
+vi.mock('@/components/ui/dialog', () => ({
+    Dialog: ({ children, open }: any) => open ? <div data-testid="dialog">{children}</div> : null,
+    DialogContent: ({ children }: any) => <div data-testid="dialog-content">{children}</div>,
+    DialogHeader: ({ children }: any) => <div>{children}</div>,
+    DialogTitle: ({ children }: any) => <div>{children}</div>,
+    DialogDescription: ({ children }: any) => <div>{children}</div>,
+    DialogFooter: ({ children }: any) => <div>{children}</div>,
+    DialogTrigger: ({ children }: any) => <div>{children}</div>,
+}));
+
 describe('ExecutiveReport Page', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -30,80 +80,64 @@ describe('ExecutiveReport Page', () => {
     it('renders correctly', () => {
         render(<ExecutiveReport />);
         expect(screen.getByText('Executive Report')).toBeInTheDocument();
-
-        // Check for Generate Report button (which might be in a tab, but tabs content are mocked to be visible)
-        // Actually, there are multiple "Generate Report" texts? 1 in header tab, 1 in button?
-        // Tab trigger: "Generate Report"
-        // Button: "Generate Report" inside
-
-        // Let's be specific
         expect(screen.getByTestId('tab-trigger-generate')).toBeInTheDocument();
     });
 
     it('allows selecting metrics', () => {
         render(<ExecutiveReport />);
+        
+        // Business Performance starts checked
+        const businessCheckbox = screen.getByLabelText(/Business Performance/i);
+        expect(businessCheckbox).toBeChecked();
 
-        const arrCheckbox = screen.getByLabelText(/Annual Recurring Revenue/i);
-        expect(arrCheckbox).not.toBeChecked();
-
-        fireEvent.click(arrCheckbox);
-        expect(arrCheckbox).toBeChecked();
+        fireEvent.click(businessCheckbox);
+        expect(businessCheckbox).not.toBeChecked();
     });
 
-    it('generates report triggers toast', () => {
+    it('generates report triggers toast', async () => {
+        const user = userEvent.setup();
         render(<ExecutiveReport />);
 
-        // Button inside the tab content
-        const generateBtns = screen.getAllByRole('button').filter(b => b.textContent?.includes('Generate Report'));
-        // One is the tab trigger (mocked as button), one is the actual button
-        // The actual button has text "Generate Report" and an icon
-
-        // The mocked trigger has text "Generate Report"
-        // The actual button has text "Generate Report"
-
-        // Let's pick the one that is NOT the testid tab-trigger
-        const actionBtn = generateBtns.find(b => !b.getAttribute('data-testid')?.startsWith('tab-trigger'));
-
-        if (actionBtn) {
-            fireEvent.click(actionBtn);
-        } else {
-            // Fallback if filtering fails or logic changes
-            // Try getting by specific class or other attribute if possible, but for now let's hope finding non-testid works
-            // Or better:
-            const btn = screen.getByRole('button', { name: /Generate Report/i }); // might return multiple
-            // Since we mocked tabs content to be visible, both are visible.
-        }
-
-        // Alternative: Use the fact that the button is inside 'tab-content-generate'
-        const tabContent = screen.getByTestId('tab-content-generate');
-        const btnInTab = tabContent.querySelector('button.w-full'); // Based on className in source
-
-        if (btnInTab) {
-            fireEvent.click(btnInTab);
-        }
+        const generateBtns = screen.getAllByRole('button', { name: /Generate Report/i });
+        const actionBtn = generateBtns[generateBtns.length - 1]; // The actual button is the last one
+        
+        await user.click(actionBtn);
 
         expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
             title: "Generating Report",
-            description: expect.stringContaining("PDF report"),
+            description: "Compiling document and data...",
         }));
     });
 
-    it('schedules report triggers toast', () => {
+    it('schedules report triggers mutation', async () => {
+        const user = userEvent.setup();
         render(<ExecutiveReport />);
 
-        // Button "Schedule Report"
         const scheduleBtn = screen.getByText('Schedule Report', { selector: 'button' });
-        fireEvent.click(scheduleBtn);
+        await user.click(scheduleBtn);
 
-        expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({
-            title: "Report Scheduled",
-        }));
+        // Fill modal
+        const nameInput = screen.getByPlaceholderText('e.g. Weekly Stakeholder Update');
+        await user.clear(nameInput);
+        await user.type(nameInput, 'My Schedule');
+
+        const emailInput = screen.getByPlaceholderText('CEO@buzzly.com, investors@buzzly.com');
+        await user.clear(emailInput);
+        await user.type(emailInput, 'test@example.com');
+
+        const saveBtn = screen.getByText('Save Schedule', { selector: 'button' });
+        await user.click(saveBtn);
+
+        await waitFor(() => {
+            expect(mockCreateScheduledReport).toHaveBeenCalledWith(expect.objectContaining({
+                name: 'My Schedule',
+                recipients: ['test@example.com']
+            }));
+        });
     });
 
     it('displays history tab content', async () => {
         render(<ExecutiveReport />);
-
-        // With mocked tabs, content is always rendered
         expect(screen.getByText('Recent Reports')).toBeInTheDocument();
         expect(screen.getByText('Q4 2024 Executive Summary')).toBeInTheDocument();
     });

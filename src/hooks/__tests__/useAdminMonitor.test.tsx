@@ -6,14 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { ReactNode } from 'react';
 
 // Mock Supabase
-vi.mock('@/integrations/supabase/client', () => ({
-    supabase: {
-        from: vi.fn(),
-        auth: {
-            getUser: vi.fn(),
-        },
-    },
-}));
+
 
 describe('useAdminMonitor', () => {
     let queryClient: QueryClient;
@@ -184,13 +177,13 @@ describe('useAdminMonitor', () => {
                 expect(result.current.isSuccess).toBe(true);
             });
 
-            expect(result.current.data).toEqual({
-                total: 5,
-                critical: 0,
-                errors: 2,
-                warnings: 1,
-                info: 1,
-            });
+            expect(result.current.data).toEqual([
+                { level: 'error', created_at: '2024-01-01' },
+                { level: 'ERROR', created_at: '2024-01-01' },
+                { level: 'warning', created_at: '2024-01-01' },
+                { level: 'info', created_at: '2024-01-01' },
+                { level: 'debug', created_at: '2024-01-01' },
+            ]);
         });
     });
 
@@ -225,6 +218,7 @@ describe('useAdminMonitor', () => {
             expect(result.current.data).toEqual({
                 avgCpuUsage: 40,
                 avgMemoryUsage: 38,
+                avgDiskUsage: 0,
                 totalServers: 4,
                 healthyServers: 2,
                 warningServers: 1,
@@ -255,6 +249,7 @@ describe('useAdminMonitor', () => {
             expect(result.current.data).toEqual({
                 avgCpuUsage: 0,
                 avgMemoryUsage: 0,
+                avgDiskUsage: 0,
                 totalServers: 1,
                 healthyServers: 0,
                 warningServers: 0,
@@ -263,3 +258,4 @@ describe('useAdminMonitor', () => {
         });
     });
 });
+

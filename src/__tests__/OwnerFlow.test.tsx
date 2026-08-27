@@ -10,6 +10,8 @@ vi.mock('@/integrations/supabase/client', () => ({
     supabase: {
         auth: {
             getUser: vi.fn(),
+            getSession: vi.fn(() => Promise.resolve({ data: { session: null }, error: null })),
+            onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
         },
         from: vi.fn(),
     },
@@ -29,13 +31,43 @@ vi.mock('@/components/ui/toast', () => ({
     useToast: () => ({ toast: vi.fn() }),
 }));
 
+vi.mock('@/hooks/useLoyaltyTier', async (importOriginal) => {
+    const original = await importOriginal<typeof import('@/hooks/useLoyaltyTier')>();
+    return {
+        ...original,
+        useLoyaltyTier: () => ({
+            userLoyalty: null,
+            allTiers: [],
+            missions: [],
+            loading: false,
+            error: null,
+            getNextTier: () => null,
+            getProgressToNextTier: () => 0,
+            completedCount: 0,
+            totalMissions: 0,
+            totalPoints: 0,
+            earnedPoints: 0,
+            refetch: vi.fn().mockResolvedValue(undefined),
+        }),
+    };
+});
+
 // Mock Custom Hooks to avoid complex Supabase chaining in integration test
 // We mock ALL hooks used by BusinessPerformance and ProductUsage to ensure they render
 vi.mock('@/hooks/useOwnerMetrics', () => ({
+    getPreviousFeatureUsagePeriod: vi.fn(() => ({ start: '2023-01-01', end: '2023-02-01' })),
     useProductUsageMetrics: () => ({
         data: { totalUsers: 100, dau: 50, mau: 80, dauMauRatio: 62 },
         isLoading: false
     }),
+    useAARRRMetrics: () => ({ data: [], isLoading: false, isError: false }),
+    useOwnerAARRRTimeSeriesData: () => ({ data: [], isLoading: false, isError: false }),
+    useFeatureUsageMetrics: () => ({ data: [], isLoading: false, isError: false }),
+    useUserArchetypes: () => ({ data: [], isLoading: false, isError: false }),
+    useOwnerPersonaTimeSeries: () => ({ data: [], isLoading: false, isError: false }),
+    useFeatureUsageByPersona: () => ({ data: [], isLoading: false, isError: false }),
+    useFrictionByPersona: () => ({ data: [], isLoading: false, isError: false }),
+    usePathAnalysis: () => ({ data: [], isLoading: false, isError: false }),
     useUserSegments: () => ({
         data: [{ type: 'Enterprise', count: 10, percentage: 10 }],
         isLoading: false
@@ -146,3 +178,4 @@ describe('Owner Integration Flow', () => {
         expect(screen.getByText('Total Users')).toBeInTheDocument(); // Statistic card
     });
 });
+

@@ -10,15 +10,20 @@ const createTestQueryClient = () =>
             queries: {
                 retry: false,
             },
+            mutations: {
+                retry: false,
+            },
         },
     });
+
+import { useState } from 'react';
 
 interface AllTheProvidersProps {
     children: React.ReactNode;
 }
 
 const AllTheProviders = ({ children }: AllTheProvidersProps) => {
-    const testQueryClient = createTestQueryClient();
+    const [testQueryClient] = useState(() => createTestQueryClient());
 
     return (
         <QueryClientProvider client={testQueryClient}>
@@ -34,5 +39,12 @@ const customRender = (
     options?: Omit<RenderOptions, 'wrapper'>
 ) => render(ui, { wrapper: AllTheProviders, ...options });
 
+import { renderHook, RenderHookOptions } from '@testing-library/react';
+
+const customRenderHook = <Result, Props>(
+    render: (initialProps: Props) => Result,
+    options?: Omit<RenderHookOptions<Props>, 'wrapper'>
+) => renderHook(render, { wrapper: AllTheProviders, ...options });
+
 export * from '@testing-library/react';
-export { customRender as render };
+export { customRender as render, customRenderHook as renderHook };

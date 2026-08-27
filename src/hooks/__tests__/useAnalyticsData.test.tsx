@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@/test/utils/test-utils';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAnalyticsData } from '../useAnalyticsData';
 import { supabase } from '@/integrations/supabase/client';
@@ -189,3 +189,4 @@ describe('useAnalyticsData', () => {
         expect(result90d.current.cohortData).toBeDefined();
     });
 });
+

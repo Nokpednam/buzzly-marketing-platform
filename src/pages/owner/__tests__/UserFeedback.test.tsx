@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test/utils/test-utils';
 import UserFeedback from '../UserFeedback';
-import { BrowserRouter } from 'react-router-dom';
+
 import * as OwnerMetricsHooks from '@/hooks/useOwnerMetrics';
 
 // Mock hooks
@@ -29,11 +29,11 @@ describe('UserFeedback Page', () => {
         vi.mocked(OwnerMetricsHooks.useFeedbackList).mockReturnValue({ isLoading: false } as any);
 
         render(
-            <BrowserRouter>
+            
                 <div id="root">
                     <UserFeedback />
                 </div>
-            </BrowserRouter>
+            
         );
 
         expect(screen.getByText(/Loading Feedback Data.../i)).toBeInTheDocument();
@@ -50,11 +50,11 @@ describe('UserFeedback Page', () => {
         } as any);
 
         render(
-            <BrowserRouter>
+            
                 <div id="root">
                     <UserFeedback />
                 </div>
-            </BrowserRouter>
+            
         );
 
         expect(screen.getByText(/No Feedback Data Found/i)).toBeInTheDocument();
@@ -91,11 +91,11 @@ describe('UserFeedback Page', () => {
         } as any);
 
         render(
-            <BrowserRouter>
+            
                 <div id="root">
                     <UserFeedback />
                 </div>
-            </BrowserRouter>
+            
         );
 
         expect(screen.getByText('User Feedback')).toBeInTheDocument();
@@ -116,3 +116,4 @@ describe('UserFeedback Page', () => {
         expect(screen.getAllByText(/70 \(70%\)/).length).toBeGreaterThan(0);
     });
 });
+

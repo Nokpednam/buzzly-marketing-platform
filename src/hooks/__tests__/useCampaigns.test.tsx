@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@/test/utils/test-utils';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useCampaigns } from '../useCampaigns';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,8 +9,35 @@ import type { ReactNode } from 'react';
 vi.mock('@/integrations/supabase/client', () => ({
     supabase: {
         from: vi.fn(),
+        rpc: vi.fn().mockResolvedValue({ data: { success: true, points_awarded: 50 } }),
+        auth: {
+            getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'admin1' } } }),
+        },
     },
 }));
+
+vi.mock('@/hooks/useWorkspace', () => ({
+    useWorkspace: () => ({ workspace: { id: 'ws1' } }),
+}));vi.mock('@/hooks/useLoyaltyTier', async (importOriginal) => {
+    const original = await importOriginal<typeof import('@/hooks/useLoyaltyTier')>();
+    return {
+        ...original,
+        useLoyaltyTier: () => ({
+            userLoyalty: null,
+            allTiers: [],
+            missions: [],
+            loading: false,
+            error: null,
+            getNextTier: () => null,
+            getProgressToNextTier: () => 0,
+            completedCount: 0,
+            totalMissions: 0,
+            totalPoints: 0,
+            earnedPoints: 0,
+            refetch: vi.fn().mockResolvedValue(undefined),
+        }),
+    };
+});
 
 // Mock sonner toast
 vi.mock('sonner', () => ({
@@ -78,6 +105,7 @@ describe('useCampaigns', () => {
                 if (table === 'campaigns') {
                     return {
                         select: vi.fn().mockReturnThis(),
+                        or: vi.fn().mockReturnThis(),
                         order: vi.fn().mockResolvedValue({
                             data: mockCampaigns,
                             error: null,
@@ -92,7 +120,19 @@ describe('useCampaigns', () => {
                         }),
                     } as any;
                 }
-                return {} as any;
+                if (table === 'campaign_ads') {
+                    return {
+                        select: vi.fn().mockResolvedValue({ data: [], error: null }),
+                    } as any;
+                }
+                return {
+                    insert: vi.fn().mockReturnThis(),
+                    select: vi.fn().mockReturnThis(),
+                    update: vi.fn().mockReturnThis(),
+                    delete: vi.fn().mockReturnThis(),
+                    eq: vi.fn().mockReturnThis(),
+                    single: vi.fn().mockResolvedValue({ data: null, error: null }),
+                } as any;
             });
 
             const { result } = renderHook(() => useCampaigns(), { wrapper });
@@ -118,6 +158,7 @@ describe('useCampaigns', () => {
                 if (table === 'campaigns') {
                     return {
                         select: vi.fn().mockReturnThis(),
+                        or: vi.fn().mockReturnThis(),
                         order: vi.fn().mockResolvedValue({
                             data: [],
                             error: null,
@@ -132,7 +173,19 @@ describe('useCampaigns', () => {
                         }),
                     } as any;
                 }
-                return {} as any;
+                if (table === 'campaign_ads') {
+                    return {
+                        select: vi.fn().mockResolvedValue({ data: [], error: null }),
+                    } as any;
+                }
+                return {
+                    insert: vi.fn().mockReturnThis(),
+                    select: vi.fn().mockReturnThis(),
+                    update: vi.fn().mockReturnThis(),
+                    delete: vi.fn().mockReturnThis(),
+                    eq: vi.fn().mockReturnThis(),
+                    single: vi.fn().mockResolvedValue({ data: null, error: null }),
+                } as any;
             });
 
             const { result } = renderHook(() => useCampaigns(), { wrapper });
@@ -147,6 +200,7 @@ describe('useCampaigns', () => {
         it('should handle fetch error gracefully', async () => {
             vi.mocked(supabase.from).mockImplementation(() => {
                 return {
+                    insert: vi.fn().mockReturnThis(),
                     select: vi.fn().mockReturnThis(),
                     order: vi.fn().mockResolvedValue({
                         data: null,
@@ -176,6 +230,7 @@ describe('useCampaigns', () => {
                 if (table === 'campaigns') {
                     return {
                         select: vi.fn().mockReturnThis(),
+                        or: vi.fn().mockReturnThis(),
                         order: vi.fn().mockResolvedValue({
                             data: mockCampaigns,
                             error: null,
@@ -190,7 +245,19 @@ describe('useCampaigns', () => {
                         }),
                     } as any;
                 }
-                return {} as any;
+                if (table === 'campaign_ads') {
+                    return {
+                        select: vi.fn().mockResolvedValue({ data: [], error: null }),
+                    } as any;
+                }
+                return {
+                    insert: vi.fn().mockReturnThis(),
+                    select: vi.fn().mockReturnThis(),
+                    update: vi.fn().mockReturnThis(),
+                    delete: vi.fn().mockReturnThis(),
+                    eq: vi.fn().mockReturnThis(),
+                    single: vi.fn().mockResolvedValue({ data: null, error: null }),
+                } as any;
             });
 
             const { result } = renderHook(() => useCampaigns(), { wrapper });
@@ -224,14 +291,12 @@ describe('useCampaigns', () => {
             };
 
             vi.mocked(supabase.from).mockImplementation(() => {
-                return {
+                const chain = {
                     insert: vi.fn().mockReturnThis(),
                     select: vi.fn().mockReturnThis(),
-                    single: vi.fn().mockResolvedValue({
-                        data: mockCreatedCampaign,
-                        error: null,
-                    }),
+                    then: vi.fn((resolve) => resolve({ data: [mockCreatedCampaign], error: null })),
                 } as any;
+                return chain;
             });
 
             const { result } = renderHook(() => useCampaigns(), { wrapper });
@@ -254,14 +319,12 @@ describe('useCampaigns', () => {
             };
 
             vi.mocked(supabase.from).mockImplementation(() => {
-                return {
+                const chain = {
                     insert: vi.fn().mockReturnThis(),
                     select: vi.fn().mockReturnThis(),
-                    single: vi.fn().mockResolvedValue({
-                        data: null,
-                        error: { message: 'Create failed' },
-                    }),
+                    then: vi.fn((resolve) => resolve({ data: null, error: { message: 'Create failed' } })),
                 } as any;
+                return chain;
             });
 
             const { result } = renderHook(() => useCampaigns(), { wrapper });
@@ -287,15 +350,16 @@ describe('useCampaigns', () => {
             };
 
             vi.mocked(supabase.from).mockImplementation(() => {
-                return {
+                const chain = {
                     update: vi.fn().mockReturnThis(),
                     eq: vi.fn().mockReturnThis(),
                     select: vi.fn().mockReturnThis(),
-                    single: vi.fn().mockResolvedValue({
-                        data: { id: campaignId, ...updates },
-                        error: null,
-                    }),
+                    delete: vi.fn().mockReturnThis(),
+                    insert: vi.fn().mockReturnThis(),
+                    then: vi.fn((resolve) => resolve({ data: [{ id: campaignId, ...updates }], error: null })),
                 } as any;
+                chain.eq.mockReturnValue(chain);
+                return chain;
             });
 
             const { result } = renderHook(() => useCampaigns(), { wrapper });
@@ -313,15 +377,15 @@ describe('useCampaigns', () => {
 
         it('should handle update error', async () => {
             vi.mocked(supabase.from).mockImplementation(() => {
-                return {
+                const chain = {
+                    insert: vi.fn().mockReturnThis(),
                     update: vi.fn().mockReturnThis(),
                     eq: vi.fn().mockReturnThis(),
                     select: vi.fn().mockReturnThis(),
-                    single: vi.fn().mockResolvedValue({
-                        data: null,
-                        error: { message: 'Update failed' },
-                    }),
+                    then: vi.fn((resolve) => resolve({ data: null, error: { message: 'Update failed' } })),
                 } as any;
+                chain.eq.mockReturnValue(chain);
+                return chain;
             });
 
             const { result } = renderHook(() => useCampaigns(), { wrapper });
@@ -346,12 +410,16 @@ describe('useCampaigns', () => {
             const campaignId = '123';
 
             vi.mocked(supabase.from).mockImplementation(() => {
-                return {
+                const chain = {
+                    insert: vi.fn().mockReturnThis(),
                     delete: vi.fn().mockReturnThis(),
-                    eq: vi.fn().mockResolvedValue({
-                        error: null,
-                    }),
+                    select: vi.fn().mockReturnThis(),
+                    eq: vi.fn().mockReturnThis(),
+                    single: vi.fn().mockResolvedValue({ data: { id: campaignId, name: 'Test' }, error: null }),
+                    then: vi.fn((resolve) => resolve({ error: null }))
                 } as any;
+                chain.eq.mockReturnValue(chain);
+                return chain;
             });
 
             const { result } = renderHook(() => useCampaigns(), { wrapper });
@@ -369,12 +437,16 @@ describe('useCampaigns', () => {
 
         it('should handle delete error', async () => {
             vi.mocked(supabase.from).mockImplementation(() => {
-                return {
+                const chain = {
+                    insert: vi.fn().mockReturnThis(),
                     delete: vi.fn().mockReturnThis(),
-                    eq: vi.fn().mockResolvedValue({
-                        error: { message: 'Delete failed' },
-                    }),
+                    select: vi.fn().mockReturnThis(),
+                    eq: vi.fn().mockReturnThis(),
+                    single: vi.fn().mockResolvedValue({ data: { id: '123', name: 'Test' }, error: null }),
+                    then: vi.fn((resolve) => resolve({ error: { message: 'Delete failed' } }))
                 } as any;
+                chain.eq.mockReturnValue(chain);
+                return chain;
             });
 
             const { result } = renderHook(() => useCampaigns(), { wrapper });
@@ -409,12 +481,18 @@ describe('useCampaigns', () => {
                 if (table === 'campaigns') {
                     return {
                         select: vi.fn().mockReturnThis(),
+                        or: vi.fn().mockReturnThis(),
                         order: vi.fn().mockResolvedValue({ data: mockCampaigns, error: null }),
                     } as any;
                 }
                 if (table === 'ad_insights') {
                     return {
                         select: vi.fn().mockResolvedValue({ data: mockInsights, error: null }),
+                    } as any;
+                }
+                if (table === 'campaign_ads') {
+                    return {
+                        select: vi.fn().mockResolvedValue({ data: [], error: null }),
                     } as any;
                 }
                 return {} as any;
@@ -441,12 +519,18 @@ describe('useCampaigns', () => {
                 if (table === 'campaigns') {
                     return {
                         select: vi.fn().mockReturnThis(),
+                        or: vi.fn().mockReturnThis(),
                         order: vi.fn().mockResolvedValue({ data: mockCampaigns, error: null }),
                     } as any;
                 }
                 if (table === 'ad_insights') {
                     return {
                         select: vi.fn().mockResolvedValue({ data: mockInsights, error: null }),
+                    } as any;
+                }
+                if (table === 'campaign_ads') {
+                    return {
+                        select: vi.fn().mockResolvedValue({ data: [], error: null }),
                     } as any;
                 }
                 return {} as any;
@@ -468,3 +552,5 @@ describe('useCampaigns', () => {
         });
     });
 });
+
+

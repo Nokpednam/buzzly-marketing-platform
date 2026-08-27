@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test/utils/test-utils';
 import ProductUsage from '../ProductUsage';
-import { BrowserRouter } from 'react-router-dom';
+
 import * as OwnerMetricsHooks from '@/hooks/useOwnerMetrics';
 
 // Mock the hooks
@@ -81,11 +81,11 @@ describe('ProductUsage Page', () => {
         defaultOwnerMocks();
 
         render(
-            <BrowserRouter>
+            
                 <div id="root">
                     <ProductUsage />
                 </div>
-            </BrowserRouter>
+            
         );
 
         expect(screen.getByText(/Initializing Analytics Core.../i)).toBeInTheDocument();
@@ -101,11 +101,11 @@ describe('ProductUsage Page', () => {
         defaultOwnerMocks();
 
         render(
-            <BrowserRouter>
+            
                 <div id="root">
                     <ProductUsage />
                 </div>
-            </BrowserRouter>
+            
         );
 
         expect(screen.getByText(/No Usage Data Detected/i)).toBeInTheDocument();
@@ -141,11 +141,11 @@ describe('ProductUsage Page', () => {
         defaultOwnerMocks();
 
         render(
-            <BrowserRouter>
+            
                 <div id="root">
                     <ProductUsage />
                 </div>
-            </BrowserRouter>
+            
         );
 
         // Header
@@ -177,14 +177,15 @@ describe('ProductUsage Page', () => {
         defaultOwnerMocks();
 
         render(
-            <BrowserRouter>
+            
                 <div id="root">
                     <ProductUsage />
                 </div>
-            </BrowserRouter>
+            
         );
 
-        expect(screen.getByText(/Archetype Comparison/)).toBeInTheDocument();
+        expect(screen.getByText(/Most Active Segment/i)).toBeInTheDocument();
         expect(screen.getByTestId('tab-trigger-persona')).toBeInTheDocument();
     });
 });
+

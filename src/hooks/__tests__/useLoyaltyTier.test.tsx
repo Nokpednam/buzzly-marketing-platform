@@ -1,18 +1,52 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { useLoyaltyTier } from '../useLoyaltyTier';
+import { useLoyaltyTier, LoyaltyProvider } from '../useLoyaltyTier';
 import { supabase } from '@/integrations/supabase/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-// Mock Supabase client
-const mockSelect = vi.fn();
-const mockFrom = vi.fn(() => ({
-    select: mockSelect,
-    update: vi.fn(() => ({ eq: vi.fn() })),
-}));
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+    },
+});
+
+const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>
+        <LoyaltyProvider>{children}</LoyaltyProvider>
+    </QueryClientProvider>
+);
+
+const { mockSelect, mockFrom } = vi.hoisted(() => {
+    const defaultChain = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        update: vi.fn().mockReturnThis(),
+    };
+
+    const mockFrom = vi.fn((table: string) => {
+        return defaultChain;
+    });
+
+    return {
+        mockSelect: defaultChain.select,
+        mockFrom,
+    };
+});
 
 vi.mock('@/integrations/supabase/client', () => ({
     supabase: {
         from: mockFrom,
+        rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
+        channel: vi.fn(() => ({
+            on: vi.fn().mockReturnThis(),
+            subscribe: vi.fn(),
+        })),
+        removeChannel: vi.fn(),
         auth: {
             getUser: vi.fn(),
             onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
@@ -35,33 +69,43 @@ describe('useLoyaltyTier', () => {
         // Mock Auth
         vi.mocked(supabase.auth.getUser).mockResolvedValue({ data: { user } } as any);
 
-        // Mock Tiers fetch
-        mockSelect.mockReturnValueOnce({ // For loyalty_tiers (fetchAllTiers)
-            eq: vi.fn().mockReturnValue({
-                order: vi.fn().mockResolvedValue({ data: mockTiers, error: null })
-            })
-        });
-
-        // Mock Profile fetch
-        mockSelect.mockReturnValueOnce({ // For customer profile
-            eq: vi.fn().mockReturnValue({
-                single: vi.fn().mockResolvedValue({ data: profileData, error: null })
-            })
-        });
-
-        if (profileData && (profileData as any).loyalty_tier_id) {
-            // Mock Tier detail fetch if user has a tier
-            mockSelect.mockReturnValueOnce({
-                eq: vi.fn().mockReturnValue({
-                    single: vi.fn().mockResolvedValue({ data: tierData, error: null })
-                })
-            });
+        // Mock RPC
+        const point_balance = (profileData as any).loyalty_points_balance || 0;
+        if (tierData) {
+            vi.mocked(supabase.rpc).mockResolvedValue({ data: { tier: tierData, point_balance }, error: null } as any);
+        } else {
+            vi.mocked(supabase.rpc).mockResolvedValue({ data: null, error: null } as any);
         }
+
+        mockFrom.mockImplementation((table: string) => {
+            const chain = {
+                select: vi.fn().mockReturnThis(),
+                eq: vi.fn().mockReturnThis(),
+                order: vi.fn().mockReturnThis(),
+                limit: vi.fn().mockReturnThis(),
+                single: vi.fn().mockResolvedValue({ data: null, error: null }),
+                maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                update: vi.fn().mockReturnThis(),
+            };
+            
+            if (table === 'loyalty_tiers') {
+                chain.order = vi.fn().mockResolvedValue({ data: mockTiers, error: null });
+                chain.single = vi.fn().mockResolvedValue({ data: tierData, error: null });
+            }
+            if (table === 'profile_customers') {
+                chain.single = vi.fn().mockResolvedValue({ data: profileData, error: null });
+                chain.maybeSingle = vi.fn().mockResolvedValue({ data: { id: 'profile-id' }, error: null });
+            }
+            if (table === 'loyalty_points') {
+                chain.maybeSingle = vi.fn().mockResolvedValue({ data: { point_balance, loyalty_tiers: tierData }, error: null });
+            }
+            return chain;
+        });
     };
 
     it('should return initial state correctly', async () => {
         setupMocks({ id: 'u1' });
-        const { result } = renderHook(() => useLoyaltyTier());
+        const { result } = renderHook(() => useLoyaltyTier(), { wrapper });
 
         expect(result.current.loading).toBe(true);
 
@@ -81,7 +125,7 @@ describe('useLoyaltyTier', () => {
 
         setupMocks({ id: 'u1' }, mockProfile, mockTier);
 
-        const { result } = renderHook(() => useLoyaltyTier());
+        const { result } = renderHook(() => useLoyaltyTier(), { wrapper });
 
         await waitFor(() => {
             expect(result.current.userLoyalty?.points_balance).toBe(500);
@@ -98,7 +142,7 @@ describe('useLoyaltyTier', () => {
 
         setupMocks({ id: 'u1' }, mockProfile, mockTier);
 
-        const { result } = renderHook(() => useLoyaltyTier());
+        const { result } = renderHook(() => useLoyaltyTier(), { wrapper });
 
         await waitFor(() => {
             expect(result.current.getNextTier()?.name).toBe('Silver');
@@ -116,7 +160,7 @@ describe('useLoyaltyTier', () => {
 
         setupMocks({ id: 'u1' }, mockProfile, mockTier);
 
-        const { result } = renderHook(() => useLoyaltyTier());
+        const { result } = renderHook(() => useLoyaltyTier(), { wrapper });
 
         await waitFor(() => {
             expect(result.current.getProgressToNextTier()).toBe(50);
@@ -133,7 +177,7 @@ describe('useLoyaltyTier', () => {
 
         setupMocks({ id: 'u1' }, mockProfile, mockTier);
 
-        const { result } = renderHook(() => useLoyaltyTier());
+        const { result } = renderHook(() => useLoyaltyTier(), { wrapper });
 
         await waitFor(() => {
             // No tier > Gold (priority 3)
