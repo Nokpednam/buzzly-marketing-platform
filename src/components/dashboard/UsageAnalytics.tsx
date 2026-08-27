@@ -77,28 +77,24 @@ export function UsageAnalytics({ dateRange = "7d" }: UsageAnalyticsProps) {
               title="CTR"
               value={`${(metrics?.avgCtr || 0).toFixed(2)}%`}
               icon={Eye}
-              trend={{ value: 5.2, isPositive: true }}
               variant="success"
             />
             <StatsCard 
               title="CPC" 
               value={`$${(metrics?.avgCpc || 0).toFixed(2)}`} 
               icon={List} 
-              trend={{ value: 3.1, isPositive: false }} 
               variant="info" 
             />
             <StatsCard
               title="CPM"
               value={`$${(metrics?.avgCpm || 0).toFixed(2)}`}
               icon={Reply}
-              trend={{ value: 2.8, isPositive: true }}
               variant="primary"
             />
             <StatsCard
               title="ROAS"
               value={`${(metrics?.avgRoas || 0).toFixed(1)}x`}
               icon={CreditCard}
-              trend={{ value: 8.5, isPositive: true }}
               variant="warning"
             />
           </div>

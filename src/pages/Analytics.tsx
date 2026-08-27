@@ -173,6 +173,7 @@ function AnalyticsContent() {
           <p className="text-slate-500 max-w-xl">
             Cross-platform performance audit and predictive growth metrics.
           </p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Sample advertising data</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="bg-muted/50 p-1 rounded-xl flex items-center gap-2 border">

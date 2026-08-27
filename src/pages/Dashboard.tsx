@@ -159,6 +159,7 @@ export default function Dashboard() {
               ? `${connectedPlatforms.length} platforms connected`
               : connectedPlatforms.find((p) => p.id === selectedPlatform)?.name ?? "Platform"}
           </p>
+          <p className="text-xs text-muted-foreground/70 mt-0.5">Sample advertising data</p>
         </div>
         <div className="flex items-center gap-2">
           <Select value={dateRange} onValueChange={setDateRange}>
