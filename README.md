@@ -76,14 +76,18 @@ npm run dev
 ```
 
 ## Platform Showcase
-*Dashboard*
-<img src="docs/screenshots/dashboard.png" width="800" alt="Dashboard" />
 
-*Analytics Hub*
-<img src="docs/screenshots/analytics-hub.png" width="800" alt="Analytics Hub" />
+*Main Dashboard*
+<img src="docs/screenshots/dashboard.png" width="800" alt="Main Dashboard" />
 
-*Owner Portal*
+*Customer Reward Center*
+<img src="docs/screenshots/rewards-center.png" width="800" alt="Customer Reward Center" />
+
+*Support Portal (Tier Management)*
+<img src="docs/screenshots/role-support.png" width="800" alt="Support Portal" />
+
+*Owner Portal (Business Oversight)*
 <img src="docs/screenshots/role-owner.png" width="800" alt="Owner Portal" />
 
-*Reward Center*
-<img src="docs/screenshots/rewards-center.png" width="800" alt="Customer Portal" />
+*Developer Portal (System Monitoring)*
+<img src="docs/screenshots/role-dev.png" width="800" alt="Developer Portal" />
