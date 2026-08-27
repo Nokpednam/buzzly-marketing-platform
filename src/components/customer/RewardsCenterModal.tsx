@@ -1,22 +1,13 @@
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useCustomerRewards } from "@/hooks/useCustomerRewards";
 import { useLoyaltyTier } from "@/hooks/useLoyaltyTier";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import { Gift, Star, Loader2, PackageOpen, Copy } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Gift, Star, PackageOpen } from "lucide-react";
 import { type RewardItem } from "@/hooks/useRewardsManagement";
-import { toast } from "sonner";
+import { RewardCard } from "./RewardCard";
+import { RewardRedemptionDialog } from "./RewardRedemptionDialog";
 
 interface RewardsCenterModalProps {
     open: boolean;
@@ -24,59 +15,12 @@ interface RewardsCenterModalProps {
 }
 
 export function RewardsCenterModal({ open, onOpenChange }: RewardsCenterModalProps) {
-    const queryClient = useQueryClient();
-    const { catalog, campaigns, stats, completedRules, redeemReward } = useCustomerRewards();
+    const { catalog } = useCustomerRewards();
     const { userLoyalty } = useLoyaltyTier();
     const [selectedReward, setSelectedReward] = useState<RewardItem | null>(null);
 
     const handleRedeemClick = (reward: RewardItem) => {
         setSelectedReward(reward);
-    };
-
-    const confirmRedeem = async () => {
-        if (!selectedReward) return;
-
-        try {
-            const result = await redeemReward.mutateAsync(selectedReward);
-
-            // Refresh all coupon lists so status is globally in sync
-            queryClient.invalidateQueries({ queryKey: ["user-redeemed-coupons"] });
-            queryClient.invalidateQueries({ queryKey: ["customer_coupons"] });
-            queryClient.invalidateQueries({ queryKey: ["loyalty-points"] });
-            queryClient.invalidateQueries({ queryKey: ["customer_notifications"] });
-
-            // Show a rich toast with the generated coupon code
-            const couponCode = (result as any)?.coupon_code;
-            if (couponCode) {
-                toast.success(
-                    <div className="space-y-2">
-                        <p className="font-bold">🎉 Reward Redeemed!</p>
-                        <div className="flex items-center gap-2">
-                            <code className="font-mono font-black tracking-widest bg-black/10 px-2 py-0.5 rounded text-sm">
-                                {couponCode}
-                            </code>
-                            <button
-                                onClick={() => {
-                                    navigator.clipboard.writeText(couponCode);
-                                    toast.info("Copied to clipboard!");
-                                }}
-                                className="text-white/80 hover:text-white"
-                            >
-                                <Copy className="h-3.5 w-3.5" />
-                            </button>
-                        </div>
-                        <p className="text-xs opacity-80">Check bell 🔔 for your code anytime</p>
-                    </div>,
-                    { duration: 7000 }
-                );
-            } else {
-                toast.success("Reward redeemed! Check your notification bell for your code.");
-            }
-        } catch {
-            // Error toast is handled by useCustomerRewards hook
-        }
-
-        setSelectedReward(null);
     };
 
     const isLoading = catalog.isLoading || !userLoyalty;
@@ -147,81 +91,18 @@ export function RewardsCenterModal({ open, onOpenChange }: RewardsCenterModalPro
                                     <PackageOpen className="w-5 h-5 text-primary" /> Rewards Catalog
                                 </h3>
                                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {catalog.data?.map((reward) => {
-                                        const canAfford = pointBalance >= reward.points_cost;
-                                        const isOutOfStock =
-                                            reward.stock_quantity !== null && reward.stock_quantity <= 0;
-                                        const isDisabled = !canAfford || isOutOfStock;
-
-                                        return (
-                                            <Card
-                                                key={reward.id}
-                                                className="overflow-hidden border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-200 group"
-                                            >
-                                                <div className="aspect-[2/1] bg-muted/30 relative">
-                                                    {reward.image_url ? (
-                                                        <img
-                                                            src={reward.image_url}
-                                                            alt={reward.name}
-                                                            className="w-full h-full object-cover"
-                                                        />
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
-                                                            <Gift className="w-10 h-10" />
-                                                        </div>
-                                                    )}
-                                                    <div className="absolute top-2 right-2">
-                                                        <Badge
-                                                            variant="secondary"
-                                                            className="bg-background/80 backdrop-blur-sm border-none shadow-sm font-bold"
-                                                        >
-                                                            {reward.points_cost.toLocaleString()} pts
-                                                        </Badge>
-                                                    </div>
-                                                </div>
-                                                <CardContent className="p-4">
-                                                    <div className="flex justify-between items-start mb-1">
-                                                        <h4 className="font-bold group-hover:text-primary transition-colors">
-                                                            {reward.name}
-                                                        </h4>
-                                                        <Badge variant="outline" className="text-[10px] uppercase shrink-0">
-                                                            {reward.reward_type}
-                                                        </Badge>
-                                                    </div>
-                                                    <p className="text-sm text-muted-foreground line-clamp-2 min-h-[36px]">
-                                                        {reward.description}
-                                                    </p>
-                                                    {reward.stock_quantity !== null && (
-                                                        <p className="text-xs font-bold mt-3 text-slate-500">
-                                                            Remaining:{" "}
-                                                            <span className={reward.stock_quantity < 10 ? "text-red-500" : ""}>
-                                                                {reward.stock_quantity}
-                                                            </span>{" "}
-                                                            left
-                                                        </p>
-                                                    )}
-                                                </CardContent>
-                                                <CardFooter className="px-4 pb-4 pt-0">
-                                                    <Button
-                                                        className="w-full"
-                                                        variant={canAfford && !isOutOfStock ? "default" : "secondary"}
-                                                        disabled={isDisabled}
-                                                        onClick={() => handleRedeemClick(reward)}
-                                                    >
-                                                        {isOutOfStock
-                                                            ? "Out of Stock"
-                                                            : !canAfford
-                                                                ? "Insufficient Points"
-                                                                : "Redeem Now"}
-                                                    </Button>
-                                                </CardFooter>
-                                            </Card>
-                                        );
-                                    })}
+                                    {catalog.data?.map((reward) => (
+                                        <RewardCard 
+                                            key={reward.id} 
+                                            reward={reward} 
+                                            pointBalance={pointBalance} 
+                                            onRedeem={handleRedeemClick} 
+                                        />
+                                    ))}
 
                                     {catalog.data?.length === 0 && (
                                         <div className="col-span-full py-16 text-center text-muted-foreground border-2 border-dashed rounded-xl">
-                                            ไม่มีของรางวัลให้แลกในขณะนี้
+                                            No rewards are available right now.
                                         </div>
                                     )}
                                 </div>
@@ -231,61 +112,11 @@ export function RewardsCenterModal({ open, onOpenChange }: RewardsCenterModalPro
                 </DialogContent>
             </Dialog>
 
-            {/* Redemption Confirmation Dialog */}
-            <Dialog open={!!selectedReward} onOpenChange={(open) => !open && setSelectedReward(null)}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <Gift className="w-5 h-5 text-primary" /> Confirm Redemption
-                        </DialogTitle>
-                        <DialogDescription>
-                            ยืนยันการใช้คะแนนสะสมเพื่อแลกรับ &ldquo;{selectedReward?.name}&rdquo;
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="py-6">
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center p-4 bg-muted/50 rounded-lg">
-                                <span className="text-muted-foreground text-sm font-medium">ปัจจุบัน</span>
-                                <span className="font-bold">{pointBalance.toLocaleString()} pts</span>
-                            </div>
-                            <div className="flex justify-between items-center px-4">
-                                <span className="text-muted-foreground text-xs uppercase tracking-widest font-bold">
-                                    ใช้ไป
-                                </span>
-                                <span className="font-black text-amber-600 text-lg">
-                                    -{selectedReward?.points_cost.toLocaleString()} pts
-                                </span>
-                            </div>
-
-                            <div className="h-px bg-border/50 my-2" />
-
-                            <div className="flex justify-between items-center p-4 bg-primary/5 rounded-lg border border-primary/10">
-                                <span className="text-primary font-bold">คงเหลือ</span>
-                                <span className="font-bold text-primary">
-                                    {Math.max(0, pointBalance - (selectedReward?.points_cost ?? 0)).toLocaleString()} pts
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                            <p className="text-xs text-amber-700 font-semibold text-center">
-                                🎟️ A unique discount code will be generated instantly and sent to your notification bell.
-                            </p>
-                        </div>
-                    </div>
-
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setSelectedReward(null)}>
-                            ยกเลิก
-                        </Button>
-                        <Button onClick={confirmRedeem} disabled={redeemReward.isPending}>
-                            {redeemReward.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            ยืนยันการแลกรางวัล
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <RewardRedemptionDialog 
+                selectedReward={selectedReward} 
+                pointBalance={pointBalance} 
+                onClose={() => setSelectedReward(null)} 
+            />
         </>
     );
 }
