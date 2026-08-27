@@ -1,11 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
-import {
-  USE_MOCK_DATA,
-  MOCK_AD_INSIGHTS,
-  getMockInsights,
-} from "@/lib/mock-api-data";
+
 
 export type AdInsight = Database["public"]["Tables"]["ad_insights"]["Row"];
 
@@ -93,34 +89,8 @@ export function useAdInsights(
       dateRange,
       activePlatforms,
       adGroupId,
-      USE_MOCK_DATA ? "mock" : "live",
     ],
     queryFn: async () => {
-      // ── MOCK MODE ────────────────────────────────────────────────────────
-      if (USE_MOCK_DATA) {
-        if (activePlatforms && activePlatforms.length === 0) return [];
-
-        let rows = getMockInsights(workspaceId) as Array<AdInsight & { ad_group_id?: string | null }>;
-
-        const dateFilter = getDateFilter();
-        if (dateFilter) {
-          rows = rows.filter((r) => r.date >= dateFilter);
-        }
-
-        if (activePlatforms && activePlatforms.length > 0) {
-          // Mock account IDs encode the platform: "mock-acc-shop-a-facebook"
-          rows = rows.filter((r) =>
-            activePlatforms.some((p) => r.ad_account_id?.includes(p)),
-          );
-        }
-
-        if (adGroupId) {
-          rows = rows.filter((r) => r.ad_group_id === adGroupId);
-        }
-
-        return rows.map((row) => normalizeInsightMetrics(row as AdInsight));
-      }
-
       // ── LIVE MODE ────────────────────────────────────────────────────────
       if (activePlatforms && activePlatforms.length === 0) return [];
 
@@ -221,31 +191,9 @@ export interface CampaignDailyInsight {
  */
 export function useCampaignInsights(campaignId: string | null | undefined) {
   const { data: dailyInsights = [], isLoading } = useQuery({
-    queryKey: ["campaign_insights", campaignId, USE_MOCK_DATA ? "mock" : "live"],
+    queryKey: ["campaign_insights", campaignId],
     enabled: !!campaignId,
     queryFn: async () => {
-      // ── MOCK MODE ──────────────────────────────────────────────────────
-      if (USE_MOCK_DATA) {
-        const rows = MOCK_AD_INSIGHTS.filter(
-          (r) => r.campaign_id === campaignId || r.campaign_id === `mock-campaign-${campaignId}`,
-        );
-
-        const byDate = new Map<string, CampaignDailyInsight>();
-        for (const row of rows) {
-          const key = row.date;
-          if (!byDate.has(key)) {
-            byDate.set(key, { date: key, impressions: 0, reach: 0, clicks: 0, conversions: 0, spend: 0 });
-          }
-          const entry = byDate.get(key)!;
-          entry.impressions += row.impressions || 0;
-          entry.reach += row.reach || 0;
-          entry.clicks += row.clicks || 0;
-          entry.conversions += row.conversions || 0;
-          entry.spend += Number(row.spend || 0);
-        }
-        return Array.from(byDate.values());
-      }
-
       // ── LIVE MODE ──────────────────────────────────────────────────────
       // Two paths (same as useCampaigns): (1) direct campaign_id, (2) via campaign_ads → ads_id
       // Use only one path to avoid double-counting; prefer direct when present
