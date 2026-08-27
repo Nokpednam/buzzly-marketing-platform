@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@/test/utils/test-utils';
 import CustomerTiers from '../CustomerTiers';
-import { BrowserRouter } from 'react-router-dom';
+
 import { supabase } from '@/integrations/supabase/client';
 
 // Mock Supabase
@@ -9,6 +9,10 @@ vi.mock('@/integrations/supabase/client', () => ({
     supabase: {
         from: vi.fn(),
     },
+}));
+
+vi.mock('@/hooks/useWorkspace', () => ({
+    useWorkspace: () => ({ workspace: { id: 'test-workspace' } })
 }));
 
 // Mock Recharts
@@ -33,9 +37,9 @@ describe('CustomerTiers Page', () => {
         } as any);
 
         render(
-            <BrowserRouter>
+            
                 <CustomerTiers />
-            </BrowserRouter>
+            
         );
 
         expect(screen.getByText(/Loading tier analytics.../i)).toBeInTheDocument();
@@ -91,16 +95,31 @@ describe('CustomerTiers Page', () => {
             if (table === 'payment_transactions') {
                 return {
                     select: vi.fn().mockReturnThis(),
+                    gte: vi.fn().mockReturnThis(),
+                    lte: vi.fn().mockReturnThis(),
                     order: vi.fn().mockResolvedValue({ data: mockTxs, error: null })
+                } as any;
+            }
+            if (table === 'tier_history') {
+                return {
+                    select: vi.fn().mockReturnThis(),
+                    order: vi.fn().mockResolvedValue({ data: [], error: null })
+                } as any;
+            }
+            if (table === 'discounts') {
+                return {
+                    select: vi.fn().mockReturnThis(),
+                    eq: vi.fn().mockReturnThis(),
+                    order: vi.fn().mockResolvedValue({ data: [], error: null })
                 } as any;
             }
             return {} as any;
         });
 
         render(
-            <BrowserRouter>
+            
                 <CustomerTiers />
-            </BrowserRouter>
+            
         );
 
         // Wait for Loading to disappear
@@ -111,12 +130,23 @@ describe('CustomerTiers Page', () => {
         expect(screen.getByText('Customer Tiers')).toBeInTheDocument();
         // Check Summary Cards
         // Total Customers: 2
-        // Total Revenue: 15500 => 0.02M roughly or check exact number if formatted
-        // 15500 / 1,000,000 = 0.0155 => 0.02M
-        expect(screen.getByText(/0.02M/i)).toBeInTheDocument();
+        // Total Revenue: 15500 => 16K roughly
+        // 15500 / 1000 = 15.5 => 16K
+        expect(screen.getByText(/16K/i)).toBeInTheDocument();
 
-        // Check Platinum Count: 1
-        expect(screen.getByText('1', { selector: '.text-4xl' })).toBeInTheDocument(); // Might be ambitious selector
+        // Check Platinum Distribution Count
+        // 1. Locate the tier distribution section by its unique description
+        const distributionDesc = screen.getByText('Members segmented by loyalty tier');
+        
+        // 2. Traverse up to the card root which acts as the logical container for the section
+        const distributionSection = distributionDesc.parentElement?.parentElement as HTMLElement;
+        
+        // 3. Scope the query to this section
+        const platinumLabel = within(distributionSection).getByText('Platinum');
+        
+        // 4. The parent flex container holds both the value and label
+        const platinumContainer = platinumLabel.parentElement as HTMLElement;
+        expect(platinumContainer).toHaveTextContent('1');
 
         // Check List of Top Performers
         expect(screen.getByText('Jane Smith')).toBeInTheDocument();
@@ -127,3 +157,4 @@ describe('CustomerTiers Page', () => {
         expect(screen.getByText('Platinum')).toBeInTheDocument();
     });
 });
+

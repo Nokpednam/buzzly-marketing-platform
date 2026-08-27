@@ -1,18 +1,40 @@
 
 import { describe, it, expect, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor } from '@/test/utils/test-utils';
 import { useFunnelData } from '../useFunnelData';
 import { supabase } from '../../integrations/supabase/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+vi.mock('@/hooks/useLoyaltyTier', async (importOriginal) => {
+    const original = await importOriginal<typeof import('@/hooks/useLoyaltyTier')>();
+    return {
+        ...original,
+        useLoyaltyTier: () => ({
+            userLoyalty: null,
+            allTiers: [],
+            missions: [],
+            loading: false,
+            error: null,
+            getNextTier: () => null,
+            getProgressToNextTier: () => 0,
+            completedCount: 0,
+            totalMissions: 0,
+            totalPoints: 0,
+            earnedPoints: 0,
+            refetch: vi.fn().mockResolvedValue(undefined),
+        }),
+    };
+});
+
 // Mock Supabase client
 vi.mock('../../integrations/supabase/client', () => ({
     supabase: {
-        from: vi.fn(() => ({
-            select: vi.fn(),
-            order: vi.fn(),
-            limit: vi.fn(),
-        })),
+        from: vi.fn(),
+        rpc: vi.fn().mockResolvedValue({ data: null, error: new Error('rpc not implemented') }),
+        auth: {
+            getUser: vi.fn(),
+            onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+        },
     },
 }));
 
@@ -124,6 +146,7 @@ describe('useFunnelData', () => {
         const { result } = renderHook(() => useFunnelData("30d"), { wrapper });
 
         await waitFor(() => expect(result.current.isLoading).toBe(false));
+        console.log("FUNNEL TEST RESULT:", result.current);
 
         const stages = result.current.funnelStages;
 
@@ -159,3 +182,5 @@ describe('useFunnelData', () => {
         expect(stages[2].value).toBeGreaterThanOrEqual(0);
     });
 });
+
+

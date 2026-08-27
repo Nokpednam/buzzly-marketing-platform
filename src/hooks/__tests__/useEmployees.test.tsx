@@ -9,6 +9,9 @@ import type { ReactNode } from 'react';
 vi.mock('@/integrations/supabase/client', () => ({
     supabase: {
         from: vi.fn(),
+        auth: {
+            getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'admin1' } } }),
+        },
     },
 }));
 
@@ -50,6 +53,8 @@ describe('useEmployees', () => {
                     is_locked: false,
                     created_at: '2024-01-01',
                     updated_at: '2024-01-01',
+                    profile: [{ id: 'profile1', first_name: 'John', last_name: 'Doe', aptitude: 'Developer' }],
+                    role: [{ id: 'role1', role_name: 'Developer', description: 'Software Developer' }]
                 },
             ];
 
@@ -105,7 +110,14 @@ describe('useEmployees', () => {
                         }),
                     } as any;
                 }
-                return {} as any;
+                return {
+                    insert: vi.fn().mockReturnThis(),
+                    select: vi.fn().mockReturnThis(),
+                    update: vi.fn().mockReturnThis(),
+                    delete: vi.fn().mockReturnThis(),
+                    eq: vi.fn().mockReturnThis(),
+                    single: vi.fn().mockResolvedValue({ data: null, error: null }),
+                } as any;
             });
 
             const { result } = renderHook(() => useEmployees(), { wrapper });
@@ -177,7 +189,14 @@ describe('useEmployees', () => {
                         }),
                     } as any;
                 }
-                return {} as any;
+                return {
+                    insert: vi.fn().mockReturnThis(),
+                    select: vi.fn().mockReturnThis(),
+                    update: vi.fn().mockReturnThis(),
+                    delete: vi.fn().mockReturnThis(),
+                    eq: vi.fn().mockReturnThis(),
+                    single: vi.fn().mockResolvedValue({ data: null, error: null }),
+                } as any;
             });
 
             const { result } = renderHook(() => useEmployees(), { wrapper });
@@ -256,7 +275,14 @@ describe('useEmployees', () => {
                         }),
                     } as any;
                 }
-                return {} as any;
+                return {
+                    insert: vi.fn().mockReturnThis(),
+                    select: vi.fn().mockReturnThis(),
+                    update: vi.fn().mockReturnThis(),
+                    delete: vi.fn().mockReturnThis(),
+                    eq: vi.fn().mockReturnThis(),
+                    single: vi.fn().mockResolvedValue({ data: null, error: null }),
+                } as any;
             });
 
             const { result } = renderHook(() => useEmployees(), { wrapper });
@@ -317,6 +343,8 @@ describe('useEmployees', () => {
 
             vi.mocked(supabase.from).mockImplementation(() => {
                 return {
+                    insert: vi.fn().mockReturnThis(),
+                    select: vi.fn().mockReturnThis(),
                     update: vi.fn().mockReturnThis(),
                     eq: vi.fn().mockResolvedValue({
                         error: null,
@@ -347,6 +375,8 @@ describe('useEmployees', () => {
 
             vi.mocked(supabase.from).mockImplementation(() => {
                 return {
+                    insert: vi.fn().mockReturnThis(),
+                    select: vi.fn().mockReturnThis(),
                     update: vi.fn().mockReturnThis(),
                     eq: vi.fn().mockResolvedValue({
                         error: null,
@@ -374,6 +404,8 @@ describe('useEmployees', () => {
 
             vi.mocked(supabase.from).mockImplementation(() => {
                 return {
+                    insert: vi.fn().mockReturnThis(),
+                    select: vi.fn().mockReturnThis(),
                     delete: vi.fn().mockReturnThis(),
                     eq: vi.fn().mockResolvedValue({
                         error: null,
@@ -400,12 +432,16 @@ describe('useEmployees', () => {
             const employeeId = '123';
 
             vi.mocked(supabase.from).mockImplementation(() => {
-                return {
+                const chain = {
+                    select: vi.fn().mockReturnThis(),
                     update: vi.fn().mockReturnThis(),
-                    eq: vi.fn().mockResolvedValue({
-                        error: null,
-                    }),
+                    insert: vi.fn().mockReturnThis(),
+                    eq: vi.fn().mockReturnThis(),
+                    single: vi.fn().mockResolvedValue({ data: { email: 'test@test.com', user_id: 'u1' }, error: null }),
+                    then: vi.fn((resolve) => resolve({ error: null }))
                 } as any;
+                chain.eq.mockReturnValue(chain);
+                return chain;
             });
 
             const { result } = renderHook(() => useEmployees(), { wrapper });
@@ -417,6 +453,7 @@ describe('useEmployees', () => {
             result.current.suspendEmployee.mutate(employeeId);
 
             await waitFor(() => {
+                if (result.current.suspendEmployee.error) console.error("SUSPEND ERROR:", result.current.suspendEmployee.error);
                 expect(result.current.suspendEmployee.isSuccess).toBe(true);
             });
         });
@@ -425,12 +462,16 @@ describe('useEmployees', () => {
             const employeeId = '123';
 
             vi.mocked(supabase.from).mockImplementation(() => {
-                return {
+                const chain = {
+                    insert: vi.fn().mockReturnThis(),
+                    select: vi.fn().mockReturnThis(),
                     update: vi.fn().mockReturnThis(),
-                    eq: vi.fn().mockResolvedValue({
-                        error: null,
-                    }),
+                    eq: vi.fn().mockReturnThis(),
+                    single: vi.fn().mockResolvedValue({ data: { email: 'test@test.com', user_id: 'u1' }, error: null }),
+                    then: vi.fn((resolve) => resolve({ error: null }))
                 } as any;
+                chain.eq.mockReturnValue(chain);
+                return chain;
             });
 
             const { result } = renderHook(() => useEmployees(), { wrapper });
@@ -455,12 +496,15 @@ describe('useEmployees', () => {
             };
 
             vi.mocked(supabase.from).mockImplementation(() => {
-                return {
+                const chain = {
+                    select: vi.fn().mockReturnThis(),
                     update: vi.fn().mockReturnThis(),
-                    eq: vi.fn().mockResolvedValue({
-                        error: null,
-                    }),
+                    eq: vi.fn().mockReturnThis(),
+                    single: vi.fn().mockResolvedValue({ data: { email: 'test@test.com', user_id: 'u1' }, error: null }),
+                    then: vi.fn((resolve) => resolve({ error: null }))
                 } as any;
+                chain.eq.mockReturnValue(chain);
+                return chain;
             });
 
             const { result } = renderHook(() => useEmployees(), { wrapper });
@@ -480,8 +524,8 @@ describe('useEmployees', () => {
     describe('Edge Cases', () => {
         it('should handle multiple employees with same role', async () => {
             const mockEmployees = [
-                { id: '1', email: 'user1@test.com', role_employees_id: 'role1', status: 'active', approval_status: 'approved', is_locked: false, user_id: null, created_at: '2024-01-01', updated_at: '2024-01-01' },
-                { id: '2', email: 'user2@test.com', role_employees_id: 'role1', status: 'active', approval_status: 'approved', is_locked: false, user_id: null, created_at: '2024-01-01', updated_at: '2024-01-01' },
+                { id: '1', email: 'emp1@test.com', status: 'active', profile: [], role: [{ id: 'role1', role_name: 'Developer' }] },
+                { id: '2', email: 'emp2@test.com', status: 'inactive', profile: [], role: [{ id: 'role1', role_name: 'Developer' }] },
             ];
 
             const mockRoles = [
@@ -508,7 +552,14 @@ describe('useEmployees', () => {
                         order: vi.fn().mockResolvedValue({ data: mockRoles, error: null }),
                     } as any;
                 }
-                return {} as any;
+                return {
+                    insert: vi.fn().mockReturnThis(),
+                    select: vi.fn().mockReturnThis(),
+                    update: vi.fn().mockReturnThis(),
+                    delete: vi.fn().mockReturnThis(),
+                    eq: vi.fn().mockReturnThis(),
+                    single: vi.fn().mockResolvedValue({ data: null, error: null }),
+                } as any;
             });
 
             const { result } = renderHook(() => useEmployees(), { wrapper });

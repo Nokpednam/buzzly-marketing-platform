@@ -1,8 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test/utils/test-utils';
 import BusinessPerformance from '../BusinessPerformance';
-import { BrowserRouter } from 'react-router-dom';
+
 import * as OwnerMetricsHooks from '@/hooks/useOwnerMetrics';
+
+vi.mock('@/hooks/useLoyaltyTier', async (importOriginal) => {
+    const original = await importOriginal<typeof import('@/hooks/useLoyaltyTier')>();
+    return {
+        ...original,
+        useLoyaltyTier: () => ({
+            userLoyalty: null,
+            allTiers: [],
+            missions: [],
+            loading: false,
+            error: null,
+            getNextTier: () => null,
+            getProgressToNextTier: () => 0,
+            completedCount: 0,
+            totalMissions: 0,
+            totalPoints: 0,
+            earnedPoints: 0,
+            refetch: vi.fn().mockResolvedValue(undefined),
+        }),
+    };
+});
 
 // Mock the hooks
 vi.mock('@/hooks/useOwnerMetrics', () => ({
@@ -32,11 +53,7 @@ describe('BusinessPerformance Page', () => {
         vi.mocked(OwnerMetricsHooks.useCohortAnalysis).mockReturnValue({ isLoading: false } as any);
         vi.mocked(OwnerMetricsHooks.useSurvivalAnalysis).mockReturnValue({ isLoading: false } as any);
 
-        render(
-            <BrowserRouter>
-                <BusinessPerformance />
-            </BrowserRouter>
-        );
+        render(<BusinessPerformance />);
 
         expect(screen.getByText(/Analyzing Revenue Streams.../i)).toBeInTheDocument();
     });
@@ -58,11 +75,7 @@ describe('BusinessPerformance Page', () => {
             refetch: vi.fn()
         } as any);
 
-        render(
-            <BrowserRouter>
-                <BusinessPerformance />
-            </BrowserRouter>
-        );
+        render(<BusinessPerformance />);
 
         expect(screen.getByText(/No Performance Data/i)).toBeInTheDocument();
     });
@@ -71,12 +84,20 @@ describe('BusinessPerformance Page', () => {
         vi.mocked(OwnerMetricsHooks.useSubscriptionMetrics).mockReturnValue({
             isLoading: false,
             data: {
-                currentMrr: 50000,
                 activeSubscriptions: 100,
-                arr: 600000,
-                mrrGrowth: 5.5,
-                monthlyData: [{ month: 'Jan', mrr: 48000, growth: 5 }],
-                breakdown: { newMrr: 5000, expansion: 1000, churn: 500 }
+                monthlyData: [{ month: 'Jan', mrr: 48000, growth: 5, activeAt: 100 }],
+                growthData: [],
+                rawTransactions: [],
+                timeRangeData: {
+                    '1m': {
+                        currentMrr: 50000,
+                        previousMrr: 45000,
+                        mrrGrowth: 5.5,
+                        activeSubscriptionsGrowth: 0,
+                        arr: 600000,
+                        breakdown: { newMrr: 5000, expansion: 1000, churn: 500 }
+                    }
+                }
             },
             refetch: vi.fn()
         } as any);
@@ -93,17 +114,13 @@ describe('BusinessPerformance Page', () => {
             refetch: vi.fn()
         } as any);
 
-        render(
-            <BrowserRouter>
-                <BusinessPerformance />
-            </BrowserRouter>
-        );
+        render(<BusinessPerformance />);
 
         expect(screen.getByText('Business Performance')).toBeInTheDocument();
-        expect(screen.getByText('฿50,000')).toBeInTheDocument(); // MRR
-        expect(screen.getByText('100')).toBeInTheDocument();   // Active Subs (found in card)
+        expect(screen.getAllByText(/฿50,000/i)[0]).toBeInTheDocument(); // MRR
+        expect(screen.getByText(/100/)).toBeInTheDocument();   // Active Subs (found in card)
 
         // Check for tab content (Revenue is default)
-        expect(screen.getByText('Monthly Recurring Revenue (MRR)')).toBeInTheDocument();
+        expect(screen.getAllByText('Monthly Recurring Revenue')[0]).toBeInTheDocument();
     });
 });

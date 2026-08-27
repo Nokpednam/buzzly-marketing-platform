@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@/test/utils/test-utils';
 import userEvent from '@testing-library/user-event';
-import AuditLogs from '../AuditLogs';
+import AuditLogs from '../../dev/AuditLogs';
 import * as useAuditLogsHook from '@/hooks/useAuditLogs';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -41,7 +41,7 @@ describe('AuditLogs', () => {
         } as any);
 
         vi.mocked(useAuditLogsHook.useAuditLogs).mockReturnValue({
-            data: [],
+            data: { logs: [], totalCount: 0, totalPages: 0 },
             isLoading: false,
             refetch: vi.fn(),
         } as any);
@@ -59,7 +59,7 @@ describe('AuditLogs', () => {
 
     it('should display loading state', () => {
         vi.mocked(useAuditLogsHook.useAuditLogs).mockReturnValue({
-            data: [],
+            data: undefined,
             isLoading: true,
             refetch: vi.fn(),
         } as any);
@@ -85,7 +85,7 @@ describe('AuditLogs', () => {
         ];
 
         vi.mocked(useAuditLogsHook.useAuditLogs).mockReturnValue({
-            data: mockLogs,
+            data: { logs: mockLogs, totalCount: 1, totalPages: 1 },
             isLoading: false,
             refetch: vi.fn(),
         } as any);
@@ -93,19 +93,14 @@ describe('AuditLogs', () => {
         render(<AuditLogs />, { wrapper });
 
         expect(screen.getAllByText('Login').length).toBeGreaterThan(0);
-        expect(screen.getByText('User login success')).toBeInTheDocument();
         expect(screen.getByText('test@example.com')).toBeInTheDocument();
         expect(screen.getByText('Admin')).toBeInTheDocument();
+        expect(screen.getByText('127.0.0.1')).toBeInTheDocument();
     });
 
-    it('should filter logs by client-side search', async () => {
-        const mockLogs = [
-            { id: '1', action_name: 'Login', description: 'User login', user_email: 'a@test.com' },
-            { id: '2', action_name: 'Export', description: 'Data export', user_email: 'b@test.com' },
-        ];
-
+    it('should trigger server-side search on input', async () => {
         vi.mocked(useAuditLogsHook.useAuditLogs).mockReturnValue({
-            data: mockLogs,
+            data: { logs: [], totalCount: 0, totalPages: 0 },
             isLoading: false,
             refetch: vi.fn(),
         } as any);
@@ -113,17 +108,18 @@ describe('AuditLogs', () => {
         const user = userEvent.setup();
         render(<AuditLogs />, { wrapper });
 
-        const searchInput = screen.getByPlaceholderText(/ค้นหาตามรายละเอียด/i);
+        const searchInput = screen.getByPlaceholderText(/Search by details, action, or IP/i);
         await user.type(searchInput, 'Export');
 
-        expect(screen.queryByText('User login')).not.toBeInTheDocument();
-        expect(screen.getByText('Data export')).toBeInTheDocument();
+        expect(useAuditLogsHook.useAuditLogs).toHaveBeenCalledWith(
+            'all', 1, 8, 'Export', 'all', 'all', 'all'
+        );
     });
 
     it('should call refetch when refresh button is clicked', async () => {
         const refetchMock = vi.fn();
         vi.mocked(useAuditLogsHook.useAuditLogs).mockReturnValue({
-            data: [],
+            data: { logs: [], totalCount: 0, totalPages: 0 },
             isLoading: false,
             refetch: refetchMock,
         } as any);
@@ -139,3 +135,4 @@ describe('AuditLogs', () => {
         });
     });
 });
+

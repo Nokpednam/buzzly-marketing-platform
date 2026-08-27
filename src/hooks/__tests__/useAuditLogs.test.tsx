@@ -9,7 +9,8 @@ import type { ReactNode } from 'react';
 vi.mock('@/integrations/supabase/client', () => ({
     supabase: {
         from: vi.fn(),
-    },
+        rpc: vi.fn(),
+    }
 }));
 
 describe('useAuditLogs', () => {
@@ -33,77 +34,37 @@ describe('useAuditLogs', () => {
             const mockLogs = [
                 {
                     id: '1',
-                    user_id: 'user1',
-                    action_type_id: 'action1',
+                    user_email: 'employee@example.com',
+                    user_role: 'Admin',
                     description: 'User logged in',
                     category: 'authentication',
                     status: 'success',
-                    created_at: '2024-01-01',
-                    action_type: { action_name: 'Login' },
-                    metadata: {}
                 },
                 {
                     id: '2',
-                    user_id: 'customer1',
-                    action_type_id: 'action2',
+                    user_email: 'customer@example.com',
+                    user_role: 'Customer',
                     description: 'Customer action',
                     category: 'data',
                     status: 'success',
-                    created_at: '2024-01-02',
-                    action_type: { action_name: 'Export' },
-                    metadata: {}
                 },
             ];
 
-            const mockEmployees = [
-                {
-                    user_id: 'user1',
-                    email: 'employee@example.com',
-                    role_employees: { role_name: 'Admin' }
-                }
-            ];
-
-            const mockCustomers = [
-                {
-                    id: 'customer1',
-                    email: 'customer@example.com',
-                    full_name: 'John Customer'
-                }
-            ];
-
-            // Mock query chain
             const mockQueryBuilder = {
-                select: vi.fn(),
+                select: vi.fn().mockReturnThis(),
                 order: vi.fn().mockReturnThis(),
                 limit: vi.fn().mockReturnThis(),
                 eq: vi.fn().mockReturnThis(),
                 in: vi.fn().mockReturnThis(),
-                then: (onfulfilled: any) => Promise.resolve({ data: mockLogs, error: null }).then(onfulfilled)
-            };
-
-            // Mock employees query
-            const mockEmployeesQuery = {
-                select: vi.fn().mockReturnThis(),
-                in: vi.fn().mockResolvedValue({ data: mockEmployees, error: null })
-            };
-
-            // Mock customers query
-            const mockCustomersQuery = {
-                select: vi.fn().mockReturnThis(),
-                in: vi.fn().mockResolvedValue({ data: mockCustomers, error: null })
+                or: vi.fn().mockReturnThis(),
+                range: vi.fn().mockReturnThis(),
+                ilike: vi.fn().mockReturnThis(),
+                then: (onfulfilled: any) => Promise.resolve({ data: mockLogs, error: null, count: mockLogs.length }).then(onfulfilled)
             };
 
             vi.mocked(supabase.from).mockImplementation((table) => {
-                if (table === 'audit_logs_enhanced') {
-                    // Start of chain
-                    mockQueryBuilder.select.mockReturnThis();
+                if (table === 'audit_logs_view') {
                     return mockQueryBuilder as any;
-                }
-                if (table === 'employees') {
-                    return mockEmployeesQuery as any;
-                }
-                if (table === 'customer') {
-                    return mockCustomersQuery as any;
                 }
                 return { select: vi.fn().mockReturnThis() } as any;
             });
@@ -114,7 +75,7 @@ describe('useAuditLogs', () => {
                 expect(result.current.isSuccess).toBe(true);
             });
 
-            const logs = result.current.data;
+            const logs = result.current.data?.logs;
             expect(logs).toHaveLength(2);
 
             // Employee
@@ -137,7 +98,10 @@ describe('useAuditLogs', () => {
                 limit: vi.fn().mockReturnThis(),
                 eq: vi.fn().mockReturnThis(),
                 in: vi.fn().mockReturnThis(),
-                then: (onfulfilled: any) => Promise.resolve({ data: mockLogs, error: null }).then(onfulfilled)
+                or: vi.fn().mockReturnThis(),
+                range: vi.fn().mockReturnThis(),
+                ilike: vi.fn().mockReturnThis(),
+                then: (onfulfilled: any) => Promise.resolve({ data: mockLogs, error: null, count: 1 }).then(onfulfilled)
             };
 
             vi.mocked(supabase.from).mockReturnValue(mockQueryBuilder as any);
@@ -155,22 +119,19 @@ describe('useAuditLogs', () => {
 
     describe('useAuditLogStats', () => {
         it('should calculate stats correctly', async () => {
-            const mockLogs = [
-                { category: 'authentication', status: 'success', created_at: '2024-01-01' },
-                { category: 'authentication', status: 'success', created_at: '2024-01-01' },
-                { category: 'authentication', status: 'failed', created_at: '2024-01-01' },
-                { category: 'data', status: 'success', created_at: '2024-01-01' },
-                { category: 'security', status: 'success', created_at: '2024-01-01' },
-                { category: 'settings', status: 'success', created_at: '2024-01-01' },
-            ];
+            const mockQueryBuilder = {
+                select: vi.fn().mockReturnThis(),
+                order: vi.fn().mockReturnThis(),
+                limit: vi.fn().mockReturnThis(),
+                eq: vi.fn().mockReturnThis(),
+                in: vi.fn().mockReturnThis(),
+                or: vi.fn().mockReturnThis(),
+                then: (onfulfilled: any) => Promise.resolve({ data: null, error: null, count: 3 }).then(onfulfilled)
+            };
 
             vi.mocked(supabase.from).mockImplementation((table: string) => {
                 if (table === 'audit_logs_enhanced') {
-                    return {
-                        select: vi.fn().mockReturnThis(),
-                        order: vi.fn().mockReturnThis(),
-                        limit: vi.fn().mockResolvedValue({ data: mockLogs, error: null }),
-                    } as any;
+                    return mockQueryBuilder as any;
                 }
                 return {} as any;
             });
@@ -183,24 +144,29 @@ describe('useAuditLogs', () => {
 
             const stats = result.current.data;
             expect(stats).toEqual({
-                total: 6,
                 totalLogins: 3,
-                successfulLogins: 2,
-                failedLogins: 1,
-                dataExports: 1,
-                securityActions: 1,
-                settingsChanges: 1,
+                failedLogins: 3,
+                dataExports: 3,
+                securityActions: 3,
+                settingsChanges: 3,
+                featureViews: 3,
             });
         });
 
         it('should handle empty logs', async () => {
+            const mockQueryBuilder = {
+                select: vi.fn().mockReturnThis(),
+                order: vi.fn().mockReturnThis(),
+                limit: vi.fn().mockReturnThis(),
+                eq: vi.fn().mockReturnThis(),
+                in: vi.fn().mockReturnThis(),
+                or: vi.fn().mockReturnThis(),
+                then: (onfulfilled: any) => Promise.resolve({ data: null, error: null, count: 0 }).then(onfulfilled)
+            };
+
             vi.mocked(supabase.from).mockImplementation((table: string) => {
                 if (table === 'audit_logs_enhanced') {
-                    return {
-                        select: vi.fn().mockReturnThis(),
-                        order: vi.fn().mockReturnThis(),
-                        limit: vi.fn().mockResolvedValue({ data: [], error: null }),
-                    } as any;
+                    return mockQueryBuilder as any;
                 }
                 return {} as any;
             });
@@ -213,13 +179,12 @@ describe('useAuditLogs', () => {
 
             const stats = result.current.data;
             expect(stats).toEqual({
-                total: 0,
                 totalLogins: 0,
-                successfulLogins: 0,
                 failedLogins: 0,
                 dataExports: 0,
                 securityActions: 0,
                 settingsChanges: 0,
+                featureViews: 0,
             });
         });
     });

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@/test/utils/test-utils';
 import userEvent from '@testing-library/user-event';
-import { BrowserRouter } from 'react-router-dom';
+
 import TierManagement from '../TierManagement';
 import { useToast } from '@/hooks/use-toast';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -14,11 +14,11 @@ const queryClient = new QueryClient({
 const renderWithProviders = (ui: React.ReactElement) => {
     return render(
         <QueryClientProvider client={queryClient}>
-            <BrowserRouter>
+            
                 <TooltipProvider>
                     {ui}
                 </TooltipProvider>
-            </BrowserRouter>
+            
         </QueryClientProvider>
     );
 };
@@ -222,3 +222,4 @@ describe('TierManagement', () => {
         expect(mockResolveActivity).toHaveBeenCalled();
     });
 });
+
