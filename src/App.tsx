@@ -22,6 +22,7 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import SignUp from "./pages/SignUp";
 import Dashboard from "./pages/Dashboard";
+import { LoyaltyDashboard } from "./pages/customer/LoyaltyDashboard";
 import Prospects from "./pages/Prospects";
 import Campaigns from "./pages/Campaigns";
 import CampaignDetail from "./pages/CampaignDetail";
@@ -143,6 +144,7 @@ const App = () => {
                   {/* Customer Routes */}
                   <Route element={<CustomerProtectedRoute><MainLayout /></CustomerProtectedRoute>}>
                     <Route path="/dashboard" element={<TeamPermissionsGuard permission="view_dashboard"><Dashboard /></TeamPermissionsGuard>} />
+                    <Route path="/loyalty" element={<TeamPermissionsGuard permission="view_dashboard"><LoyaltyDashboard /></TeamPermissionsGuard>} />
                     <Route path="/personas" element={<TeamPermissionsGuard permission="view_prospects"><Prospects /></TeamPermissionsGuard>} />
                     <Route path="/prospects" element={<Navigate to="/personas" replace />} />
                     <Route path="/campaigns" element={<TeamPermissionsGuard permission="view_campaigns"><PlanGate feature="campaigns"><Campaigns /></PlanGate></TeamPermissionsGuard>} />

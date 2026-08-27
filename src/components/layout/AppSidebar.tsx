@@ -23,6 +23,7 @@ import {
   Mail,
   HeartIcon,
   Brain,
+  Gift,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,7 @@ export const navGroups: Array<{
     label: "Main",
     items: [
       { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard, requiresPlan: null, requiresPermission: "view_dashboard" },
+      { title: "Loyalty & Rewards", url: "/loyalty", icon: Gift, requiresPlan: null, requiresPermission: "view_dashboard" },
       { title: "Social", url: "/social", icon: Share2, requiresPlan: null, requiresPermission: "view_dashboard" },
       { title: "Customer Personas", url: "/personas", icon: Users, requiresPlan: null, requiresPermission: "view_prospects" },
       { title: "Campaigns", url: "/campaigns", icon: Megaphone, requiresPlan: "pro", requiresPermission: "view_campaigns" },
