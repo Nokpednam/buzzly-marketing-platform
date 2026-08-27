@@ -75,12 +75,15 @@ function parseDateRange(dateRange: string): { start: string; end: string } {
   }
 }
 
-export function useDashboardMetrics(dateRange: string = "7d", platformId: string = "all") {
+export function useDashboardMetrics(
+  dateRange: string = "7d",
+  platformId: string = "all"
+) {
   const { workspace } = useWorkspace();
   const workspaceId = workspace?.id;
 
-  return useQuery({
-    queryKey: ["dashboard-metrics", dateRange, platformId, workspaceId],
+  const { data: dashboardMetrics, isLoading, refetch } = useQuery({
+    queryKey: ["dashboard-metrics", workspaceId, dateRange, platformId],
     enabled: !!workspaceId,
     queryFn: async (): Promise<DashboardMetrics> => {
       const { start, end } = parseDateRange(dateRange);
@@ -183,47 +186,48 @@ export function useDashboardMetrics(dateRange: string = "7d", platformId: string
 
       console.log(`DASHBOARD FETCH SUCCESS: Found ${insights?.length || 0} insights for ${start} to ${end}`);
 
+      const validInsights = insights || [];
 
-      // Aggregate metrics
-      const totalImpressions = insights?.reduce((sum, i) => sum + (i.impressions || 0), 0) || 0;
-      const totalClicks = insights?.reduce((sum, i) => sum + (i.clicks || 0), 0) || 0;
-      const totalSpend = insights?.reduce((sum, i) => sum + Number(i.spend || 0), 0) || 0;
-      const totalConversions = insights?.reduce((sum, i) => sum + (i.conversions || 0), 0) || 0;
+      // Aggregate directly from seeded database rows — no multipliers or variance applied
+      const totalImpressions = validInsights.reduce((sum, i) => sum + (i.impressions || 0), 0);
+      const totalClicks = validInsights.reduce((sum, i) => sum + (i.clicks || 0), 0);
+      const totalSpend = validInsights.reduce((sum, i) => sum + Number(i.spend || 0), 0);
+      const totalConversions = validInsights.reduce((sum, i) => sum + (i.conversions || 0), 0);
 
       const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
       const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
       const avgCpm = totalImpressions > 0 ? (totalSpend / totalImpressions) * 1000 : 0;
 
-      // Calculate ROAS
-      const totalRoas = insights?.reduce((sum, i) => sum + Number(i.roas || 0), 0) || 0;
-      const avgRoas = insights?.length ? totalRoas / insights.length : 0;
+      const totalRoas = validInsights.reduce((sum, i) => sum + Number(i.roas || 0), 0);
+      const avgRoas = validInsights.length ? totalRoas / validInsights.length : 0;
 
-      // Group by date for trend data
+      // Build trend data as a direct sum per date — deterministic, no variance
       const trendMap: Record<string, { impressions: number; clicks: number; spend: number }> = {};
-      insights?.forEach((i) => {
+      validInsights.forEach((i) => {
         const date = i.date;
         if (!trendMap[date]) {
           trendMap[date] = { impressions: 0, clicks: 0, spend: 0 };
         }
-        trendMap[date].impressions += i.impressions || 0;
-        trendMap[date].clicks += i.clicks || 0;
+        
+        trendMap[date].impressions += (i.impressions || 0);
+        trendMap[date].clicks += (i.clicks || 0);
         trendMap[date].spend += Number(i.spend || 0);
       });
 
       const trendData = Object.entries(trendMap).map(([date, data]) => ({
         date,
-        impressions: Number.isFinite(data.impressions) ? data.impressions : 0,
-        clicks: Number.isFinite(data.clicks) ? data.clicks : 0,
-        spend: Number.isFinite(data.spend) ? data.spend : 0,
+        impressions: Number.isFinite(data.impressions) ? Math.round(data.impressions) : 0,
+        clicks: Number.isFinite(data.clicks) ? Math.round(data.clicks) : 0,
+        spend: Number.isFinite(data.spend) ? Number(data.spend.toFixed(2)) : 0,
       }));
 
       const safe = (n: number) => (Number.isFinite(n) ? n : 0);
 
       return {
-        totalImpressions: safe(totalImpressions),
-        totalClicks: safe(totalClicks),
+        totalImpressions: Math.round(safe(totalImpressions)),
+        totalClicks: Math.round(safe(totalClicks)),
         totalSpend: safe(totalSpend),
-        totalConversions: safe(totalConversions),
+        totalConversions: Math.round(safe(totalConversions)),
         avgCtr: safe(avgCtr),
         avgCpc: safe(avgCpc),
         avgCpm: safe(avgCpm),
@@ -232,4 +236,6 @@ export function useDashboardMetrics(dateRange: string = "7d", platformId: string
       };
     },
   });
+
+  return { data: dashboardMetrics, isLoading, refetch };
 }
